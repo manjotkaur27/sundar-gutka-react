@@ -85,7 +85,8 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
           currentPlaying.displayName,
           currentPlaying.lyricsUrl,
           currentPlaying.trackLengthSec,
-          currentPlaying.trackSizeMB
+          currentPlaying.trackSizeMB,
+          currentPlaying.remoteUrl || currentPlaying.audioUrl
         );
       }
     } catch (error) {
@@ -153,7 +154,8 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
           selectedTrack.displayName,
           selectedTrack.lyricsUrl,
           selectedTrack.trackLengthSec,
-          selectedTrack.trackSizeMB
+          selectedTrack.trackSizeMB,
+          selectedTrack.remoteUrl || selectedTrack.audioUrl
         );
       }
       dispatch(setDefaultAudio(selectedTrack, baniID));
