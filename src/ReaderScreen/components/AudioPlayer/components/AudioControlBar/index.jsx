@@ -41,7 +41,6 @@ const AudioControlBar = ({
   currentPlaying,
   addTrackToManifest,
   isTrackDownloaded,
-  isTracksLoading,
   tracks,
   seekTo,
   reset,
@@ -318,17 +317,11 @@ const AudioControlBar = ({
 
           {isMoreTracksModalOpen && (
             <View style={styles.moreTracksModalContainer}>
-              {isTracksLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
-                </View>
-              ) : (
-                <ScrollViewComponent
-                  tracks={tracks}
-                  selectedTrack={currentPlaying}
-                  handleSelectTrack={handleTrackSelect}
-                />
-              )}
+              <ScrollViewComponent
+                tracks={tracks}
+                selectedTrack={currentPlaying}
+                handleSelectTrack={handleTrackSelect}
+              />
             </View>
           )}
         </Animated.View>
@@ -337,15 +330,8 @@ const AudioControlBar = ({
         <View style={[styles.mainSection]}>
           <View style={styles.trackInfo}>
             <View style={styles.trackInfoLeft}>
-              {isTracksLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
-                </View>
-              ) : (
-                currentPlaying &&
-                currentPlaying.displayName && (
-                  <CustomText style={styles.trackName}>{currentPlaying.displayName}</CustomText>
-                )
+              {currentPlaying && currentPlaying.displayName && (
+                <CustomText style={styles.trackName}>{currentPlaying.displayName}</CustomText>
               )}
             </View>
           </View>
@@ -422,7 +408,6 @@ AudioControlBar.propTypes = {
   }),
   addTrackToManifest: PropTypes.func.isRequired,
   isTrackDownloaded: PropTypes.func.isRequired,
-  isTracksLoading: PropTypes.bool.isRequired,
   tracks: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,

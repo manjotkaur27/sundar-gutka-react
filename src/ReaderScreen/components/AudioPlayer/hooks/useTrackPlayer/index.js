@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { exists } from "react-native-fs";
 import TrackPlayer, { usePlaybackState, useProgress, State } from "react-native-track-player";
 import { useSelector } from "react-redux";
@@ -16,27 +16,43 @@ import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
 
 const useTrackPlayer = () => {
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [initializationError, setInitializationError] = useState(null);
   const playbackState = usePlaybackState();
   const progress = useProgress();
   const [isPlaying, setIsPlaying] = useState(false);
   const isAudio = useSelector((state) => state.isAudio);
 
+  const configurePlayer = useCallback(async () => {
+    setInitializationError(null);
+    setIsInitializing(true);
+    try {
+      // Use singleton service for initialization
+      await TrackPlayerSetup();
+
+      // Check state from singleton
+      const state = getTrackPlayerState();
+      setIsInitialized(state.isInitialized);
+    } catch (error) {
+      logError("Error initializing TrackPlayer:", error);
+      setIsInitialized(false);
+      setInitializationError(error);
+    } finally {
+      setIsInitializing(false);
+    }
+  }, []);
+
+  const retryInitialization = useCallback(async () => {
+    if (isInitializing) {
+      return;
+    }
+    await configurePlayer();
+  }, [configurePlayer, isInitializing]);
+
   useEffect(() => {
-    const setupPlayer = async () => {
-      try {
-        // Use singleton service for initialization
-        await TrackPlayerSetup();
-
-        // Check state from singleton
-        const state = getTrackPlayerState();
-        setIsInitialized(state.isInitialized);
-      } catch (error) {
-        logError("Error initializing TrackPlayer:", error);
-        setIsInitialized(false);
-      }
-    };
-
-    setupPlayer();
+    (async () => {
+      await configurePlayer();
+    })();
 
     // Cleanup function
     return () => {
@@ -51,7 +67,7 @@ const useTrackPlayer = () => {
       };
       cleanup();
     };
-  }, []);
+  }, [configurePlayer]);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -188,6 +204,9 @@ const useTrackPlayer = () => {
     isAudioEnabled: isAudio && isInitialized,
     isInitialized,
     setIsPlaying,
+    isInitializing,
+    initializationError,
+    retryInitialization,
   };
 };
 

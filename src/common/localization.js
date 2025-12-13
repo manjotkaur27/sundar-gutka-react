@@ -165,6 +165,7 @@ const STRINGS = new LocalizedStrings({
     PLEASE_TRY_AGAIN: "Please try again.",
     UNABLE_TO_SEEK: "Unable to seek audio.",
     UNABLE_TO_SWITCH_TRACK: "Unable to switch audio track.",
+    PREPARING_AUDIO_PLAYER: "Preparing audio player...",
     AUDIO_SYNC_UNAVAILABLE: "Audio sync unavailable. Playback will continue without auto-scroll.",
     NETWORK_ERROR: "Network error. Audio features temporarily unavailable.",
     COULD_NOT_LOAD_AUDIO_ARTISTS: "Could not load audio artists. Please check your connection.",
@@ -174,6 +175,8 @@ const STRINGS = new LocalizedStrings({
     REQUEST_AUDIO_FOR_THIS_PAATH: "Request audio for this paath.",
     YET: "yet.",
     SYNC_UNAVAILABLE: "Unavailable",
+    RETRY: "Please try again.",
+    INITIALIZING_AUDIO_PLAYER: "We’re unable to start the Gurbani audio right now.",
   },
   hi: {
     about: "हमारे बारे",
@@ -337,6 +340,7 @@ const STRINGS = new LocalizedStrings({
     PLEASE_TRY_AGAIN: "कृपया पुनः प्रयास करें।",
     UNABLE_TO_SEEK: "ऑडियो खोजने में असमर्थ",
     UNABLE_TO_SWITCH_TRACK: "ऑडियो ट्रैक बदलने में असमर्थ",
+    PREPARING_AUDIO_PLAYER: "ऑडियो प्लेयर तैयार किया जा रहा है...",
     AUDIO_SYNC_UNAVAILABLE: "ऑडियो सिंक अस्वीकृत है। ऑडियो ऑटो स्क्रॉल के बिना चलाया जाएगा।",
     NETWORK_ERROR: "नेटवर्क त्रुटि। ऑडियो सुविधाओं को अस्थायी रूप से अस्वीकृत कर दिया जाएगा।",
     COULD_NOT_LOAD_AUDIO_ARTISTS:
@@ -347,6 +351,8 @@ const STRINGS = new LocalizedStrings({
     REQUEST_AUDIO_FOR_THIS_PAATH: "इस पाठ के लिए ऑडियो का अनुरोध करें",
     YET: "अभी तक।",
     SYNC_UNAVAILABLE: "अनुपलब्ध",
+    RETRY: "पुनः प्रयास करें",
+    INITIALIZING_AUDIO_PLAYER: "हम अभी गुरबानी ऑडियो शुरू नहीं कर पा रहे हैं।",
   },
 
   pa: {
@@ -510,6 +516,7 @@ const STRINGS = new LocalizedStrings({
     PLEASE_TRY_AGAIN: "ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     UNABLE_TO_SEEK: "ਆਡੀਓ ਦੀ ਸਥਿਤੀ ਬਦਲਣ ਲਈ ਅਸਮਰਥ",
     UNABLE_TO_SWITCH_TRACK: "ਆਡੀਓ ਟਰੈਕ ਬਦਲਣ ਲਈ ਅਸਮਰਥ",
+    PREPARING_AUDIO_PLAYER: "ਆਡੀਓ ਪਲੇਅਰ ਤਿਆਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...",
     AUDIO_SYNC_UNAVAILABLE: "ਆਡੀਓ ਸਿੰਕ ਅਸਵੀਕਰਿਤ ਹੈ। ਆਡੀਓ ਑ਟੋ ਸਕਰੋਲ ਦੇ ਬਿਨਾਂ ਚਲਾਈ ਜਾਵੇਗੀ।",
     NETWORK_ERROR:
       "ਨੈੱਟਵਰਕ ਤਰੁੱਟੀ। ਆਡੀਓ ਸੰਸਕਰਨਾਂ ਨੂੰ ਅਸਥਾਈ ਰੂਪ ਸਕਰੋਲ ਦੇ ਬਿਨਾਂ ਅਸਵੀਕਰਿਤ ਕਰ ਦਿੱਤਾ ਜਾਵੇਗਾ।",
@@ -521,6 +528,8 @@ const STRINGS = new LocalizedStrings({
     REQUEST_AUDIO_FOR_THIS_PAATH: "ਇਸ ਪਾਠ ਲਈ ਆਡੀਓ ਦੀ ਬੇਨਤੀ ਕਰੋ।",
     YET: "ਅਜੇ ਤੱਕ।",
     SYNC_UNAVAILABLE: "ਉਪਲਬਧ ਨਹੀਂ ਹੈ",
+    RETRY: "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+    INITIALIZING_AUDIO_PLAYER: "ਅਸੀਂ ਇਸ ਵੇਲੇ ਗੁਰਬਾਣੀ ਆਡੀਓ ਸ਼ੁਰੂ ਨਹੀਂ ਕਰ ਸਕਦੇ।",
   },
   fr: {
     about: "Infos",
@@ -690,6 +699,7 @@ const STRINGS = new LocalizedStrings({
     PLEASE_TRY_AGAIN: "Veuillez réessayer.",
     UNABLE_TO_SEEK: "Impossible de rechercher la piste audio.",
     UNABLE_TO_SWITCH_TRACK: "Impossible de changer la piste audio.",
+    PREPARING_AUDIO_PLAYER: "Préparation du lecteur audio...",
     AUDIO_SYNC_UNAVAILABLE:
       "Synchronisation audio non disponible. La lecture continuera sans défilement automatique.",
     NETWORK_ERROR: "Erreur réseau. Les fonctionnalités audio sont temporairement indisponibles.",
@@ -702,6 +712,9 @@ const STRINGS = new LocalizedStrings({
     REQUEST_AUDIO_FOR_THIS_PAATH: "Demander un audio pour ce chemin.",
     YET: "encore.",
     SYNC_UNAVAILABLE: "Non disponible.",
+    RETRY: "Riavvia",
+    INITIALIZING_AUDIO_PLAYER:
+      "Nous ne sommes pas en mesure de démarrer la lecture audio du Gurbani pour le moment.",
   },
   it: {
     about: "Info",
@@ -862,6 +875,7 @@ const STRINGS = new LocalizedStrings({
     PLEASE_TRY_AGAIN: "Por favor, inténtelo de nuevo.",
     UNABLE_TO_SEEK: "No se puede buscar el audio.",
     UNABLE_TO_SWITCH_TRACK: "No se puede cambiar el audio.",
+    PREPARING_AUDIO_PLAYER: "Preparazione del lettore audio...",
     AUDIO_SYNC_UNAVAILABLE:
       "Sincronización de audio no disponible. La reproducción continuará sin desplazamiento automático.",
     NETWORK_ERROR: "Error de red. Las funciones de audio están temporalmente indisponibles.",
@@ -874,6 +888,8 @@ const STRINGS = new LocalizedStrings({
     REQUEST_AUDIO_FOR_THIS_PAATH: "Richiedi audio per questo percorso.",
     YET: "ancora.",
     SYNC_UNAVAILABLE: "Non disponibile.",
+    RETRY: "Riavvia",
+    INITIALIZING_AUDIO_PLAYER: "Al momento non è possibile avviare l'audio Gurbani.",
   },
   es: {
     about: "Sobre Nosotros",
@@ -1041,6 +1057,7 @@ const STRINGS = new LocalizedStrings({
     PLEASE_TRY_AGAIN: "Por favor, inténtelo de nuevo.",
     UNABLE_TO_SEEK: "No se puede buscar el audio.",
     UNABLE_TO_SWITCH_TRACK: "No se puede cambiar el audio.",
+    PREPARING_AUDIO_PLAYER: "Preparando reproductor de audio...",
     AUDIO_SYNC_UNAVAILABLE:
       "Sincronización de audio no disponible. La reproducción continuará sin desplazamiento automático.",
     PERMISSION_ERROR:
@@ -1054,6 +1071,8 @@ const STRINGS = new LocalizedStrings({
   REQUEST_AUDIO_FOR_THIS_PAATH: "Solicitar audio para esta ruta.",
   YET: "aún.",
   SYNC_UNAVAILABLE: "Indisponible",
+  RETRY: "Retry",
+  INITIALIZING_AUDIO_PLAYER: "No podemos iniciar el audio de Gurbani en este momento.",
 });
 
 export default STRINGS;
