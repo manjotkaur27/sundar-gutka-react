@@ -13,6 +13,7 @@ export const getFontFaces = (strings) => [
   { key: constant.GURBANI_AKHAR_TRUE, title: strings.gurbani_akhar_default },
   { key: constant.GURBANI_AKHAR_HEAVY_TRUE, title: strings.gurbani_akhar_heavy },
   { key: constant.GURBANI_AKHAR_THICK_TRUE, title: strings.gurbani_akhar_think },
+  { key: constant.BALOO_PAAJI, title: strings.baloo_paaji },
 ];
 
 export const getBaniLengths = (strings) => [

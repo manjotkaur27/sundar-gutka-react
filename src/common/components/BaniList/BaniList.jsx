@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, Dimensions, Platform } from "react-native";
-import { ListItem, Avatar } from "@rneui/themed";
-import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import baseFontSize from "../../helpers";
-import colors from "../../colors";
-import { styles } from "../../../Settings/styles";
+import { ListItem, Avatar } from "@rneui/themed";
+import createStyles from "@settings/styles";
+import PropTypes from "prop-types";
+import constant from "@common/constant";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { convertToUnicode, baseFontSize, ListItemTitle } from "@common";
 
 const BaniList = React.memo(({ data, onPress }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
   const isTransliteration = useSelector((state) => state.isTransliteration);
-  const isNightMode = useSelector((state) => state.isNightMode);
   const [isPotrait, toggleIsPotrait] = useState(true);
 
   const checkPotrait = () => {
@@ -24,13 +27,31 @@ const BaniList = React.memo(({ data, onPress }) => {
     });
     return () => subscription.remove();
   }, []);
+  const isUnicode = fontFace === constant.BALOO_PAAJI;
+
+  const getBaniTuk = (row) => {
+    if (!row || !row.item) {
+      return "";
+    }
+    if (isTransliteration) {
+      return row.item.translit;
+    }
+    if (isUnicode) {
+      if (row?.item?.gurmukhiUni) {
+        return row.item.gurmukhiUni;
+      }
+      return convertToUnicode(row.item.gurmukhi);
+    }
+    return row.item.gurmukhi;
+  };
+
   const renderBanis = useCallback(
     (row) => {
       return (
         <ListItem
           bottomDivider
           containerStyle={{
-            backgroundColor: isNightMode ? colors.NIGHT_BLACK : colors.WHITE_COLOR,
+            backgroundColor: theme.colors.surface,
           }}
           onPress={() => onPress(row)}
         >
@@ -41,33 +62,31 @@ const BaniList = React.memo(({ data, onPress }) => {
             />
           )}
           <ListItem.Content>
-            <ListItem.Title
+            <ListItemTitle
+              title={getBaniTuk(row)}
               style={[
-                isNightMode && { color: colors.WHITE_COLOR },
+                { color: theme.colors.primaryText },
                 {
                   fontSize: baseFontSize(fontSize, isTransliteration),
                   fontFamily: !isTransliteration ? fontFace : null,
                 },
               ]}
-            >
-              {isTransliteration ? row.item.translit : row.item.gurmukhi}
-            </ListItem.Title>
+            />
             {row.item.tukGurmukhi && (
-              <ListItem.Subtitle
+              <ListItemTitle
+                title={row.item.tukGurmukhi}
                 style={[
-                  isNightMode && { color: "#ecf0f1" },
+                  { color: theme.colors.primaryText },
                   { fontFamily: !isTransliteration ? fontFace : null },
                   { fontSize: 17 },
                 ]}
-              >
-                {isTransliteration ? row.item.tukTranslit : row.item.tukGurmukhi}
-              </ListItem.Subtitle>
+              />
             )}
           </ListItem.Content>
         </ListItem>
       );
     },
-    [isNightMode, fontSize, fontFace, isTransliteration]
+    [theme, fontSize, fontFace, isTransliteration]
   );
 
   return (

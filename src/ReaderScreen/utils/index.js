@@ -1,18 +1,17 @@
-import { colors, constant, baseFontSize, logError, logMessage } from "@common";
+import { constant, baseFontSize, logError, logMessage } from "@common";
 import htmlTemplate from "./gutkahtml";
 import script from "./gutkaScript";
 
-export const fontColorForReader = (header, nightMode, text) => {
-  const { HEADER_COLOR_1_DARK, HEADER_COLOR_1_LIGHT, WHITE_COLOR, NIGHT_BLACK } = colors;
+export const fontColorForReader = (header, theme, text) => {
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  const getHeaderColor1 = () => (nightMode ? HEADER_COLOR_1_DARK : HEADER_COLOR_1_LIGHT);
-  const getHeaderColor2 = () => (nightMode ? WHITE_COLOR : NIGHT_BLACK);
+  const getHeaderColor1 = () => theme.colors.primaryHeaderVariant;
+  const getHeaderColor2 = () => theme.colors.primaryText;
 
   const defaultColor = getHeaderColor2();
   const gurmukhiMapping = {
     1: getHeaderColor1(),
-    2: defaultColor,
+    2: getHeaderColor1(),
     6: defaultColor,
     default: defaultColor,
   };
@@ -52,9 +51,10 @@ export const createDiv = (
   type,
   textAlign,
   fontSize,
-  isNightMode,
+  theme,
   isLarivaar,
-  punjabiTranslation = ""
+  punjabiTranslation = "",
+  fontFace = null
 ) => {
   const fontClass =
     type === constant.GURMUKHI.toLowerCase() || punjabiTranslation !== ""
@@ -65,7 +65,7 @@ export const createDiv = (
     fontSize,
     header,
     type === constant.TRANSLITERATION.toLowerCase() || type === constant.TRANSLATION.toLowerCase()
-  )}px; color: ${fontColorForReader(header, isNightMode, type.toUpperCase())};">
+  )}px; font-family: ${fontFace}; color: ${fontColorForReader(header, theme, type.toUpperCase())};">
       ${content}
     </div>
   `;
@@ -79,34 +79,41 @@ export const loadHTML = (
   isEnglishTranslation,
   isPunjabiTranslation,
   isSpanishTranslation,
-  isNightMode,
+  theme,
   isLarivaar,
   savePosition
 ) => {
   try {
-    const backColor = isNightMode ? colors.NIGHT_BLACK : colors.WHITE_COLOR;
-
+    const backColor = theme.colors.surface;
     const content = shabad
       .map((item) => {
         const textAlignMap = {
           0: "left",
-          1: "center",
-          2: "center",
+          1: "left",
+          2: "left",
         };
 
         let textAlign = textAlignMap[item.header];
         if (textAlign === undefined) {
           textAlign = "right";
         }
-        let contentHtml = `<div id="${item.id}" class='text-item'>`;
+        // Use pipe delimiters for easy CSS selector matching
+        const paragraphId = item.sequences ? item.sequences[0] : item.sequence;
+        const sequencesData = item.sequences
+          ? ` data-sequences='|${item.sequences.join("|")}|'`
+          : "";
+        const sequenceData = ` data-sequence='${paragraphId}'`;
+        let contentHtml = `<div id="${item.id}" class='text-item'${sequenceData}${sequencesData}>`;
         contentHtml += createDiv(
-          item.gurmukhi,
+          fontFace === constant.BALOO_PAAJI ? item.gurmukhiUni : item.gurmukhi,
           item.header,
           constant.GURMUKHI.toLowerCase(),
           textAlign,
           fontSize,
-          isNightMode,
-          isLarivaar
+          theme,
+          isLarivaar,
+          "",
+          fontFace
         );
 
         if (isTransliteration) {
@@ -116,7 +123,7 @@ export const loadHTML = (
             constant.TRANSLITERATION.toLowerCase(),
             textAlign,
             fontSize,
-            isNightMode,
+            theme,
             isLarivaar
           );
         }
@@ -128,7 +135,7 @@ export const loadHTML = (
             constant.TRANSLATION.toLowerCase(),
             textAlign,
             fontSize,
-            isNightMode,
+            theme,
             isLarivaar
           );
         }
@@ -140,9 +147,10 @@ export const loadHTML = (
             constant.TRANSLATION.toLowerCase(),
             textAlign,
             fontSize,
-            isNightMode,
+            theme,
             isLarivaar,
-            constant.GURMUKHI.toLowerCase()
+            constant.GURMUKHI.toLowerCase(),
+            constant.GURBANI_AKHAR_TRUE
           );
         }
 
@@ -153,7 +161,7 @@ export const loadHTML = (
             constant.TRANSLATION.toLowerCase(),
             textAlign,
             fontSize,
-            isNightMode,
+            theme,
             isLarivaar
           );
         }
@@ -162,7 +170,7 @@ export const loadHTML = (
         return contentHtml;
       })
       .join("");
-    const htmlContent = htmlTemplate(backColor, fontFace, content, isNightMode, savePosition);
+    const htmlContent = htmlTemplate(backColor, fontFace, content, theme, savePosition);
     return htmlContent;
   } catch (error) {
     logError(error);

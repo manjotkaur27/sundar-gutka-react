@@ -1,35 +1,21 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useSelector } from "react-redux";
-import { Icon } from "@rneui/themed";
-import { colors, navigationRef, stopTrace, resetTrace, startPerformanceTrace } from "@common";
-import HomeScreen from "../HomeScreen";
-import Reader from "../ReaderScreen";
-import Settings from "../Settings";
+import { navigationRef, stopTrace, resetTrace, startPerformanceTrace } from "@common";
 import AboutScreen from "../AboutScreen";
-import EditBaniOrder from "../EditBaniOrder";
 import Bookmarks from "../Bookmarks";
-import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
-import FolderScreen from "../FolderScreen";
-import { SettingsStyle } from "./style";
 import DatabaseUpdateScreen from "../DatabaseUpdate";
+import EditBaniOrder from "../EditBaniOrder";
+import FolderScreen from "../FolderScreen";
+import HomeScreen from "../HomeScreen";
+import ReaderScreen from "../ReaderScreen";
+import Settings from "../Settings";
+import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
 
 const Stack = createNativeStackNavigator();
 
-const headerLeft = (navigation, isNightMode) => (
-  <Icon
-    name="arrow-back"
-    size={30}
-    onPress={() => navigation.goBack()}
-    color={isNightMode ? colors.TOOLBAR_TINT : colors.TOOLBAR_TINT_DARK}
-  />
-);
 const Navigation = () => {
   const trace = React.useRef(null);
-  const isNightMode = useSelector((state) => state.isNightMode);
-  const settingsStyle = SettingsStyle(isNightMode);
-  const { headerTitleStyle, headerStyle } = settingsStyle;
 
   const handlingStateChange = async (state) => {
     if (trace.current) {
@@ -60,16 +46,8 @@ const Navigation = () => {
           name="Home"
           component={HomeScreen}
         />
-        <Stack.Screen name="Reader" component={Reader} options={{ headerShown: false }} />
-        <Stack.Screen
-          options={({ navigation }) => ({
-            headerLeft: () => headerLeft(navigation, isNightMode),
-            headerTitleStyle,
-            headerStyle,
-          })}
-          name="Settings"
-          component={Settings}
-        />
+        <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Settings" component={Settings} />
         <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="FolderScreen" component={FolderScreen} />
         <Stack.Screen

@@ -1,42 +1,40 @@
 import React, { useEffect, useCallback } from "react";
-import { Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
-import { colors, constant } from "@common";
-import { useSelector } from "react-redux";
+import { BackIconComponent, SettingsIconComponent } from "@common/components";
+import { constant, useTheme, useThemedStyles } from "@common";
 import getHeaderStyles from "./styles";
 
 const Header = ({ navigation, title }) => {
-  const { headerTitleStyle } = getHeaderStyles();
-  const isNightMode = useSelector((state) => state.isNightMode);
-  const handleBackPress = useCallback(() => navigation.goBack(), [navigation]);
+  const { theme } = useTheme();
+  const styles = useThemedStyles(getHeaderStyles);
   const handleSettingsPress = useCallback(
     () => navigation.navigate(constant.SETTINGS),
     [navigation]
   );
   const headerLeft = () => {
-    return (
-      <Icon name="arrow-back" size={30} onPress={handleBackPress} color={colors.WHITE_COLOR} />
-    );
+    return <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />;
   };
   const headerRight = () => {
     return (
-      <Icon name="settings" color={colors.TOOLBAR_TINT} size={30} onPress={handleSettingsPress} />
+      <SettingsIconComponent
+        handleSettingsPress={handleSettingsPress}
+        color={theme.staticColors.WHITE_COLOR}
+        size={30}
+      />
     );
   };
 
   useEffect(() => {
     navigation.setOptions({
       title,
-      headerTitleStyle,
+      headerTitleStyle: styles.headerTitleStyle,
       headerStyle: {
-        backgroundColor: isNightMode
-          ? colors.READER_STATUS_BAR_COLOR_NIGHT_MODE
-          : colors.TOOLBAR_COLOR,
+        backgroundColor: theme.colors.primary,
       },
       headerLeft,
       headerRight,
     });
-  }, [handleBackPress, handleSettingsPress]);
+  }, [handleSettingsPress]);
 
   return null;
 };

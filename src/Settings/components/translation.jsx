@@ -1,62 +1,54 @@
 import React, { useState } from "react";
-import { ListItem, Avatar, Switch } from "@rneui/themed";
 import { useSelector, useDispatch } from "react-redux";
-import { colors, STRINGS } from "@common";
+import { ListItem, Avatar, Switch } from "@rneui/themed";
 import {
   toggleEnglishTranslation,
   togglePunjabiTranslation,
   toggleSpanishTranslation,
 } from "@common/actions";
-import { iconNightColor, styles } from "../styles";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { STRINGS, ListItemTitle } from "@common";
+import createStyles from "../styles";
 
 const TranslationComponent = () => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const translationAvatar = require("../../../images/englishicon.png");
   const isEnglishTranslation = useSelector((state) => state.isEnglishTranslation);
   const isSpanishTranslation = useSelector((state) => state.isSpanishTranslation);
   const isPunjabiTranslation = useSelector((state) => state.isPunjabiTranslation);
-  const isNightMode = useSelector((state) => state.isNightMode);
 
   const dispatch = useDispatch();
   const [isExpanded, toggleIsExpanded] = useState(false);
-  const nightColor = iconNightColor(isNightMode);
   return (
     <ListItem.Accordion
       bottomDivider
-      containerStyle={{
-        backgroundColor: isNightMode ? colors.NIGHT_GREY_COLOR : colors.WHITE_COLOR,
-      }}
+      containerStyle={styles.containerNightStyles}
       isExpanded={isExpanded}
       onPress={() => toggleIsExpanded(!isExpanded)}
       content={
         <>
           <Avatar source={translationAvatar} avatarStyle={styles.avatarStyle} />
           <ListItem.Content>
-            <ListItem.Title
-              style={[{ paddingLeft: 16 }, isNightMode && { color: colors.WHITE_COLOR }]}
-            >
-              {STRINGS.translations}
-            </ListItem.Title>
+            <ListItemTitle
+              title={STRINGS.translations}
+              style={[{ paddingLeft: 16 }, styles.listItemTitle]}
+            />
           </ListItem.Content>
         </>
       }
       icon={{
         name: "chevron-down",
         type: "material-community",
-        color: nightColor,
+        color: theme.colors.primaryText,
         size: 26,
       }}
     >
-      <ListItem
-        bottomDivider
-        containerStyle={{
-          backgroundColor: isNightMode ? colors.NIGHT_GREY_COLOR : colors.WHITE_COLOR,
-        }}
-      >
+      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
         <Avatar />
         <ListItem.Content>
-          <ListItem.Title style={[isNightMode && { color: colors.WHITE_COLOR }]}>
-            {STRINGS.en_translations}
-          </ListItem.Title>
+          <ListItemTitle title={STRINGS.en_translations} style={styles.listItemTitle} />
         </ListItem.Content>
         <Switch
           value={isEnglishTranslation}
@@ -64,17 +56,10 @@ const TranslationComponent = () => {
         />
       </ListItem>
 
-      <ListItem
-        bottomDivider
-        containerStyle={{
-          backgroundColor: isNightMode ? colors.NIGHT_GREY_COLOR : colors.WHITE_COLOR,
-        }}
-      >
+      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
         <Avatar />
         <ListItem.Content>
-          <ListItem.Title style={[isNightMode && { color: colors.WHITE_COLOR }]}>
-            {STRINGS.pu_translations}
-          </ListItem.Title>
+          <ListItemTitle title={STRINGS.pu_translations} style={styles.listItemTitle} />
         </ListItem.Content>
         <Switch
           value={isPunjabiTranslation}
@@ -82,17 +67,10 @@ const TranslationComponent = () => {
         />
       </ListItem>
 
-      <ListItem
-        bottomDivider
-        containerStyle={{
-          backgroundColor: isNightMode ? colors.NIGHT_GREY_COLOR : colors.WHITE_COLOR,
-        }}
-      >
+      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
         <Avatar />
         <ListItem.Content>
-          <ListItem.Title style={[isNightMode && { color: colors.WHITE_COLOR }]}>
-            {STRINGS.es_translations}
-          </ListItem.Title>
+          <ListItemTitle title={STRINGS.es_translations} style={styles.listItemTitle} />
         </ListItem.Content>
         <Switch
           value={isSpanishTranslation}

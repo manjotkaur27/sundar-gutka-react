@@ -1,22 +1,25 @@
 import React from "react";
-import { Button, Text, View, Linking } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { Button, View, Linking } from "react-native";
 import RNRestart from "react-native-restart";
-import STRINGS from "../../localization";
-import styles from "./styles";
-import useScreenAnalytics from "../../hooks/useScreenAnalytics";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { CustomText } from "@common";
 import constant from "../../constant";
 import { logMessage } from "../../firebase/crashlytics";
+import useScreenAnalytics from "../../hooks/useScreenAnalytics";
+import STRINGS from "../../localization";
+import createStyles from "./styles";
 
 const FallBack = () => {
+  const styles = useThemedStyles(createStyles);
   logMessage(constant.FALLBACK);
   const { container, title, text, btnWrap } = styles;
   useScreenAnalytics(constant.FALLBACK);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={container}>
-        <Text style={title}>{STRINGS.errorTitle}</Text>
-        <Text style={text}>{STRINGS.errorMessage}</Text>
+        <CustomText style={title}>{STRINGS.errorTitle}</CustomText>
+        <CustomText style={text}>{STRINGS.errorMessage}</CustomText>
         <View style={btnWrap}>
           <Button onPress={() => RNRestart.Restart()} title={STRINGS.errorReload} />
           <Button

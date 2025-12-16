@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { Pressable, View } from "react-native";
 import DraggableFlatList, {
   ShadowDecorator,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
-import { Pressable, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSelector, useDispatch, batch } from "react-redux";
-import PropTypes from "prop-types";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   defaultBaniOrder,
   actions,
@@ -14,13 +15,15 @@ import {
   logMessage,
   SafeArea,
   StatusBarComponent,
+  CustomText,
 } from "@common";
-import { activeColor, nightStyles, styles } from "./styles";
 import Header from "./components/Header";
+import { activeColor, createStyles } from "./styles";
 
-const EditBaniOrder = ({ navigation }) => {
+const EditBaniOrder = () => {
   logMessage(constant.EDIT_BANI_ORDER);
-  const isNightMode = useSelector((state) => state.isNightMode);
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const baniList = useSelector((state) => state.baniList);
   const baniOrder = useSelector((state) => state.baniOrder);
   const [isReset, setReset] = useState(false);
@@ -37,24 +40,23 @@ const EditBaniOrder = ({ navigation }) => {
 
   const { rowItem, text } = styles;
   const dispatch = useDispatch();
-  const { headerStyles, backColor, textColor } = nightStyles(isNightMode);
 
   const renderItem = useCallback(
     ({ item, drag, isActive }) => {
-      const activeStyle = activeColor(isActive, item.backgroundColor);
+      const activeStyle = activeColor(isActive, item.backgroundColor, theme);
       return (
         <ShadowDecorator>
           <ScaleDecorator>
             <Pressable activeOpacity={1} onLongPress={drag} disabled={isActive} style={activeStyle}>
-              <View key={item.id} style={[rowItem, backColor]}>
-                <Text style={[textColor, text]}>{item.gurmukhi}</Text>
+              <View key={item.id} style={rowItem}>
+                <CustomText style={text}>{item.gurmukhi}</CustomText>
               </View>
             </Pressable>
           </ScaleDecorator>
         </ShadowDecorator>
       );
     },
-    [rowItem, text, backColor, textColor]
+    [rowItem, text]
   );
 
   useEffect(() => {
@@ -102,12 +104,10 @@ const EditBaniOrder = ({ navigation }) => {
     setOrderData(ids);
   };
   return (
-    <SafeArea backgroundColor={headerStyles.backgroundColor}>
-      <StatusBarComponent backgroundColor={headerStyles.backgroundColor} />
-      <Header navigation={navigation} setReset={setReset} />
-      <GestureHandlerRootView
-        style={[styles.gestureHandlerRootView, { backgroundColor: headerStyles.textColor }]}
-      >
+    <SafeArea backgroundColor={theme.colors.headerVariant}>
+      <StatusBarComponent backgroundColor={theme.colors.headerVariant} />
+      <Header setReset={setReset} />
+      <GestureHandlerRootView style={styles.gestureHandlerRootView}>
         <DraggableFlatList
           data={baniListData}
           keyExtractor={(item) => item.id}
@@ -118,10 +118,5 @@ const EditBaniOrder = ({ navigation }) => {
     </SafeArea>
   );
 };
-EditBaniOrder.propTypes = {
-  navigation: PropTypes.shape({
-    goBack: PropTypes.func.isRequired,
-    setOptions: PropTypes.func.isRequired,
-  }).isRequired,
-};
+
 export default EditBaniOrder;

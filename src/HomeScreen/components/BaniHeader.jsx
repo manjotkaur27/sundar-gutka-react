@@ -1,51 +1,46 @@
 import React from "react";
+import { View } from "react-native";
 import PropTypes from "prop-types";
-import { View, Text } from "react-native";
-import { Icon } from "@rneui/themed";
-import { useSelector } from "react-redux";
-import { constant, STRINGS, colors } from "@common";
-import styles from "../styles";
+import { SettingsIconComponent } from "@common/components";
+import { constant, STRINGS, CustomText, useTheme, useThemedStyles, SafeArea } from "@common";
+import createStyles from "../styles";
 
-const BaniHeader = (props) => {
-  const { navigate } = props;
-  const isNightMode = useSelector((state) => state.isNightMode);
-  const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvaliable);
+const BaniHeader = ({ navigate }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
-    <View
-      style={{
-        backgroundColor: isNightMode
-          ? colors.READER_STATUS_BAR_COLOR_NIGHT_MODE
-          : colors.TOOLBAR_COLOR,
-      }}
-    >
-      <View style={styles.fatehContainer}>
-        <Text style={styles.headerFatehStyle}>
-          <Text style={styles.ikongkar}>{"<>"} </Text>
-          {STRINGS.fateh}
-        </Text>
+    <SafeArea backgroundColor={theme.colors.primary} edges={["top"]} flex={0}>
+      <View
+        style={{
+          backgroundColor: theme.colors.primary,
+        }}
+      >
+        <View style={styles.fatehContainer}>
+          <CustomText style={styles.headerFatehStyle}>
+            <CustomText style={styles.ikongkar}>{"<>"} </CustomText>
+            {STRINGS.fateh}
+          </CustomText>
+        </View>
+        <View>
+          <CustomText style={styles.titleContainer}>
+            <CustomText style={styles.headerDesign}>Œ</CustomText>
+            <CustomText style={styles.headerTitle}> {STRINGS.sg_title} </CustomText>
+            <CustomText style={styles.headerDesign}>‰</CustomText>
+          </CustomText>
+        </View>
+        <View style={styles.settingIcon}>
+          <SettingsIconComponent
+            size={30}
+            handleSettingsPress={() => navigate(constant.SETTINGS)}
+            color={theme.staticColors.WHITE_COLOR}
+          />
+        </View>
       </View>
-      <View>
-        <Text style={styles.titleContainer}>
-          <Text style={styles.headerDesign}>Œ</Text>
-          <Text style={styles.headerTitle}> {STRINGS.sg_title} </Text>
-          <Text style={styles.headerDesign}>‰</Text>
-        </Text>
-      </View>
-      <View style={styles.settingIcon}>
-        <Icon
-          name={isDatabaseUpdateAvailable ? "settings-suggest" : "settings"}
-          type="material"
-          size={35}
-          color={colors.TOOLBAR_TINT}
-          onPress={() => {
-            navigate(constant.SETTINGS);
-          }}
-        />
-      </View>
-    </View>
+    </SafeArea>
   );
 };
+
+export default BaniHeader;
 BaniHeader.propTypes = {
   navigate: PropTypes.func.isRequired,
 };
-export default BaniHeader;

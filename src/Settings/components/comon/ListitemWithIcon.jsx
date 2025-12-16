@@ -1,24 +1,23 @@
-import React, { useMemo } from "react";
-import PropTypes from "prop-types";
+import React from "react";
 import { ListItem, Icon } from "@rneui/themed";
-import { useSelector } from "react-redux";
-import { iconNightColor, nightModeStyles, nightModeColor } from "../../styles/nightModeStyles";
+import PropTypes from "prop-types";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { ListItemTitle } from "@common";
+import createStyles from "../../styles";
 
 const ListItemWithIcon = ({ iconName, title, navigate, navigationTarget }) => {
-  const isNightMode = useSelector((state) => state.isNightMode);
-  const iconColor = useMemo(() => iconNightColor(isNightMode), [isNightMode]);
-  const { containerNightStyles } = useMemo(() => nightModeStyles(isNightMode), [isNightMode]);
-  const nightColor = useMemo(() => nightModeColor(isNightMode), [isNightMode]);
-
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <ListItem
-      containerStyle={containerNightStyles}
+      containerStyle={styles.containerNightStyles}
       bottomDivider
       onPress={() => navigate(navigationTarget)}
     >
-      <Icon name={iconName} size={30} color={iconColor} />
+      <Icon name={iconName} size={30} color={theme.colors.primaryText} />
       <ListItem.Content>
-        <ListItem.Title style={nightColor}>{title}</ListItem.Title>
+        <ListItemTitle title={title} style={styles.listItemTitle} />
       </ListItem.Content>
       <ListItem.Chevron />
     </ListItem>

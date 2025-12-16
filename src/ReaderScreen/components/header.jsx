@@ -1,38 +1,39 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, Animated } from "react-native";
-import { Icon } from "@rneui/themed";
-import PropTypes from "prop-types";
+import { View, Animated, Pressable } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useSelector } from "react-redux";
-import colors from "@common/colors";
-import { getHeaderStyles, styles } from "../styles/styles";
+import PropTypes from "prop-types";
+import { BackArrowIcon, BookmarkIcon } from "@common/icons";
+import { CustomText, useTheme, useThemedStyles } from "@common";
+import createStyles from "../styles";
 
-const Header = ({ title, handleBackPress, handleBookmarkPress, handleSettingsPress, isHeader }) => {
-  const isNightMode = useSelector((state) => state.isNightMode);
-  const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvaliable);
-  const getHeaderStyle = getHeaderStyles(isNightMode);
+const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const fontFace = useSelector((state) => state.fontFace);
   const animationPosition = useRef(new Animated.Value(0)).current;
 
+  const MID = "rgba(17,57,121,1)"; // #113979
+  const EDGE = "rgba(17,57,121,0)";
+
   const headerLeft = () => (
-    <Icon
-      name="arrow-back"
-      size={30}
+    <Pressable
       onPress={() => {
         handleBackPress();
       }}
-      color={colors.WHITE_COLOR}
-    />
+    >
+      <BackArrowIcon size={25} color={theme.colors.primaryHeaderVariant} />
+    </Pressable>
   );
 
   const headerRight = () => (
-    <View style={{ flexDirection: "row" }}>
-      <Icon name="bookmark" color={colors.TOOLBAR_TINT} size={30} onPress={handleBookmarkPress} />
-      <Icon
-        name={isDatabaseUpdateAvailable ? "settings-suggest" : "settings"}
-        color={colors.TOOLBAR_TINT}
-        size={30}
-        onPress={() => handleSettingsPress()}
-      />
-    </View>
+    <Pressable
+      onPress={() => {
+        handleBookmarkPress();
+      }}
+    >
+      <BookmarkIcon size={25} color={theme.colors.primaryHeaderVariant} />
+    </Pressable>
   );
 
   useEffect(() => {
@@ -81,13 +82,28 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, handleSettingsPre
       ]}
       pointerEvents="box-none" // Ensure touch events pass through
     >
-      <View style={getHeaderStyle.headerStyle} pointerEvents="auto">
+      <View style={styles.headerStyle} pointerEvents="auto">
         <View style={styles.headerWrapper}>
-          {headerLeft()}
-          <Text style={getHeaderStyle.headerTitleStyle}>{title}</Text>
-          {headerRight()}
+          <View style={styles.headerLeft}>{headerLeft()}</View>
+          <View style={styles.headerCenter}>
+            <CustomText style={[styles.headerTitleStyle, { fontFamily: fontFace }]}>
+              {title}
+            </CustomText>
+          </View>
+          <View style={styles.headerRight}>{headerRight()}</View>
         </View>
       </View>
+      <LinearGradient
+        colors={[EDGE, MID, MID, EDGE]}
+        locations={[0, 0.48, 0.52, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{
+          width: "100%",
+          height: 1.2,
+          pointerEvents: "none",
+        }}
+      />
     </Animated.View>
   );
 };
@@ -96,7 +112,6 @@ Header.propTypes = {
   title: PropTypes.string.isRequired,
   handleBackPress: PropTypes.func.isRequired,
   handleBookmarkPress: PropTypes.func.isRequired,
-  handleSettingsPress: PropTypes.func.isRequired,
   isHeader: PropTypes.bool.isRequired,
 };
 export default Header;

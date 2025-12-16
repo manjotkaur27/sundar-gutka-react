@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { ListItem, Avatar, Switch } from "@rneui/themed";
 import { useDispatch, useSelector } from "react-redux";
-import { STRINGS, colors, constant } from "@common";
+import { ListItem, Avatar, Switch } from "@rneui/themed";
 import { setTransliteration, toggleTransliteration } from "@common/actions";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { STRINGS, constant, ListItemTitle } from "@common";
+import createStyles from "../styles";
 import { ListItemComponent, BottomSheetComponent } from "./comon";
-import { styles } from "../styles";
 import { getTransliteration } from "./comon/strings";
 
 const TransliterationComponent = () => {
+  const styles = useThemedStyles(createStyles);
   const romanizedIcon = require("../../../images/romanizeicon.png");
   const [isVisible, toggleVisible] = useState(false);
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const isTransliteration = useSelector((state) => state.isTransliteration);
-  const isNightMode = useSelector((state) => state.isNightMode);
   const TRANSLITERATION_LANGUAGES = getTransliteration(STRINGS);
   const dispatch = useDispatch();
 
@@ -25,17 +26,10 @@ const TransliterationComponent = () => {
 
   return (
     <>
-      <ListItem
-        bottomDivider
-        containerStyle={[
-          { backgroundColor: isNightMode ? colors.NIGHT_GREY_COLOR : colors.WHITE_COLOR },
-        ]}
-      >
+      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
         <Avatar source={romanizedIcon} avatarStyle={styles.avatarStyle} />
         <ListItem.Content>
-          <ListItem.Title style={[isNightMode && { color: colors.WHITE_COLOR }]}>
-            {STRINGS.transliteration}
-          </ListItem.Title>
+          <ListItemTitle title={STRINGS.transliteration} style={styles.listItemTitle} />
         </ListItem.Content>
         <Switch
           value={isTransliteration}

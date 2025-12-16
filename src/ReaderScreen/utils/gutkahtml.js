@@ -1,5 +1,5 @@
-import { constant } from "@common";
 import { Platform } from "react-native";
+import { constant } from "@common";
 import script from "./gutkaScript";
 
 const getFontFaceURL = (fontFace) => {
@@ -10,7 +10,7 @@ const getFontFaceURL = (fontFace) => {
   return fileUri;
 };
 
-const htmlTemplate = (backColor, fontFace, content, isNightMode, savePosition) => `<!DOCTYPE html>
+const htmlTemplate = (backColor, fontFace, content, theme, savePosition) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -45,6 +45,18 @@ const htmlTemplate = (backColor, fontFace, content, isNightMode, savePosition) =
   constant.ANMOL_LIPI
 }');
     }
+    @font-face {
+      font-family: '${constant.BALOO_PAAJI}';
+      src: url('${getFontFaceURL(constant.BALOO_PAAJI)}') format('truetype'),local('${
+  constant.BALOO_PAAJI
+}');
+    }
+    @font-face {
+      font-family: '${constant.BALOO_PAAJI_SEMI_BOLD}';
+      src: url('${getFontFaceURL(constant.BALOO_PAAJI_SEMI_BOLD)}') format('truetype'),local('${
+  constant.BALOO_PAAJI_SEMI_BOLD
+}');
+    }
 
     .gurmukhi {
       padding: 0.2em;
@@ -54,7 +66,7 @@ const htmlTemplate = (backColor, fontFace, content, isNightMode, savePosition) =
     }
     .transliteration, .translation {
       padding: 0.2em;
-      font-family: 'Arial';
+      font-family: '${theme.typography.fonts.balooPaaji}';
     }
     * {
       -webkit-user-select: none;
@@ -69,7 +81,7 @@ const htmlTemplate = (backColor, fontFace, content, isNightMode, savePosition) =
       text-align:right
     }
   </style>
-  <script>${script(isNightMode, savePosition)}</script>
+  <script>${script(theme, savePosition)}</script>
 </head>
 <body>
   ${content}  

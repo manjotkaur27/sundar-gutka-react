@@ -1,47 +1,54 @@
 import React, { useEffect } from "react";
+import { StatusBar, ScrollView } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { StatusBar, ScrollView, Text } from "react-native";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   STRINGS,
-  colors,
   useScreenAnalytics,
   constant,
   logMessage,
   StatusBarComponent,
   SafeArea,
+  CustomText,
+  BottomNavigation,
+  useBackHandler,
 } from "@common";
-import { nightModeStyles } from "./styles/nightModeStyles";
-import FontSizeComponent from "./components/fontSize";
-import FontFaceComponent from "./components/fontFace";
-import LanguageComponent from "./components/language";
-import TransliterationComponent from "./components/transliteration";
-import ThemeComponent from "./components/theme";
-import HideStatusBar from "./components/statusBar";
-import BaniLengthComponent from "./components/baniLength";
-import LarivaarComponent from "./components/larivaar";
-import PadchedSettingsComponent from "./components/padched";
-import VishraamComponent from "./components/vishraam";
-import TranslationComponent from "./components/translation";
-import RemindersComponent from "./components/reminders/reminders";
+import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
-import KeepAwake from "./components/keepAwake";
-import EditBaniOrder from "./components/editBaniOrder";
-import ParagraphMode from "./components/paragraphMode";
+import BaniLengthComponent from "./components/baniLength";
 import CollectStatistics from "./components/collectStatistics";
-import Donate from "./components/donate";
-import styles from "./styles/styles";
 import ListItemWithIcon from "./components/comon/ListitemWithIcon";
 import DatabaseUpdateBanner from "./components/databaseUpdate";
+import Donate from "./components/donate";
+import EditBaniOrder from "./components/editBaniOrder";
+import FontFaceComponent from "./components/fontFace";
+import FontSizeComponent from "./components/fontSize";
+import KeepAwake from "./components/keepAwake";
+import LanguageComponent from "./components/language";
+import LarivaarComponent from "./components/larivaar";
+import PadchedSettingsComponent from "./components/padched";
+import ParagraphMode from "./components/paragraphMode";
+import RemindersComponent from "./components/reminders/reminders";
+import HideStatusBar from "./components/statusBar";
+import ThemeComponent from "./components/theme";
+import TranslationComponent from "./components/translation";
+import TransliterationComponent from "./components/transliteration";
+import VishraamComponent from "./components/vishraam";
+import useHeader from "./hooks/useHeader";
+import createStyles from "./styles";
 
 const Settings = ({ navigation }) => {
   logMessage(constant.SETTINGS);
   useScreenAnalytics(constant.SETTINGS);
-  const isNightMode = useSelector((state) => state.isNightMode);
+  useHeader(navigation);
+  useBackHandler();
   const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvailable);
 
   const { navigate } = navigation;
-  const { scrollViewNightStyles, backgroundNightStyle } = nightModeStyles(isNightMode);
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { displayOptionsText, end } = styles;
   const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS } = STRINGS;
   const language = useSelector((state) => state.language);
@@ -49,20 +56,17 @@ const Settings = ({ navigation }) => {
   useEffect(() => {
     navigation.setOptions({
       title: STRINGS.settings,
+      headerTitleStyle: styles.headerTitleStyle,
     });
   }, [language]);
 
   return (
-    <SafeArea backgroundColor={isNightMode ? colors.NIGHT_BLACK : colors.WHITE_COLOR}>
-      <StatusBarComponent
-        backgroundColor={
-          !isNightMode ? colors.TOOLBAR_COLOR_ALT : colors.TOOLBAR_COLOR_ALT_NIGHT_MODE
-        }
-      />
+    <SafeArea backgroundColor={theme.colors.surface} edges={["left", "right"]}>
+      <StatusBarComponent backgroundColor={theme.colors.surface} />
 
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <ScrollView>
-        <Text style={[displayOptionsText, scrollViewNightStyles]}>{DISPLAY_OPTIONS}</Text>
+        <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
         <FontSizeComponent />
         <FontFaceComponent />
         <LanguageComponent language={language} />
@@ -73,16 +77,17 @@ const Settings = ({ navigation }) => {
         <HideStatusBar />
         <AutoScroll />
         <KeepAwake />
+        <Audio />
         {/* Bani Options */}
-        <Text style={[displayOptionsText, scrollViewNightStyles]}>{BANI_OPTIONS}</Text>
-        <EditBaniOrder navigate={navigate} isNightMode={isNightMode} />
+        <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
+        <EditBaniOrder navigate={navigate} />
         <BaniLengthComponent />
         <LarivaarComponent />
         <ParagraphMode />
         <PadchedSettingsComponent />
         <VishraamComponent />
         <RemindersComponent navigation={navigation} />
-        <Text style={[displayOptionsText, scrollViewNightStyles]}>{OTHER_OPTIONS}</Text>
+        <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
         <CollectStatistics />
         <Donate />
         <ListItemWithIcon
@@ -97,8 +102,9 @@ const Settings = ({ navigation }) => {
           navigate={navigate}
           navigationTarget="DatabaseUpdate"
         />
-        <Text style={[end, backgroundNightStyle]} />
+        <CustomText style={end} />
       </ScrollView>
+      <BottomNavigation navigation={navigation} activeKey="Settings" />
     </SafeArea>
   );
 };

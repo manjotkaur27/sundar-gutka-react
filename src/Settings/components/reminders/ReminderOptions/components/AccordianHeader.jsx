@@ -1,17 +1,20 @@
 import React, { useState } from "react";
-import { View, TouchableOpacity, Text } from "react-native";
-import { Switch, Icon, Divider } from "@rneui/themed";
-import PropTypes from "prop-types";
-import { useDispatch, useSelector } from "react-redux";
+import { View, TouchableOpacity } from "react-native";
 import DateTimePicker from "react-native-modal-datetime-picker";
+import { useDispatch, useSelector } from "react-redux";
+import { Switch, Icon, Divider } from "@rneui/themed";
 import moment from "moment";
-import { colors, constant, updateReminders, trackReminderEvent } from "@common";
+import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
-import { styles } from "../styles";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { constant, updateReminders, trackReminderEvent, CustomText } from "@common";
+import createStyles from "../styles";
 
 const AccordianHeader = ({ section, isActive }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const reminderBanis = useSelector((state) => state.reminderBanis);
-  const isNightMode = useSelector((state) => state.isNightMode);
   const isTransliteration = useSelector((state) => state.isTransliteration);
   const isReminders = useSelector((state) => state.isReminders);
   const reminderSound = useSelector((state) => state.reminderSound);
@@ -54,39 +57,37 @@ const AccordianHeader = ({ section, isActive }) => {
     <View style={{ margin: 10 }}>
       <View style={styles.viewColumn}>
         <View style={styles.viewRow}>
-          <Text
+          <CustomText
             style={[
               styles.cardTitle,
-              isNightMode && { color: colors.MODAL_TEXT_NIGHT_MODE },
               !isTransliteration && { fontFamily: constant.GURBANI_AKHAR_TRUE },
-              !enabled && { color: colors.DISABLED_TEXT_COLOR_NIGHT_MODE },
+              enabled ? { color: theme.colors.primaryText } : { color: theme.colors.disabledText },
             ]}
           >
             {isTransliteration ? translit : gurmukhi}
-          </Text>
+          </CustomText>
           <Switch value={enabled} onValueChange={(value) => handelSwitchToggled(value, key)} />
         </View>
         <View style={styles.viewRow}>
           <TouchableOpacity onPress={() => toggleTimePicker(true)}>
-            <Text
+            <CustomText
               style={[
                 styles.timeFont,
-                isNightMode && { color: colors.MODAL_TEXT_NIGHT_MODE },
                 enabled
-                  ? { color: colors.ENABELED_TEXT_COLOR_NIGHT_MODE }
-                  : { color: colors.DISABLED_TEXT_COLOR_NIGHT_MODE },
+                  ? { color: theme.colors.enabledText }
+                  : { color: theme.colors.disabledText },
               ]}
             >
               {time}
-            </Text>
+            </CustomText>
           </TouchableOpacity>
           <Icon
             name={isActive ? "expand-less" : "expand-more"}
-            color={isNightMode ? colors.COMPONENT_COLOR_NIGHT_MODE : colors.COMPONENT_COLOR}
+            color={theme.colors.componentColor}
             size={30}
           />
         </View>
-        <Divider color={colors.DISABLED_TEXT_COLOR_NIGHT_MODE} />
+        <Divider color={theme.colors.primaryText} />
       </View>
       <DateTimePicker
         modalPropsIOS={{

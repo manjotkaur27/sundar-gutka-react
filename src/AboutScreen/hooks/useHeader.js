@@ -1,15 +1,14 @@
 import React, { useEffect } from "react";
-import { Icon } from "@rneui/themed";
-import { colors, STRINGS } from "@common";
-import { styles } from "../styles";
+import { BackIconComponent } from "@common/components";
+import useTheme from "@common/context";
+import useThemedStyles from "@common/hooks/useThemedStyles";
+import { STRINGS } from "@common";
+import createStyles from "../styles";
 
 const useHeader = (navigation) => {
-  const { WHITE_COLOR } = colors;
-  const { headerTitleStyle, headerStyle } = styles;
-  const { goBack } = navigation;
-  const headerLeft = () => (
-    <Icon name="arrow-back" size={30} onPress={() => goBack()} color={WHITE_COLOR} />
-  );
+  const { theme } = useTheme();
+  const { headerTitleStyle, headerStyle } = useThemedStyles(createStyles);
+  const headerLeft = () => <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />;
   useEffect(() => {
     navigation.setOptions({
       title: STRINGS.about,

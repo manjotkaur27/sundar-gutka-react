@@ -1,59 +1,40 @@
 import React, { useCallback } from "react";
-import { View, Text } from "react-native";
-import { Icon } from "@rneui/themed";
-import { useSelector } from "react-redux";
+import { View, Pressable } from "react-native";
 import PropTypes from "prop-types";
-import { STRINGS } from "@common";
-import styles from "./styles";
-import { nightStyles } from "../../styles";
+import { BackIconComponent } from "@common/components";
+import { RefreshIcon } from "@common/icons";
+import { STRINGS, CustomText, useTheme, useThemedStyles } from "@common";
+import createStyles from "./styles";
 
-const Header = ({ navigation, setReset }) => {
-  const isNightMode = useSelector((state) => state.isNightMode);
-  const { goBack } = navigation;
+const Header = ({ setReset }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { EDIT_BANI_ORDER } = STRINGS;
-  const { headerStyles } = nightStyles(isNightMode);
 
   const headerLeft = useCallback(
-    () => (
-      <Icon
-        name="arrow-back"
-        size={30}
-        onPress={() => goBack()}
-        color={headerStyles.textColor}
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-      />
-    ),
-    [goBack, headerStyles.textColor]
+    () => <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />,
+    [theme.staticColors.WHITE_COLOR]
   );
 
   const headerRight = useCallback(
     () => (
-      <Icon
-        name="refresh"
-        size={30}
-        onPress={() => setReset(true)}
-        color={headerStyles.textColor}
-        accessibilityLabel="Reset bani order"
-        accessibilityRole="button"
-      />
+      <Pressable onPress={() => setReset(true)}>
+        <RefreshIcon size={30} color={theme.staticColors.WHITE_COLOR} />
+      </Pressable>
     ),
-    [setReset, headerStyles.textColor]
+    [setReset, theme.staticColors.WHITE_COLOR]
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: headerStyles.backgroundColor }]}>
+    <View style={styles.container}>
       <View style={styles.leftContainer}>{headerLeft()}</View>
-      <Text style={[styles.title, { color: headerStyles.textColor }]}>{EDIT_BANI_ORDER}</Text>
+      <CustomText style={styles.title}>{EDIT_BANI_ORDER}</CustomText>
       <View style={styles.rightContainer}>{headerRight()}</View>
     </View>
   );
 };
 
 Header.propTypes = {
-  navigation: PropTypes.shape({
-    goBack: PropTypes.func.isRequired,
-  }).isRequired,
   setReset: PropTypes.func.isRequired,
 };
 
