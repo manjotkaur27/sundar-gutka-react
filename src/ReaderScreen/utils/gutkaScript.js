@@ -13,6 +13,7 @@ let isScrolling;
 let isManuallyScrolling = false;
 let lastHighlightedElement = null;
 let highlightTimeout = null;
+let sb = null;
 
 const clearScrollTimeout=()=> {
   if (autoScrollTimeout != null) {
@@ -21,9 +22,21 @@ const clearScrollTimeout=()=> {
   autoScrollTimeout = null;
 }
 
+const updateSB=()=> {
+  if(!sb) return;
+  const h=Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)-window.innerHeight;
+  if(h<=0){sb.style.display="none";return;}
+  sb.style.display="block";
+  const p=Math.max(0,Math.min(1,(window.pageYOffset||0)/h));
+  const th=Math.max(30,(window.innerHeight/h)*window.innerHeight);
+  const t=sb.children[0];
+  if(t){t.style.height=th+"px";t.style.top=(p*(window.innerHeight-th))+"px";}
+}
+
 const scrollFunc=(e)=> {
   curPosition = getScrollPercent();
   window.ReactNativeWebView.postMessage("scroll-" + curPosition);
+  updateSB();
   if (window.scrollY == 0) {
     window.ReactNativeWebView.postMessage("show");
   }
@@ -101,13 +114,26 @@ window.addEventListener(
   false
 );
 
-${listener}.onload = () => {
+// Use window.onload for Android reliability
+window.onload = () => {
   if (${theme.mode === "dark"}) {
   //fade event
 fadeInEffect();
 }
 
-  scrollToPosition(); 
+  scrollToPosition();
+  
+  // Minimal scrollbar - works on Android and iOS
+  const existing=document.getElementById("sb");
+  if(existing) existing.remove();
+  sb=document.createElement("div");
+  sb.id="sb";
+  const st=document.createElement("div");
+  st.id="sb-t";
+  sb.appendChild(st);
+  document.body.appendChild(sb);
+  setTimeout(updateSB,100);
+  window.addEventListener("resize",updateSB);
 }
 
 
