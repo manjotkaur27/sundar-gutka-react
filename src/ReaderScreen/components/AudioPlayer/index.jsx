@@ -3,11 +3,17 @@ import { Linking } from "react-native";
 import TrackPlayer from "react-native-track-player";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { toggleAudio, setDefaultAudio, setAudioProgress } from "@common/actions";
+import {
+  toggleAudio,
+  setDefaultAudio,
+  setAudioProgress,
+  toggleAudioSyncScroll,
+} from "@common/actions";
 import { showErrorToast } from "@common/toast";
 import { STRINGS, logError } from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
+import checkLyricsFileAvailable from "./utils/checkLRC";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 
 const AudioPlayer = ({ baniID, title, webViewRef }) => {
@@ -123,6 +129,11 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
   const handleTrackSelect = useCallback(
     async (selectedTrack) => {
       try {
+        // Early return if selectedTrack is null or undefined
+        if (!selectedTrack) {
+          return;
+        }
+
         // Stop current playback
         await stop();
 
@@ -158,6 +169,10 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
             selectedTrack.trackSizeMB,
             selectedTrack.remoteUrl || selectedTrack.audioUrl
           );
+        }
+        const isLRCFileAvailable = await checkLyricsFileAvailable(selectedTrack.lyricsUrl);
+        if (isLRCFileAvailable) {
+          dispatch(toggleAudioSyncScroll(true));
         }
       } catch (error) {
         logError("Error switching track:", error);
