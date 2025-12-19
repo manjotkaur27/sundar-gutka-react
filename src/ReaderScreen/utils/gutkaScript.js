@@ -22,15 +22,21 @@ const clearScrollTimeout=()=> {
   autoScrollTimeout = null;
 }
 
-const updateSB=()=> {
-  if(!sb) return;
-  const h=Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)-window.innerHeight;
-  if(h<=0){sb.style.display="none";return;}
-  sb.style.display="block";
-  const p=Math.max(0,Math.min(1,(window.pageYOffset||0)/h));
-  const th=Math.max(30,(window.innerHeight/h)*window.innerHeight);
-  const t=sb.children[0];
-  if(t){t.style.height=th+"px";t.style.top=(p*(window.innerHeight-th))+"px";}
+const updateSB = () => {
+  if (!sb) return;
+  const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - window.innerHeight;
+  if (h <= 0) {
+    sb.style.display = "none";
+    return;
+  }
+  sb.style.display = "block";
+  const p = Math.max(0, Math.min(1, (window.pageYOffset || 0) / h));
+  const th = Math.max(30, (window.innerHeight / h) * window.innerHeight);
+  const t = sb.children[0];
+  if (t) {
+    t.style.height = th + "px";
+    t.style.top = (p * (window.innerHeight - th)) + "px";
+  }
 }
 
 const scrollFunc=(e)=> {
@@ -124,16 +130,16 @@ fadeInEffect();
   scrollToPosition();
   
   // Minimal scrollbar - works on Android and iOS
-  const existing=document.getElementById("sb");
-  if(existing) existing.remove();
-  sb=document.createElement("div");
-  sb.id="sb";
-  const st=document.createElement("div");
-  st.id="sb-t";
+  const existing = document.getElementById("sb");
+  if (existing) existing.remove();
+  sb = document.createElement("div");
+  sb.id = "sb";
+  const st = document.createElement("div");
+  st.id = "sb-t";
   sb.appendChild(st);
   document.body.appendChild(sb);
-  setTimeout(updateSB,100);
-  window.addEventListener("resize",updateSB);
+  setTimeout(updateSB, 100);
+  window.addEventListener("resize", updateSB);
 }
 
 

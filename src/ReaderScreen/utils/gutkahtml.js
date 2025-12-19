@@ -81,10 +81,23 @@ const htmlTemplate = (backColor, fontFace, content, theme, savePosition) => `<!D
       text-align:right
     }
     /* Minimal scrollbar */
-    #sb { position:fixed; right:0; top:0; width:6px; height:100vh; z-index:99999; pointer-events:none; }
-    #sb-t { position:absolute; right:1; width:2px; background:${
-      theme.colors.primaryText
-    }; border-radius:4px; min-height:40px; }
+    #sb {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 6px;
+      height: 100vh;
+      z-index: 99999;
+      pointer-events: none;
+    }
+    #sb-t {
+      position: absolute;
+      right: 1;
+      width: 2px;
+      background: ${theme.colors.primaryText};
+      border-radius: 4px;
+      min-height: 40px;
+    }
   </style>
   <script>${script(theme, savePosition)}</script>
 </head>
