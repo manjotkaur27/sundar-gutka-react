@@ -13,7 +13,7 @@ let isScrolling;
 let isManuallyScrolling = false;
 let lastHighlightedElement = null;
 let highlightTimeout = null;
-let sb = null;
+let scrollbar = null;
 
 const clearScrollTimeout=()=> {
   if (autoScrollTimeout != null) {
@@ -22,27 +22,27 @@ const clearScrollTimeout=()=> {
   autoScrollTimeout = null;
 }
 
-const updateSB = () => {
-  if (!sb) return;
-  const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - window.innerHeight;
-  if (h <= 0) {
-    sb.style.display = "none";
+const updateScrollbar = () => {
+  if (!scrollbar) return;
+  const maxScrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - window.innerHeight;
+  if (maxScrollHeight <= 0) {
+    scrollbar.style.display = "none";
     return;
   }
-  sb.style.display = "block";
-  const p = Math.max(0, Math.min(1, (window.pageYOffset || 0) / h));
-  const th = Math.max(30, (window.innerHeight / h) * window.innerHeight);
-  const t = sb.children[0];
-  if (t) {
-    t.style.height = th + "px";
-    t.style.top = (p * (window.innerHeight - th)) + "px";
+  scrollbar.style.display = "block";
+  const scrollPosition = Math.max(0, Math.min(1, (window.pageYOffset || 0) / maxScrollHeight));
+  const thumbHeight = Math.max(30, (window.innerHeight / maxScrollHeight) * window.innerHeight);
+  const thumbElement = scrollbar.children[0];
+  if (thumbElement) {
+    thumbElement.style.height = thumbHeight + "px";
+    thumbElement.style.top = (scrollPosition * (window.innerHeight - thumbHeight)) + "px";
   }
 }
 
-const scrollFunc=(e)=> {
+const scrollFunc = (event) => {
   curPosition = getScrollPercent();
   window.ReactNativeWebView.postMessage("scroll-" + curPosition);
-  updateSB();
+  updateScrollbar();
   if (window.scrollY == 0) {
     window.ReactNativeWebView.postMessage("show");
   }
@@ -130,23 +130,23 @@ fadeInEffect();
   scrollToPosition();
   
   // Minimal scrollbar - works on Android and iOS
-  const existing = document.getElementById("sb");
-  if (existing) existing.remove();
-  sb = document.createElement("div");
-  sb.id = "sb";
-  const st = document.createElement("div");
-  st.id = "sb-t";
-  sb.appendChild(st);
-  document.body.appendChild(sb);
-  setTimeout(updateSB, 100);
-  window.addEventListener("resize", updateSB);
+  const existingScrollbar = document.getElementById("sb");
+  if (existingScrollbar) existingScrollbar.remove();
+  scrollbar = document.createElement("div");
+  scrollbar.id = "sb";
+  const scrollbarThumb = document.createElement("div");
+  scrollbarThumb.id = "sb-t";
+  scrollbar.appendChild(scrollbarThumb);
+  document.body.appendChild(scrollbar);
+  setTimeout(updateScrollbar, 100);
+  window.addEventListener("resize", updateScrollbar);
 }
 
 
 //  Listen for scroll events
 ${listener}.addEventListener(
   "scroll",
-  (event)=> {
+  (scrollEvent) => {
     // Clear our timeout throughout the scroll
     window.clearTimeout(isScrolling);
     // Set a timeout to run after scrolling ends
