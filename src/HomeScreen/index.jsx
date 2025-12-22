@@ -5,24 +5,23 @@ import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
-  useScreenAnalytics,
   actions,
   BaniLengthSelector,
   constant,
   useKeepAwake,
   BaniList,
-  logMessage,
   validateBaniOrder,
   StatusBarComponent,
   SafeArea,
+  STRINGS,
 } from "@common";
 import { setBaniOrder } from "../common/actions";
+import { getLanguages } from "../Settings/components/comon/strings";
 import BaniHeader from "./components/BaniHeader";
 import { useBaniLength, useBaniList, useDatabaseUpdateCheck } from "./hooks";
 import createStyles from "./styles";
 
 const HomeScreen = React.memo(({ navigation }) => {
-  logMessage(constant.HOME_SCREEN);
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { navigate } = navigation;
@@ -33,9 +32,18 @@ const HomeScreen = React.memo(({ navigation }) => {
   useDatabaseUpdateCheck();
 
   useKeepAwake();
-  useScreenAnalytics(constant.HOME_SCREEN);
   const { baniLengthSelector } = useBaniLength();
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    const validLanguages = getLanguages(STRINGS);
+    const validLanguageKeys = validLanguages.map((lang) => lang.key);
+    const isLanguageValid = language && validLanguageKeys.includes(language);
+
+    if (!language || !isLanguageValid) {
+      dispatch(actions.setLanguage("DEFAULT"));
+    }
+  }, [language]);
 
   useEffect(() => {
     if (!fontFace) {
@@ -44,7 +52,6 @@ const HomeScreen = React.memo(({ navigation }) => {
   }, [fontFace]);
 
   useEffect(() => {
-    dispatch(actions.setLanguage(language));
     const order = validateBaniOrder(baniOrder);
     dispatch(setBaniOrder(order));
   }, []);
