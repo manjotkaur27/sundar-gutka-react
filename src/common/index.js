@@ -16,10 +16,12 @@ import useTheme from "./context";
 import defaultBaniOrder from "./defaultBaniOrder";
 import {
   allowTracking,
-  trackScreenView,
   trackReaderEvent,
   trackSettingEvent,
   trackReminderEvent,
+  trackAudioEvent,
+  trackArtistListeningDuration,
+  trackArtist,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
 import {
@@ -31,7 +33,6 @@ import {
 import baseFontSize, { validateBaniOrder } from "./helpers";
 import useKeepAwake from "./hooks/keepAwake";
 import useBackHandler from "./hooks/useBackHandler";
-import useScreenAnalytics from "./hooks/useScreenAnalytics";
 import useThemedStyles from "./hooks/useThemedStyles";
 import STRINGS from "./localization";
 import {
@@ -59,14 +60,13 @@ export {
   colors,
   constant,
   actions,
-  useScreenAnalytics,
   STRINGS,
   logError,
   logMessage,
   initializeCrashlytics,
   allowTracking,
   trackReaderEvent,
-  trackScreenView,
+  trackAudioEvent,
   trackReminderEvent,
   trackSettingEvent,
   updateReminders,
@@ -111,4 +111,6 @@ export {
   useThemedStyles,
   ListItemTitle,
   useBackHandler,
+  trackArtistListeningDuration,
+  trackArtist,
 };

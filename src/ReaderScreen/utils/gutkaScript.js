@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 
-const script = (theme, position) => {
+const script = (theme) => {
   const listener = Platform.OS === "android" ? "document" : "window";
   const body = Platform.OS === "android" ? "document.body" : "window.document.body";
   return `
@@ -8,7 +8,6 @@ const script = (theme, position) => {
 let autoScrollTimeout;
 let autoScrollSpeed = 0;
 let scrollMultiplier = 1.5;
-let curPosition = 0;
 let isScrolling;
 let isManuallyScrolling = false;
 let lastHighlightedElement = null;
@@ -41,11 +40,24 @@ const updateScrollbar = () => {
 }
 
 const scrollFunc = (event) => {
-  curPosition = getScrollPercent();
-  window.ReactNativeWebView.postMessage("scroll-" + curPosition);
   updateScrollbar();
+  const elementId = getTopmostElementId();
+  if (elementId) {
+    window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId);
+  }
   if (window.scrollY == 0) {
     window.ReactNativeWebView.postMessage("show");
+  }
+
+  // Check if user has reached the end of the document
+  const scrollHeight = document.documentElement.scrollHeight;
+  const scrollTop = window.scrollY || window.pageYOffset;
+  const clientHeight = window.innerHeight;
+  const threshold = 50; // pixels from bottom to consider "at end"
+  const isAtEnd = scrollTop + clientHeight >= scrollHeight - threshold;
+  
+  if (isAtEnd) {
+    window.ReactNativeWebView.postMessage("reached-end");
   }
 
   if (typeof scrollFunc.y == "undefined") {
@@ -66,8 +78,55 @@ const scrollFunc = (event) => {
   scrollFunc.y = window.pageYOffset;
 }
 
-const getScrollPercent=()=> {
-  return window.pageYOffset / (document.body.scrollHeight - window.innerHeight);
+const getTopmostElementId=()=> {
+  const viewportTop = window.pageYOffset;
+  const viewportBottom = viewportTop + window.innerHeight;
+  const viewportCenter = viewportTop + (window.innerHeight / 2);
+  
+  // Get all text items
+  const textItems = document.querySelectorAll('.text-item[id]');
+  
+  let topmostElement = null;
+  let minDistance = Infinity;
+  
+  // Find the element closest to the top of the viewport
+  for (let i = 0; i < textItems.length; i++) {
+    const element = textItems[i];
+    const rect = element.getBoundingClientRect();
+    const elementTop = rect.top + window.pageYOffset;
+    const elementBottom = elementTop + rect.height;
+    
+    // Check if element is visible in viewport
+    if (elementBottom >= viewportTop && elementTop <= viewportBottom) {
+      // Calculate distance from viewport top
+      const distance = Math.abs(elementTop - viewportTop);
+      if (distance < minDistance) {
+        minDistance = distance;
+        topmostElement = element;
+      }
+    }
+  }
+  
+  // If no element found in viewport, find the closest element above viewport
+  if (!topmostElement) {
+    for (let i = textItems.length - 1; i >= 0; i--) {
+      const element = textItems[i];
+      const rect = element.getBoundingClientRect();
+      const elementTop = rect.top + window.pageYOffset;
+      
+      if (elementTop < viewportCenter) {
+        topmostElement = element;
+        break;
+      }
+    }
+  }
+  
+  // Fallback: if still no element, use first element
+  if (!topmostElement && textItems.length > 0) {
+    topmostElement = textItems[0];
+  }
+  
+  return topmostElement ? topmostElement.id : null;
 }
 
 const fadeInEffect = () => {
@@ -102,20 +161,21 @@ const setAutoScroll=()=> {
   }
 }
 
-// Remove handleTouchEnd since we're handling toggle at React Native level
-const scrollToPosition=()=> {
-  let scrollY = (document.body.scrollHeight - window.innerHeight) * ${position};
-  window.scrollTo(0, scrollY);
-  curPosition = scrollY;
-}
-
 window.addEventListener(
   "orientationchange",
    ()=> {
     setTimeout(()=> {
-      let scrollY = (document.body.scrollHeight - window.innerHeight) * curPosition;
-      window.scrollTo(0, scrollY);
-      curPosition = scrollY;
+      const elementId = getTopmostElementId();
+      if (elementId) {
+        const element = document.getElementById(String(elementId));
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            inline: "nearest"
+          });
+        }
+      }
     }, 50);
   },
   false
@@ -127,7 +187,6 @@ window.onload = () => {
     //fade event
     fadeInEffect();
   }
-  scrollToPosition();
 
   // Minimal scrollbar - works on Android and iOS
   scrollbar = document.createElement("div");
@@ -136,6 +195,7 @@ window.onload = () => {
   scrollbarThumb.id = "sb-t";
   scrollbar.appendChild(scrollbarThumb);
   document.body.appendChild(scrollbar);
+  // Update scrollbar immediately and after a short delay
   setTimeout(updateScrollbar, 100);
   
   if (resizeListener !== null) {
@@ -166,24 +226,31 @@ ${listener}.addEventListener(
 
 ${listener}.onscroll = scrollFunc;
 // Touch events for auto-scroll handling only
+let wasAutoScrolling = false;
+const resumeAutoScroll = () => {
+  isManuallyScrolling = false;
+  // Resume auto-scroll if it was active before touch
+  if (wasAutoScrolling && autoScrollSpeed !== 0 && autoScrollTimeout == null) {
+    wasAutoScrolling = false;
+    setAutoScroll();
+  }
+};
 ${listener}.addEventListener("touchstart", ()=> {
   if (autoScrollSpeed !== 0) {
+    wasAutoScrolling = true;
     clearScrollTimeout();
   }
 });
 ${listener}.addEventListener("touchmove", ()=> {
   isManuallyScrolling = true;
 });
+${listener}.addEventListener("touchend", resumeAutoScroll);
+${listener}.addEventListener("touchcancel", resumeAutoScroll);
 
 ${listener}.addEventListener(
   "message",
   (event)=> {
     const message = JSON.parse(event.data);
-
-    if (message.hasOwnProperty("Back")) {
-      const currentPosition = getScrollPercent();
-      window.ReactNativeWebView.postMessage("save-" + currentPosition);
-    }
 
     if (message.hasOwnProperty("bookmark")) {
       const element = document.getElementById(String(message.bookmark));
@@ -196,7 +263,6 @@ ${listener}.addEventListener(
         block: "start",
         inline: "nearest"
       });
-      curPosition = getScrollPercent();
       const sequenceStringNormal=element.getAttribute("data-sequence");
       const sequenceStringParagraph=element.getAttribute("data-sequences");
       const sequenceString = sequenceStringNormal ? sequenceStringNormal : sequenceStringParagraph;
@@ -210,15 +276,19 @@ ${listener}.addEventListener(
         setAutoScroll();
       }
     }
-      // Handle scroll to saved position
+      // Handle scroll to saved element or position
     if (message.hasOwnProperty("action") && message.action === "scrollToPosition") {
-      const positionValue = parseFloat(message.position);
-      if (positionValue > 0 && positionValue <= 1) {
-        const maxScrollHeight = document.body.scrollHeight - window.innerHeight;
-        if (maxScrollHeight > 0) {
-          const scrollY = maxScrollHeight * positionValue;
-          window.scrollTo(0, scrollY);
-          curPosition = positionValue;
+      // Try element ID first if provided
+      if (message.elementId) {
+        const element = document.getElementById(String(message.elementId));
+        if (element) {
+          element.scrollIntoView({
+            behavior: "auto",
+            block: "start",
+            inline: "nearest"
+          });
+          console.log("No Element Found");
+          return;
         }
       }
     }

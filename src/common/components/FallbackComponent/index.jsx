@@ -1,20 +1,22 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Button, View, Linking } from "react-native";
 import RNRestart from "react-native-restart";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { CustomText } from "@common";
 import constant from "../../constant";
-import { logMessage } from "../../firebase/crashlytics";
-import useScreenAnalytics from "../../hooks/useScreenAnalytics";
+import { trackScreenView } from "../../firebase/analytics";
 import STRINGS from "../../localization";
 import createStyles from "./styles";
 
 const FallBack = () => {
   const styles = useThemedStyles(createStyles);
-  logMessage(constant.FALLBACK);
   const { container, title, text, btnWrap } = styles;
-  useScreenAnalytics(constant.FALLBACK);
+
+  useEffect(() => {
+    // Track screen view when error fallback is shown
+    trackScreenView(constant.FALLBACK_SCREEN, null, "Error Boundary Fallback Screen");
+  }, []);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={container}>

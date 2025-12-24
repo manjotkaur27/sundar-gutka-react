@@ -10,7 +10,7 @@ const getFontFaceURL = (fontFace) => {
   return fileUri;
 };
 
-const htmlTemplate = (backColor, fontFace, content, theme, savePosition) => `<!DOCTYPE html>
+const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -99,7 +99,7 @@ const htmlTemplate = (backColor, fontFace, content, theme, savePosition) => `<!D
       min-height: 40px;
     }
   </style>
-  <script>${script(theme, savePosition)}</script>
+  <script>${script(theme)}</script>
 </head>
 <body>
   ${content}  
