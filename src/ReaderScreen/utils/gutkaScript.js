@@ -195,7 +195,7 @@ window.onload = () => {
   scrollbarThumb.id = "sb-t";
   scrollbar.appendChild(scrollbarThumb);
   document.body.appendChild(scrollbar);
-  // Update scrollbar immediately and after a short delay
+  // Update scrollbar after a short delay
   setTimeout(updateScrollbar, 100);
   
   if (resizeListener !== null) {
