@@ -92,7 +92,7 @@ const htmlTemplate = (backColor, fontFace, content, theme, savePosition) => `<!D
     }
     #sb-t {
       position: absolute;
-      right: 1;
+      right: 1px;
       width: 2px;
       background: ${theme.colors.primaryText};
       border-radius: 4px;

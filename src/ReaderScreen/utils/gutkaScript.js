@@ -14,6 +14,7 @@ let isManuallyScrolling = false;
 let lastHighlightedElement = null;
 let highlightTimeout = null;
 let scrollbar = null;
+let resizeListener = null;
 
 const clearScrollTimeout=()=> {
   if (autoScrollTimeout != null) {
@@ -123,15 +124,12 @@ window.addEventListener(
 // Use window.onload for Android reliability
 window.onload = () => {
   if (${theme.mode === "dark"}) {
-  //fade event
-fadeInEffect();
-}
-
+    //fade event
+    fadeInEffect();
+  }
   scrollToPosition();
-  
+
   // Minimal scrollbar - works on Android and iOS
-  const existingScrollbar = document.getElementById("sb");
-  if (existingScrollbar) existingScrollbar.remove();
   scrollbar = document.createElement("div");
   scrollbar.id = "sb";
   const scrollbarThumb = document.createElement("div");
@@ -139,7 +137,14 @@ fadeInEffect();
   scrollbar.appendChild(scrollbarThumb);
   document.body.appendChild(scrollbar);
   setTimeout(updateScrollbar, 100);
-  window.addEventListener("resize", updateScrollbar);
+  
+  if (resizeListener !== null) {
+    window.removeEventListener("resize", resizeListener);
+  }
+  
+  // Store reference to the resize listener
+  resizeListener = updateScrollbar;
+  window.addEventListener("resize", resizeListener);
 }
 
 
