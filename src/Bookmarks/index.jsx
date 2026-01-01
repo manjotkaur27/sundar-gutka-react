@@ -12,6 +12,7 @@ const Bookmarks = ({ navigation, route }) => {
   const dispatch = useDispatch();
 
   const fontFace = useSelector((state) => state.fontFace);
+  const isBaloo = fontFace === constant.BALOO_PAAJI;
 
   const onPress = (item) => {
     dispatch(actions.setBookmarkPosition(item.item.shabadID));
@@ -19,29 +20,27 @@ const Bookmarks = ({ navigation, route }) => {
   };
 
   const formattedData = bookmarksData?.map((item, index) => {
-    const isBaloo = fontFace === constant.BALOO_PAAJI;
-    
-    // 1. TITLE LOGIC
-    // If Baloo is active AND we have Unicode data, use it. Else fallback to ASCII.
-    const title = (isBaloo && item.gurmukhiUni) ? item.gurmukhiUni : item.gurmukhi;
+    const {
+      gurmukhi,
+      gurmukhiUni,
+      tukGurmukhi,
+      tukGurmukhiUni,
+      translit,
+      shabadID,
+    } = item;
 
-    // 2. TUK Logic
-    // We try to find the line text using the tukGurmukhiUni
-    // We fallback to 'translit' if the line text is missing.
-    const lineAscii = item.tukGurmukhi || item.translit;
-    const lineUni = item.tukGurmukhiUni;
+    const title = isBaloo && gurmukhiUni ? gurmukhiUni : gurmukhi;
 
-    
-    const subtitle = (isBaloo && lineUni) ? lineUni : lineAscii;
+    const subtitle =
+      isBaloo && tukGurmukhiUni
+        ? tukGurmukhiUni
+        : tukGurmukhi || translit || "";
 
     return {
       ...item,
-      // Ensure we have a unique string key to prevent the "Duplicate Key" crash
-      key: item.shabadID ? item.shabadID.toString() : index.toString(),
-      
-      // Map the calculated title/subtitle
+      key: (shabadID ?? index).toString(),
       gurmukhi: title,
-      tukGurmukhi: subtitle || "" 
+      tukGurmukhi: subtitle,
     };
   });
 
