@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
@@ -68,6 +68,9 @@ const AudioControlBar = ({
   const currentPlayingRef = useRef(currentPlaying);
   const audioProgress = useSelector((state) => state.audioProgress);
   const [isSeekLoading, setIsSeekLoading] = useState(false);
+  const [isSliding, setIsSliding] = useState(false);
+  const [sliderValue, setSliderValue] = useState(progress.position);
+  const isSeekingRef = useRef(false);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
   const { isDownloading, isDownloaded } = useDownloadManager(
     currentPlaying,
@@ -96,6 +99,13 @@ const AudioControlBar = ({
   useEffect(() => {
     currentPlayingRef.current = currentPlaying;
   }, [currentPlaying]);
+
+  // Sync slider value with progress when not sliding and not seeking
+  useEffect(() => {
+    if (!isSliding && !isSeekingRef.current) {
+      setSliderValue(progress.position);
+    }
+  }, [progress.position, isSliding]);
 
   // Save progress when user closes the modal
   const handleClose = async () => {
@@ -276,6 +286,52 @@ const AudioControlBar = ({
     return unsubscribe;
   }, [navigation]);
 
+  // Handle slider value change during dragging (optimistic update)
+  const handleSliderValueChange = useCallback(
+    (value) => {
+      if (isSliding) {
+        setSliderValue(value[0]);
+      }
+    },
+    [isSliding]
+  );
+
+  // Handle slider drag start
+  const handleSlidingStart = useCallback(() => {
+    setIsSliding(true);
+  }, []);
+
+  // Handle seek completion - non-blocking for smooth UI
+  const handleSeekComplete = useCallback(
+    (value) => {
+      // Prevent concurrent seeks
+      if (isSeekingRef.current || !isAudioEnabled) {
+        setIsSliding(false);
+        return;
+      }
+
+      // Update UI immediately (optimistic update)
+      setIsSliding(false);
+      setSliderValue(value);
+
+      // Perform seek operation asynchronously without blocking UI
+      (async () => {
+        try {
+          isSeekingRef.current = true;
+          setIsSeekLoading(true);
+          await handleSeek(value);
+        } catch (error) {
+          // Error is already handled in handleSeek
+          logError("Error in handleSeekComplete:", error);
+        } finally {
+          isSeekingRef.current = false;
+          setIsSeekLoading(false);
+        }
+      })();
+    },
+    [handleSeek, isAudioEnabled]
+  );
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       {isDownloading && !isDownloaded && <DownloadBadge />}
@@ -359,13 +415,15 @@ const AudioControlBar = ({
                   </View>
                 )}
                 <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
-                  {formatTime(progress.position)}
+                  {formatTime(sliderValue)}
                 </CustomText>
                 <Slider
-                  value={progress.position}
+                  value={sliderValue}
                   minimumValue={0}
                   maximumValue={progress.duration}
-                  onSlidingComplete={([v]) => handleSeek(v)}
+                  onSlidingStart={handleSlidingStart}
+                  onValueChange={handleSliderValueChange}
+                  onSlidingComplete={([v]) => handleSeekComplete(v)}
                   minimumTrackTintColor={sliderMinTrackColor}
                   maximumTrackTintColor={theme.staticColors.SLIDER_TRACK_COLOR}
                   disabled={!isAudioEnabled || isSeekLoading}
