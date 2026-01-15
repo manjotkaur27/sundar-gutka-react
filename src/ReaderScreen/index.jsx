@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { ActivityIndicator, AppState, Platform, Animated } from "react-native";
+import { ActivityIndicator, AppState, Platform, Animated, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
@@ -48,6 +48,7 @@ const Reader = ({ navigation, route }) => {
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
   const [titleText, setTitleText] = useState(null);
+  const [scrollPercentage, setScrollPercentage] = useState(0);
   const currentElementIdRef = useRef(null);
 
   const dispatch = useDispatch();
@@ -178,6 +179,9 @@ const Reader = ({ navigation, route }) => {
         toggleHeader(true);
       } else if (data === "hide") {
         toggleHeader(false);
+      } else if (data.includes("scroll-percent-")) {
+        const percentage = parseFloat(data.split("scroll-percent-")[1]);
+        setScrollPercentage(percentage);
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID from WebView scroll events
         const elementId = data.split("scroll-elementId-")[1];
@@ -260,6 +264,8 @@ const Reader = ({ navigation, route }) => {
         bounces={false}
         overScrollMode="never"
         nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         onContentProcessDidTerminate={reloadWebView}
         source={webViewSource}
         backgroundColor={theme.colors.surface}
@@ -287,6 +293,9 @@ const Reader = ({ navigation, route }) => {
         {isAutoScroll && <AutoScrollComponent shabadID={id} webViewRef={webViewRef} />}
       </Animated.View>
 
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBar, { width: `${scrollPercentage}%` }]} />
+      </View>
       <BottomNavigation activeKey={isAudio ? "Music" : "Read"} />
     </SafeArea>
   );

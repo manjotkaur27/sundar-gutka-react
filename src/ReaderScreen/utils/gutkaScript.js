@@ -40,6 +40,14 @@ const scrollFunc=(e)=> {
     window.ReactNativeWebView.postMessage("reached-end");
   }
 
+  // Calculate percentage
+  const maxScroll = scrollHeight - clientHeight;
+  if (maxScroll > 0) {
+    const percentage = Math.min(Math.max((scrollTop / maxScroll) * 100, 0), 100);
+    // Round to 1 decimal place to reduce message frequency slightly
+    window.ReactNativeWebView.postMessage("scroll-percent-" + percentage.toFixed(1));
+  }
+
   if (typeof scrollFunc.y == "undefined") {
     scrollFunc.y = window.pageYOffset;
   }
