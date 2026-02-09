@@ -48,8 +48,7 @@ const Reader = ({ navigation, route }) => {
   const [dateKey, setDateKey] = useState(Date.now().toString());
   const [titleText, setTitleText] = useState(null);
   const [scrollPercentage, setScrollPercentage] = useState(0);
-  const currentElementIdRef = useRef(null);
-  // const currentElementIdRef = useRef(savePosition[id] || null);
+  const currentElementIdRef = useRef(savePosition[id] || null);
 
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
