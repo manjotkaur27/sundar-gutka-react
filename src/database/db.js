@@ -334,7 +334,8 @@ export const getBookmarksForID = (baniId, length, language) => {
                 return {
                   shabadID: row.BaniShabadID,
                   gurmukhi: row.Gurmukhi,
-                  gurmukhiUni: row.TukGurmukhiUni,
+                  gurmukhiUni: row.GurmukhiUni,
+                  tukGurmukhiUni: row.TukGurmukhiUni,
                   tukGurmukhi: row.TukGurmukhi,
                   translit: getTranslitText(row.Transliterations, language),
                   tukTranslit: row.TukTransliterations
