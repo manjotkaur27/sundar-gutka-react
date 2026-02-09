@@ -47,12 +47,9 @@ const Reader = ({ navigation, route }) => {
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
   const [titleText, setTitleText] = useState(null);
-<<<<<<< scroll-bar-not-visible-in-dark-mode-fix
   const [scrollPercentage, setScrollPercentage] = useState(0);
   const currentElementIdRef = useRef(null);
-=======
-  const currentElementIdRef = useRef(savePosition[id] || null);
->>>>>>> dev
+  // const currentElementIdRef = useRef(savePosition[id] || null);
 
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
