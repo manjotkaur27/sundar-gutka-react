@@ -242,6 +242,7 @@ const AudioControlBar = ({
               if (isAudioAutoPlay) {
                 await play();
               }
+              setIsSeekLoading(false);
               return;
             }
           }
@@ -255,6 +256,7 @@ const AudioControlBar = ({
         if (isAudioAutoPlay) {
           await play();
         }
+        setIsSeekLoading(false);
       } catch (error) {
         logError("Error loading active track:", error);
         setIsSeekLoading(false);
