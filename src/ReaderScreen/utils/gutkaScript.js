@@ -13,6 +13,7 @@ let isManuallyScrolling = false;
 let lastHighlightedElement = null;
 let highlightTimeout = null;
 let hasReachedEnd = false;
+let lastPercentage = null;
 
 const clearScrollTimeout=()=> {
   if (autoScrollTimeout != null) {
@@ -48,6 +49,20 @@ const scrollFunc=(e)=> {
     window.ReactNativeWebView.postMessage("show");
   }
 
+
+  // Calculate percentage
+  const maxScroll = scrollHeight - clientHeight;
+  if (maxScroll > 0) {
+    const percentage = Math.min(
+      Math.max((scrollTop / maxScroll) * 100, 0),
+      100
+    ).toFixed(1);
+
+    if (percentage !== lastPercentage) {
+      lastPercentage = percentage;
+      window.ReactNativeWebView.postMessage("scroll-percent-" + percentage);
+    }
+  }
 
   if (typeof scrollFunc.y == "undefined") {
     scrollFunc.y = window.pageYOffset;

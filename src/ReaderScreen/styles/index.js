@@ -54,6 +54,16 @@ const createStyles = (theme) => ({
     backgroundColor: theme.colors.primary,
     elevation: 12,
   },
+  progressBarContainer: {
+    height: 5,
+    width: "100%",
+    backgroundColor: theme.colors.disabled || "#E0E0E0",
+    zIndex: 100,
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: theme.colors.primary,
+  },
   sliderText: {
     color: theme.staticColors.WHITE_COLOR,
     fontSize: theme.typography.sizes.md,
