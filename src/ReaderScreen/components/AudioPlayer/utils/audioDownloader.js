@@ -127,10 +127,12 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
     logError(`Audio source missing for ${trackTitle}`);
   }
 
+  // progressDivider: 20 — fire the progress callback only once per ~5 % of file size
+  // instead of on every bytes chunk, keeping the JS thread free on low-end devices.
   const audioDownloadTask = downloadFile({
     fromUrl: url,
     toFile: fullAudioPath,
-    progressDivider: 1,
+    progressDivider: 20,
     begin: () => {
       logMessage(`Audio download started for: ${trackTitle}`);
     },
@@ -185,7 +187,7 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
   const jsonDownloadTask = downloadFile({
     fromUrl: jsonUrl,
     toFile: fullJsonPath,
-    progressDivider: 1,
+    progressDivider: 20,
     begin: () => {
       logMessage(`Lyrics download started for: ${trackTitle}`);
     },

@@ -68,6 +68,8 @@ const AudioControlBar = ({
   const currentPlayingRef = useRef(currentPlaying);
   const audioProgress = useSelector((state) => state.audioProgress);
   const [isSeekLoading, setIsSeekLoading] = useState(false);
+  // Snapshot of saved progress captured once on mount — see useEffect below.
+  const initialProgressRef = useRef(null);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
   const { isDownloading, isDownloaded } = useDownloadManager(
     currentPlaying,
@@ -88,6 +90,10 @@ const AudioControlBar = ({
     return theme.colors.primary;
   }, [isAudioEnabled, theme.staticColors.LIGHT_GRAY, theme.colors.primary]);
 
+  // Use the known track length when RNTP hasn't yet discovered the stream duration.
+  // This unlocks the slider and shows the correct end-time from the moment the player opens.
+  const sliderMax = progress.duration > 0 ? progress.duration : (currentPlaying?.trackLengthSec || 0);
+
   // Keep refs updated with latest values
   useEffect(() => {
     progressRef.current = progress;
@@ -96,6 +102,12 @@ const AudioControlBar = ({
   useEffect(() => {
     currentPlayingRef.current = currentPlaying;
   }, [currentPlaying]);
+
+  // Snapshot saved progress once on mount — before any in-session playback saves can
+  // overwrite audioProgress in Redux and accidentally re-trigger loadActiveTrack.
+  useEffect(() => {
+    initialProgressRef.current = audioProgress?.[baniID] ?? null;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save progress when user closes the modal
   const handleClose = async () => {
@@ -197,9 +209,9 @@ const AudioControlBar = ({
           currentPlaying.remoteUrl || currentPlaying.audioUrl
         );
 
-        // Check if we have saved progress for this track
-        if (baniID && audioProgress?.[baniID]) {
-          const savedProgress = audioProgress[baniID];
+        // Check if we have saved progress for this track (snapshot from mount time)
+        if (initialProgressRef.current) {
+          const savedProgress = initialProgressRef.current;
 
           // If we have a saved sequence, try to restore position from sequence first
           if (savedProgress.sequence != null && currentPlaying?.lyricsUrl) {
@@ -238,9 +250,7 @@ const AudioControlBar = ({
     isInitialized,
     currentPlaying?.id,
     currentPlaying?.audioUrl,
-    currentPlaying?.displayName,
     currentPlaying?.lyricsUrl,
-    audioProgress,
     baniID,
   ]);
 
@@ -358,13 +368,18 @@ const AudioControlBar = ({
                     <ActivityIndicator size="small" color={theme.colors.primary} />
                   </View>
                 )}
-                <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
-                  {formatTime(progress.position)}
-                </CustomText>
+                <View style={styles.timeRow}>
+                  <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
+                    {formatTime(progress.position)}
+                  </CustomText>
+                  <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
+                    {sliderMax > 0 ? formatTime(sliderMax) : "0:00"}
+                  </CustomText>
+                </View>
                 <Slider
                   value={progress.position}
                   minimumValue={0}
-                  maximumValue={progress.duration}
+                  maximumValue={sliderMax}
                   onSlidingComplete={([v]) => handleSeek(v)}
                   minimumTrackTintColor={sliderMinTrackColor}
                   maximumTrackTintColor={theme.staticColors.SLIDER_TRACK_COLOR}

@@ -30,20 +30,35 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl) => {
     };
   }, [lyricsUrl, isAudioSyncScroll]);
 
-  // Find current sequence based on audio progress
+  // Find current sequence based on audio progress.
+  // LRC entries are sorted by start time, so we can binary-search instead of
+  // scanning linearly on every playback tick — O(log n) vs O(n).
   const findCurrentSequence = (currentTime) => {
     if (!currentTime || !baniLRC || !Array.isArray(baniLRC)) {
       return null;
     }
 
-    // Find the timestamp entry that contains the current time
-    const currentTimestamp = baniLRC.find(
-      (timestamp) => currentTime >= timestamp.start && currentTime <= timestamp.end
-    );
+    let lo = 0;
+    let hi = baniLRC.length - 1;
+    while (lo <= hi) {
+      // eslint-disable-next-line no-bitwise
+      const mid = (lo + hi) >>> 1;
+      const ts = baniLRC[mid];
+      if (currentTime < ts.start) {
+        hi = mid - 1;
+      } else if (currentTime > ts.end) {
+        lo = mid + 1;
+      } else {
+        return {
+          currentSequence: ts.sequence,
+          timeOut: (ts.end - ts.start) * 1000,
+        };
+      }
+    }
 
     return {
-      currentSequence: currentTimestamp ? currentTimestamp.sequence : null,
-      timeOut: currentTimestamp ? (currentTimestamp.end - currentTimestamp.start) * 1000 : 1000, // convert to milliseconds
+      currentSequence: null,
+      timeOut: 1000,
     };
   };
 

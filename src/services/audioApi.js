@@ -13,8 +13,12 @@ const getApiConfig = () => {
   };
 };
 
-// Generic API request function
+// Generic API request function with real AbortController timeout
+// Note: the `timeout` key in fetch options is NOT a valid Web API parameter — it does nothing.
+// We use AbortController to enforce a real 15-second ceiling.
 const makeApiRequest = async (endpoint, options = {}) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
   try {
     const config = getApiConfig();
     const fullUrl = `${config.baseUrl}${endpoint}`;
@@ -22,7 +26,7 @@ const makeApiRequest = async (endpoint, options = {}) => {
     const response = await fetch(fullUrl, {
       method: "GET",
       headers: config.headers,
-      timeout: 15000, // 15 second timeout for slow networks
+      signal: controller.signal,
       ...options,
     });
 
@@ -33,9 +37,11 @@ const makeApiRequest = async (endpoint, options = {}) => {
     const data = await response.json();
     return data;
   } catch (error) {
-    // Network error - show toast and continue without audio features
+    // AbortError means we timed out; other errors are network failures
     showErrorToast(STRINGS.NETWORK_ERROR);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 

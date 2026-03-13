@@ -14,6 +14,8 @@ import {
   useThemedStyles,
   StatusBarComponent,
   useBackHandler,
+  showInfoToast,
+  STRINGS,
 } from "@common";
 import { Header, AutoScrollComponent, AudioPlayer } from "./components";
 import { useBookmarks, useFetchShabad, useFooterAnimation } from "./hooks";
@@ -225,6 +227,10 @@ const Reader = ({ navigation, route }) => {
 
   const reloadWebView = useCallback(() => {
     if (webViewRef.current) {
+      // FEAT-06: Notify user and regenerate key — scroll restore happens in handleLoadEnd
+      if (STRINGS.RELOADING_BANI) {
+        showInfoToast(STRINGS.RELOADING_BANI);
+      }
       setDateKey(Date.now().toString());
     }
   }, []);
@@ -241,9 +247,9 @@ const Reader = ({ navigation, route }) => {
       {isLoading && <ActivityIndicator size="small" color={theme.colors.primary} />}
       <WebView
         key={webViewKey}
-        webviewDebuggingEnabled
+        webviewDebuggingEnabled={__DEV__}
         javaScriptEnabled
-        originWhitelist={["*"]}
+        originWhitelist={["about:blank"]}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
         ref={webViewRef}

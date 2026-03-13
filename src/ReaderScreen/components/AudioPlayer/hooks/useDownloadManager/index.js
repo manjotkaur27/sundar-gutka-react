@@ -1,16 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { logError } from "@common";
 import { downloadTrack } from "../../utils/audioDownloader";
 
 const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloaded) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  // Ref-based in-flight guard: prevents a second download from starting if
+  // currentPlaying.audioUrl changes while a download is already running.
+  const downloadingRef = useRef(false);
 
   const checkDownloadStatus = () => {
+    // Primary: isLocallyDownloaded is stamped by mergeDownloadedTracks after a real
+    // exists() check — single source of truth, immune to the redux-persist hydration race.
+    if (currentPlaying?.isLocallyDownloaded != null) {
+      return currentPlaying.isLocallyDownloaded;
+    }
+    // Fallback: check Redux manifest for tracks downloaded in the current session
+    // before the manifest has been re-fetched to reflect the updated local path.
     if (currentPlaying?.id) {
       try {
-        const downloaded = isTrackDownloaded(currentPlaying.id);
-        return downloaded;
+        return isTrackDownloaded(currentPlaying.id);
       } catch (error) {
         logError("Error checking download status:", error);
         return false;
@@ -20,7 +29,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
   };
 
   const handleDownload = async () => {
-    if (!currentPlaying?.audioUrl || isDownloading) {
+    if (!currentPlaying?.audioUrl || downloadingRef.current) {
       return;
     }
 
@@ -30,6 +39,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
         return;
       }
 
+      downloadingRef.current = true;
       setIsDownloading(true);
       const result = await downloadTrack(currentPlaying.audioUrl, currentPlaying.displayName);
       if (!result.audioRelativePath) {
@@ -40,6 +50,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
     } catch (error) {
       logError("Download error:", error);
     } finally {
+      downloadingRef.current = false;
       setIsDownloading(false);
     }
   };

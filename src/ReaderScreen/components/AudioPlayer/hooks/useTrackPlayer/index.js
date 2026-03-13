@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { exists } from "react-native-fs";
 import TrackPlayer, { usePlaybackState, useProgress, State } from "react-native-track-player";
 import { useSelector } from "react-redux";
@@ -13,6 +13,7 @@ import {
 } from "@common/TrackPlayerUtils";
 import { logError, logMessage } from "@common";
 import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
+import { downloadAudioOnly, getFullLocalTrackPath } from "../../utils/audioDownloader";
 
 const useTrackPlayer = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -22,6 +23,9 @@ const useTrackPlayer = () => {
   const progress = useProgress();
   const [isPlaying, setIsPlaying] = useState(false);
   const isAudio = useSelector((state) => state.isAudio);
+  const progressRef = useRef(progress);
+  const currentTrackIdRef = useRef(null);
+  const prefetchInFlightRef = useRef(new Map());
 
   const configurePlayer = useCallback(async () => {
     setInitializationError(null);
@@ -73,6 +77,62 @@ const useTrackPlayer = () => {
     if (!isInitialized) return;
     setIsPlaying(playbackState?.state === State.Playing);
   }, [playbackState, isInitialized]);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
+
+  const prefetchForSeek = useCallback(
+    async (track) => {
+      if (!track?.id || !track?.url || isLocalFile(track.url)) return null;
+
+      if (prefetchInFlightRef.current.has(track.id)) {
+        return prefetchInFlightRef.current.get(track.id);
+      }
+
+      const prefetchPromise = (async () => {
+        try {
+          const fullLocalPath = getFullLocalTrackPath(track.url);
+          const alreadyExists = await exists(fullLocalPath);
+          if (!alreadyExists) {
+            await downloadAudioOnly(track.url, track.title || track.artist || "Track");
+          }
+
+          const ready = await exists(fullLocalPath);
+          if (!ready) return null;
+
+          if (currentTrackIdRef.current === track.id && !isLocalFile(track.url)) {
+            const wasPlaying = playbackState?.state === State.Playing;
+            const position = progressRef.current?.position || 0;
+            const localTrack = {
+              ...track,
+              url: formatUrlForTrackPlayer(fullLocalPath),
+            };
+
+            await reset();
+            await addTrack(localTrack);
+            if (position > 0) {
+              await TrackPlayer.seekTo(position);
+            }
+            if (wasPlaying) {
+              await play();
+            }
+          }
+
+          return fullLocalPath;
+        } catch (error) {
+          logError("Prefetch for seek failed:", error);
+          return null;
+        } finally {
+          prefetchInFlightRef.current.delete(track.id);
+        }
+      })();
+
+      prefetchInFlightRef.current.set(track.id, prefetchPromise);
+      return prefetchPromise;
+    },
+    [playbackState, reset, addTrack, play]
+  );
 
   const play = async () => {
     if (!isInitialized || !isAudio) {
@@ -162,16 +222,24 @@ const useTrackPlayer = () => {
         url: formatUrlForTrackPlayer(playbackUrl),
         title,
         artist,
+        duration: trackLengthSec, // RNTP reads 'duration' — enables instant slider + seek
         lyricsUrl,
-        trackLengthSec,
         trackSizeMB,
       };
+
+      currentTrackIdRef.current = id;
 
       await reset();
       await addTrack(track);
 
       if (shouldPlay) {
         await play();
+      }
+
+      // Prefetch the full audio file in background to enable instant local seeks.
+      // This only runs when we are streaming from a remote URL.
+      if (!isLocalFile(playbackUrl)) {
+        prefetchForSeek({ ...track, url: playbackUrl });
       }
     } catch (error) {
       logError("Error adding and playing track:", error);

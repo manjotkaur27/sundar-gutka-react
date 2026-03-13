@@ -4,6 +4,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
 import { fetchManifest } from "@service";
 
+// Module-level cache for raw API responses.
+// Re-navigating to the same bani within a session reuses the cached response
+// instead of firing another network round-trip.
+const _manifestApiCache = new Map();
+
 const useAudioManifest = (baniID) => {
   const [tracks, setTracks] = useState([]);
   const [currentPlaying, setCurrentPlaying] = useState(null);
@@ -13,6 +18,9 @@ const useAudioManifest = (baniID) => {
 
   const dispatch = useDispatch();
   const audioManifest = useSelector((state) => state.audioManifest);
+  // Gate manifest fetch on redux-persist rehydration — prevents re-downloading
+  // tracks that are already on disk but whose manifest hasn't been restored yet.
+  const isRehydrated = useSelector((state) => state._persist?.rehydrated);
 
   // Map API manifest data to our track format
   const mapApiDataToTracks = (manifest) => {
@@ -32,6 +40,7 @@ const useAudioManifest = (baniID) => {
         trackLengthSec: item.track_length_seconds,
         trackSizeMB: item.track_size_mb,
         lyricsUrl: item.track_url ? item.track_url.replace(".mp3", ".json") : null,
+        isLocallyDownloaded: false,
       }));
   };
 
@@ -77,6 +86,7 @@ const useAudioManifest = (baniID) => {
             trackLengthSec: track.trackLengthSec,
             trackSizeMB: track.trackSizeMB,
             lyricsUrl: track.lyricsUrl && hasLyrics ? lyricsUrlPath : null,
+            isLocallyDownloaded: true,
           };
         })
       );
@@ -124,6 +134,7 @@ const useAudioManifest = (baniID) => {
             audioUrl: fullLocalPath,
             lyricsUrl: downloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : null,
             remoteUrl: apiTrack.audioUrl,
+            isLocallyDownloaded: true,
           };
         }
 
@@ -131,6 +142,7 @@ const useAudioManifest = (baniID) => {
         return {
           ...apiTrack,
           remoteUrl: apiTrack.audioUrl,
+          isLocallyDownloaded: false,
         };
       })
     );
@@ -161,8 +173,18 @@ const useAudioManifest = (baniID) => {
       setIsLoading(true);
       setManifestError(null);
 
-      // Fetch manifest from API
-      const manifest = await fetchManifest(baniID);
+      // Use the session cache when available — avoids a round-trip every time the
+      // user navigates back to the same bani. The downloaded-tracks merge still
+      // runs fresh each time so local file changes are always reflected.
+      let manifest;
+      if (_manifestApiCache.has(baniID)) {
+        manifest = _manifestApiCache.get(baniID);
+      } else {
+        manifest = await fetchManifest(baniID);
+        if (manifest) {
+          _manifestApiCache.set(baniID, manifest);
+        }
+      }
 
       // Map API data to tracks
       let mappedData = mapApiDataToTracks(manifest);
@@ -239,10 +261,10 @@ const useAudioManifest = (baniID) => {
   };
 
   useEffect(() => {
-    if (baniID) {
+    if (baniID && isRehydrated) {
       fetchAudioManifest();
     }
-  }, [baniID]);
+  }, [baniID, isRehydrated]);
 
   return {
     tracks,

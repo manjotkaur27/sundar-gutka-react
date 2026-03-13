@@ -66,7 +66,7 @@ const audioPlaybackSpeed = createReducer(1.0, {
   [actionTypes.SET_AUDIO_PLAYBACK_SPEED]: (state, action) => action.value,
 });
 
-const baniLength = createReducer("", {
+const baniLength = createReducer(constant.MEDIUM, {
   [actionTypes.SET_BANI_LENGTH]: (state, action) => action.value,
 });
 

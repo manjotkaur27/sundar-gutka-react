@@ -173,12 +173,15 @@ export const audioControlBarStyles = (theme) => ({
     position: "relative",
     justifyContent: "center",
   },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.xs,
+  },
   timestamp: {
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fonts.balooPaaji,
-    right: 0,
-    position: "absolute",
-    bottom: 25,
     fontWeight: theme.typography.weights.normal,
   },
   seekLoadingOverlay: {

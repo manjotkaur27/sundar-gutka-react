@@ -1,5 +1,17 @@
-import TrackPlayer, { RepeatMode, AppKilledPlaybackBehavior } from "react-native-track-player";
 import { logError, logMessage } from "./index";
+
+// RNTP is required lazily (not at module load time) because its Capability.js
+// initialiser reads NativeModules.TrackPlayerModule at the moment the module
+// evaluates. When the native module is null (stale APK / hot-reload mismatch)
+// that IIFE throws and prevents AppRegistry.registerComponent from ever running,
+// crashing the entire app before it starts.
+let _rntp = null;
+const loadRNTP = () => {
+  if (!_rntp) {
+    _rntp = require("react-native-track-player"); // eslint-disable-line
+  }
+  return _rntp;
+};
 
 // Singleton service to manage TrackPlayer initialization
 class TrackPlayerService {
@@ -25,35 +37,42 @@ class TrackPlayerService {
       try {
         logMessage("Initializing TrackPlayer service...");
 
-        // Setup the player with optimized configuration
-        // setupPlayer() will throw if already initialized, so we catch it
+        // Resolve RNTP lazily here — by the time initialize() is called the
+        // native module is guaranteed to be registered by the Android runtime.
+        const TrackPlayer = loadRNTP().default;
+        const { Capability, RepeatMode, AppKilledPlaybackBehavior } = loadRNTP();
+
         await TrackPlayer.setupPlayer({
-          waitForBuffer: false, // Don't wait for buffer on startup for better performance
-          maxCacheSize: 512, // Reduced cache for faster startup
+          waitForBuffer: false,
+          maxCacheSize: 51200,
           iosCategory: "playback",
           alwaysPauseOnInterruption: true,
         });
 
-        // Set repeat mode
         await TrackPlayer.setRepeatMode(RepeatMode.Off);
 
-        // Configure capabilities
         await TrackPlayer.updateOptions({
+          // Fewer progress events -> less UI/notification churn on low-end devices.
+          progressUpdateEventInterval: 2,
           android: {
             appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+            notificationChannelName: "Sundar Gutka",
+            notificationChannelDescription: "Gurbani audio playback controls",
+            notificationIcon: "ic_launcher",
+            notificationColor: 0xFFEEB14F,
           },
           capabilities: [
-            TrackPlayer.Capability.Play,
-            TrackPlayer.Capability.Pause,
-            TrackPlayer.Capability.SkipToNext,
-            TrackPlayer.Capability.SkipToPrevious,
-            TrackPlayer.Capability.Stop,
-            TrackPlayer.Capability.SeekTo,
+            Capability.Play,
+            Capability.Pause,
+            Capability.SkipToNext,
+            Capability.SkipToPrevious,
+            Capability.Stop,
+            Capability.SeekTo,
           ],
           compactCapabilities: [
-            TrackPlayer.Capability.Play,
-            TrackPlayer.Capability.Pause,
-            TrackPlayer.Capability.SkipToNext,
+            Capability.Play,
+            Capability.Pause,
+            Capability.SkipToNext,
           ],
         });
 
@@ -84,7 +103,7 @@ class TrackPlayerService {
     try {
       logMessage("Cleaning up TrackPlayer service...");
 
-      // Stop any active playback
+      const TrackPlayer = loadRNTP().default;
       await TrackPlayer.stop();
       await TrackPlayer.reset();
 
@@ -128,6 +147,7 @@ export const addTrack = async (track) => {
       logError("Track ID is missing");
     }
 
+    const TrackPlayer = loadRNTP().default;
     await TrackPlayer.add(track);
   } catch (error) {
     logError(`❌ Error adding track to TrackPlayer: ${error}`);
@@ -137,7 +157,7 @@ export const addTrack = async (track) => {
 
 export const playTrack = async () => {
   try {
-    await TrackPlayer.play();
+    await loadRNTP().default.play();
   } catch (error) {
     logError(error);
   }
@@ -145,7 +165,7 @@ export const playTrack = async () => {
 
 export const pauseTrack = async () => {
   try {
-    await TrackPlayer.pause();
+    await loadRNTP().default.pause();
   } catch (error) {
     logError(`Error pausing track: ${error}`);
   }
@@ -153,7 +173,7 @@ export const pauseTrack = async () => {
 
 export const stopTrack = async () => {
   try {
-    await TrackPlayer.stop();
+    await loadRNTP().default.stop();
   } catch (error) {
     logError(`Error stopping track: ${error}`);
   }
@@ -161,7 +181,7 @@ export const stopTrack = async () => {
 
 export const resetPlayer = async () => {
   try {
-    await TrackPlayer.reset();
+    await loadRNTP().default.reset();
   } catch (error) {
     logError(`Error resetting player: ${error}`);
   }

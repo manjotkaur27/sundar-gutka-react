@@ -1,4 +1,4 @@
-import LocalizedStrings from "react-native-localization";
+﻿import LocalizedStrings from "react-native-localization";
 
 const STRINGS = new LocalizedStrings({
   "en-US": {
@@ -177,6 +177,7 @@ const STRINGS = new LocalizedStrings({
     SYNC_UNAVAILABLE: "Unavailable",
     RETRY: "Please try again.",
     INITIALIZING_AUDIO_PLAYER: "We’re unable to start the Gurbani audio right now.",
+    RELOADING_BANI: "Reloading Bani...",
   },
   hi: {
     about: "हमारे बारे",
