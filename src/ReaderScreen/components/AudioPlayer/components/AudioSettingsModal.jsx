@@ -84,19 +84,23 @@ const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
           <CustomText style={styles.settingItemTitle}>{STRINGS.PLAYBACK_SPEED}</CustomText>
           <View right style={styles.speedControlContainer}>
             <Pressable
-              onPress={() => handleSpeedChange(audioPlaybackSpeed + 0.1)}
-              disabled={audioPlaybackSpeed > 1.6}
+              style={styles.speedControlButton}
+              hitSlop={8}
+              onPress={() => handleSpeedChange(audioPlaybackSpeed - 0.1)}
+              disabled={audioPlaybackSpeed <= 0.5}
             >
-              <PlusIcon size={24} color={theme.colors.audioSettingsModalText} />
+              <MinusIcon size={24} color={theme.colors.audioSettingsModalText} />
             </Pressable>
             <CustomText style={styles.settingItemTitle}>
               {audioPlaybackSpeed.toFixed(1)}x
             </CustomText>
             <Pressable
-              onPress={() => handleSpeedChange(audioPlaybackSpeed - 0.1)}
-              disabled={audioPlaybackSpeed <= 0.5}
+              style={styles.speedControlButton}
+              hitSlop={8}
+              onPress={() => handleSpeedChange(audioPlaybackSpeed + 0.1)}
+              disabled={audioPlaybackSpeed > 1.6}
             >
-              <MinusIcon size={24} color={theme.colors.audioSettingsModalText} />
+              <PlusIcon size={24} color={theme.colors.audioSettingsModalText} />
             </Pressable>
           </View>
         </View>

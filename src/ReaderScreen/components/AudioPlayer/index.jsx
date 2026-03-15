@@ -57,16 +57,6 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     }
   }, [isInitialized, audioPlaybackSpeed, setRate]);
 
-  // Cleanup: stop audio when component unmounts
-  useEffect(() => {
-    return () => {
-      (async () => {
-        dispatch(toggleAudio(false));
-        await stop();
-      })();
-    };
-  }, []);
-
   const handlePlayPause = async () => {
     if (!isInitialized || !isAudioEnabled || !currentPlaying) {
       return;

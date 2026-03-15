@@ -57,20 +57,6 @@ const useTrackPlayer = () => {
     (async () => {
       await configurePlayer();
     })();
-
-    // Cleanup function
-    return () => {
-      // Cleanup on unmount
-      const cleanup = async () => {
-        try {
-          // Stop any active playback when component unmounts
-          await stopTrack();
-        } catch (error) {
-          logError("Error during cleanup:", error);
-        }
-      };
-      cleanup();
-    };
   }, [configurePlayer]);
 
   useEffect(() => {

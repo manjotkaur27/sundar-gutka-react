@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
+import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
@@ -196,6 +197,16 @@ const AudioControlBar = ({
 
       try {
         setIsSeekLoading(true);
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        const isSameActiveTrack =
+          activeTrack?.id != null && String(activeTrack.id) === String(currentPlaying.id);
+
+        // Keep current playback timeline when reopening the same bani/track.
+        if (isSameActiveTrack) {
+          setIsSeekLoading(false);
+          return;
+        }
+
         // Load the track (will seek to saved position if available)
         await addAndPlayTrack(
           currentPlaying.id,
@@ -269,22 +280,10 @@ const AudioControlBar = ({
             sequence = await getSequenceFromPosition(lyricsUrl, currentProgress.position);
           }
           dispatch(setAudioProgress(baniID, trackId, currentProgress.position, sequence));
-          await reset();
         })();
       }
     };
   }, [baniID]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("blur", () => {
-      // This runs whenever you leave the Read screen
-      (async () => {
-        await pause();
-      })();
-    });
-
-    return unsubscribe;
-  }, [navigation]);
 
   return (
     <View style={styles.container} pointerEvents="box-none">

@@ -408,6 +408,12 @@ export const audioSettingModalStyles = (theme) => ({
     justifyContent: "center",
     gap: theme.spacing.md,
   },
+  speedControlButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   modalContainer: {
     flexDirection: "row",
