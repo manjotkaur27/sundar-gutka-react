@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { View, Pressable } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { CloseIcon } from "@common/icons";
+import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { useTheme, useThemedStyles, CustomText, STRINGS } from "@common";
 import createStyles from "./styles";
 
@@ -34,8 +34,15 @@ const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle 
             </>
           )}
         </CustomText>
-        <Pressable style={styles.joinMailingListButton} onPress={buttonPress}>
-          <CustomText style={styles.joinMailingListText}>{buttonText}</CustomText>
+        <Pressable
+          style={styles.joinMailingListButton}
+          onPress={buttonPress}
+          accessibilityRole="link"
+        >
+          <View style={styles.joinMailingListContent}>
+            <CustomText style={styles.joinMailingListText}>{buttonText}</CustomText>
+            <ArrowRightIcon size={18} color={theme.colors.primary} />
+          </View>
         </Pressable>
       </View>
     </View>
