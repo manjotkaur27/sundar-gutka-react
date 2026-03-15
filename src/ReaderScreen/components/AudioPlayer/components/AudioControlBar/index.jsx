@@ -69,6 +69,7 @@ const AudioControlBar = ({
   const currentPlayingRef = useRef(currentPlaying);
   const audioProgress = useSelector((state) => state.audioProgress);
   const [isSeekLoading, setIsSeekLoading] = useState(false);
+  const [stableNativeDuration, setStableNativeDuration] = useState(0);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
@@ -79,9 +80,32 @@ const AudioControlBar = ({
   );
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
   useArtistListeningDuration(baniID, isPlaying, currentPlaying);
+
+  const sanitizeDuration = (value) => {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return 0;
+    }
+    // Guard against corrupted native metadata spikes (e.g., very large bogus values).
+    const MAX_REASONABLE_DURATION_SECONDS = 12 * 60 * 60;
+    return Math.min(numericValue, MAX_REASONABLE_DURATION_SECONDS);
+  };
+
+  const sanitizePosition = (value, duration) => {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      return 0;
+    }
+    if (duration > 0) {
+      return Math.min(numericValue, duration);
+    }
+    return numericValue;
+  };
+
   const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const safeSeconds = sanitizePosition(seconds, 0);
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = Math.floor(safeSeconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -91,9 +115,14 @@ const AudioControlBar = ({
     return theme.colors.primary;
   }, [isAudioEnabled, theme.staticColors.LIGHT_GRAY, theme.colors.primary]);
 
-  // Use the known track length when RNTP hasn't yet discovered the stream duration.
-  // This unlocks the slider and shows the correct end-time from the moment the player opens.
-  const sliderMax = progress.duration > 0 ? progress.duration : (currentPlaying?.trackLengthSec || 0);
+  // Display duration only after native player confirms the active track.
+  // This avoids showing stale or fallback durations during track transitions.
+  const sliderMax = stableNativeDuration;
+
+  const safePosition = useMemo(
+    () => sanitizePosition(progress.position, sliderMax),
+    [progress.position, sliderMax]
+  );
 
   // Keep refs updated with latest values
   useEffect(() => {
@@ -103,6 +132,39 @@ const AudioControlBar = ({
   useEffect(() => {
     currentPlayingRef.current = currentPlaying;
   }, [currentPlaying]);
+
+  useEffect(() => {
+    setStableNativeDuration(0);
+  }, [currentPlaying?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncStableDuration = async () => {
+      const nativeDuration = sanitizeDuration(progress.duration);
+      if (!nativeDuration || !currentPlaying?.id) {
+        return;
+      }
+
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        const isCurrentActiveTrack =
+          activeTrack?.id != null && String(activeTrack.id) === String(currentPlaying.id);
+
+        if (isMounted && isCurrentActiveTrack) {
+          setStableNativeDuration(nativeDuration);
+        }
+      } catch (error) {
+        // Ignore transient native state errors while player is transitioning tracks.
+      }
+    };
+
+    syncStableDuration();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [progress.duration, currentPlaying?.id]);
 
   // Snapshot saved progress once on mount — before any in-session playback saves can
   // overwrite audioProgress in Redux and accidentally re-trigger loadActiveTrack.
@@ -114,14 +176,17 @@ const AudioControlBar = ({
   const handleClose = async () => {
     const currentProgress = progressRef.current;
     const currentTrack = currentPlayingRef.current;
+    const closeDuration =
+      sanitizeDuration(currentProgress?.duration) || sanitizeDuration(currentTrack?.trackLengthSec);
+    const closePosition = sanitizePosition(currentProgress?.position, closeDuration);
 
-    if (currentTrack?.id && currentProgress?.position != null) {
+    if (currentTrack?.id && closePosition != null) {
       // Save sequence along with position
       let sequence = null;
       if (currentTrack?.lyricsUrl) {
-        sequence = await getSequenceFromPosition(currentTrack.lyricsUrl, currentProgress.position);
+        sequence = await getSequenceFromPosition(currentTrack.lyricsUrl, closePosition);
       }
-      dispatch(setAudioProgress(baniID, currentTrack.id, currentProgress.position, sequence));
+      dispatch(setAudioProgress(baniID, currentTrack.id, closePosition, sequence));
     }
 
     onCloseTrackModal();
@@ -271,15 +336,18 @@ const AudioControlBar = ({
       const currentProgress = progressRef.current;
       const currentTrack = currentPlayingRef.current;
       const trackId = currentTrack?.id;
-      if (trackId && currentProgress?.position != null) {
+      const unmountDuration =
+        sanitizeDuration(currentProgress?.duration) || sanitizeDuration(currentTrack?.trackLengthSec);
+      const unmountPosition = sanitizePosition(currentProgress?.position, unmountDuration);
+      if (trackId && unmountPosition != null) {
         // Save sequence along with position
         (async () => {
           let sequence = null;
           const lyricsUrl = currentTrack?.lyricsUrl;
           if (lyricsUrl) {
-            sequence = await getSequenceFromPosition(lyricsUrl, currentProgress.position);
+            sequence = await getSequenceFromPosition(lyricsUrl, unmountPosition);
           }
-          dispatch(setAudioProgress(baniID, trackId, currentProgress.position, sequence));
+          dispatch(setAudioProgress(baniID, trackId, unmountPosition, sequence));
         })();
       }
     };
@@ -369,14 +437,14 @@ const AudioControlBar = ({
                 )}
                 <View style={styles.timeRow}>
                   <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
-                    {formatTime(progress.position)}
+                    {formatTime(safePosition)}
                   </CustomText>
                   <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
                     {sliderMax > 0 ? formatTime(sliderMax) : "0:00"}
                   </CustomText>
                 </View>
                 <Slider
-                  value={progress.position}
+                  value={safePosition}
                   minimumValue={0}
                   maximumValue={sliderMax}
                   onSlidingComplete={([v]) => handleSeek(v)}
