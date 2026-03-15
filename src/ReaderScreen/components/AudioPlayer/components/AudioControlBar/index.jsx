@@ -69,7 +69,6 @@ const AudioControlBar = ({
   const currentPlayingRef = useRef(currentPlaying);
   const audioProgress = useSelector((state) => state.audioProgress);
   const [isSeekLoading, setIsSeekLoading] = useState(false);
-  const [stableNativeDuration, setStableNativeDuration] = useState(0);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
@@ -115,9 +114,23 @@ const AudioControlBar = ({
     return theme.colors.primary;
   }, [isAudioEnabled, theme.staticColors.LIGHT_GRAY, theme.colors.primary]);
 
-  // Display duration only after native player confirms the active track.
-  // This avoids showing stale or fallback durations during track transitions.
-  const sliderMax = stableNativeDuration;
+  const getEffectiveDuration = useMemo(() => {
+    const manifestDuration = sanitizeDuration(currentPlaying?.trackLengthSec);
+    const nativeDuration = sanitizeDuration(progress.duration);
+
+    if (manifestDuration > 0 && nativeDuration > 0) {
+      // Reject temporary native outliers while still preferring native when close.
+      const tolerance = Math.max(30, manifestDuration * 0.15);
+      if (Math.abs(nativeDuration - manifestDuration) > tolerance) {
+        return manifestDuration;
+      }
+      return nativeDuration;
+    }
+
+    return nativeDuration || manifestDuration;
+  }, [currentPlaying?.trackLengthSec, progress.duration]);
+
+  const sliderMax = getEffectiveDuration;
 
   const safePosition = useMemo(
     () => sanitizePosition(progress.position, sliderMax),
@@ -132,39 +145,6 @@ const AudioControlBar = ({
   useEffect(() => {
     currentPlayingRef.current = currentPlaying;
   }, [currentPlaying]);
-
-  useEffect(() => {
-    setStableNativeDuration(0);
-  }, [currentPlaying?.id]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const syncStableDuration = async () => {
-      const nativeDuration = sanitizeDuration(progress.duration);
-      if (!nativeDuration || !currentPlaying?.id) {
-        return;
-      }
-
-      try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        const isCurrentActiveTrack =
-          activeTrack?.id != null && String(activeTrack.id) === String(currentPlaying.id);
-
-        if (isMounted && isCurrentActiveTrack) {
-          setStableNativeDuration(nativeDuration);
-        }
-      } catch (error) {
-        // Ignore transient native state errors while player is transitioning tracks.
-      }
-    };
-
-    syncStableDuration();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [progress.duration, currentPlaying?.id]);
 
   // Snapshot saved progress once on mount — before any in-session playback saves can
   // overwrite audioProgress in Redux and accidentally re-trigger loadActiveTrack.
