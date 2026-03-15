@@ -1,5 +1,5 @@
 const TrackPlayer = require("react-native-track-player").default;
-const { Event } = require("react-native-track-player");
+const { Event, State } = require("react-native-track-player");
 
 /**
  * Background Playback Service (RNTP v4)
@@ -11,6 +11,8 @@ const { Event } = require("react-native-track-player");
  * Runs in a separate JS context on a background thread — keep handlers lean.
  */
 module.exports = async function () {
+  let shouldResumeAfterDuck = false;
+
   // ── Remote control / notification actions ──────────────────────────────────
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
 
@@ -40,11 +42,20 @@ module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemoteDuck, async ({ paused, permanent }) => {
     if (permanent) {
       // Permanent focus loss (e.g. another music app took over) — stop outright
+      shouldResumeAfterDuck = false;
       await TrackPlayer.stop();
     } else if (paused) {
-      await TrackPlayer.pause();
+      const playbackState = await TrackPlayer.getPlaybackState();
+      shouldResumeAfterDuck = playbackState?.state === State.Playing;
+
+      if (shouldResumeAfterDuck) {
+        await TrackPlayer.pause();
+      }
     } else {
-      await TrackPlayer.play();
+      if (shouldResumeAfterDuck) {
+        shouldResumeAfterDuck = false;
+        await TrackPlayer.play();
+      }
     }
   });
 
