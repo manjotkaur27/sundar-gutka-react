@@ -69,6 +69,8 @@ const AudioControlBar = ({
   const currentPlayingRef = useRef(currentPlaying);
   const audioProgress = useSelector((state) => state.audioProgress);
   const [isSeekLoading, setIsSeekLoading] = useState(false);
+  const [displayDuration, setDisplayDuration] = useState(0);
+  const [durationTrackId, setDurationTrackId] = useState(null);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
@@ -101,6 +103,8 @@ const AudioControlBar = ({
     return numericValue;
   };
 
+  const getTrackId = (track) => (track?.id != null ? String(track.id) : null);
+
   const formatTime = (seconds) => {
     const safeSeconds = sanitizePosition(seconds, 0);
     const mins = Math.floor(safeSeconds / 60);
@@ -114,26 +118,34 @@ const AudioControlBar = ({
     return theme.colors.primary;
   }, [isAudioEnabled, theme.staticColors.LIGHT_GRAY, theme.colors.primary]);
 
-  const getEffectiveDuration = useMemo(() => {
+  useEffect(() => {
+    // Avoid showing stale duration from a previous track while new metadata is loading.
+    setDisplayDuration(0);
+    setDurationTrackId(getTrackId(currentPlaying));
+  }, [currentPlaying?.id]);
+
+  useEffect(() => {
+    const currentTrackId = getTrackId(currentPlaying);
+    if (!currentTrackId) {
+      setDisplayDuration(0);
+      setDurationTrackId(null);
+      return;
+    }
+
     const manifestDuration = sanitizeDuration(currentPlaying?.trackLengthSec);
     const nativeDuration = sanitizeDuration(progress.duration);
 
-    if (manifestDuration > 0 && nativeDuration > 0) {
-      // Reject temporary native outliers while still preferring native when close.
-      const tolerance = Math.max(30, manifestDuration * 0.15);
-      if (Math.abs(nativeDuration - manifestDuration) > tolerance) {
-        return manifestDuration;
-      }
-      return nativeDuration;
-    }
+    // Prefer fetched track duration for instant UI; fall back to native only when needed.
+    const nextDuration = manifestDuration || nativeDuration || 0;
+    setDisplayDuration(nextDuration);
+    setDurationTrackId(currentTrackId);
+  }, [currentPlaying?.id, currentPlaying?.trackLengthSec, progress.duration]);
 
-    return nativeDuration || manifestDuration;
-  }, [currentPlaying?.trackLengthSec, progress.duration]);
-
-  const sliderMax = getEffectiveDuration;
+  const sliderMax =
+    durationTrackId && durationTrackId === getTrackId(currentPlaying) ? displayDuration : 0;
 
   const safePosition = useMemo(
-    () => sanitizePosition(progress.position, sliderMax),
+    () => (sliderMax > 0 ? sanitizePosition(progress.position, sliderMax) : 0),
     [progress.position, sliderMax]
   );
 

@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
+import { stopTrack } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
 import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
 import createStyles from "./style";
@@ -78,7 +79,11 @@ const BottomNavigation = ({ activeKey }) => {
     {
       key: "Home",
       icon: HomeIcon,
-      handlePress: () => {
+      handlePress: async () => {
+        if (isAudio) {
+          await stopTrack();
+          dispatch(actions.toggleAudio(false));
+        }
         navigation.popToTop();
       },
       text: STRINGS.HOME,
@@ -86,13 +91,14 @@ const BottomNavigation = ({ activeKey }) => {
     {
       key: "Read",
       icon: ReadIcon,
-      handlePress: () => {
+      handlePress: async () => {
         const currentNavRoute = getCurrentRouteName();
 
         if (currentNavRoute === constant.SETTINGS) {
           navigation.goBack();
         }
         if (isAudio) {
+          await stopTrack();
           dispatch(actions.toggleAudio(false));
         }
       },
@@ -122,7 +128,11 @@ const BottomNavigation = ({ activeKey }) => {
     {
       key: "Settings",
       icon: SettingsIcon,
-      handlePress: () => {
+      handlePress: async () => {
+        if (isAudio) {
+          await stopTrack();
+          dispatch(actions.toggleAudio(false));
+        }
         navigation.navigate(constant.SETTINGS);
       },
       text: STRINGS.SETTINGS,
