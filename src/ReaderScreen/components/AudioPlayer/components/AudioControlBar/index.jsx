@@ -132,14 +132,14 @@ const AudioControlBar = ({
       return;
     }
 
-    const manifestDuration = sanitizeDuration(currentPlaying?.trackLengthSec);
     const nativeDuration = sanitizeDuration(progress.duration);
 
-    // Prefer fetched track duration for instant UI; fall back to native only when needed.
-    const nextDuration = manifestDuration || nativeDuration || 0;
+    // Show only verified native duration to avoid placeholder/incorrect totals
+    // coming from manifest values (e.g., repeated 28:29).
+    const nextDuration = nativeDuration || 0;
     setDisplayDuration(nextDuration);
     setDurationTrackId(currentTrackId);
-  }, [currentPlaying?.id, currentPlaying?.trackLengthSec, progress.duration]);
+  }, [currentPlaying?.id, progress.duration]);
 
   const sliderMax =
     durationTrackId && durationTrackId === getTrackId(currentPlaying) ? displayDuration : 0;
