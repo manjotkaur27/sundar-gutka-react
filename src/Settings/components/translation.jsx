@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Avatar, Switch } from "@rneui/themed";
+import { ListItem, Avatar, Divider, Icon } from "@rneui/themed";
 import {
   toggleEnglishTranslation,
   togglePunjabiTranslation,
@@ -8,7 +8,10 @@ import {
 } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, CustomText } from "@common";
+import { Modal, View, Pressable, Platform, StyleSheet } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { BlurView } from "@react-native-community/blur";
 import createStyles from "../styles";
 
 const TranslationComponent = () => {
@@ -20,64 +23,104 @@ const TranslationComponent = () => {
   const isPunjabiTranslation = useSelector((state) => state.isPunjabiTranslation);
 
   const dispatch = useDispatch();
-  const [isExpanded, toggleIsExpanded] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  const translationOptions = [
+    {
+      key: "en",
+      title: STRINGS.en_translations,
+      value: isEnglishTranslation,
+      action: toggleEnglishTranslation,
+    },
+    {
+      key: "pu",
+      title: STRINGS.pu_translations,
+      value: isPunjabiTranslation,
+      action: togglePunjabiTranslation,
+    },
+    {
+      key: "es",
+      title: STRINGS.es_translations,
+      value: isSpanishTranslation,
+      action: toggleSpanishTranslation,
+    },
+  ];
+
+  const selectedCount = translationOptions.filter((item) => item.value).length;
+
+  const selectedSummary =
+    selectedCount === 0 ? "None" : `${selectedCount} selected (multiple allowed)`;
+
   return (
-    <ListItem.Accordion
-      bottomDivider
-      containerStyle={styles.containerNightStyles}
-      isExpanded={isExpanded}
-      onPress={() => toggleIsExpanded(!isExpanded)}
-      content={
-        <>
-          <Avatar source={translationAvatar} avatarStyle={styles.avatarStyle} />
-          <ListItem.Content>
-            <ListItemTitle
-              title={STRINGS.translations}
-              style={[{ paddingLeft: 16 }, styles.listItemTitle]}
-            />
-          </ListItem.Content>
-        </>
-      }
-      icon={{
-        name: "chevron-down",
-        type: "material-community",
-        color: theme.colors.primaryText,
-        size: 26,
-      }}
-    >
-      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Avatar />
+    <>
+      <ListItem
+        bottomDivider
+        containerStyle={styles.containerNightStyles}
+        onPress={() => setIsVisible(true)}
+      >
+        <Avatar source={translationAvatar} avatarStyle={styles.avatarStyle} />
         <ListItem.Content>
-          <ListItemTitle title={STRINGS.en_translations} style={styles.listItemTitle} />
+          <ListItemTitle title={STRINGS.translations} style={[{ paddingLeft: 16 }, styles.listItemTitle]} />
         </ListItem.Content>
-        <Switch
-          value={isEnglishTranslation}
-          onValueChange={(value) => dispatch(toggleEnglishTranslation(value))}
-        />
+        <CustomText style={styles.titleInfoStyle}>{selectedSummary}</CustomText>
+        <ListItem.Chevron />
       </ListItem>
 
-      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Avatar />
-        <ListItem.Content>
-          <ListItemTitle title={STRINGS.pu_translations} style={styles.listItemTitle} />
-        </ListItem.Content>
-        <Switch
-          value={isPunjabiTranslation}
-          onValueChange={(value) => dispatch(togglePunjabiTranslation(value))}
-        />
-      </ListItem>
-
-      <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Avatar />
-        <ListItem.Content>
-          <ListItemTitle title={STRINGS.es_translations} style={styles.listItemTitle} />
-        </ListItem.Content>
-        <Switch
-          value={isSpanishTranslation}
-          onValueChange={(value) => dispatch(toggleSpanishTranslation(value))}
-        />
-      </ListItem>
-    </ListItem.Accordion>
+      {isVisible && (
+        <SafeAreaProvider>
+          <SafeAreaView>
+            <Modal
+              visible={isVisible}
+              animationType="fade"
+              transparent
+              supportedOrientations={[
+                "landscape",
+                "landscape-left",
+                "landscape-right",
+                "portrait",
+                "portrait-upside-down",
+              ]}
+            >
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsVisible(false)}>
+                <BlurView
+                  reducedTransparencyFallbackColor={theme.staticColors.NIGHT_OPACITY_BLACK}
+                  style={styles.blurViewStyle}
+                  blurType="dark"
+                  enabled
+                />
+                <View
+                  style={Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper}
+                >
+                  <CustomText
+                    style={[
+                      styles.bottomSheetTitle,
+                      styles.listItemTitle,
+                      styles.containerNightStyles,
+                    ]}
+                  >
+                    {STRINGS.translations}
+                  </CustomText>
+                  <Divider />
+                  {translationOptions.map((item) => (
+                    <ListItem
+                      key={item.key}
+                      bottomDivider
+                      containerStyle={styles.containerNightStyles}
+                      onPress={() => dispatch(item.action(!item.value))}
+                    >
+                      <ListItem.Content>
+                        <ListItemTitle title={item.title} style={styles.listItemTitle} />
+                      </ListItem.Content>
+                      {item.value && <Icon color={theme.colors.primaryText} name="check" />}
+                    </ListItem>
+                  ))}
+                </View>
+              </Pressable>
+            </Modal>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      )}
+    </>
   );
 };
 
