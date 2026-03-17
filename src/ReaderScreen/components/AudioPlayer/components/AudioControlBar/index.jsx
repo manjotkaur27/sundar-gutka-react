@@ -261,6 +261,9 @@ const AudioControlBar = ({
 
         // Keep current playback timeline when reopening the same bani/track.
         if (isSameActiveTrack) {
+          if (isAudioAutoPlay) {
+            await play();
+          }
           setIsSeekLoading(false);
           return;
         }

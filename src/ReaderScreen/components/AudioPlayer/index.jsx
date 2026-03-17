@@ -21,6 +21,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
   const [showTrackModal, setShowTrackModal] = useState(true);
   const [isPlayerActionLoading, setIsPlayerActionLoading] = useState(false);
   const defaultAudio = useSelector((state) => state.defaultAudio);
+  const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
   const {
     isPlaying,
@@ -110,6 +111,58 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
       setShowTrackModal(false);
     }
   }, [currentPlaying, defaultAudio, baniID]);
+
+  useEffect(() => {
+    const autoStartFirstTrack = async () => {
+      if (!isAudioAutoPlay || !showTrackModal || !isAudioEnabled || isTracksLoading) {
+        return;
+      }
+      if (currentPlaying || (defaultAudio[baniID] && defaultAudio[baniID].audioUrl)) {
+        return;
+      }
+      if (!tracks || tracks.length === 0) {
+        return;
+      }
+
+      const firstPlayableTrack = tracks.find((track) => track?.audioUrl);
+      if (!firstPlayableTrack) {
+        return;
+      }
+
+      try {
+        setIsPlayerActionLoading(true);
+        await handleTrackSelect(firstPlayableTrack);
+        await addAndPlayTrack(
+          firstPlayableTrack.id,
+          firstPlayableTrack.audioUrl,
+          firstPlayableTrack.displayName,
+          firstPlayableTrack.displayName,
+          firstPlayableTrack.lyricsUrl,
+          firstPlayableTrack.trackLengthSec,
+          firstPlayableTrack.trackSizeMB,
+          true,
+          firstPlayableTrack.remoteUrl || firstPlayableTrack.audioUrl
+        );
+      } catch (error) {
+        logError("Error auto-starting first track:", error);
+      } finally {
+        setIsPlayerActionLoading(false);
+      }
+    };
+
+    autoStartFirstTrack();
+  }, [
+    isAudioAutoPlay,
+    showTrackModal,
+    isAudioEnabled,
+    isTracksLoading,
+    tracks,
+    currentPlaying,
+    defaultAudio,
+    baniID,
+    handleTrackSelect,
+    addAndPlayTrack,
+  ]);
 
   const handleSeek = async (value) => {
     if (!isAudioEnabled || !isInitialized) return;

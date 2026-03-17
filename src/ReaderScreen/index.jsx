@@ -28,6 +28,8 @@ const Reader = ({ navigation, route }) => {
   const bookmarkPosition = useSelector((state) => state.bookmarkPosition);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudio = useSelector((state) => state.isAudio);
+  const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
+  const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const isTransliteration = useSelector((state) => state.isTransliteration);
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
@@ -276,7 +278,7 @@ const Reader = ({ navigation, route }) => {
           toggleHeader((prev) => !prev);
         }}
       />
-      {isAudio && <AudioPlayer baniID={id} title={titleText} webViewRef={webViewRef} />}
+      {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} webViewRef={webViewRef} />}
       <Animated.View
         style={[
           styles.autoScrollAnimatedView,
@@ -292,7 +294,7 @@ const Reader = ({ navigation, route }) => {
       <View style={styles.progressBarContainer}>
         <View style={[styles.progressBar, { width: `${scrollPercentage}%` }]} />
       </View>
-      <BottomNavigation activeKey={isAudio ? "Music" : "Read"} />
+      <BottomNavigation activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"} />
     </SafeArea>
   );
 };

@@ -5,6 +5,7 @@
 import React from "react";
 
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
+import TrackPlayer from "react-native-track-player";
 
 import { useDownloadManager } from "../../hooks";
 
@@ -505,6 +506,42 @@ describe("AudioControlBar", () => {
     });
 
     expect(props.play).toHaveBeenCalledTimes(1);
+  });
+
+  it("resumes same active track when re-opened and autoplay is enabled", async () => {
+    mockState.isAudioAutoPlay = true;
+    TrackPlayer.getActiveTrack.mockResolvedValueOnce({ id: "track-1" });
+
+    const props = createProps({
+      isInitialized: true,
+      play: jest.fn().mockResolvedValue(undefined),
+      addAndPlayTrack: jest.fn().mockResolvedValue(undefined),
+    });
+
+    await renderComponent(props);
+
+    await waitFor(() => {
+      expect(props.play).toHaveBeenCalledTimes(1);
+      expect(props.addAndPlayTrack).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps same active track paused when re-opened and autoplay is disabled", async () => {
+    mockState.isAudioAutoPlay = false;
+    TrackPlayer.getActiveTrack.mockResolvedValueOnce({ id: "track-1" });
+
+    const props = createProps({
+      isInitialized: true,
+      play: jest.fn().mockResolvedValue(undefined),
+      addAndPlayTrack: jest.fn().mockResolvedValue(undefined),
+    });
+
+    await renderComponent(props);
+
+    await waitFor(() => {
+      expect(props.play).not.toHaveBeenCalled();
+      expect(props.addAndPlayTrack).not.toHaveBeenCalled();
+    });
   });
 
   it("checks lyrics availability and toggles sync scroll via dispatch", async () => {

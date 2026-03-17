@@ -1,7 +1,13 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
-import { toggleAudio, toggleAudioAutoPlay, toggleAutoScroll } from "@common/actions";
+import {
+  toggleAudio,
+  toggleAudioAutoPlay,
+  toggleAutoScroll,
+  toggleAudioFeatureEnabled,
+} from "@common/actions";
+import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { STRINGS, ListItemTitle } from "@common";
@@ -11,10 +17,12 @@ const Audio = () => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isAudio = useSelector((state) => state.isAudio);
+  const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const dispatch = useDispatch();
   const { AUDIO, AUDIO_AUTO_PLAY } = STRINGS;
+  const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
 
   // Audio settings configuration
   const audioSettings = [
@@ -22,8 +30,8 @@ const Audio = () => {
       id: "main",
       title: AUDIO,
       icon: "music-note",
-      value: isAudio,
-      action: toggleAudio,
+      value: isAudioFeatureOn,
+      action: toggleAudioFeatureEnabled,
       showAlways: true,
     },
     {
@@ -37,7 +45,7 @@ const Audio = () => {
   ];
 
   const renderAudioSetting = (setting) => {
-    const shouldShow = setting.showAlways || isAudio;
+    const shouldShow = setting.showAlways || isAudioFeatureOn;
 
     if (!shouldShow) return null;
 
@@ -53,9 +61,14 @@ const Audio = () => {
         </ListItem.Content>
         <Switch
           value={setting.value}
-          onValueChange={(value) => {
+          onValueChange={async (value) => {
             if (isAutoScroll) {
               dispatch(toggleAutoScroll(false));
+            }
+            if (setting.id === "main" && !value) {
+              await stopTrack();
+              await resetPlayer();
+              dispatch(toggleAudio(false));
             }
             dispatch(setting.action(value));
           }}

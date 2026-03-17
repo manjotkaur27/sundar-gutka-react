@@ -5,7 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { stopTrack } from "@common/TrackPlayerUtils";
+import { pauseTrack } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
 import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
 import createStyles from "./style";
@@ -16,6 +16,8 @@ const BottomNavigation = ({ activeKey }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isAudio = useSelector((state) => state.isAudio);
+  const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
+  const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const [isSettings, setIsSettings] = useState(false);
   const [previousRouteName, setPreviousRouteName] = useState(null);
 
@@ -81,7 +83,7 @@ const BottomNavigation = ({ activeKey }) => {
       icon: HomeIcon,
       handlePress: async () => {
         if (isAudio) {
-          await stopTrack();
+          await pauseTrack();
           dispatch(actions.toggleAudio(false));
         }
         navigation.popToTop();
@@ -98,7 +100,7 @@ const BottomNavigation = ({ activeKey }) => {
           navigation.goBack();
         }
         if (isAudio) {
-          await stopTrack();
+          await pauseTrack();
           dispatch(actions.toggleAudio(false));
         }
       },
@@ -108,6 +110,9 @@ const BottomNavigation = ({ activeKey }) => {
       key: "Music",
       icon: MusicIcon,
       handlePress: () => {
+        if (!isAudioFeatureOn) {
+          return;
+        }
         const currentNavRoute = getCurrentRouteName();
 
         if (currentNavRoute === constant.SETTINGS) {
@@ -124,13 +129,14 @@ const BottomNavigation = ({ activeKey }) => {
         }
       },
       text: STRINGS.MUSIC,
+      hidden: !isAudioFeatureOn,
     },
     {
       key: "Settings",
       icon: SettingsIcon,
       handlePress: async () => {
         if (isAudio) {
-          await stopTrack();
+          await pauseTrack();
           dispatch(actions.toggleAudio(false));
         }
         navigation.navigate(constant.SETTINGS);
@@ -141,9 +147,15 @@ const BottomNavigation = ({ activeKey }) => {
 
   // Filter out Read and Music when on Settings page, but keep them if previous route was Read
   const shouldHideReadAndMusic = isSettings && previousRouteName !== constant.READER;
-  const filteredNavigationItems = shouldHideReadAndMusic
-    ? navigationItems.filter((item) => item.key !== "Read" && item.key !== "Music")
-    : navigationItems;
+  const filteredNavigationItems = navigationItems.filter((item) => {
+    if (item.hidden) {
+      return false;
+    }
+    if (shouldHideReadAndMusic && (item.key === "Read" || item.key === "Music")) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <SafeArea backgroundColor={theme.colors.primary} edges={["bottom"]} flex={0}>

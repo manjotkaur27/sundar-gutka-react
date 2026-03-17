@@ -203,6 +203,7 @@ describe("AudioPlayer", () => {
     mockState = {
       defaultAudio: {},
       audioPlaybackSpeed: 1.0,
+      isAudioAutoPlay: false,
     };
     mockUseTrackPlayer.isInitialized = true;
     mockUseTrackPlayer.isInitializing = false;
@@ -259,6 +260,28 @@ describe("AudioPlayer", () => {
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
     expect(getByTestId("audio-track-dialog")).toBeTruthy();
+  });
+
+  it("auto-starts the first track when Audio Auto Play is enabled", async () => {
+    mockState.isAudioAutoPlay = true;
+    const track = mockUseAudioManifest.tracks[0];
+    const props = createProps();
+
+    render(<AudioPlayer {...props} />);
+
+    await waitFor(() => {
+      expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
+        track.id,
+        track.audioUrl,
+        track.displayName,
+        track.displayName,
+        track.lyricsUrl,
+        track.trackLengthSec,
+        track.trackSizeMB,
+        true,
+        track.remoteUrl || track.audioUrl
+      );
+    });
   });
 
   it("renders AudioControlBar when showTrackModal is false", async () => {

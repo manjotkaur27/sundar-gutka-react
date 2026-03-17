@@ -18,10 +18,10 @@ jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
 }));
 
-const mockStopTrack = jest.fn(() => Promise.resolve());
+const mockPauseTrack = jest.fn(() => Promise.resolve());
 
 jest.mock("@common/TrackPlayerUtils", () => ({
-  stopTrack: (...args) => mockStopTrack(...args),
+  pauseTrack: (...args) => mockPauseTrack(...args),
 }));
 
 // --- Helpers ---
@@ -244,5 +244,18 @@ describe("BottomNavigation", () => {
     expect(getByLabelText("bottomnav-Read")).toBeTruthy();
     expect(getByLabelText("bottomnav-Music")).toBeTruthy();
     expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
+  });
+
+  test("hides Music tab when audio feature setting is disabled", () => {
+    setMockState({ isAudio: false, isAudioFeatureEnabled: false });
+    mockNavigation = createNavigation({ currentRoute: "Reader" });
+    mockUseNavigation.mockReturnValue(mockNavigation);
+
+    const { queryByLabelText, getByLabelText } = render(<BottomNavigation activeKey="Read" />);
+
+    expect(getByLabelText("bottomnav-Home")).toBeTruthy();
+    expect(getByLabelText("bottomnav-Read")).toBeTruthy();
+    expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
+    expect(queryByLabelText("bottomnav-Music")).toBeNull();
   });
 });

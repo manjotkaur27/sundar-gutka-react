@@ -54,6 +54,10 @@ const isAudio = createReducer(false, {
   [actionTypes.TOGGLE_AUDIO]: (state, action) => action.value,
 });
 
+const isAudioFeatureEnabled = createReducer(true, {
+  [actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED]: (state, action) => action.value,
+});
+
 const isAudioAutoPlay = createReducer(false, {
   [actionTypes.TOGGLE_AUDIO_AUTO_PLAY]: (state, action) => action.value,
 });
@@ -246,6 +250,7 @@ const rootReducer = combineReducers({
   theme,
   isAutoScroll,
   isAudio,
+  isAudioFeatureEnabled,
   isAudioAutoPlay,
   isAudioSyncScroll,
   audioPlaybackSpeed,

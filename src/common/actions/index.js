@@ -45,6 +45,11 @@ export const toggleAudio = (value) => {
   return { type: actionTypes.TOGGLE_AUDIO, value };
 };
 
+export const toggleAudioFeatureEnabled = (value) => {
+  trackSettingEvent(constant.AUDIO, value);
+  return { type: actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED, value };
+};
+
 export const toggleAudioAutoPlay = (value) => {
   trackAudioEvent(constant.AUDIO_AUTO_PLAY, value);
   return { type: actionTypes.TOGGLE_AUDIO_AUTO_PLAY, value };
