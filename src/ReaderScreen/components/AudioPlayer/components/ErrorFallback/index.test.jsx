@@ -69,6 +69,11 @@ jest.mock("@common/hooks/useThemedStyles", () => () => () => mockStyles);
 jest.mock("@common/icons", () => {
   const { Text } = require("react-native");
   return {
+    ArrowRightIcon: ({ size, color, testID, ...props }) => (
+      <Text testID={testID || "arrow-right-icon"} {...props}>
+        ArrowRightIcon-{size}-{color}
+      </Text>
+    ),
     CloseIcon: ({ size, color, testID, ...props }) => (
       <Text testID={testID || "close-icon"} {...props}>
         CloseIcon-{size}-{color}

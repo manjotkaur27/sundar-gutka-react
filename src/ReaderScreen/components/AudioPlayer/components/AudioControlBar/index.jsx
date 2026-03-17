@@ -55,6 +55,7 @@ const AudioControlBar = ({
   isInitialized,
   addAndPlayTrack,
   play,
+  isPlayerActionLoading,
 }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -412,8 +413,19 @@ const AudioControlBar = ({
           </View>
 
           <View style={styles.playbackControls}>
-            <Pressable style={styles.playButton} onPress={handlePlayPause}>
-              {isPlaying ? (
+            <Pressable
+              style={styles.playButton}
+              onPress={handlePlayPause}
+              disabled={!isAudioEnabled || isPlayerActionLoading}
+            >
+              {isPlayerActionLoading ? (
+                <ActivityIndicator
+                  testID="player-action-loading-indicator"
+                  size="small"
+                  color={theme.colors.audioTitleText}
+                  style={styles.playButtonLoadingSpinner}
+                />
+              ) : isPlaying ? (
                 <PauseIcon size={30} color={theme.colors.audioTitleText} />
               ) : (
                 <PlayIcon size={30} color={theme.colors.audioTitleText} />
@@ -463,6 +475,7 @@ const AudioControlBar = ({
 
 AudioControlBar.defaultProps = {
   currentPlaying: null,
+  isPlayerActionLoading: false,
 };
 
 AudioControlBar.propTypes = {
@@ -501,6 +514,7 @@ AudioControlBar.propTypes = {
   isInitialized: PropTypes.bool.isRequired,
   addAndPlayTrack: PropTypes.func.isRequired,
   play: PropTypes.func.isRequired,
+  isPlayerActionLoading: PropTypes.bool,
 };
 
 export default AudioControlBar;

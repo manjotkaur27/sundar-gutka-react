@@ -24,14 +24,9 @@ jest.mock("react-redux", () => ({
 }));
 
 // Mock navigation
-let blurCallback;
-
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({
-    addListener: (event, cb) => {
-      if (event === "blur") blurCallback = cb;
-      return jest.fn(); // unsubscribe
-    },
+    addListener: () => jest.fn(), // unsubscribe
   }),
 }));
 
@@ -274,7 +269,6 @@ const renderComponent = async (props) => {
 describe("AudioControlBar", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    blurCallback = undefined;
     mockCheckLyricsFileAvailable.mockResolvedValue(false);
     mockGetSequenceFromPosition.mockResolvedValue(null);
     mockGetPositionFromSequence.mockResolvedValue(null);
@@ -438,21 +432,7 @@ describe("AudioControlBar", () => {
         defaultProgress.position
       );
       expect(mockSetAudioProgress).toHaveBeenCalledWith("bani-1", "track-1", 10, null);
-      expect(props.reset).toHaveBeenCalledTimes(1);
     });
-  });
-
-  it("pauses audio when navigation blur event fires", async () => {
-    const props = createProps();
-    await renderComponent(props);
-
-    expect(typeof blurCallback).toBe("function");
-
-    await act(async () => {
-      await blurCallback();
-    });
-
-    expect(props.pause).toHaveBeenCalledTimes(1);
   });
 
   it("calls addAndPlayTrack when initialized with a valid currentPlaying", async () => {

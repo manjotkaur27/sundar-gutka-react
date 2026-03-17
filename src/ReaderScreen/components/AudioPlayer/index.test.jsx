@@ -106,6 +106,12 @@ jest.mock("./components", () => {
         <Pressable testID="seek-button" onPress={() => handleSeek(50)}>
           <Text>Seek</Text>
         </Pressable>
+        <Pressable
+          testID="switch-track-button"
+          onPress={() => props.handleTrackSelect(props.tracks?.[1] || props.tracks?.[0])}
+        >
+          <Text>Switch</Text>
+        </Pressable>
       </View>
     ),
     ErrorFallback: ({ title, buttonPress, buttonText, handleClose }) => (
@@ -302,6 +308,7 @@ describe("AudioPlayer", () => {
           track.lyricsUrl,
           track.trackLengthSec,
           track.trackSizeMB,
+          true,
           track.remoteUrl || track.audioUrl
         );
       },
@@ -338,6 +345,46 @@ describe("AudioPlayer", () => {
 
     expect(mockUseAudioManifest.setCurrentPlaying).toHaveBeenCalledWith(selectedTrack);
     expect(mockUseTrackPlayer.stop).toHaveBeenCalled();
+  });
+
+  it("switches and auto-plays with one tap when full player is already open", async () => {
+    const track1 = mockUseAudioManifest.tracks[0];
+    const track2 = {
+      id: "track2",
+      audioUrl: "https://example.com/track2.mp3",
+      displayName: "Artist 2",
+      lyricsUrl: "https://example.com/track2.json",
+      trackLengthSec: 210,
+      trackSizeMB: 7,
+      remoteUrl: "https://example.com/track2.mp3",
+    };
+    mockUseAudioManifest.tracks = [track1, track2];
+    mockUseAudioManifest.currentPlaying = track1;
+
+    const props = createProps();
+    const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await waitFor(() => {
+      expect(getByTestId("audio-control-bar")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(getByTestId("switch-track-button"));
+    });
+
+    await waitFor(() => {
+      expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
+        track2.id,
+        track2.audioUrl,
+        track2.displayName,
+        track2.displayName,
+        track2.lyricsUrl,
+        track2.trackLengthSec,
+        track2.trackSizeMB,
+        true,
+        track2.remoteUrl || track2.audioUrl
+      );
+    });
   });
 
   it("applies audio playback speed when initialized", async () => {
@@ -532,7 +579,7 @@ describe("AudioPlayer", () => {
     );
   });
 
-  it("stops audio and toggles audio off on unmount", async () => {
+  it("unmounts without forcing audio toggle", async () => {
     const props = createProps();
     const { unmount } = render(<AudioPlayer {...props} />);
 
@@ -543,7 +590,6 @@ describe("AudioPlayer", () => {
       });
     });
 
-    expect(mockUseTrackPlayer.stop).toHaveBeenCalled();
-    expect(mockDispatch).toHaveBeenCalled();
+    expect(mockUseTrackPlayer.stop).not.toHaveBeenCalled();
   });
 });

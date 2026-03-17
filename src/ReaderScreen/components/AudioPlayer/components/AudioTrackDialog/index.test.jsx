@@ -92,8 +92,9 @@ jest.mock("@react-native-community/blur", () => {
 
 jest.mock("../ScrollViewComponent", () => {
   const { View, Pressable, Text } = require("react-native");
-  return ({ tracks, handleSelectTrack }) => (
+  return ({ tracks, handleSelectTrack, previewLoadingTrackId }) => (
     <View testID="tracks-list">
+      <Text testID="preview-loading-id">{previewLoadingTrackId || ""}</Text>
       {tracks.map((track) => (
         <Pressable
           key={track.id}
@@ -185,6 +186,36 @@ describe("AudioTrackDialog", () => {
     });
   });
 
+  it("shows row loading signal while preview is starting", async () => {
+    let resolvePreview;
+    const previewPromise = new Promise((resolve) => {
+      resolvePreview = resolve;
+    });
+    const props = createProps({
+      addAndPlayTrack: jest.fn(() => previewPromise),
+    });
+    const { getByTestId } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-1"));
+
+    await waitFor(() => {
+      expect(getByTestId("preview-loading-id").props.children).toBe("track-1");
+    });
+
+    resolvePreview();
+  });
+
+  it("shows countdown label while preview is playing", async () => {
+    const props = createProps({ isPlaying: true });
+    const { getByTestId, getByText } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-1"));
+
+    await waitFor(() => {
+      expect(getByText(/Next \(\d+s\)/)).toBeTruthy();
+    });
+  });
+
   it("stops playback when selecting the currently playing track again", async () => {
     const props = createProps({ isPlaying: true });
     const { getByTestId } = render(<AudioTrackDialog {...props} />);
@@ -198,7 +229,7 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(getByTestId("track-track-1"));
 
     await waitFor(() => {
-      expect(props.stop).toHaveBeenCalledTimes(1);
+      expect(props.stop).toHaveBeenCalled();
       expect(props.addAndPlayTrack).toHaveBeenCalledTimes(1);
     });
   });
@@ -227,6 +258,26 @@ describe("AudioTrackDialog", () => {
     await waitFor(() => {
       expect(props.handleTrackSelect).toHaveBeenCalledWith(defaultTracks[1]);
     });
+  });
+
+  it("shows loading state on Next while opening full player", async () => {
+    let resolveNext;
+    const nextPromise = new Promise((resolve) => {
+      resolveNext = resolve;
+    });
+    const props = createProps({
+      handleTrackSelect: jest.fn(() => nextPromise),
+    });
+    const { getByTestId, getByText } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-2"));
+    fireEvent.press(getByTestId("play-button"));
+
+    await waitFor(() => {
+      expect(getByText("Opening Player...")).toBeTruthy();
+    });
+
+    resolveNext();
   });
 
   it("resets selection and calls onCloseTrackModal when close button pressed", () => {

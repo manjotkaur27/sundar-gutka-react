@@ -262,7 +262,7 @@ describe("audioDownloader", () => {
       expect(mockDownloadFile).toHaveBeenCalledWith({
         fromUrl: mockUrl,
         toFile: `${AUDIO_DIRECTORY}/artist/track.mp3`,
-        progressDivider: 1,
+        progressDivider: 20,
         begin: expect.any(Function),
       });
       expect(result).toEqual({
@@ -350,7 +350,7 @@ describe("audioDownloader", () => {
       expect(mockDownloadFile).toHaveBeenCalledWith({
         fromUrl: "https://example.com/artist/track.json",
         toFile: `${AUDIO_DIRECTORY}/artist/track.json`,
-        progressDivider: 1,
+        progressDivider: 20,
         begin: expect.any(Function),
       });
       expect(result).toEqual({

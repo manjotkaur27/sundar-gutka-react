@@ -164,6 +164,9 @@ export const audioControlBarStyles = (theme) => ({
     justifyContent: "center",
     alignItems: "center",
   },
+  playButtonLoadingSpinner: {
+    minWidth: 30,
+  },
   progressContainer: {
     flex: 1,
     marginTop: 2,
@@ -252,6 +255,14 @@ export const audioTrackDialogStyles = (theme) => ({
     textAlign: "center",
     color: theme.colors.audioTitleText,
   },
+  previewHintText: {
+    marginTop: theme.spacing.xs,
+    fontFamily: constant.BALOO_PAAJI,
+    fontSize: theme.typography.sizes.md,
+    textAlign: "center",
+    color: theme.colors.audioTitleText,
+    opacity: 0.85,
+  },
   trackList: {
     maxHeight: 200,
     zIndex: 1,
@@ -293,6 +304,7 @@ export const audioTrackDialogStyles = (theme) => ({
     alignSelf: "flex-end",
     minWidth: 120,
     zIndex: 1,
+    overflow: "hidden",
   },
   playButtonText: {
     color: theme.staticColors.WHITE_COLOR,
@@ -301,8 +313,23 @@ export const audioTrackDialogStyles = (theme) => ({
     marginRight: theme.spacing.md,
     fontFamily: theme.typography.fonts.balooPaaji,
   },
+  nextLoadingSpinner: {
+    marginRight: theme.spacing.sm,
+  },
   playButtonDisabled: {
     opacity: 0.5,
+  },
+  previewProgressTrack: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  previewProgressFill: {
+    height: "100%",
+    backgroundColor: theme.staticColors.WHITE_COLOR,
   },
 });
 

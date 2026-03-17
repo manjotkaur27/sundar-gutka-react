@@ -4,7 +4,7 @@ import React from "react";
 import { render, waitFor, act } from "@testing-library/react-native";
 import { setMockState, getMockDispatch } from "@common/test-utils/mocks/react-redux";
 // eslint-disable-next-line import/order
-import useAudioManifest from "./index";
+import useAudioManifest, { __resetManifestApiCacheForTests } from "./index";
 // Mock dependencies
 jest.mock("react-native-fs", () => ({
   DocumentDirectoryPath: "/mock/document/path",
@@ -46,9 +46,11 @@ describe("useAudioManifest", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    __resetManifestApiCacheForTests();
     setMockState({
       defaultAudio: {},
       audioManifest: {},
+      _persist: { rehydrated: true },
     });
   });
 

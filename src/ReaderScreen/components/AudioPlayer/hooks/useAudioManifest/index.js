@@ -9,6 +9,10 @@ import { fetchManifest } from "@service";
 // instead of firing another network round-trip.
 const _manifestApiCache = new Map();
 
+export const __resetManifestApiCacheForTests = () => {
+  _manifestApiCache.clear();
+};
+
 const useAudioManifest = (baniID) => {
   const [tracks, setTracks] = useState([]);
   const [currentPlaying, setCurrentPlaying] = useState(null);

@@ -12,6 +12,7 @@ const { Event, State } = require("react-native-track-player");
  */
 module.exports = async function () {
   let duckPauseTimer = null;
+  let shouldResumeAfterDuck = false;
 
   const safeStopAndReset = async () => {
     if (duckPauseTimer) {
@@ -32,6 +33,8 @@ module.exports = async function () {
     try {
       await TrackPlayer.reset();
     } catch (_) {}
+
+    shouldResumeAfterDuck = false;
   };
 
   // ── Remote control / notification actions ──────────────────────────────────
@@ -56,7 +59,7 @@ module.exports = async function () {
   );
 
   // ── Audio focus / ducking (Android) ────────────────────────────────────────
-  // Pause on audio-focus loss and require manual user action to resume.
+  // Pause on transient focus loss and auto-resume when focus returns.
   TrackPlayer.addEventListener(Event.RemoteDuck, async ({ paused, permanent }) => {
     if (permanent) {
       // Permanent focus loss (e.g. another music app took over) — stop outright
@@ -67,13 +70,25 @@ module.exports = async function () {
         clearTimeout(duckPauseTimer);
         duckPauseTimer = null;
       }
+
+      try {
+        const playbackState = await TrackPlayer.getPlaybackState();
+        const currentState = playbackState?.state ?? playbackState;
+        shouldResumeAfterDuck = currentState === State.Playing || currentState === State.Buffering;
+      } catch (_) {
+        shouldResumeAfterDuck = false;
+      }
+
       await TrackPlayer.pause();
     } else {
       if (duckPauseTimer) {
         clearTimeout(duckPauseTimer);
         duckPauseTimer = null;
       }
-      // Do not auto-resume when focus returns. User must press play explicitly.
+      if (shouldResumeAfterDuck) {
+        shouldResumeAfterDuck = false;
+        await TrackPlayer.play().catch(() => {});
+      }
     }
   });
 

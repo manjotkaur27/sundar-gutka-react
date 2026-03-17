@@ -1,7 +1,7 @@
 // BottomNavigation.test.jsx
 import React from "react";
 
-import { render, fireEvent } from "@testing-library/react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 import { getMockDispatch, setMockState } from "@common/test-utils/mocks/react-redux";
 
@@ -16,6 +16,12 @@ const mockUseNavigation = jest.fn(() => mockNavigation);
 
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
+}));
+
+const mockStopTrack = jest.fn(() => Promise.resolve());
+
+jest.mock("@common/TrackPlayerUtils", () => ({
+  stopTrack: (...args) => mockStopTrack(...args),
 }));
 
 // --- Helpers ---
@@ -78,7 +84,7 @@ describe("BottomNavigation", () => {
     expect(mockNavigation.popToTop).toHaveBeenCalled();
   });
 
-  test("pressing Read when audio is on toggles audio to false", () => {
+  test("pressing Read when audio is on toggles audio to false", async () => {
     setMockState({ isAudio: true });
     mockNavigation = createNavigation({ currentRoute: "Home" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -87,10 +93,12 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Read"));
 
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    });
   });
 
-  test("pressing Read when audio is off does not toggle audio", () => {
+  test("pressing Read when audio is off does not toggle audio", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Home" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -99,10 +107,12 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Read"));
 
-    expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    await waitFor(() => {
+      expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    });
   });
 
-  test("pressing Read from Settings calls goBack", () => {
+  test("pressing Read from Settings calls goBack", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Settings" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -111,7 +121,9 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Read"));
 
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
   });
 
   test("pressing Music when NOT on Reader or Settings dispatches actions", () => {

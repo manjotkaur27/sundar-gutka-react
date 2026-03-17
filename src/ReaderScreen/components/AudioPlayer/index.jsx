@@ -19,6 +19,7 @@ import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 const AudioPlayer = ({ baniID, title, webViewRef }) => {
   const dispatch = useDispatch();
   const [showTrackModal, setShowTrackModal] = useState(true);
+  const [isPlayerActionLoading, setIsPlayerActionLoading] = useState(false);
   const defaultAudio = useSelector((state) => state.defaultAudio);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
   const {
@@ -63,6 +64,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     }
 
     try {
+      setIsPlayerActionLoading(true);
       if (isPlaying) {
         await pause();
       } else {
@@ -83,12 +85,15 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
           currentPlaying.lyricsUrl,
           currentPlaying.trackLengthSec,
           currentPlaying.trackSizeMB,
+          true,
           currentPlaying.remoteUrl || currentPlaying.audioUrl
         );
       }
     } catch (error) {
       logError("Error in handlePlayPause:", error);
       showErrorToast(`${STRINGS.UNABLE_TO_PLAY} ${STRINGS.PLEASE_TRY_AGAIN}`);
+    } finally {
+      setIsPlayerActionLoading(false);
     }
   };
 
@@ -147,8 +152,9 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         // Dispatch action
         dispatch(setDefaultAudio(selectedTrack, baniID));
 
-        // Auto-play the new track if audio is enabled
-        if (isAudioEnabled) {
+        // If user is already in full player (not initial selection modal), switch and play immediately.
+        if (!showTrackModal && isAudioEnabled) {
+          setIsPlayerActionLoading(true);
           await addAndPlayTrack(
             selectedTrack.id,
             selectedTrack.audioUrl,
@@ -157,9 +163,12 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
             selectedTrack.lyricsUrl,
             selectedTrack.trackLengthSec,
             selectedTrack.trackSizeMB,
+            true,
             selectedTrack.remoteUrl || selectedTrack.audioUrl
           );
+          setIsPlayerActionLoading(false);
         }
+
         const isLRCFileAvailable = await checkLyricsFileAvailable(selectedTrack.lyricsUrl);
         if (isLRCFileAvailable) {
           dispatch(toggleAudioSyncScroll(true));
@@ -167,9 +176,10 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
       } catch (error) {
         logError("Error switching track:", error);
         showErrorToast(`${STRINGS.UNABLE_TO_SWITCH_TRACK} ${STRINGS.PLEASE_TRY_AGAIN}`);
+        setIsPlayerActionLoading(false);
       }
     },
-    [baniID, isAudioEnabled]
+    [baniID, showTrackModal, isAudioEnabled]
   );
 
   // Memoize error fallback renderer to prevent recreation
@@ -262,6 +272,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
       isInitialized={isInitialized}
       addAndPlayTrack={addAndPlayTrack}
       play={play}
+      isPlayerActionLoading={isPlayerActionLoading}
     />
   );
 };
