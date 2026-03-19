@@ -49,8 +49,14 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     refetchManifest,
   } = useAudioManifest(baniID);
 
-  // Audio sync scroll hook
-  useAudioSyncScroll(progress, isPlaying, webViewRef, currentPlaying?.lyricsUrl);
+  // Disable sync scroll while preview modal is open to prevent stale lyrics
+  // from a previously selected track driving WebView scroll.
+  useAudioSyncScroll(
+    progress,
+    !showTrackModal && isPlaying,
+    webViewRef,
+    showTrackModal ? null : currentPlaying?.lyricsUrl
+  );
 
   // Apply saved playback speed when initialized
   useEffect(() => {

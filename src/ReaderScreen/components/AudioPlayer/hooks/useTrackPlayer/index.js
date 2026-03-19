@@ -13,7 +13,12 @@ import {
 } from "@common/TrackPlayerUtils";
 import { logError, logMessage } from "@common";
 import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
-import { downloadAudioOnly, getFullLocalTrackPath } from "../../utils/audioDownloader";
+import {
+  downloadAudioOnly,
+  getFullPrefetchTrackPath,
+  touchPrefetchTrack,
+  prunePrefetchCache,
+} from "../../utils/audioDownloader";
 
 const useTrackPlayer = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -98,14 +103,20 @@ const useTrackPlayer = () => {
 
       const prefetchPromise = (async () => {
         try {
-          const fullLocalPath = getFullLocalTrackPath(track.url);
+          const fullLocalPath = getFullPrefetchTrackPath(track.url);
           const alreadyExists = await exists(fullLocalPath);
           if (!alreadyExists) {
-            await downloadAudioOnly(track.url, track.title || track.artist || "Track");
+            await downloadAudioOnly(track.url, track.title || track.artist || "Track", {
+              targetDirectory: "prefetch",
+            });
           }
 
           const ready = await exists(fullLocalPath);
           if (!ready) return null;
+
+          // LRU-like maintenance for prefetch cache: keep at most last 5 tracks.
+          await touchPrefetchTrack(track.url);
+          await prunePrefetchCache(5);
 
           if (currentTrackIdRef.current === track.id && !isLocalFile(track.url)) {
             const wasPlaying = playbackState?.state === State.Playing;

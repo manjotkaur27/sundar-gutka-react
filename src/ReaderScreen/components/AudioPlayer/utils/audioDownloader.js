@@ -1,4 +1,13 @@
-import { downloadFile, exists, DocumentDirectoryPath, unlink, mkdir } from "react-native-fs";
+import {
+  downloadFile,
+  exists,
+  DocumentDirectoryPath,
+  unlink,
+  mkdir,
+  readDir,
+  readFile,
+  writeFile,
+} from "react-native-fs";
 import { logError, logMessage } from "@common";
 import { checkIsAudioRemoteExists, checkIsJsonRemoteExists } from "./checkHelper";
 
@@ -10,6 +19,8 @@ import { checkIsAudioRemoteExists, checkIsJsonRemoteExists } from "./checkHelper
 
 // Audio files directory
 const AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio`;
+const PREFETCH_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_prefetch`;
+const PREFETCH_INDEX_PATH = `${PREFETCH_AUDIO_DIRECTORY}/.prefetch-index.json`;
 
 /**
  * Generate safe filename from URL and track info
@@ -27,14 +38,14 @@ const generateFilename = (url) => {
   }
 };
 
-const ensureArtistDirectory = async (artistName) => {
-  const audioDirectoryExists = await exists(AUDIO_DIRECTORY);
+const ensureArtistDirectory = async (artistName, baseDirectory = AUDIO_DIRECTORY) => {
+  const audioDirectoryExists = await exists(baseDirectory);
 
   if (!audioDirectoryExists) {
-    await mkdir(AUDIO_DIRECTORY, { NSURLIsExcludedFromBackupKey: true });
+    await mkdir(baseDirectory, { NSURLIsExcludedFromBackupKey: true });
   }
 
-  const artistDirectory = `${AUDIO_DIRECTORY}/${artistName}`;
+  const artistDirectory = `${baseDirectory}/${artistName}`;
   const artistDirectoryExists = await exists(artistDirectory);
 
   if (!artistDirectoryExists) {
@@ -42,10 +53,10 @@ const ensureArtistDirectory = async (artistName) => {
   }
 };
 
-const buildTrackPaths = (url) => {
+const buildTrackPaths = (url, baseDirectory = AUDIO_DIRECTORY) => {
   const { artistName, fileName } = generateFilename(url);
   const audioRelativePath = `${artistName}/${fileName}`;
-  const fullAudioPath = `${AUDIO_DIRECTORY}/${audioRelativePath}`;
+  const fullAudioPath = `${baseDirectory}/${audioRelativePath}`;
   const jsonFileName = fileName.replace(/\.[^/.]+$/, ".json");
   const jsonRelativePath = `${artistName}/${jsonFileName}`;
   const fullJsonPath = `${AUDIO_DIRECTORY}/${jsonRelativePath}`;
@@ -96,6 +107,11 @@ export const getFullLocalTrackPath = (url) => {
   return `${AUDIO_DIRECTORY}/${artistName}/${fileName}`;
 };
 
+export const getFullPrefetchTrackPath = (url) => {
+  const { artistName, fileName } = generateFilename(url);
+  return `${PREFETCH_AUDIO_DIRECTORY}/${artistName}/${fileName}`;
+};
+
 export const getLocalJsonPath = (url) => {
   const { artistName, fileName } = generateFilename(url);
   const jsonFileName = fileName.replace(/\.[^/.]+$/, ".json");
@@ -109,11 +125,15 @@ export const getFullLocalJsonPath = (url) => {
 };
 
 export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
-  const { skipDirectorySetup = false } = options;
-  const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(url);
+  const { skipDirectorySetup = false, targetDirectory = "main" } = options;
+  const baseDirectory = targetDirectory === "prefetch" ? PREFETCH_AUDIO_DIRECTORY : AUDIO_DIRECTORY;
+  const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(
+    url,
+    baseDirectory
+  );
 
   if (!skipDirectorySetup) {
-    await ensureArtistDirectory(artistName);
+    await ensureArtistDirectory(artistName, baseDirectory);
   }
 
   const audioFileExists = await exists(fullAudioPath);
@@ -151,6 +171,107 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
 
   logMessage(`Audio download completed: ${fileName}`);
   return { relativePath: audioRelativePath, alreadyExists: false, downloaded: true };
+};
+
+const readPrefetchIndex = async () => {
+  try {
+    const indexExists = await exists(PREFETCH_INDEX_PATH);
+    if (!indexExists) {
+      return {};
+    }
+    const raw = await readFile(PREFETCH_INDEX_PATH, "utf8");
+    const parsed = JSON.parse(raw || "{}");
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+    return {};
+  } catch (_) {
+    return {};
+  }
+};
+
+const writePrefetchIndex = async (indexData) => {
+  try {
+    const indexDirectoryExists = await exists(PREFETCH_AUDIO_DIRECTORY);
+    if (!indexDirectoryExists) {
+      await mkdir(PREFETCH_AUDIO_DIRECTORY, { NSURLIsExcludedFromBackupKey: true });
+    }
+    await writeFile(PREFETCH_INDEX_PATH, JSON.stringify(indexData), "utf8");
+  } catch (_) {
+    // Best effort cache metadata write.
+  }
+};
+
+export const touchPrefetchTrack = async (url) => {
+  try {
+    const fullPath = getFullPrefetchTrackPath(url);
+    const fileExists = await exists(fullPath);
+    if (!fileExists) {
+      return;
+    }
+
+    const index = await readPrefetchIndex();
+    index[fullPath] = Date.now();
+    await writePrefetchIndex(index);
+  } catch (_) {
+    // Best effort cache metadata update.
+  }
+};
+
+export const prunePrefetchCache = async (maxTracks = 5) => {
+  try {
+    const directoryExists = await exists(PREFETCH_AUDIO_DIRECTORY);
+    if (!directoryExists) {
+      return;
+    }
+
+    const index = await readPrefetchIndex();
+    const allEntries = Object.entries(index);
+
+    const verifiedEntries = [];
+    for (const [fullPath, ts] of allEntries) {
+      // Skip index file itself and stale/missing files.
+      if (fullPath === PREFETCH_INDEX_PATH) {
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const fileExists = await exists(fullPath);
+      if (fileExists) {
+        verifiedEntries.push([fullPath, Number(ts) || 0]);
+      }
+    }
+
+    verifiedEntries.sort((a, b) => b[1] - a[1]);
+    const keepSet = new Set(verifiedEntries.slice(0, maxTracks).map(([fullPath]) => fullPath));
+
+    const nextIndex = {};
+    for (const [fullPath, ts] of verifiedEntries) {
+      if (keepSet.has(fullPath)) {
+        nextIndex[fullPath] = ts;
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await unlink(fullPath).catch(() => {});
+    }
+
+    // Clean up empty artist directories if any were left behind.
+    const children = await readDir(PREFETCH_AUDIO_DIRECTORY).catch(() => []);
+    for (const entry of children) {
+      if (!entry.isDirectory || !entry.isDirectory()) {
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const subItems = await readDir(entry.path).catch(() => []);
+      if (subItems.length === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await unlink(entry.path).catch(() => {});
+      }
+    }
+
+    await writePrefetchIndex(nextIndex);
+  } catch (error) {
+    logError(`Error pruning prefetch cache: ${error?.message || error}`);
+  }
 };
 
 export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {

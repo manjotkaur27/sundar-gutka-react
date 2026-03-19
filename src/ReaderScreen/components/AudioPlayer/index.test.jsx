@@ -69,10 +69,12 @@ const mockUseAudioManifest = {
   refetchManifest: jest.fn(),
 };
 
+const mockUseAudioSyncScroll = jest.fn();
+
 jest.mock("./hooks", () => ({
   useTrackPlayer: () => mockUseTrackPlayer,
   useAudioManifest: () => mockUseAudioManifest,
-  useAudioSyncScroll: jest.fn(),
+  useAudioSyncScroll: (...args) => mockUseAudioSyncScroll(...args),
 }));
 
 // Mock components
@@ -226,6 +228,36 @@ describe("AudioPlayer", () => {
     mockUseAudioManifest.currentPlaying = null;
     mockUseAudioManifest.isTracksLoading = false;
     mockUseAudioManifest.manifestError = null;
+  });
+
+  it("disables sync scroll in preview modal and enables it in full player", async () => {
+    const props = createProps();
+    const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await waitFor(() => {
+      expect(mockUseAudioSyncScroll).toHaveBeenCalledWith(
+        mockUseTrackPlayer.progress,
+        false,
+        props.webViewRef,
+        null
+      );
+    });
+
+    mockUseTrackPlayer.isPlaying = true;
+    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
+    await waitFor(() => {
+      expect(mockUseAudioSyncScroll).toHaveBeenCalledWith(
+        mockUseTrackPlayer.progress,
+        true,
+        props.webViewRef,
+        mockUseAudioManifest.tracks[0].lyricsUrl
+      );
+    });
   });
 
   it("renders loading state when initializing", () => {
