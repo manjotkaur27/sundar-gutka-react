@@ -408,6 +408,17 @@ describe("AudioPlayer", () => {
 
     expect(mockUseAudioManifest.setCurrentPlaying).toHaveBeenCalledWith(selectedTrack);
     expect(mockUseTrackPlayer.stop).toHaveBeenCalled();
+    expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
+      selectedTrack.id,
+      selectedTrack.audioUrl,
+      selectedTrack.displayName,
+      selectedTrack.displayName,
+      selectedTrack.lyricsUrl,
+      selectedTrack.trackLengthSec,
+      selectedTrack.trackSizeMB,
+      true,
+      selectedTrack.remoteUrl || selectedTrack.audioUrl
+    );
   });
 
   it("switches and auto-plays with one tap when full player is already open", async () => {
@@ -482,6 +493,9 @@ describe("AudioPlayer", () => {
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
     });
+
+    // Ignore initial autoplay call from modal->player handoff.
+    mockUseTrackPlayer.addAndPlayTrack.mockClear();
 
     const playButton = getByTestId("play-pause-button");
     await act(async () => {

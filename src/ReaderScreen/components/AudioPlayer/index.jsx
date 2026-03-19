@@ -212,8 +212,9 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         // Dispatch action
         dispatch(setDefaultAudio(selectedTrack, baniID));
 
-        // If user is already in full player (not initial selection modal), switch and play immediately.
-        if (!showTrackModal && isAudioEnabled) {
+        // After selecting a track (including from preview -> Next), enter full player
+        // with playback already running so no extra Play tap is required.
+        if (isAudioEnabled) {
           setIsPlayerActionLoading(true);
           await addAndPlayTrack(
             selectedTrack.id,
@@ -239,7 +240,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         setIsPlayerActionLoading(false);
       }
     },
-    [baniID, showTrackModal, isAudioEnabled]
+    [baniID, isAudioEnabled]
   );
 
   // Memoize error fallback renderer to prevent recreation
