@@ -100,6 +100,9 @@ jest.mock("./components", () => {
     AudioControlBar: ({ title, isPlaying, handlePlayPause, handleSeek, ...props }) => (
       <View testID="audio-control-bar" {...props}>
         <Text testID="control-bar-title">{title}</Text>
+        <Pressable testID="audios-button" onPress={props.onReopenPreviewModal}>
+          <Text>Audios</Text>
+        </Pressable>
         <Pressable testID="play-pause-button" onPress={handlePlayPause}>
           <Text>{isPlaying ? "Pause" : "Play"}</Text>
         </Pressable>
@@ -285,11 +288,39 @@ describe("AudioPlayer", () => {
   });
 
   it("renders AudioControlBar when showTrackModal is false", async () => {
-    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
+    });
+  });
+
+  it("returns to preview modal when Audios is pressed in full player", async () => {
+    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
+    const props = createProps();
+    const { getByTestId, queryByTestId } = render(<AudioPlayer {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
+    await waitFor(() => {
+      expect(getByTestId("audio-control-bar")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(getByTestId("audios-button"));
+    });
+
+    await waitFor(() => {
+      expect(mockUseTrackPlayer.stop).toHaveBeenCalled();
+      expect(mockUseTrackPlayer.reset).toHaveBeenCalled();
+      expect(queryByTestId("audio-track-dialog")).toBeTruthy();
     });
   });
 
@@ -311,6 +342,10 @@ describe("AudioPlayer", () => {
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
     });
@@ -319,7 +354,9 @@ describe("AudioPlayer", () => {
     fireEvent.press(playButton);
 
     // Wait for async operations including getActiveTrack call
-    expect(mockGetActiveTrack).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockGetActiveTrack).toHaveBeenCalled();
+    });
 
     await waitFor(
       () => {
@@ -340,9 +377,12 @@ describe("AudioPlayer", () => {
   });
 
   it("calls handleSeek when seek button is pressed", async () => {
-    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
 
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
@@ -386,6 +426,10 @@ describe("AudioPlayer", () => {
 
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
 
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
@@ -431,6 +475,10 @@ describe("AudioPlayer", () => {
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
     });
@@ -456,6 +504,10 @@ describe("AudioPlayer", () => {
     mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
 
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
@@ -495,6 +547,10 @@ describe("AudioPlayer", () => {
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
     });
@@ -515,6 +571,10 @@ describe("AudioPlayer", () => {
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
+
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
     });
@@ -524,15 +584,20 @@ describe("AudioPlayer", () => {
       fireEvent.press(playButton);
     });
 
-    expect(showErrorToast).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalled();
+    });
   });
 
   it("handles errors in handleSeek gracefully", async () => {
     const { showErrorToast } = require("@common/toast");
     mockUseTrackPlayer.seekTo.mockRejectedValue(new Error("Seek error"));
-    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId("track-track1"));
+    });
 
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
@@ -567,7 +632,7 @@ describe("AudioPlayer", () => {
     );
   });
 
-  it("closes modal when currentPlaying is set", async () => {
+  it("keeps preview modal open on entry even when currentPlaying exists", async () => {
     const props = createProps();
     const { queryByTestId, rerender } = render(<AudioPlayer {...props} />);
 
@@ -579,13 +644,13 @@ describe("AudioPlayer", () => {
 
     await waitFor(
       () => {
-        expect(queryByTestId("audio-control-bar")).toBeTruthy();
+        expect(queryByTestId("audio-track-dialog")).toBeTruthy();
       },
       { timeout: 2000 }
     );
   });
 
-  it("closes modal when defaultAudio is set", async () => {
+  it("keeps preview modal open on entry even when defaultAudio exists", async () => {
     const props = createProps();
     mockState.defaultAudio = {
       [props.baniID]: {
@@ -596,7 +661,7 @@ describe("AudioPlayer", () => {
 
     await waitFor(
       () => {
-        expect(queryByTestId("audio-control-bar")).toBeTruthy();
+        expect(queryByTestId("audio-track-dialog")).toBeTruthy();
       },
       { timeout: 2000 }
     );

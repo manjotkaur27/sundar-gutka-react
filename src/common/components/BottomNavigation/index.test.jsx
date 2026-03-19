@@ -19,9 +19,13 @@ jest.mock("@react-navigation/native", () => ({
 }));
 
 const mockPauseTrack = jest.fn(() => Promise.resolve());
+const mockStopTrack = jest.fn(() => Promise.resolve());
+const mockResetPlayer = jest.fn(() => Promise.resolve());
 
 jest.mock("@common/TrackPlayerUtils", () => ({
   pauseTrack: (...args) => mockPauseTrack(...args),
+  stopTrack: (...args) => mockStopTrack(...args),
+  resetPlayer: (...args) => mockResetPlayer(...args),
 }));
 
 // --- Helpers ---
@@ -154,7 +158,7 @@ describe("BottomNavigation", () => {
     expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
   });
 
-  test("pressing Music from Settings calls goBack and keeps audio ON if audio was already on", () => {
+  test("pressing Music from Settings calls goBack and reopens preview when audio was already on", async () => {
     setMockState({ isAudio: true });
     mockNavigation = createNavigation({ currentRoute: "Settings" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -163,9 +167,14 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
-    expect(mockNavigation.goBack).toHaveBeenCalled();
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    await waitFor(() => {
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      expect(mockStopTrack).toHaveBeenCalled();
+      expect(mockResetPlayer).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    });
   });
 
   test("pressing Music from Settings calls goBack and toggles audio if audio was off", () => {
@@ -190,8 +199,7 @@ describe("BottomNavigation", () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith("Settings");
   });
 
-  test("pressing Music toggles audio based on current isAudio state", () => {
-    // Start with isAudio=true to verify toggle -> false
+  test("pressing Music while already open restarts audio into preview mode", async () => {
     setMockState({ isAudio: true });
     mockNavigation = createNavigation({ currentRoute: "Reader" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -200,10 +208,13 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
-    // toggleAutoScroll(false) always
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    // toggled from true -> false
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      expect(mockStopTrack).toHaveBeenCalled();
+      expect(mockResetPlayer).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    });
   });
 
   test("As a user entering Settings from Home I want irrelevant tabs hidden So that navigation isn't confusing", () => {

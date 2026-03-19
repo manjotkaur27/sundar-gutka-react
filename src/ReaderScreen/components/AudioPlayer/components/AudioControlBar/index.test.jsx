@@ -254,6 +254,7 @@ const createProps = (overrides = {}) => ({
   isInitialized: true,
   addAndPlayTrack: jest.fn(),
   play: jest.fn(),
+  onReopenPreviewModal: jest.fn(),
   ...overrides,
 });
 
@@ -308,6 +309,15 @@ describe("AudioControlBar", () => {
     });
 
     expect(props.handlePlayPause).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens preview chooser when Audios action is pressed", async () => {
+    const props = createProps();
+    const { getByTestId } = await renderComponent(props);
+
+    fireEvent.press(getByTestId("action-More Tracks"));
+
+    expect(props.onReopenPreviewModal).toHaveBeenCalled();
   });
 
   it("shows PauseIcon when isPlaying is true", async () => {
@@ -570,27 +580,18 @@ describe("AudioControlBar", () => {
     );
   });
 
-  it("opens AudioSettingsModal and closes MoreTracks modal when toggling actions", async () => {
+  it("opens AudioSettingsModal after Audios action triggers preview callback", async () => {
     const props = createProps();
     const { getByTestId, queryByTestId } = await renderComponent(props);
 
-    await waitFor(() => {
-      // Open More Tracks first
-      fireEvent.press(getByTestId("action-More Tracks"));
-    });
+    fireEvent.press(getByTestId("action-More Tracks"));
+    expect(props.onReopenPreviewModal).toHaveBeenCalled();
+    expect(queryByTestId("tracks-list")).toBeNull();
 
-    await waitFor(() => {
-      expect(getByTestId("tracks-list")).toBeTruthy();
-    });
-
-    // Now open Audio Settings – should close More Tracks
-    await waitFor(() => {
-      fireEvent.press(getByTestId("action-Audio Settings"));
-    });
+    fireEvent.press(getByTestId("action-Audio Settings"));
 
     await waitFor(() => {
       expect(getByTestId("audio-settings-modal")).toBeTruthy();
-      expect(queryByTestId("tracks-list")).toBeNull();
     });
   });
 
@@ -624,18 +625,16 @@ describe("AudioControlBar", () => {
       expect(props.onCloseTrackModal).toHaveBeenCalledTimes(1);
     });
 
-    it("shows ChevronDownIcon when isMoreTracksModalOpen is true", async () => {
+    it("keeps CloseIcon visible when Audios action is pressed", async () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      // Open More Tracks modal
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-More Tracks"));
-      });
+      fireEvent.press(getByTestId("action-More Tracks"));
 
       await waitFor(() => {
-        expect(getByTestId("chevron-down-icon")).toBeTruthy();
-        expect(queryByTestId("close-icon")).toBeNull();
+        expect(props.onReopenPreviewModal).toHaveBeenCalled();
+        expect(getByTestId("close-icon")).toBeTruthy();
+        expect(queryByTestId("chevron-down-icon")).toBeNull();
       });
     });
 
@@ -654,60 +653,14 @@ describe("AudioControlBar", () => {
       });
     });
 
-    it("closes both modals when ChevronDownIcon is pressed", async () => {
+    it("shows ChevronDownIcon when Settings modal is open", async () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      // Open More Tracks modal first
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-More Tracks"));
-      });
-
-      await waitFor(() => {
-        expect(getByTestId("tracks-list")).toBeTruthy();
-        expect(getByTestId("chevron-down-icon")).toBeTruthy();
-      });
-
-      // Press ChevronDownIcon to close modals
-      await waitFor(() => {
-        const chevronIcon = getByTestId("chevron-down-icon");
-        const chevronButton = chevronIcon.parent;
-        if (chevronButton && chevronButton.props.onPress) {
-          fireEvent.press(chevronButton);
-        } else {
-          fireEvent.press(chevronIcon);
-        }
-      });
-
-      // Both modals should be closed
-      await waitFor(() => {
-        expect(queryByTestId("tracks-list")).toBeNull();
-        expect(queryByTestId("audio-settings-modal")).toBeNull();
-        expect(getByTestId("close-icon")).toBeTruthy();
-      });
-    });
-
-    it("shows ChevronDownIcon when Settings modal is open (after More Tracks closes)", async () => {
-      const props = createProps();
-      const { getByTestId, queryByTestId } = await renderComponent(props);
-
-      // Open More Tracks modal first
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-More Tracks"));
-      });
-
-      await waitFor(() => {
-        expect(getByTestId("tracks-list")).toBeTruthy();
-      });
-
-      // Open Audio Settings modal (should close More Tracks due to useEffect)
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-Audio Settings"));
-      });
+      fireEvent.press(getByTestId("action-Audio Settings"));
 
       await waitFor(() => {
         expect(getByTestId("audio-settings-modal")).toBeTruthy();
-        expect(queryByTestId("tracks-list")).toBeNull(); // More Tracks should be closed
         expect(getByTestId("chevron-down-icon")).toBeTruthy();
         expect(queryByTestId("close-icon")).toBeNull();
       });

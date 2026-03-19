@@ -105,13 +105,6 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     dispatch(toggleAudio(false));
   }, [isPlaying]);
 
-  // Combine both useEffect hooks to prevent multiple re-renders
-  useEffect(() => {
-    if (currentPlaying || (defaultAudio[baniID] && defaultAudio[baniID].audioUrl)) {
-      setShowTrackModal(false);
-    }
-  }, [currentPlaying, defaultAudio, baniID]);
-
   useEffect(() => {
     const autoStartFirstTrack = async () => {
       if (!isAudioAutoPlay || !showTrackModal || !isAudioEnabled || isTracksLoading) {
@@ -173,6 +166,20 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
       showErrorToast(`${STRINGS.UNABLE_TO_SEEK} ${STRINGS.PLEASE_TRY_AGAIN}`);
     }
   };
+
+  const handleReopenPreviewModal = useCallback(async () => {
+    try {
+      await stop();
+    } catch (_) {
+      // Best effort shutdown before returning to preview chooser.
+    }
+    try {
+      await reset();
+    } catch (_) {
+      // Best effort hard reset so no stale queue/notification survives.
+    }
+    setShowTrackModal(true);
+  }, [stop, reset]);
 
   const handleTrackSelect = useCallback(
     async (selectedTrack) => {
@@ -283,6 +290,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         onCloseTrackModal={onCloseTrackModal}
         addAndPlayTrack={addAndPlayTrack}
         stop={stop}
+        reset={reset}
         isPlaying={isPlaying}
       />
     );
@@ -326,6 +334,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
       addAndPlayTrack={addAndPlayTrack}
       play={play}
       isPlayerActionLoading={isPlayerActionLoading}
+      onReopenPreviewModal={handleReopenPreviewModal}
     />
   );
 };

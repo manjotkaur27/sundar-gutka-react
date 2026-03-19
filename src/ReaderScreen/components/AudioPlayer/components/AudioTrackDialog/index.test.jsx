@@ -141,6 +141,7 @@ const createProps = (overrides = {}) => ({
   isLoading: false,
   addAndPlayTrack: jest.fn(() => Promise.resolve()),
   stop: jest.fn(() => Promise.resolve()),
+  reset: jest.fn(() => Promise.resolve()),
   isPlaying: false,
   ...overrides,
 });
@@ -230,6 +231,7 @@ describe("AudioTrackDialog", () => {
 
     await waitFor(() => {
       expect(props.stop).toHaveBeenCalled();
+      expect(props.reset).toHaveBeenCalled();
       expect(props.addAndPlayTrack).toHaveBeenCalledTimes(1);
     });
   });

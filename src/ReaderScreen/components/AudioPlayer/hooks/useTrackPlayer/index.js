@@ -23,6 +23,8 @@ const useTrackPlayer = () => {
   const progress = useProgress();
   const [isPlaying, setIsPlaying] = useState(false);
   const isAudio = useSelector((state) => state.isAudio);
+  const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
+  const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const progressRef = useRef(progress);
   const currentTrackIdRef = useRef(null);
   const prefetchInFlightRef = useRef(new Map());
@@ -63,6 +65,24 @@ const useTrackPlayer = () => {
     if (!isInitialized) return;
     setIsPlaying(playbackState?.state === State.Playing);
   }, [playbackState, isInitialized]);
+
+  useEffect(() => {
+    const teardownWhenFeatureDisabled = async () => {
+      if (!isInitialized || isAudioFeatureOn) {
+        return;
+      }
+      try {
+        await stopTrack();
+      } catch (_) {}
+      try {
+        await resetPlayer();
+      } catch (_) {}
+      currentTrackIdRef.current = null;
+      setIsPlaying(false);
+    };
+
+    teardownWhenFeatureDisabled();
+  }, [isInitialized, isAudioFeatureOn]);
 
   useEffect(() => {
     progressRef.current = progress;
@@ -121,7 +141,7 @@ const useTrackPlayer = () => {
   );
 
   const play = async () => {
-    if (!isInitialized || !isAudio) {
+    if (!isInitialized || !isAudio || !isAudioFeatureOn) {
       logMessage("Audio is not initialized or disabled in settings");
       return;
     }
@@ -159,7 +179,7 @@ const useTrackPlayer = () => {
   };
 
   const seekTo = async (position) => {
-    if (!isInitialized || !isAudio) {
+    if (!isInitialized || !isAudio || !isAudioFeatureOn) {
       logMessage("Audio is not initialized or disabled in settings");
       return;
     }
@@ -181,7 +201,7 @@ const useTrackPlayer = () => {
     shouldPlay = true,
     fallbackUrl = null
   ) => {
-    if (!isInitialized || !isAudio) {
+    if (!isInitialized || !isAudio || !isAudioFeatureOn) {
       logMessage("Audio is not initialized or disabled in settings");
       return;
     }
@@ -255,7 +275,7 @@ const useTrackPlayer = () => {
     addAndPlayTrack,
     seekTo,
     setRate,
-    isAudioEnabled: isAudio && isInitialized,
+    isAudioEnabled: isAudio && isInitialized && isAudioFeatureOn,
     isInitialized,
     setIsPlaying,
     isInitializing,

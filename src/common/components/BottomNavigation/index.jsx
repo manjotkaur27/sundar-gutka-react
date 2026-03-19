@@ -5,7 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { pauseTrack } from "@common/TrackPlayerUtils";
+import { pauseTrack, stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
 import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
 import createStyles from "./style";
@@ -20,6 +20,10 @@ const BottomNavigation = ({ activeKey }) => {
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const [isSettings, setIsSettings] = useState(false);
   const [previousRouteName, setPreviousRouteName] = useState(null);
+
+  const wait = (ms) => new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
   // Helper function to get current route name
   const getCurrentRouteName = useCallback(() => {
@@ -109,7 +113,7 @@ const BottomNavigation = ({ activeKey }) => {
     {
       key: "Music",
       icon: MusicIcon,
-      handlePress: () => {
+      handlePress: async () => {
         if (!isAudioFeatureOn) {
           return;
         }
@@ -121,12 +125,20 @@ const BottomNavigation = ({ activeKey }) => {
 
         dispatch(actions.toggleAutoScroll(false));
 
-        // If coming from Settings and previous route was Reader, keep audio ON
-        if (currentNavRoute === constant.SETTINGS && isAudio) {
+        // Re-entering Music while audio is already open should reset playback and
+        // re-open the preview chooser from a clean player state.
+        if (isAudio) {
+          await stopTrack();
+          await resetPlayer();
+          dispatch(actions.toggleAudio(false));
+          // Ensure Redux/UI observes an actual OFF state before re-enabling,
+          // so AudioPlayer remounts into preview mode consistently.
+          await wait(60);
           dispatch(actions.toggleAudio(true));
-        } else {
-          dispatch(actions.toggleAudio(!isAudio));
+          return;
         }
+
+        dispatch(actions.toggleAudio(true));
       },
       text: STRINGS.MUSIC,
       hidden: !isAudioFeatureOn,

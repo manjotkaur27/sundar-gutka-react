@@ -56,6 +56,7 @@ const AudioControlBar = ({
   addAndPlayTrack,
   play,
   isPlayerActionLoading,
+  onReopenPreviewModal,
 }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -187,8 +188,8 @@ const AudioControlBar = ({
 
   const actionComponents = [
     {
-      selector: isMoreTracksModalOpen,
-      toggle: setIsMoreTracksModalOpen,
+      selector: false,
+      toggle: onReopenPreviewModal,
       Icon: MusicNoteIcon,
       text: STRINGS.MORE_TRACKS,
     },
@@ -518,6 +519,7 @@ AudioControlBar.propTypes = {
   addAndPlayTrack: PropTypes.func.isRequired,
   play: PropTypes.func.isRequired,
   isPlayerActionLoading: PropTypes.bool,
+  onReopenPreviewModal: PropTypes.func.isRequired,
 };
 
 export default AudioControlBar;

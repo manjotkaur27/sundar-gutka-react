@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator } from "react-native";
 import { useSelector } from "react-redux";
+import TrackPlayer from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -11,6 +12,9 @@ import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent from "../ScrollViewComponent";
 
 const PREVIEW_DURATION_MS = 30000;
+const PREVIEW_START_TIMEOUT_MS = 5000;
+const ACTIVE_TRACK_POLL_MS = 150;
+const ACTIVE_TRACK_WAIT_MS = 2200;
 
 const AudioTrackDialog = ({
   handleTrackSelect,
@@ -21,6 +25,7 @@ const AudioTrackDialog = ({
   isFooter = true,
   addAndPlayTrack,
   stop,
+  reset,
   isPlaying,
 }) => {
   const styles = useThemedStyles(audioTrackDialogStyles);
@@ -29,14 +34,22 @@ const AudioTrackDialog = ({
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [previewLoadingTrackId, setPreviewLoadingTrackId] = useState(null);
+  const [previewActiveTrackId, setPreviewActiveTrackId] = useState(null);
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [previewProgress, setPreviewProgress] = useState(0);
   const [previewRemainingSec, setPreviewRemainingSec] = useState(
     PREVIEW_DURATION_MS / 1000
   );
   const previewTimeoutRef = useRef(null);
+  const previewStartTimeoutRef = useRef(null);
   const previewIntervalRef = useRef(null);
   const previewStartedAtRef = useRef(0);
+  const previewSessionRef = useRef(0);
+  const previewStartedSessionRef = useRef(0);
+
+  const wait = (ms) => new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
   const clearPreviewTimeout = useCallback(() => {
     if (previewTimeoutRef.current) {
@@ -49,6 +62,13 @@ const AudioTrackDialog = ({
     if (previewIntervalRef.current) {
       clearInterval(previewIntervalRef.current);
       previewIntervalRef.current = null;
+    }
+  }, []);
+
+  const clearPreviewStartTimeout = useCallback(() => {
+    if (previewStartTimeoutRef.current) {
+      clearTimeout(previewStartTimeoutRef.current);
+      previewStartTimeoutRef.current = null;
     }
   }, []);
 
@@ -78,27 +98,111 @@ const AudioTrackDialog = ({
   }, [clearPreviewInterval]);
 
   const stopPreview = useCallback(async () => {
+    previewSessionRef.current += 1;
+    previewStartedSessionRef.current = 0;
     clearPreviewTimeout();
+    clearPreviewStartTimeout();
     clearPreviewInterval();
     try {
       await stop();
     } catch (_) {
       // Best effort stop for preview cleanup.
     }
+    try {
+      await reset();
+    } catch (_) {
+      // Best effort hard reset for stale notification/queue cleanup.
+    }
     resetPreviewProgress();
+    setPreviewLoadingTrackId(null);
+    setPreviewActiveTrackId(null);
     setPlayingTrack(null);
-  }, [clearPreviewTimeout, clearPreviewInterval, stop, resetPreviewProgress]);
+  }, [
+    clearPreviewTimeout,
+    clearPreviewStartTimeout,
+    clearPreviewInterval,
+    stop,
+    reset,
+    resetPreviewProgress,
+  ]);
+
+  const startPreviewWindow = useCallback(
+    (track, sessionId) => {
+      if (!track?.id) {
+        return;
+      }
+
+      setPreviewActiveTrackId(track.id);
+      startPreviewTicker();
+      clearPreviewTimeout();
+      previewTimeoutRef.current = setTimeout(async () => {
+        if (previewSessionRef.current !== sessionId) {
+          return;
+        }
+        try {
+          await stop();
+        } catch (_) {
+          // Preview timeout stop should never block UI.
+        }
+        try {
+          await reset();
+        } catch (_) {
+          // Best effort hard reset for consistent preview stop.
+        }
+        clearPreviewInterval();
+        resetPreviewProgress();
+        setPreviewLoadingTrackId(null);
+        setPreviewActiveTrackId(null);
+        setPlayingTrack((current) => (current?.id === track.id ? null : current));
+      }, PREVIEW_DURATION_MS);
+    },
+    [startPreviewTicker, clearPreviewTimeout, stop, reset, clearPreviewInterval, resetPreviewProgress]
+  );
+
+  useEffect(() => {
+    if (!isPlaying || !playingTrack?.id || !previewLoadingTrackId) {
+      return;
+    }
+
+    if (previewLoadingTrackId !== playingTrack.id) {
+      return;
+    }
+
+    const activeSessionId = previewSessionRef.current;
+    if (previewStartedSessionRef.current === activeSessionId) {
+      return;
+    }
+
+    previewStartedSessionRef.current = activeSessionId;
+    clearPreviewStartTimeout();
+    setPreviewLoadingTrackId(null);
+    startPreviewWindow(playingTrack, activeSessionId);
+  }, [
+    isPlaying,
+    playingTrack,
+    previewLoadingTrackId,
+    clearPreviewStartTimeout,
+    startPreviewWindow,
+  ]);
 
   useEffect(() => {
     return () => {
       clearPreviewTimeout();
+      clearPreviewStartTimeout();
       clearPreviewInterval();
     };
-  }, [clearPreviewTimeout, clearPreviewInterval]);
+  }, [clearPreviewTimeout, clearPreviewStartTimeout, clearPreviewInterval]);
 
   const handleSelectTrack = async (track) => {
     if (isNextLoading) return;
+    if (previewLoadingTrackId && previewLoadingTrackId === track?.id) {
+      return;
+    }
+    const sessionId = previewSessionRef.current + 1;
+    previewSessionRef.current = sessionId;
+    previewStartedSessionRef.current = 0;
     setSelectedTrack(track);
+    setPreviewActiveTrackId(null);
 
     if (!isHeader) {
       await handleTrackSelect(track);
@@ -114,9 +218,19 @@ const AudioTrackDialog = ({
     try {
       setPreviewLoadingTrackId(track.id);
       clearPreviewTimeout();
+      clearPreviewStartTimeout();
+      clearPreviewInterval();
 
-      if (isPlaying) {
+      try {
         await stop();
+      } catch (_) {
+        // Best effort stop before starting a new preview.
+      }
+
+      try {
+        await reset();
+      } catch (_) {
+        // Best effort reset before starting a new preview.
       }
 
       await addAndPlayTrack(
@@ -131,25 +245,91 @@ const AudioTrackDialog = ({
         track.remoteUrl || track.audioUrl
       );
 
+      if (previewSessionRef.current !== sessionId) {
+        return;
+      }
+
       setPlayingTrack(track);
-      startPreviewTicker();
-      previewTimeoutRef.current = setTimeout(async () => {
-        try {
-          await stop();
-        } catch (_) {
-          // Preview timeout stop should never block UI.
+
+      // Prefer concrete player state over UI state propagation. On some devices
+      // isPlaying can lag behind queue updates, so this avoids "stuck loading".
+      let isSelectedTrackActive = false;
+      const startWait = Date.now();
+      while (Date.now() - startWait < ACTIVE_TRACK_WAIT_MS) {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        isSelectedTrackActive =
+          activeTrack?.id != null && String(activeTrack.id) === String(track.id);
+        if (isSelectedTrackActive) {
+          break;
         }
-        clearPreviewInterval();
+        await wait(ACTIVE_TRACK_POLL_MS);
+      }
+
+      if (isSelectedTrackActive) {
+        try {
+          await TrackPlayer.play();
+        } catch (_) {
+          // Best effort explicit play; queue is already set for the selected preview track.
+        }
+        previewStartedSessionRef.current = sessionId;
+        clearPreviewStartTimeout();
+        setPreviewLoadingTrackId(null);
+        startPreviewWindow(track, sessionId);
+        return;
+      }
+
+      // Fallback path for devices where wrapper playback does not become active.
+      try {
+        await TrackPlayer.reset();
+        await TrackPlayer.add({
+          id: track.id,
+          url: track.remoteUrl || track.audioUrl,
+          title: track.displayName,
+          artist: track.displayName,
+          duration: track.trackLengthSec,
+        });
+        await TrackPlayer.play();
+      } catch (_) {
+        // Keep loading until startup timeout while attempting fallback.
+      }
+
+      let isFallbackActive = false;
+      const fallbackWaitStart = Date.now();
+      while (Date.now() - fallbackWaitStart < ACTIVE_TRACK_WAIT_MS) {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        isFallbackActive =
+          activeTrack?.id != null && String(activeTrack.id) === String(track.id);
+        if (isFallbackActive) {
+          break;
+        }
+        await wait(ACTIVE_TRACK_POLL_MS);
+      }
+
+      if (isFallbackActive && previewSessionRef.current === sessionId) {
+        previewStartedSessionRef.current = sessionId;
+        clearPreviewStartTimeout();
+        setPreviewLoadingTrackId(null);
+        startPreviewWindow(track, sessionId);
+        return;
+      }
+
+      previewStartTimeoutRef.current = setTimeout(() => {
+        if (previewSessionRef.current !== sessionId) {
+          return;
+        }
+        setPreviewLoadingTrackId(null);
+        setPreviewActiveTrackId(null);
+        setPlayingTrack(null);
         resetPreviewProgress();
-        setPlayingTrack((current) => (current?.id === track.id ? null : current));
-      }, PREVIEW_DURATION_MS);
+      }, PREVIEW_START_TIMEOUT_MS);
     } catch (_) {
       clearPreviewTimeout();
+      clearPreviewStartTimeout();
       clearPreviewInterval();
       resetPreviewProgress();
-      setPlayingTrack(null);
-    } finally {
       setPreviewLoadingTrackId(null);
+      setPreviewActiveTrackId(null);
+      setPlayingTrack(null);
     }
   };
 
@@ -166,7 +346,7 @@ const AudioTrackDialog = ({
   };
 
   const isPreviewRunning = Boolean(
-    selectedTrack && playingTrack?.id === selectedTrack?.id && isPlaying
+    selectedTrack && previewActiveTrackId && previewActiveTrackId === selectedTrack?.id
   );
   const nextButtonLabel = isPreviewRunning
     ? `${STRINGS.NEXT} (${previewRemainingSec}s)`
@@ -282,6 +462,7 @@ AudioTrackDialog.propTypes = {
   onCloseTrackModal: PropTypes.func.isRequired,
   addAndPlayTrack: PropTypes.func.isRequired,
   stop: PropTypes.func.isRequired,
+  reset: PropTypes.func.isRequired,
   isPlaying: PropTypes.bool.isRequired,
 };
 
