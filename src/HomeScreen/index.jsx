@@ -66,6 +66,7 @@ const HomeScreen = React.memo(({ navigation }) => {
 
   const onPress = (row) => {
     const bani = row.item;
+    dispatch(actions.toggleAudio(false));
     if (!bani.folder) {
       navigate(constant.READER, {
         key: `Reader-${bani.id}`,

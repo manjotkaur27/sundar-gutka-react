@@ -172,7 +172,7 @@ const useAudioManifest = (baniID) => {
     }
   };
 
-  const fetchAudioManifest = async () => {
+  const fetchAudioManifest = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       setManifestError(null);
@@ -181,7 +181,7 @@ const useAudioManifest = (baniID) => {
       // user navigates back to the same bani. The downloaded-tracks merge still
       // runs fresh each time so local file changes are always reflected.
       let manifest;
-      if (_manifestApiCache.has(baniID)) {
+      if (!forceRefresh && _manifestApiCache.has(baniID)) {
         manifest = _manifestApiCache.get(baniID);
       } else {
         manifest = await fetchManifest(baniID);
@@ -278,7 +278,7 @@ const useAudioManifest = (baniID) => {
     addTrackToManifest,
     isTrackDownloaded,
     manifestError,
-    refetchManifest: fetchAudioManifest,
+    refetchManifest: () => fetchAudioManifest(true),
   };
 };
 

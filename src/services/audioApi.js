@@ -1,5 +1,59 @@
 import { constant, showErrorToast, STRINGS } from "@common";
 
+const SAVIYE_BANI_ID = 6;
+const SAVIYE_JARNAIL_TRACK_URL =
+  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/saviye.mp3";
+const SAVIYE_PRIMARY_TRACK = {
+  bani_id: SAVIYE_BANI_ID,
+  track_id: 6001,
+  track_url: SAVIYE_JARNAIL_TRACK_URL,
+  track_length_seconds: 1709,
+  track_size_mb: 27.5,
+  artist_name: "Bhai Jarnail Singh Ji",
+  artist_id: 4,
+};
+const SAVIYE_FALLBACK_MANIFEST = {
+  status: "success",
+  data: [SAVIYE_PRIMARY_TRACK],
+};
+
+const normalize = (value) => (value || "").toString().trim().toLowerCase();
+
+const applyManifestOverrides = (baniId, data) => {
+  if (!data?.data || !Array.isArray(data.data)) {
+    return data;
+  }
+
+  if (Number(baniId) !== SAVIYE_BANI_ID) {
+    return data;
+  }
+
+  const restTracks = data.data
+    .map((track) => {
+      const artistName = normalize(track?.artist_name);
+      const trackUrl = normalize(track?.track_url);
+      const isJarnailTrack =
+        track?.artist_id === 4 ||
+        artistName.includes("jarnail") ||
+        trackUrl.includes("bhaijarnailsingh");
+
+      if (isJarnailTrack) {
+        return {
+          ...track,
+          track_url: SAVIYE_JARNAIL_TRACK_URL,
+        };
+      }
+      return track;
+    })
+    .filter((track) => normalize(track?.track_url) !== normalize(SAVIYE_JARNAIL_TRACK_URL));
+
+  return {
+    ...data,
+    // Keep your provided URL as the primary source for bani 6.
+    data: [SAVIYE_PRIMARY_TRACK, ...restTracks],
+  };
+};
+
 // Common API configuration
 const getApiConfig = () => {
   const { BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD, REMOTE_AUDIO_API_URL } = constant;
@@ -58,9 +112,12 @@ export const fetchManifest = async (baniId) => {
   const data = await makeApiRequest(`/banis/${baniId}`);
 
   if (!data?.data?.length) {
+    if (Number(baniId) === SAVIYE_BANI_ID) {
+      return SAVIYE_FALLBACK_MANIFEST;
+    }
     return null;
   }
-  return data;
+  return applyManifestOverrides(baniId, data);
 };
 
 export const fetchArtists = async () => {
