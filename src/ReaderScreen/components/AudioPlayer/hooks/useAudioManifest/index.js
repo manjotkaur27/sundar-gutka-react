@@ -4,6 +4,48 @@ import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
 import { fetchManifest } from "@service";
 
+const ALLOWED_ARTIST_IDS = [4];
+const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan"];
+const ALLOWED_ARTIST_URL_KEYWORDS = ["bhaijarnailsingh", "indermohankauruk"];
+const EMERGENCY_MANIFEST_BY_BANI = {
+  9: {
+    status: "success",
+    data: [
+      {
+        bani_id: 9,
+        track_id: 2009,
+        track_url: "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/ChaupaiSahib.mp3",
+        track_length_seconds: 0,
+        track_size_mb: 10.24,
+        artist_name: "Indermohan Kaur UK",
+        artist_id: 8,
+        lyrics_url: "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/ChaupaiSahib.json",
+      },
+    ],
+  },
+};
+
+const normalize = (value) => (value || "").toString().trim().toLowerCase();
+
+const isAllowedArtist = ({ artistID, displayName, trackUrl }) => {
+  const numericArtistId = Number(artistID);
+  if (ALLOWED_ARTIST_IDS.includes(numericArtistId)) {
+    return true;
+  }
+
+  const normalizedDisplayName = normalize(displayName);
+  const normalizedTrackUrl = normalize(trackUrl);
+
+  const matchesName = ALLOWED_ARTIST_NAME_KEYWORDS.some((keyword) =>
+    normalizedDisplayName.includes(keyword)
+  );
+  const matchesUrl = ALLOWED_ARTIST_URL_KEYWORDS.some((keyword) =>
+    normalizedTrackUrl.includes(keyword)
+  );
+
+  return matchesName || matchesUrl;
+};
+
 // Module-level cache for raw API responses.
 // Re-navigating to the same bani within a session reuses the cached response
 // instead of firing another network round-trip.
@@ -33,20 +75,40 @@ const useAudioManifest = (baniID) => {
     }
 
     return manifest.data
-      .filter((item) => item != null && item.track_url)
-      .map((item) => ({
-        id: item.track_id,
-        track_id: item.track_id,
-        artistID: item.artist_id,
-        audioUrl: item.track_url,
-        remoteUrl: item.track_url,
-        displayName: item.artist_name,
-        trackLengthSec: item.track_length_seconds,
-        trackSizeMB: item.track_size_mb,
-        lyricsUrl: item.track_url ? item.track_url.replace(".mp3", ".json") : null,
-        isLocallyDownloaded: false,
-      }));
+      .filter(
+        (item) =>
+          item != null &&
+          item.track_url &&
+          isAllowedArtist({
+            artistID: item.artist_id,
+            displayName: item.artist_name,
+            trackUrl: item.track_url,
+          })
+      )
+      .map((item) => {
+        const hasExplicitLyricsUrl = Object.prototype.hasOwnProperty.call(item, "lyrics_url");
+        const lyricsUrl = hasExplicitLyricsUrl
+          ? item.lyrics_url
+          : item.track_url
+            ? item.track_url.replace(".mp3", ".json")
+            : null;
+
+        return {
+          id: item.track_id,
+          track_id: item.track_id,
+          artistID: item.artist_id,
+          audioUrl: item.track_url,
+          remoteUrl: item.track_url,
+          displayName: item.artist_name,
+          trackLengthSec: item.track_length_seconds,
+          trackSizeMB: item.track_size_mb,
+          lyricsUrl,
+          isLocallyDownloaded: false,
+        };
+      });
   };
+
+  const getEmergencyManifest = () => EMERGENCY_MANIFEST_BY_BANI[Number(baniID)] || null;
 
   // Merge downloaded tracks with API tracks
   const mergeDownloadedTracks = async (apiTracks, downloadedTracks) => {
@@ -57,6 +119,16 @@ const useAudioManifest = (baniID) => {
       }
       const validatedDownloads = await Promise.all(
         downloadedTracks.map(async (track) => {
+          if (
+            !isAllowedArtist({
+              artistID: track.artistID,
+              displayName: track.displayName,
+              trackUrl: track.remoteUrl || track.audioUrl,
+            })
+          ) {
+            return null;
+          }
+
           const fullLocalPath = `${DocumentDirectoryPath}/audio/${track.audioUrl}`;
           const lyricsUrlPath = track.lyricsUrl
             ? `${DocumentDirectoryPath}/audio/${track.lyricsUrl}`
@@ -136,7 +208,8 @@ const useAudioManifest = (baniID) => {
           return {
             ...apiTrack,
             audioUrl: fullLocalPath,
-            lyricsUrl: downloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : null,
+            // If local lyrics are missing, keep remote lyricsUrl for sync-scroll.
+            lyricsUrl: downloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : apiTrack.lyricsUrl,
             remoteUrl: apiTrack.audioUrl,
             isLocallyDownloaded: true,
           };
@@ -181,17 +254,24 @@ const useAudioManifest = (baniID) => {
       // user navigates back to the same bani. The downloaded-tracks merge still
       // runs fresh each time so local file changes are always reflected.
       let manifest;
-      if (!forceRefresh && _manifestApiCache.has(baniID)) {
-        manifest = _manifestApiCache.get(baniID);
+      const cachedManifest = _manifestApiCache.get(baniID);
+      const hasNonEmptyCachedData =
+        cachedManifest && Array.isArray(cachedManifest.data) && cachedManifest.data.length > 0;
+
+      if (!forceRefresh && hasNonEmptyCachedData) {
+        manifest = cachedManifest;
       } else {
         manifest = await fetchManifest(baniID);
-        if (manifest) {
+        if (manifest && Array.isArray(manifest.data) && manifest.data.length > 0) {
           _manifestApiCache.set(baniID, manifest);
         }
       }
 
       // Map API data to tracks
       let mappedData = mapApiDataToTracks(manifest);
+      if (!mappedData || mappedData.length === 0) {
+        mappedData = mapApiDataToTracks(getEmergencyManifest());
+      }
       // Get downloaded tracks from Redux
       const downloadedTracks = audioManifest[baniID];
       // Merge downloaded tracks with API tracks if available
@@ -203,6 +283,8 @@ const useAudioManifest = (baniID) => {
         setTracks(mappedData);
         setDefaultTrack(mappedData);
         setManifestError(null);
+      } else {
+        setTracks([]);
       }
     } catch (error) {
       logError("Error fetching manifest:", error);

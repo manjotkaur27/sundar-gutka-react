@@ -195,6 +195,9 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
           return;
         }
 
+        const previousTrack = currentPlaying;
+        const previousPosition = progress?.position;
+
         // Stop current playback
         await stop();
 
@@ -203,16 +206,15 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         setShowTrackModal(false);
         // Set the new track as current
         // Save current sequence before switching artists
-        if (selectedTrack?.lyricsUrl && progress?.position != null) {
-          const currentSequence = await getSequenceFromPosition(
-            selectedTrack.lyricsUrl,
-            progress.position
-          );
-          if (currentSequence != null && selectedTrack?.id) {
-            dispatch(
-              setAudioProgress(baniID, selectedTrack.id, progress.position, currentSequence)
-            );
+        if (previousTrack?.id && previousPosition != null) {
+          let currentSequence = null;
+          if (previousTrack?.lyricsUrl) {
+            currentSequence = await getSequenceFromPosition(previousTrack.lyricsUrl, previousPosition);
           }
+
+          dispatch(
+            setAudioProgress(baniID, previousTrack.id, previousPosition, currentSequence)
+          );
         }
 
         // Dispatch action
@@ -246,7 +248,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         setIsPlayerActionLoading(false);
       }
     },
-    [baniID, isAudioEnabled]
+    [baniID, isAudioEnabled, currentPlaying, progress?.position]
   );
 
   // Memoize error fallback renderer to prevent recreation

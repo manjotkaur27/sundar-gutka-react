@@ -21,6 +21,7 @@ import { Header, AutoScrollComponent, AudioPlayer } from "./components";
 import { useBookmarks, useFetchShabad, useFooterAnimation } from "./hooks";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
+import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 
 const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -60,6 +61,19 @@ const Reader = ({ navigation, route }) => {
 
   const { animationPosition } = useFooterAnimation(isHeader);
 
+  const stopAudioPlayback = useCallback(async () => {
+    try {
+      await stopTrack();
+    } catch (_) {
+      // Best effort audio shutdown while leaving Reader.
+    }
+    try {
+      await resetPlayer();
+    } catch (_) {
+      // Best effort queue reset while leaving Reader.
+    }
+  }, []);
+
   // Save element ID when leaving screen or app goes to background
   const saveScrollPosition = useCallback(() => {
     const elementIdToSave = currentElementIdRef.current;
@@ -83,8 +97,17 @@ const Reader = ({ navigation, route }) => {
     return () => {
       // Save position when component unmounts
       saveScrollPosition();
+      stopAudioPlayback();
     };
-  }, [saveScrollPosition]);
+  }, [saveScrollPosition, stopAudioPlayback]);
+
+  useEffect(() => {
+    const unsubscribeBlur = navigation.addListener("blur", () => {
+      stopAudioPlayback();
+    });
+
+    return unsubscribeBlur;
+  }, [navigation, stopAudioPlayback]);
 
   // Memoize WebView key to prevent unnecessary remounts
   const webViewKey = useMemo(() => {
@@ -158,11 +181,12 @@ const Reader = ({ navigation, route }) => {
   const handleBackPress = useCallback(() => {
     // Save position before navigating back
     saveScrollPosition();
+    stopAudioPlayback();
     if (webViewRef?.current) {
       navigation.goBack();
     }
     return true;
-  }, [saveScrollPosition, navigation]);
+  }, [saveScrollPosition, navigation, stopAudioPlayback]);
 
   useBackHandler(handleBackPress);
 

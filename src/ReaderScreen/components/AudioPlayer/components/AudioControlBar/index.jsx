@@ -285,9 +285,15 @@ const AudioControlBar = ({
         // Check if we have saved progress for this track (snapshot from mount time)
         if (initialProgressRef.current) {
           const savedProgress = initialProgressRef.current;
+          const isSavedProgressForCurrentTrack =
+            savedProgress.trackId != null && String(savedProgress.trackId) === String(currentPlaying.id);
 
-          // If we have a saved sequence, try to restore position from sequence first
-          if (savedProgress.sequence != null && currentPlaying?.lyricsUrl) {
+          // Restore only if saved progress belongs to the currently selected track.
+          if (
+            isSavedProgressForCurrentTrack &&
+            savedProgress.sequence != null &&
+            currentPlaying?.lyricsUrl
+          ) {
             const sequencePosition = await getPositionFromSequence(
               currentPlaying.lyricsUrl,
               savedProgress.sequence
@@ -303,7 +309,7 @@ const AudioControlBar = ({
           }
 
           // Fallback to saved position if sequence not found or not available
-          if (savedProgress.position && currentPlaying?.id === savedProgress.trackId) {
+          if (savedProgress.position && isSavedProgressForCurrentTrack) {
             await seekTo(savedProgress.position);
           }
         }
