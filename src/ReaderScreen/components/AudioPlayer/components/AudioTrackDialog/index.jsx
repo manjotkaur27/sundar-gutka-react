@@ -45,7 +45,7 @@ const AudioTrackDialog = ({
   const previewIntervalRef = useRef(null);
   const previewStartedAtRef = useRef(0);
   const previewSessionRef = useRef(0);
-  const previewStartedSessionRef = useRef(0);
+  const previewActionInFlightRef = useRef(false);
 
   const wait = (ms) => new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -136,7 +136,6 @@ const AudioTrackDialog = ({
 
   const stopPreview = useCallback(async () => {
     previewSessionRef.current += 1;
-    previewStartedSessionRef.current = 0;
     clearPreviewTimeout();
     clearPreviewStartTimeout();
     clearPreviewInterval();
@@ -197,32 +196,6 @@ const AudioTrackDialog = ({
   );
 
   useEffect(() => {
-    if (!isPlaying || !playingTrack?.id || !previewLoadingTrackId) {
-      return;
-    }
-
-    if (previewLoadingTrackId !== playingTrack.id) {
-      return;
-    }
-
-    const activeSessionId = previewSessionRef.current;
-    if (previewStartedSessionRef.current === activeSessionId) {
-      return;
-    }
-
-    previewStartedSessionRef.current = activeSessionId;
-    clearPreviewStartTimeout();
-    setPreviewLoadingTrackId(null);
-    startPreviewWindow(playingTrack, activeSessionId);
-  }, [
-    isPlaying,
-    playingTrack,
-    previewLoadingTrackId,
-    clearPreviewStartTimeout,
-    startPreviewWindow,
-  ]);
-
-  useEffect(() => {
     return () => {
       clearPreviewTimeout();
       clearPreviewStartTimeout();
@@ -232,12 +205,15 @@ const AudioTrackDialog = ({
 
   const handleSelectTrack = async (track) => {
     if (isNextLoading) return;
+    if (!track?.id || previewActionInFlightRef.current) {
+      return;
+    }
     if (previewLoadingTrackId && previewLoadingTrackId === track?.id) {
       return;
     }
+    previewActionInFlightRef.current = true;
     const sessionId = previewSessionRef.current + 1;
     previewSessionRef.current = sessionId;
-    previewStartedSessionRef.current = 0;
     setSelectedTrack(track);
     setPreviewActiveTrackId(null);
 
@@ -249,11 +225,13 @@ const AudioTrackDialog = ({
     if (playingTrack?.id === track.id && isPlaying) {
       await stopPreview();
       setSelectedTrack(null);
+      previewActionInFlightRef.current = false;
       return;
     }
 
     try {
       setPreviewLoadingTrackId(track.id);
+      setPlayingTrack(null);
       clearPreviewTimeout();
       clearPreviewStartTimeout();
       clearPreviewInterval();
@@ -286,38 +264,34 @@ const AudioTrackDialog = ({
         return;
       }
 
-      setPlayingTrack(track);
-
       let playbackStarted = await waitForPlaybackStart(track.id, ACTIVE_TRACK_WAIT_MS + 800);
       if (playbackStarted && previewSessionRef.current === sessionId) {
-        previewStartedSessionRef.current = sessionId;
         clearPreviewStartTimeout();
         setPreviewLoadingTrackId(null);
+        setPlayingTrack(track);
         startPreviewWindow(track, sessionId);
         return;
       }
 
-      // Fallback path for devices where wrapper playback does not become active.
-      try {
-        await TrackPlayer.reset();
-        await TrackPlayer.add({
-          id: track.id,
-          url: track.remoteUrl || track.audioUrl,
-          title: track.displayName,
-          artist: track.displayName,
-          duration: track.trackLengthSec,
-        });
-        await TrackPlayer.play();
-      } catch (_) {
-        // Keep loading until startup timeout while attempting fallback.
-      }
+      // Retry once through the same player path to avoid stale native state.
+      await addAndPlayTrack(
+        track.id,
+        track.audioUrl,
+        track.displayName,
+        track.displayName,
+        track.lyricsUrl,
+        track.trackLengthSec,
+        track.trackSizeMB,
+        true,
+        track.remoteUrl || track.audioUrl
+      );
 
       playbackStarted = await waitForPlaybackStart(track.id, ACTIVE_TRACK_WAIT_MS + 1200);
 
       if (playbackStarted && previewSessionRef.current === sessionId) {
-        previewStartedSessionRef.current = sessionId;
         clearPreviewStartTimeout();
         setPreviewLoadingTrackId(null);
+        setPlayingTrack(track);
         startPreviewWindow(track, sessionId);
         return;
       }
@@ -339,6 +313,8 @@ const AudioTrackDialog = ({
       setPreviewLoadingTrackId(null);
       setPreviewActiveTrackId(null);
       setPlayingTrack(null);
+    } finally {
+      previewActionInFlightRef.current = false;
     }
   };
 

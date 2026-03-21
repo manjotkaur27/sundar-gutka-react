@@ -33,6 +33,8 @@ const useTrackPlayer = () => {
   const progressRef = useRef(progress);
   const currentTrackIdRef = useRef(null);
   const prefetchInFlightRef = useRef(new Map());
+  const seekInFlightRef = useRef(false);
+  const pendingSeekRef = useRef(null);
 
   const configurePlayer = useCallback(async () => {
     setInitializationError(null);
@@ -180,38 +182,63 @@ const useTrackPlayer = () => {
       return;
     }
 
+    pendingSeekRef.current = numericPosition;
+    if (seekInFlightRef.current) {
+      return;
+    }
+
+    seekInFlightRef.current = true;
+
     try {
-      const activeTrack = await TrackPlayer.getActiveTrack();
+      while (pendingSeekRef.current != null) {
+        const targetPosition = pendingSeekRef.current;
+        pendingSeekRef.current = null;
 
-      // Keep seek path stable: do not reset/re-add player while seeking.
-      // Resetting around seek can desync duration metadata on Android and throw
-      // IO_READ_POSITION_OUT_OF_RANGE for valid-looking slider positions.
-      if (activeTrack?.url && !isLocalFile(activeTrack.url)) {
-        prefetchForSeek({
-          ...activeTrack,
-          id: activeTrack.id,
-          url: activeTrack.url,
-          title: activeTrack.title,
-          artist: activeTrack.artist,
-        });
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (!activeTrack) {
+          return;
+        }
+
+        // Keep seek path stable: do not reset/re-add player while seeking.
+        if (activeTrack?.url && !isLocalFile(activeTrack.url)) {
+          prefetchForSeek({
+            ...activeTrack,
+            id: activeTrack.id,
+            url: activeTrack.url,
+            title: activeTrack.title,
+            artist: activeTrack.artist,
+          });
+        }
+
+        const nativeProgress = await TrackPlayer.getProgress().catch(() => null);
+
+        // Prefer native duration from player state; metadata duration can be stale
+        // or inaccurate and may trigger Android out-of-range seeks.
+        const nativeDuration = Number(nativeProgress?.duration);
+        const runtimeDuration = Number(progressRef.current?.duration);
+        const metadataDuration = Number(activeTrack?.duration);
+
+        let knownDuration = null;
+        if (Number.isFinite(nativeDuration) && nativeDuration > 0) {
+          knownDuration = nativeDuration;
+        } else if (Number.isFinite(runtimeDuration) && runtimeDuration > 0) {
+          knownDuration = runtimeDuration;
+        } else if (Number.isFinite(metadataDuration) && metadataDuration > 0) {
+          knownDuration = metadataDuration;
+        }
+
+        const maxSeekable = knownDuration != null ? Math.max(0, knownDuration - 0.5) : null;
+        const safePosition =
+          maxSeekable != null
+            ? Math.min(Math.max(0, targetPosition), maxSeekable)
+            : Math.max(0, targetPosition);
+
+        await TrackPlayer.seekTo(safePosition);
       }
-
-      const nativeProgress = await TrackPlayer.getProgress().catch(() => null);
-      const candidateDurations = [
-        Number(nativeProgress?.duration),
-        Number(progressRef.current?.duration),
-        Number(activeTrack?.duration),
-      ].filter((value) => Number.isFinite(value) && value > 0);
-
-      const knownDuration = candidateDurations.length ? Math.max(...candidateDurations) : null;
-      const safePosition =
-        knownDuration != null
-          ? Math.min(Math.max(0, numericPosition), Math.max(0, knownDuration - 0.25))
-          : Math.max(0, numericPosition);
-
-      await TrackPlayer.seekTo(safePosition);
     } catch (error) {
       logError("Error seeking to position:", error);
+    } finally {
+      seekInFlightRef.current = false;
     }
   };
 
