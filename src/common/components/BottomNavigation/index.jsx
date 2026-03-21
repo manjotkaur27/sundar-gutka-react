@@ -23,7 +23,7 @@ const BottomNavigation = ({ activeKey }) => {
   const [isSettings, setIsSettings] = useState(false);
   const [previousRouteName, setPreviousRouteName] = useState(null);
   const [hasInternet, setHasInternet] = useState(true);
-  const previousConnectivityRef = useRef(true);
+  const previousConnectivityRef = useRef(null);
 
   const checkInternetConnection = useCallback(async () => {
     const controller = new AbortController();
@@ -119,11 +119,16 @@ const BottomNavigation = ({ activeKey }) => {
       const wasConnected = previousConnectivityRef.current;
       previousConnectivityRef.current = isConnected;
 
+      // First connectivity sample should establish baseline only (no toast).
+      if (wasConnected == null) {
+        return;
+      }
+
       if (wasConnected && !isConnected) {
-        if (isAudio) {
-          await pauseTrack();
-          dispatch(actions.toggleAudio(false));
-        }
+        // Mirror settings "Audio off" behavior to remove notification controls.
+        await stopTrack();
+        await resetPlayer();
+        dispatch(actions.toggleAudio(false));
         showErrorToast(STRINGS.NETWORK_ERROR);
       }
     };
@@ -176,10 +181,10 @@ const BottomNavigation = ({ activeKey }) => {
 
         const isConnected = await checkInternetConnection();
         if (!isConnected) {
-          if (isAudio) {
-            await pauseTrack();
-            dispatch(actions.toggleAudio(false));
-          }
+          // Hard shutdown to clear Android notification player when offline.
+          await stopTrack();
+          await resetPlayer();
+          dispatch(actions.toggleAudio(false));
           showErrorToast(STRINGS.NETWORK_ERROR);
           return;
         }
