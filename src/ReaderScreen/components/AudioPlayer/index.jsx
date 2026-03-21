@@ -232,6 +232,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         // Set the new track as current and close modal together
         setCurrentPlaying(selectedTrack);
         setShowTrackModal(false);
+        setHasAutoRestoredView(true);
         // Set the new track as current
         // Save current sequence before switching artists
         if (previousTrack?.id && previousPosition != null) {

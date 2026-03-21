@@ -134,6 +134,28 @@ const AudioTrackDialog = ({
     }, 250);
   }, [clearPreviewInterval]);
 
+  // Restore full notification capabilities after a preview ends.
+  // Called after stop()+reset() so there is no queue left to show controls for,
+  // but this also guards against any race where the notification lingers.
+  const restoreNotificationCapabilities = useCallback(async () => {
+    try {
+      const { Capability } = require("react-native-track-player"); // eslint-disable-line
+      await TrackPlayer.updateOptions({
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Stop,
+          Capability.SeekTo,
+        ],
+        compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
+      });
+    } catch (_) {
+      // Non-critical: full controls will be restored on next normal playback setup.
+    }
+  }, []);
+
   const stopPreview = useCallback(async () => {
     previewSessionRef.current += 1;
     clearPreviewTimeout();
@@ -149,6 +171,8 @@ const AudioTrackDialog = ({
     } catch (_) {
       // Best effort hard reset for stale notification/queue cleanup.
     }
+    // Restore full capabilities so normal playback keeps its notification controls.
+    await restoreNotificationCapabilities();
     resetPreviewProgress();
     setPreviewLoadingTrackId(null);
     setPreviewActiveTrackId(null);
@@ -159,6 +183,7 @@ const AudioTrackDialog = ({
     clearPreviewInterval,
     stop,
     reset,
+    restoreNotificationCapabilities,
     resetPreviewProgress,
   ]);
 
@@ -185,6 +210,8 @@ const AudioTrackDialog = ({
         } catch (_) {
           // Best effort hard reset for consistent preview stop.
         }
+        // Restore full capabilities after the 30s preview expires.
+        await restoreNotificationCapabilities();
         clearPreviewInterval();
         resetPreviewProgress();
         setPreviewLoadingTrackId(null);
@@ -192,7 +219,7 @@ const AudioTrackDialog = ({
         setPlayingTrack((current) => (current?.id === track.id ? null : current));
       }, PREVIEW_DURATION_MS);
     },
-    [startPreviewTicker, clearPreviewTimeout, stop, reset, clearPreviewInterval, resetPreviewProgress]
+    [startPreviewTicker, clearPreviewTimeout, stop, reset, restoreNotificationCapabilities, clearPreviewInterval, resetPreviewProgress]
   );
 
   useEffect(() => {
@@ -246,6 +273,14 @@ const AudioTrackDialog = ({
         await reset();
       } catch (_) {
         // Best effort reset before starting a new preview.
+      }
+
+      // Strip all notification-bar controls so the user cannot interact
+      // with pause/play/seek from the OS notification during a preview.
+      try {
+        await TrackPlayer.updateOptions({ capabilities: [], compactCapabilities: [] });
+      } catch (_) {
+        // Non-critical — preview audio still plays without notification controls.
       }
 
       await addAndPlayTrack(

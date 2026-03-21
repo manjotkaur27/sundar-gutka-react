@@ -16,6 +16,7 @@ import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
 import {
   downloadAudioOnly,
   getFullPrefetchTrackPath,
+  getFullLocalTrackPath,
   touchPrefetchTrack,
   prunePrefetchCache,
 } from "../../utils/audioDownloader";
@@ -199,8 +200,73 @@ const useTrackPlayer = () => {
           return;
         }
 
-        // Keep seek path stable: do not reset/re-add player while seeking.
+        // --- Fast-seek: reload from a local copy when streaming from remote ---
+        // Seeking in a remote HTTP stream triggers buffering (~30s delay).
+        // If the full downloaded file or the background-prefetch file already
+        // exists on disk, silently swap to it and seek locally instead.
         if (activeTrack?.url && !isLocalFile(activeTrack.url)) {
+          const remoteUrl = activeTrack.url;
+
+          // Priority 1: user-explicitly-downloaded copy (permanent, full quality)
+          const fullDownloadedPath = getFullLocalTrackPath(remoteUrl);
+          // Priority 2: background prefetch copy (temporary LRU cache)
+          const prefetchPath = getFullPrefetchTrackPath(remoteUrl);
+
+          let localPath = null;
+          try {
+            if (await exists(fullDownloadedPath)) {
+              localPath = fullDownloadedPath;
+            } else if (await exists(prefetchPath)) {
+              localPath = prefetchPath;
+              await touchPrefetchTrack(remoteUrl).catch(() => {});
+            }
+          } catch (_) {
+            // exists() failure is non-fatal; fall through to plain remote seek.
+          }
+
+          if (localPath) {
+            try {
+              // Capture playback state before swapping so we can restore it.
+              const wasPlayingState = await TrackPlayer.getPlaybackState();
+              const wasPlaying = wasPlayingState?.state === State.Playing;
+
+              const nativeProgressBeforeSwap = await TrackPlayer.getProgress().catch(() => null);
+              const nativeDuration = Number(nativeProgressBeforeSwap?.duration);
+              const metaDuration = Number(activeTrack?.duration);
+              const knownDuration =
+                Number.isFinite(nativeDuration) && nativeDuration > 0
+                  ? nativeDuration
+                  : Number.isFinite(metaDuration) && metaDuration > 0
+                  ? metaDuration
+                  : null;
+
+              const maxSeekable = knownDuration != null ? Math.max(0, knownDuration - 0.5) : null;
+              const safePosition =
+                maxSeekable != null
+                  ? Math.min(Math.max(0, targetPosition), maxSeekable)
+                  : Math.max(0, targetPosition);
+
+              // Reload with local file — this is fast (disk I/O, no network).
+              await TrackPlayer.reset();
+              await addTrack({
+                ...activeTrack,
+                url: formatUrlForTrackPlayer(localPath),
+              });
+              await TrackPlayer.seekTo(safePosition);
+              if (wasPlaying) {
+                await playTrack();
+              }
+              // Update the ref so subsequent operations know the track is local.
+              currentTrackIdRef.current = activeTrack.id;
+              return;
+            } catch (swapError) {
+              logError("Fast-seek local swap failed, falling back to remote seek:", swapError);
+              // Fall through to the original remote seekTo path below.
+            }
+          }
+
+          // No local copy yet — kick off a background prefetch so future seeks
+          // are instant, but don't block the current seek on it.
           prefetchForSeek({
             ...activeTrack,
             id: activeTrack.id,
@@ -210,10 +276,9 @@ const useTrackPlayer = () => {
           });
         }
 
+        // --- Original remote seek path (fallback or already-local track) ---
         const nativeProgress = await TrackPlayer.getProgress().catch(() => null);
 
-        // Prefer native duration from player state; metadata duration can be stale
-        // or inaccurate and may trigger Android out-of-range seeks.
         const nativeDuration = Number(nativeProgress?.duration);
         const runtimeDuration = Number(progressRef.current?.duration);
         const metadataDuration = Number(activeTrack?.duration);
