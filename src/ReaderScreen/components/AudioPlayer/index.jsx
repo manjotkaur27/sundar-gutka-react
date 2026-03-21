@@ -261,7 +261,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
             selectedTrack.lyricsUrl,
             selectedTrack.trackLengthSec,
             selectedTrack.trackSizeMB,
-            true,
+            isAudioAutoPlay, // Respect autoplay setting — don't start if autoplay is off
             selectedTrack.remoteUrl || selectedTrack.audioUrl
           );
           setIsPlayerActionLoading(false);
@@ -273,7 +273,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         setIsPlayerActionLoading(false);
       }
     },
-    [baniID, isAudioEnabled, currentPlaying, progress?.position]
+    [baniID, isAudioEnabled, isAudioAutoPlay, currentPlaying, progress?.position]
   );
 
   // Memoize error fallback renderer to prevent recreation

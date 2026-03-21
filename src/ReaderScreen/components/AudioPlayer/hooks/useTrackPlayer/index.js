@@ -195,6 +195,12 @@ const useTrackPlayer = () => {
         const targetPosition = pendingSeekRef.current;
         pendingSeekRef.current = null;
 
+        // Capture playing state via native API (React state is stale in async).
+        // Used by both seek paths to auto-resume after the seek settles.
+        const playbackStateNow = await TrackPlayer.getPlaybackState().catch(() => null);
+        const wasPlaying = playbackStateNow?.state === State.Playing ||
+          playbackStateNow?.state === State.Buffering;
+
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack) {
           return;
@@ -226,9 +232,6 @@ const useTrackPlayer = () => {
 
           if (localPath) {
             try {
-              // Capture playback state before swapping so we can restore it.
-              const wasPlayingState = await TrackPlayer.getPlaybackState();
-              const wasPlaying = wasPlayingState?.state === State.Playing;
 
               const nativeProgressBeforeSwap = await TrackPlayer.getProgress().catch(() => null);
               const nativeDuration = Number(nativeProgressBeforeSwap?.duration);
@@ -299,6 +302,12 @@ const useTrackPlayer = () => {
             : Math.max(0, targetPosition);
 
         await TrackPlayer.seekTo(safePosition);
+        // Android (and occasionally iOS) transitions to Paused after seekTo
+        // even when the track was playing before the seek. Auto-resume so the
+        // user never has to spam the play button.
+        if (wasPlaying) {
+          await playTrack();
+        }
       }
     } catch (error) {
       logError("Error seeking to position:", error);
