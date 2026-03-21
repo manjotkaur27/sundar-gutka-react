@@ -93,63 +93,43 @@ const useTrackPlayer = () => {
     progressRef.current = progress;
   }, [progress]);
 
-  const prefetchForSeek = useCallback(
-    async (track) => {
-      if (!track?.id || !track?.url || isLocalFile(track.url)) return null;
+  const prefetchForSeek = useCallback(async (track) => {
+    if (!track?.id || !track?.url || isLocalFile(track.url)) return null;
 
-      if (prefetchInFlightRef.current.has(track.id)) {
-        return prefetchInFlightRef.current.get(track.id);
-      }
+    const trackKey = String(track.id);
+    if (prefetchInFlightRef.current.has(trackKey)) {
+      return prefetchInFlightRef.current.get(trackKey);
+    }
 
-      const prefetchPromise = (async () => {
-        try {
-          const fullLocalPath = getFullPrefetchTrackPath(track.url);
-          const alreadyExists = await exists(fullLocalPath);
-          if (!alreadyExists) {
-            await downloadAudioOnly(track.url, track.title || track.artist || "Track", {
-              targetDirectory: "prefetch",
-            });
-          }
-
-          const ready = await exists(fullLocalPath);
-          if (!ready) return null;
-
-          // LRU-like maintenance for prefetch cache: keep at most last 5 tracks.
-          await touchPrefetchTrack(track.url);
-          await prunePrefetchCache(5);
-
-          if (currentTrackIdRef.current === track.id && !isLocalFile(track.url)) {
-            const wasPlaying = playbackState?.state === State.Playing;
-            const position = progressRef.current?.position || 0;
-            const localTrack = {
-              ...track,
-              url: formatUrlForTrackPlayer(fullLocalPath),
-            };
-
-            await reset();
-            await addTrack(localTrack);
-            if (position > 0) {
-              await TrackPlayer.seekTo(position);
-            }
-            if (wasPlaying) {
-              await play();
-            }
-          }
-
-          return fullLocalPath;
-        } catch (error) {
-          logError("Prefetch for seek failed:", error);
-          return null;
-        } finally {
-          prefetchInFlightRef.current.delete(track.id);
+    const prefetchPromise = (async () => {
+      try {
+        const fullLocalPath = getFullPrefetchTrackPath(track.url);
+        const alreadyExists = await exists(fullLocalPath);
+        if (!alreadyExists) {
+          await downloadAudioOnly(track.url, track.title || track.artist || "Track", {
+            targetDirectory: "prefetch",
+          });
         }
-      })();
 
-      prefetchInFlightRef.current.set(track.id, prefetchPromise);
-      return prefetchPromise;
-    },
-    [playbackState, reset, addTrack, play]
-  );
+        const ready = await exists(fullLocalPath);
+        if (!ready) return null;
+
+        // Keep last 5 prefetched tracks for quick seek without re-download churn.
+        await touchPrefetchTrack(track.url);
+        await prunePrefetchCache(5);
+
+        return fullLocalPath;
+      } catch (error) {
+        logError("Prefetch for seek failed:", error);
+        return null;
+      } finally {
+        prefetchInFlightRef.current.delete(trackKey);
+      }
+    })();
+
+    prefetchInFlightRef.current.set(trackKey, prefetchPromise);
+    return prefetchPromise;
+  }, []);
 
   const play = async () => {
     if (!isInitialized || !isAudio || !isAudioFeatureOn) {
@@ -194,8 +174,42 @@ const useTrackPlayer = () => {
       logMessage("Audio is not initialized or disabled in settings");
       return;
     }
+
+    const numericPosition = Number(position);
+    if (!Number.isFinite(numericPosition) || numericPosition < 0) {
+      return;
+    }
+
     try {
-      await TrackPlayer.seekTo(position);
+      const activeTrack = await TrackPlayer.getActiveTrack();
+
+      // Keep seek path stable: do not reset/re-add player while seeking.
+      // Resetting around seek can desync duration metadata on Android and throw
+      // IO_READ_POSITION_OUT_OF_RANGE for valid-looking slider positions.
+      if (activeTrack?.url && !isLocalFile(activeTrack.url)) {
+        prefetchForSeek({
+          ...activeTrack,
+          id: activeTrack.id,
+          url: activeTrack.url,
+          title: activeTrack.title,
+          artist: activeTrack.artist,
+        });
+      }
+
+      const nativeProgress = await TrackPlayer.getProgress().catch(() => null);
+      const candidateDurations = [
+        Number(nativeProgress?.duration),
+        Number(progressRef.current?.duration),
+        Number(activeTrack?.duration),
+      ].filter((value) => Number.isFinite(value) && value > 0);
+
+      const knownDuration = candidateDurations.length ? Math.max(...candidateDurations) : null;
+      const safePosition =
+        knownDuration != null
+          ? Math.min(Math.max(0, numericPosition), Math.max(0, knownDuration - 0.25))
+          : Math.max(0, numericPosition);
+
+      await TrackPlayer.seekTo(safePosition);
     } catch (error) {
       logError("Error seeking to position:", error);
     }
@@ -231,6 +245,17 @@ const useTrackPlayer = () => {
             logMessage("Local audio missing and no fallback URL available");
             return;
           }
+        }
+      }
+
+      if (!isLocalFile(playbackUrl)) {
+        const prefetchPath = getFullPrefetchTrackPath(playbackUrl);
+        const hasPrefetchedAudio = await exists(prefetchPath);
+        if (hasPrefetchedAudio) {
+          playbackUrl = prefetchPath;
+          // Refresh LRU stamp when reusing a cached track.
+          await touchPrefetchTrack(url);
+          await prunePrefetchCache(5);
         }
       }
 

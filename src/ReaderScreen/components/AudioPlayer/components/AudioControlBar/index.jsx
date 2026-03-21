@@ -6,7 +6,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
-import { setAudioProgress, toggleAudioSyncScroll } from "@common/actions";
+import { setAudioProgress } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
@@ -65,7 +65,6 @@ const AudioControlBar = ({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
-  const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const progressRef = useRef(progress);
   const currentPlayingRef = useRef(currentPlaying);
@@ -73,6 +72,8 @@ const AudioControlBar = ({
   const [isSeekLoading, setIsSeekLoading] = useState(false);
   const [displayDuration, setDisplayDuration] = useState(0);
   const [durationTrackId, setDurationTrackId] = useState(null);
+  const [optimisticSeekPosition, setOptimisticSeekPosition] = useState(null);
+  const optimisticSeekTimerRef = useRef(null);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
@@ -147,9 +148,59 @@ const AudioControlBar = ({
     durationTrackId && durationTrackId === getTrackId(currentPlaying) ? displayDuration : 0;
 
   const safePosition = useMemo(
-    () => (sliderMax > 0 ? sanitizePosition(progress.position, sliderMax) : 0),
-    [progress.position, sliderMax]
+    () => {
+      if (sliderMax <= 0) {
+        return 0;
+      }
+      const basePosition =
+        optimisticSeekPosition != null ? optimisticSeekPosition : sanitizePosition(progress.position, sliderMax);
+      return sanitizePosition(basePosition, sliderMax);
+    },
+    [progress.position, sliderMax, optimisticSeekPosition]
   );
+
+  useEffect(() => {
+    if (optimisticSeekPosition == null) {
+      return;
+    }
+
+    const nativePosition = sanitizePosition(progress.position, sliderMax);
+    if (Math.abs(nativePosition - optimisticSeekPosition) <= 1.2) {
+      setOptimisticSeekPosition(null);
+      if (optimisticSeekTimerRef.current) {
+        clearTimeout(optimisticSeekTimerRef.current);
+        optimisticSeekTimerRef.current = null;
+      }
+    }
+  }, [progress.position, sliderMax, optimisticSeekPosition]);
+
+  useEffect(() => {
+    return () => {
+      if (optimisticSeekTimerRef.current) {
+        clearTimeout(optimisticSeekTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSliderSeekComplete = async (valueArray) => {
+    const requested = Array.isArray(valueArray) ? Number(valueArray[0]) : Number(valueArray);
+    if (!Number.isFinite(requested)) {
+      return;
+    }
+
+    const bounded = sanitizePosition(requested, sliderMax);
+    setOptimisticSeekPosition(bounded);
+
+    if (optimisticSeekTimerRef.current) {
+      clearTimeout(optimisticSeekTimerRef.current);
+    }
+    optimisticSeekTimerRef.current = setTimeout(() => {
+      setOptimisticSeekPosition(null);
+      optimisticSeekTimerRef.current = null;
+    }, 2200);
+
+    await handleSeek(bounded);
+  };
 
   // Keep refs updated with latest values
   useEffect(() => {
@@ -238,10 +289,8 @@ const AudioControlBar = ({
       if (currentPlaying?.lyricsUrl) {
         const isAvailable = await checkLyricsFileAvailable(currentPlaying?.lyricsUrl);
         setIsLyricsAvailable(isAvailable);
-        // If sync scroll is enabled, toggle it based on the availability of the lyrics file
-        if (isAudioSyncScroll) {
-          dispatch(toggleAudioSyncScroll(isAvailable));
-        }
+      } else {
+        setIsLyricsAvailable(false);
       }
     };
     checkLyrics();
@@ -461,7 +510,7 @@ const AudioControlBar = ({
                   value={safePosition}
                   minimumValue={0}
                   maximumValue={sliderMax}
-                  onSlidingComplete={([v]) => handleSeek(v)}
+                  onSlidingComplete={handleSliderSeekComplete}
                   minimumTrackTintColor={sliderMinTrackColor}
                   maximumTrackTintColor={theme.staticColors.SLIDER_TRACK_COLOR}
                   disabled={!isAudioEnabled || isSeekLoading}

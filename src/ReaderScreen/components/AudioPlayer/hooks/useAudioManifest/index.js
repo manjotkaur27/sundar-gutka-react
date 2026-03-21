@@ -175,7 +175,7 @@ const useAudioManifest = (baniID) => {
     const mergedTracks = await Promise.all(
       apiTracks.map(async (apiTrack) => {
         const downloadedTrack = downloadedTracks.find(
-          (downloaded) => downloaded.id === apiTrack.id
+          (downloaded) => String(downloaded.id) === String(apiTrack.id)
         );
         const fullLocalPath = downloadedTrack
           ? `${DocumentDirectoryPath}/audio/${downloadedTrack.audioUrl}`
@@ -308,7 +308,9 @@ const useAudioManifest = (baniID) => {
     };
 
     const existingTracks = audioManifest[baniID] || [];
-    const trackExists = existingTracks.some((existingTrack) => existingTrack.id === trackData.id);
+    const trackExists = existingTracks.some(
+      (existingTrack) => String(existingTrack.id) === String(trackData.id)
+    );
 
     if (!trackExists) {
       dispatch(actions.setAudioManifest(baniID, [...existingTracks, trackData]));
@@ -318,7 +320,7 @@ const useAudioManifest = (baniID) => {
   const isTrackDownloaded = (trackId) => {
     try {
       const existingTracks = audioManifest[baniID] || [];
-      const track = existingTracks.find((t) => t.id === trackId);
+      const track = existingTracks.find((t) => String(t.id) === String(trackId));
 
       if (!track) {
         return false;

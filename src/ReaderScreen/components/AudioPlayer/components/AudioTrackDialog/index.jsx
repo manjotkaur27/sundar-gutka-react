@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator } from "react-native";
 import { useSelector } from "react-redux";
-import TrackPlayer from "react-native-track-player";
+import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -50,6 +50,43 @@ const AudioTrackDialog = ({
   const wait = (ms) => new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+
+  const hasTrackPlaybackStarted = async (trackId) => {
+    try {
+      const [activeTrack, playbackState, progress] = await Promise.all([
+        TrackPlayer.getActiveTrack(),
+        TrackPlayer.getPlaybackState(),
+        TrackPlayer.getProgress().catch(() => null),
+      ]);
+
+      const isTargetActive =
+        activeTrack?.id != null && String(activeTrack.id) === String(trackId);
+      if (!isTargetActive) {
+        return false;
+      }
+
+      const isPlayerRunning = playbackState?.state === State.Playing;
+      const progressed = Number(progress?.position) > 0.08;
+
+      return isPlayerRunning || progressed;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const waitForPlaybackStart = async (trackId, timeoutMs = 7000) => {
+    const startAt = Date.now();
+    while (Date.now() - startAt < timeoutMs) {
+      // eslint-disable-next-line no-await-in-loop
+      const started = await hasTrackPlaybackStarted(trackId);
+      if (started) {
+        return true;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await wait(ACTIVE_TRACK_POLL_MS);
+    }
+    return false;
+  };
 
   const clearPreviewTimeout = useCallback(() => {
     if (previewTimeoutRef.current) {
@@ -251,26 +288,8 @@ const AudioTrackDialog = ({
 
       setPlayingTrack(track);
 
-      // Prefer concrete player state over UI state propagation. On some devices
-      // isPlaying can lag behind queue updates, so this avoids "stuck loading".
-      let isSelectedTrackActive = false;
-      const startWait = Date.now();
-      while (Date.now() - startWait < ACTIVE_TRACK_WAIT_MS) {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        isSelectedTrackActive =
-          activeTrack?.id != null && String(activeTrack.id) === String(track.id);
-        if (isSelectedTrackActive) {
-          break;
-        }
-        await wait(ACTIVE_TRACK_POLL_MS);
-      }
-
-      if (isSelectedTrackActive) {
-        try {
-          await TrackPlayer.play();
-        } catch (_) {
-          // Best effort explicit play; queue is already set for the selected preview track.
-        }
+      let playbackStarted = await waitForPlaybackStart(track.id, ACTIVE_TRACK_WAIT_MS + 800);
+      if (playbackStarted && previewSessionRef.current === sessionId) {
         previewStartedSessionRef.current = sessionId;
         clearPreviewStartTimeout();
         setPreviewLoadingTrackId(null);
@@ -293,19 +312,9 @@ const AudioTrackDialog = ({
         // Keep loading until startup timeout while attempting fallback.
       }
 
-      let isFallbackActive = false;
-      const fallbackWaitStart = Date.now();
-      while (Date.now() - fallbackWaitStart < ACTIVE_TRACK_WAIT_MS) {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        isFallbackActive =
-          activeTrack?.id != null && String(activeTrack.id) === String(track.id);
-        if (isFallbackActive) {
-          break;
-        }
-        await wait(ACTIVE_TRACK_POLL_MS);
-      }
+      playbackStarted = await waitForPlaybackStart(track.id, ACTIVE_TRACK_WAIT_MS + 1200);
 
-      if (isFallbackActive && previewSessionRef.current === sessionId) {
+      if (playbackStarted && previewSessionRef.current === sessionId) {
         previewStartedSessionRef.current = sessionId;
         clearPreviewStartTimeout();
         setPreviewLoadingTrackId(null);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Pressable } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -7,8 +7,10 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { pauseTrack, stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
-import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
+import { CustomText, actions, constant, STRINGS, SafeArea, showErrorToast } from "@common";
 import createStyles from "./style";
+
+const INTERNET_CHECK_URL = "https://www.gstatic.com/generate_204";
 
 const BottomNavigation = ({ activeKey }) => {
   const navigation = useNavigation();
@@ -20,6 +22,30 @@ const BottomNavigation = ({ activeKey }) => {
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const [isSettings, setIsSettings] = useState(false);
   const [previousRouteName, setPreviousRouteName] = useState(null);
+  const [hasInternet, setHasInternet] = useState(true);
+  const previousConnectivityRef = useRef(true);
+
+  const checkInternetConnection = useCallback(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    try {
+      const response = await fetch(INTERNET_CHECK_URL, {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      const isConnected = response?.ok ?? false;
+      setHasInternet(isConnected);
+      return isConnected;
+    } catch (_) {
+      setHasInternet(false);
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }, []);
 
   const wait = (ms) => new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -81,6 +107,36 @@ const BottomNavigation = ({ activeKey }) => {
     };
   }, [navigation]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncConnectivity = async () => {
+      const isConnected = await checkInternetConnection();
+      if (!isMounted) {
+        return;
+      }
+
+      const wasConnected = previousConnectivityRef.current;
+      previousConnectivityRef.current = isConnected;
+
+      if (wasConnected && !isConnected) {
+        if (isAudio) {
+          await pauseTrack();
+          dispatch(actions.toggleAudio(false));
+        }
+        showErrorToast(STRINGS.NETWORK_ERROR);
+      }
+    };
+
+    syncConnectivity();
+    const intervalId = setInterval(syncConnectivity, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [checkInternetConnection, dispatch, isAudio]);
+
   const navigationItems = [
     {
       key: "Home",
@@ -117,6 +173,17 @@ const BottomNavigation = ({ activeKey }) => {
         if (!isAudioFeatureOn) {
           return;
         }
+
+        const isConnected = await checkInternetConnection();
+        if (!isConnected) {
+          if (isAudio) {
+            await pauseTrack();
+            dispatch(actions.toggleAudio(false));
+          }
+          showErrorToast(STRINGS.NETWORK_ERROR);
+          return;
+        }
+
         const currentNavRoute = getCurrentRouteName();
 
         if (currentNavRoute === constant.SETTINGS) {

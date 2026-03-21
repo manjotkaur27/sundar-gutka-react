@@ -7,22 +7,23 @@ import {
   toggleAudio,
   setDefaultAudio,
   setAudioProgress,
-  toggleAudioSyncScroll,
 } from "@common/actions";
 import { showErrorToast } from "@common/toast";
 import { STRINGS, logError, trackAudioEvent } from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
-import checkLyricsFileAvailable from "./utils/checkLRC";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 
 const AudioPlayer = ({ baniID, title, webViewRef }) => {
   const dispatch = useDispatch();
-  const [showTrackModal, setShowTrackModal] = useState(true);
-  const [isPlayerActionLoading, setIsPlayerActionLoading] = useState(false);
   const defaultAudio = useSelector((state) => state.defaultAudio);
+  const hasSavedTrackForCurrentBani = Boolean(defaultAudio?.[baniID]?.id);
+  const [showTrackModal, setShowTrackModal] = useState(!hasSavedTrackForCurrentBani);
+  const [isPlayerActionLoading, setIsPlayerActionLoading] = useState(false);
+  const [seekSyncRequest, setSeekSyncRequest] = useState(null);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
+  const [hasAutoRestoredView, setHasAutoRestoredView] = useState(false);
   const {
     isPlaying,
     progress,
@@ -55,7 +56,8 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     progress,
     !showTrackModal && isPlaying,
     webViewRef,
-    showTrackModal ? null : currentPlaying?.lyricsUrl
+    showTrackModal ? null : currentPlaying?.lyricsUrl,
+    seekSyncRequest
   );
 
   // Apply saved playback speed when initialized
@@ -163,9 +165,35 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     addAndPlayTrack,
   ]);
 
+  useEffect(() => {
+    if (hasAutoRestoredView || !showTrackModal) {
+      return;
+    }
+
+    const hasTracks = Array.isArray(tracks) && tracks.length > 0;
+    const hasCurrentTrack = Boolean(currentPlaying?.id);
+    const hasSavedDefaultTrack = Boolean(defaultAudio?.[baniID]?.id);
+
+    if (hasTracks && (hasCurrentTrack || hasSavedDefaultTrack)) {
+      setShowTrackModal(false);
+      setHasAutoRestoredView(true);
+    }
+  }, [
+    hasAutoRestoredView,
+    showTrackModal,
+    tracks,
+    currentPlaying?.id,
+    defaultAudio,
+    baniID,
+  ]);
+
   const handleSeek = async (value) => {
     if (!isAudioEnabled || !isInitialized) return;
     try {
+      setSeekSyncRequest({
+        position: value,
+        ts: Date.now(),
+      });
       await seekTo(value);
     } catch (error) {
       logError("Error seeking:", error);
@@ -238,10 +266,6 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
           setIsPlayerActionLoading(false);
         }
 
-        const isLRCFileAvailable = await checkLyricsFileAvailable(selectedTrack.lyricsUrl);
-        if (isLRCFileAvailable) {
-          dispatch(toggleAudioSyncScroll(true));
-        }
       } catch (error) {
         logError("Error switching track:", error);
         showErrorToast(`${STRINGS.UNABLE_TO_SWITCH_TRACK} ${STRINGS.PLEASE_TRY_AGAIN}`);
