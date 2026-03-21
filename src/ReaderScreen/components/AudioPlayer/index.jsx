@@ -212,6 +212,9 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
     } catch (_) {
       // Best effort hard reset so no stale queue/notification survives.
     }
+    // Mark as restored so the autoRestoreView effect doesn't immediately
+    // close the dialog it was just asked to open (first-tap blink fix).
+    setHasAutoRestoredView(true);
     setShowTrackModal(true);
   }, [stop, reset]);
 
