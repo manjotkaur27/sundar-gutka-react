@@ -55,7 +55,7 @@ class TrackPlayerService {
           // Fewer progress events -> less UI/notification churn on low-end devices.
           progressUpdateEventInterval: 2,
           android: {
-            appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+            appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
             notificationChannelName: "Sundar Gutka",
             notificationChannelDescription: "Gurbani audio playback controls",
             notificationIcon: "ic_launcher",
