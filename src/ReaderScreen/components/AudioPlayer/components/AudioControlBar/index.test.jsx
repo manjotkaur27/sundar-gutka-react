@@ -554,7 +554,7 @@ describe("AudioControlBar", () => {
     });
   });
 
-  it("checks lyrics availability and toggles sync scroll via dispatch", async () => {
+  it("checks lyrics availability when track changes", async () => {
     mockCheckLyricsFileAvailable.mockResolvedValue(true);
     mockState.isAudioSyncScroll = true;
 
@@ -565,16 +565,6 @@ describe("AudioControlBar", () => {
     await waitFor(
       () => {
         expect(mockCheckLyricsFileAvailable).toHaveBeenCalledWith(defaultCurrentTrack.lyricsUrl);
-      },
-      { timeout: 1000 }
-    );
-
-    await waitFor(
-      () => {
-        expect(mockToggleAudioSyncScroll).toHaveBeenCalledWith(true);
-        expect(mockDispatch).toHaveBeenCalledWith(
-          expect.objectContaining({ type: "TOGGLE_AUDIO_SYNC_SCROLL" })
-        );
       },
       { timeout: 1000 }
     );

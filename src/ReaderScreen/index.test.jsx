@@ -22,6 +22,7 @@ jest.mock("react-redux", () => ({
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
+  addListener: jest.fn().mockImplementation(() => () => {}),
 };
 
 // Mock route

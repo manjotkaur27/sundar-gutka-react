@@ -60,17 +60,17 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 1,
+            artist_id: 4,
             track_url: "https://example.com/track1.mp3",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
           {
             track_id: 2,
-            artist_id: 2,
+            artist_id: 8,
             track_url: "https://example.com/track2.mp3",
-            artist_name: "Artist Two",
+            artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
           },
@@ -101,9 +101,9 @@ describe("useAudioManifest", () => {
       expect(hookResult.tracks[0]).toMatchObject({
         id: 1,
         track_id: 1,
-        artistID: 1,
+        artistID: 4,
         audioUrl: "https://example.com/track1.mp3",
-        displayName: "Artist One",
+        displayName: "Jarnail Singh",
         trackLengthSec: 300,
         trackSizeMB: 5.2,
         lyricsUrl: "https://example.com/track1.json",
@@ -112,9 +112,9 @@ describe("useAudioManifest", () => {
       expect(hookResult.tracks[1]).toMatchObject({
         id: 2,
         track_id: 2,
-        artistID: 2,
+        artistID: 8,
         audioUrl: "https://example.com/track2.mp3",
-        displayName: "Artist Two",
+        displayName: "Indermohan Kaur UK",
         trackLengthSec: 250,
         trackSizeMB: 4.8,
         lyricsUrl: "https://example.com/track2.json",
@@ -182,9 +182,9 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 1,
+            artist_id: 4,
             track_url: "https://example.com/track1.mp3",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
@@ -195,9 +195,9 @@ describe("useAudioManifest", () => {
         {
           id: 1,
           track_id: 1,
-          artistID: 1,
+          artistID: 4,
           audioUrl: "track1.mp3",
-          displayName: "Artist One",
+          displayName: "Jarnail Singh",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
           lyricsUrl: "track1.json",
@@ -236,9 +236,9 @@ describe("useAudioManifest", () => {
         {
           id: 1,
           track_id: 1,
-          artistID: 1,
+          artistID: 4,
           audioUrl: "track1.mp3",
-          displayName: "Artist One",
+          displayName: "Jarnail Singh",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
           lyricsUrl: "track1.json",
@@ -277,17 +277,17 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 1,
+            artist_id: 4,
             track_url: "https://example.com/track1.mp3",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
           {
             track_id: 2,
-            artist_id: 2,
+            artist_id: 8,
             track_url: "https://example.com/track2.mp3",
-            artist_name: "Artist Two",
+            artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
           },
@@ -298,7 +298,7 @@ describe("useAudioManifest", () => {
       setMockState({
         defaultAudio: {
           [mockBaniID]: {
-            artistID: 2,
+            artistID: 8,
           },
         },
       });
@@ -319,7 +319,7 @@ describe("useAudioManifest", () => {
 
       // Should set track-2 as current playing because it matches defaultAudio preference
       expect(hookResult.currentPlaying).toEqual(hookResult.tracks[1]);
-      expect(hookResult.currentPlaying.artistID).toBe(2);
+      expect(hookResult.currentPlaying.artistID).toBe(8);
 
       unmount();
     });
@@ -381,9 +381,9 @@ describe("useAudioManifest", () => {
           data: [
             {
               track_id: 1,
-              artist_id: 1,
+              artist_id: 4,
               track_url: "https://example.com/track1.mp3",
-              artist_name: "Artist One",
+              artist_name: "Jarnail Singh",
               track_length_seconds: 300,
               track_size_mb: 5.2,
             },
@@ -769,17 +769,17 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 1,
+            artist_id: 4,
             track_url: "https://example.com/track1.mp3",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
           {
             track_id: 2,
-            artist_id: 2,
+            artist_id: 8,
             track_url: "https://example.com/track2.mp3",
-            artist_name: "Artist Two",
+            artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
           },
@@ -822,9 +822,9 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 1,
+            artist_id: 4,
             track_url: "https://example.com/track1",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
@@ -858,9 +858,9 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 123,
+            artist_id: 4,
             track_url: "https://example.com/track1.mp3",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
@@ -871,7 +871,7 @@ describe("useAudioManifest", () => {
       setMockState({
         defaultAudio: {
           [mockBaniID]: {
-            artistID: "123", // String version
+            artistID: "4", // String version
           },
         },
       });
@@ -891,7 +891,7 @@ describe("useAudioManifest", () => {
       });
 
       // Should match even though one is string and one is number
-      expect(hookResult.currentPlaying.artistID).toBe(123);
+      expect(hookResult.currentPlaying.artistID).toBe(4);
 
       unmount();
     });
@@ -926,9 +926,9 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 1,
-            artist_id: 1,
+            artist_id: 4,
             track_url: "https://example.com/track1.mp3",
-            artist_name: "Artist One",
+            artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
           },
@@ -939,9 +939,9 @@ describe("useAudioManifest", () => {
         data: [
           {
             track_id: 2,
-            artist_id: 2,
+            artist_id: 8,
             track_url: "https://example.com/track2.mp3",
-            artist_name: "Artist Two",
+            artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
           },

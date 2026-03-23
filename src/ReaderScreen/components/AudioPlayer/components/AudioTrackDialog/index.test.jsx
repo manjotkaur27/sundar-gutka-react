@@ -2,10 +2,9 @@
 /* eslint-disable react/jsx-props-no-spreading */
 
 import React from "react";
-
-import { render, fireEvent, waitFor } from "@testing-library/react-native";
-
+import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import AudioTrackDialog from "./index";
+import TrackPlayer from "react-native-track-player";
 
 // -------------------- MOCKS --------------------
 
@@ -150,6 +149,8 @@ describe("AudioTrackDialog", () => {
   const { Linking } = require("react-native");
   beforeEach(() => {
     jest.clearAllMocks();
+    TrackPlayer.getActiveTrack.mockResolvedValue(null);
+    TrackPlayer.getPlaybackState.mockResolvedValue({ state: "paused" });
     mockState = { fontFace: "TestFont" };
     jest.spyOn(Linking, "openURL").mockImplementation(() => Promise.resolve());
   });
@@ -207,6 +208,9 @@ describe("AudioTrackDialog", () => {
   });
 
   it("shows countdown label while preview is playing", async () => {
+    TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[0].id });
+    TrackPlayer.getPlaybackState.mockResolvedValue({ state: "playing" });
+
     const props = createProps({ isPlaying: true });
     const { getByTestId, getByText } = render(<AudioTrackDialog {...props} />);
 
@@ -290,5 +294,48 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(closeButton);
 
     expect(props.onCloseTrackModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("plays another track when a new track is selected while preview is playing", async () => {
+    TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[0].id });
+    TrackPlayer.getPlaybackState.mockResolvedValue({ state: "playing" });
+
+    const props = createProps({ isPlaying: true });
+    const { getByTestId } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-1"));
+
+    await waitFor(() => {
+      expect(props.addAndPlayTrack).toHaveBeenCalledWith(
+        defaultTracks[0].id,
+        defaultTracks[0].audioUrl,
+        defaultTracks[0].displayName,
+        defaultTracks[0].displayName,
+        defaultTracks[0].lyricsUrl,
+        defaultTracks[0].trackLengthSec,
+        defaultTracks[0].trackSizeMB,
+        true,
+        defaultTracks[0].remoteUrl || defaultTracks[0].audioUrl
+      );
+    });
+
+    TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[1].id });
+    fireEvent.press(getByTestId("track-track-2"));
+
+    await waitFor(() => {
+      expect(props.stop).toHaveBeenCalled();
+      expect(props.reset).toHaveBeenCalled();
+      expect(props.addAndPlayTrack).toHaveBeenCalledWith(
+        defaultTracks[1].id,
+        defaultTracks[1].audioUrl,
+        defaultTracks[1].displayName,
+        defaultTracks[1].displayName,
+        defaultTracks[1].lyricsUrl,
+        defaultTracks[1].trackLengthSec,
+        defaultTracks[1].trackSizeMB,
+        true,
+        defaultTracks[1].remoteUrl || defaultTracks[1].audioUrl
+      );
+    });
   });
 });

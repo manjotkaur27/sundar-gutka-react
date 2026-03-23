@@ -62,6 +62,8 @@ jest.mock("react-native-track-player", () => ({
     seekTo: jest.fn(() => Promise.resolve()),
     getState: jest.fn(() => Promise.resolve("paused")),
     getActiveTrack: jest.fn(() => Promise.resolve(null)),
+    getPlaybackState: jest.fn(() => Promise.resolve({ state: "paused" })),
+    getProgress: jest.fn(() => Promise.resolve({ position: 0, duration: 0, buffered: 0 })),
     getPosition: jest.fn(() => Promise.resolve(0)),
     getDuration: jest.fn(() => Promise.resolve(0)),
   },

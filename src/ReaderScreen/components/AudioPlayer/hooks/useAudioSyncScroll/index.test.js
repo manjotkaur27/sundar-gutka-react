@@ -135,7 +135,7 @@ describe("useAudioSyncScroll", () => {
     const message = JSON.parse(firstCallArg);
     expect(message.action).toBe("scrollToSequence");
     expect(message.sequence).toBe(1);
-    expect(message.behavior).toBe("smooth");
+    expect(message.behavior).toBe("auto");
     expect(message.isParagraphMode).toBe(false);
 
     // Hook result should indicate scrolling is enabled
