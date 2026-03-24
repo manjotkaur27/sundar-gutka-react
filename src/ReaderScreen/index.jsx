@@ -270,7 +270,7 @@ const Reader = ({ navigation, route }) => {
         key={webViewKey}
         webviewDebuggingEnabled={__DEV__}
         javaScriptEnabled
-        originWhitelist={["about:blank"]}
+        originWhitelist={["*"]}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
         ref={webViewRef}
