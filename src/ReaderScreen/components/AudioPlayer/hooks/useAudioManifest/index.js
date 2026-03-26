@@ -4,23 +4,66 @@ import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
 import { fetchManifest } from "@service";
 
-const ALLOWED_ARTIST_IDS = [4];
-const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan"];
-const ALLOWED_ARTIST_URL_KEYWORDS = ["bhaijarnailsingh", "indermohankauruk"];
+const ALLOWED_ARTIST_IDS = [4, 8, 9];
+const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan", "gurdev"];
+const ALLOWED_ARTIST_URL_KEYWORDS = ["bhaijarnailsingh", "indermohankauruk", "gianigurdevsingh"];
+
+// Base URL for all Azure Blob audio assets
+const _BLOB = "https://banidb.blob.core.windows.net/audios";
+
+/**
+ * Emergency manifests cover all supported banis for all 3 artists.
+ * These are used as a last-resort when both the remote API and session cache
+ * are unavailable (e.g. first launch with no network).
+ */
 const EMERGENCY_MANIFEST_BY_BANI = {
+  2: {
+    status: "success",
+    data: [
+      { bani_id: 2, track_id: 1002, track_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.mp3`, track_length_seconds: 0, track_size_mb: 18.61, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.json` },
+      { bani_id: 2, track_id: 2002, track_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.mp3`, track_length_seconds: 0, track_size_mb: 44.11, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.json` },
+    ],
+  },
+  4: {
+    status: "success",
+    data: [
+      { bani_id: 4, track_id: 1004, track_url: `${_BLOB}/BhaiJarnailSingh/jaap-sahib.mp3`, track_length_seconds: 0, track_size_mb: 19.91, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/jaap-sahib.json` },
+      { bani_id: 4, track_id: 2004, track_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.mp3`, track_length_seconds: 0, track_size_mb: 44.61, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.json` },
+    ],
+  },
+  6: {
+    status: "success",
+    data: [
+      { bani_id: 6, track_id: 1006, track_url: `${_BLOB}/BhaiJarnailSingh/saviye.mp3`, track_length_seconds: 0, track_size_mb: 4.08, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/saviye.json` },
+      { bani_id: 6, track_id: 2006, track_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.mp3`, track_length_seconds: 0, track_size_mb: 8.69, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.json` },
+    ],
+  },
   9: {
     status: "success",
     data: [
-      {
-        bani_id: 9,
-        track_id: 2009,
-        track_url: "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/ChaupaiSahib.mp3",
-        track_length_seconds: 0,
-        track_size_mb: 10.24,
-        artist_name: "Indermohan Kaur UK",
-        artist_id: 8,
-        lyrics_url: "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/ChaupaiSahib.json",
-      },
+      { bani_id: 9, track_id: 1009, track_url: `${_BLOB}/BhaiJarnailSingh/chopai-sahib.mp3`, track_length_seconds: 0, track_size_mb: 6.22, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/chopai-sahib.json` },
+      { bani_id: 9, track_id: 2009, track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.mp3`, track_length_seconds: 0, track_size_mb: 10.24, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json` },
+    ],
+  },
+  10: {
+    status: "success",
+    data: [
+      { bani_id: 10, track_id: 1010, track_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib.mp3`, track_length_seconds: 0, track_size_mb: 15.71, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib.json` },
+      { bani_id: 10, track_id: 2010, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.mp3`, track_length_seconds: 0, track_size_mb: 33.14, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.json` },
+    ],
+  },
+  21: {
+    status: "success",
+    data: [
+      { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.mp3`, track_length_seconds: 0, track_size_mb: 11.28, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.json` },
+      { bani_id: 21, track_id: 2021, track_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.mp3`, track_length_seconds: 0, track_size_mb: 43.67, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.json` },
+    ],
+  },
+  23: {
+    status: "success",
+    data: [
+      { bani_id: 23, track_id: 1023, track_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.mp3`, track_length_seconds: 0, track_size_mb: 2.76, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.json` },
+      { bani_id: 23, track_id: 2023, track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.mp3`, track_length_seconds: 0, track_size_mb: 9.11, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json` },
     ],
   },
 };
