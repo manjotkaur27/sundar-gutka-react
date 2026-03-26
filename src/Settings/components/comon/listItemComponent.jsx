@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { ListItem, Avatar, Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -11,8 +12,10 @@ const ListItemComponent = ({ icon, title, value, isAvatar, actionConstant, onPre
   const styles = useThemedStyles(createStyles);
   return (
     <ListItem bottomDivider containerStyle={styles.containerNightStyles} onPress={onPressAction}>
-      {isAvatar && <Avatar source={Number(icon)} avatarStyle={styles.avatarStyle} />}
-      {!isAvatar && <Icon name={icon} color={theme.colors.primaryText} size={30} />}
+      <View style={styles.iconContainerStyle}>
+        {isAvatar && <Avatar source={Number(icon)} avatarStyle={styles.avatarStyle} />}
+        {!isAvatar && <Icon name={icon} color={theme.colors.primaryText} size={26} />}
+      </View>
       <ListItem.Content>
         <ListItemTitle title={title} style={styles.listItemTitle} />
       </ListItem.Content>

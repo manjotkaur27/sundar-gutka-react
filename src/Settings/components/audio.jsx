@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
 import {
@@ -55,7 +56,9 @@ const Audio = () => {
         bottomDivider
         containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
       >
-        <Icon color={theme.colors.primaryText} name={setting.icon} type="material" />
+      <View style={styles.iconContainerStyle}>
+        <Icon color={theme.colors.primaryText} name={setting.icon} type="material" size={26} />
+      </View>
         <ListItem.Content>
           <ListItemTitle title={setting.title} style={styles.listItemTitle} />
         </ListItem.Content>

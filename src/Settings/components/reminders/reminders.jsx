@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Linking } from "react-native";
+import { Alert, Linking, View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
 import PropTypes from "prop-types";
@@ -79,7 +79,9 @@ const RemindersComponent = ({ navigation }) => {
   return (
     <>
       <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Icon color={theme.colors.primaryText} name="timer" size={30} />
+        <View style={styles.iconContainerStyle}>
+          <Icon color={theme.colors.primaryText} name="timer" size={26} />
+        </View>
         <ListItem.Content>
           <ListItemTitle title={STRINGS.reminders} style={styles.listItemTitle} />
         </ListItem.Content>
@@ -92,7 +94,9 @@ const RemindersComponent = ({ navigation }) => {
           containerStyle={styles.containerNightStyles}
           onPress={() => navigate("ReminderOptions")}
         >
-          <Icon name="event" color={theme.colors.primaryText} size={30} />
+          <View style={styles.iconContainerStyle}>
+            <Icon name="event" color={theme.colors.primaryText} size={26} />
+          </View>
           <ListItem.Content>
             <ListItemTitle title={STRINGS.set_reminder_options} style={styles.listItemTitle} />
           </ListItem.Content>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Avatar, Divider, Icon } from "@rneui/themed";
 import {
@@ -8,8 +8,8 @@ import {
 } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle, CustomText } from "@common";
-import { Modal, View, Pressable, Platform, StyleSheet } from "react-native";
+import { STRINGS, ListItemTitle, CustomText, constant } from "@common";
+import { Modal, View, Pressable, Platform, StyleSheet, Dimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { BlurView } from "@react-native-community/blur";
 import createStyles from "../styles";
@@ -24,6 +24,18 @@ const TranslationComponent = () => {
 
   const dispatch = useDispatch();
   const [isVisible, setIsVisible] = useState(false);
+
+  // Orientation-aware width — mirrors BottomSheetComponent logic
+  const { width, height } = Dimensions.get("window");
+  const [orientation, setOrientation] = useState(
+    width < height ? constant.PORTRAIT : constant.LANDSCAPE
+  );
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window: { width: w, height: h } }) => {
+      setOrientation(w < h ? constant.PORTRAIT : constant.LANDSCAPE);
+    });
+    return () => sub?.remove?.();
+  }, []);
 
   const translationOptions = [
     {
@@ -47,9 +59,17 @@ const TranslationComponent = () => {
   ];
 
   const selectedCount = translationOptions.filter((item) => item.value).length;
+  const isAllOff = selectedCount === 0;
 
   const selectedSummary =
-    selectedCount === 0 ? "None" : `${selectedCount} selected (multiple allowed)`;
+    isAllOff ? "None" : `${selectedCount} selected (multiple allowed)`;
+
+  const handleTurnAllOff = () => {
+    if (isEnglishTranslation) dispatch(toggleEnglishTranslation(false));
+    if (isPunjabiTranslation) dispatch(togglePunjabiTranslation(false));
+    if (isSpanishTranslation) dispatch(toggleSpanishTranslation(false));
+    setIsVisible(false);
+  };
 
   return (
     <>
@@ -58,9 +78,11 @@ const TranslationComponent = () => {
         containerStyle={styles.containerNightStyles}
         onPress={() => setIsVisible(true)}
       >
-        <Avatar source={translationAvatar} avatarStyle={styles.avatarStyle} />
+        <View style={styles.iconContainerStyle}>
+          <Avatar source={translationAvatar} avatarStyle={styles.avatarStyle} />
+        </View>
         <ListItem.Content>
-          <ListItemTitle title={STRINGS.translations} style={[{ paddingLeft: 16 }, styles.listItemTitle]} />
+          <ListItemTitle title={STRINGS.translations} style={styles.listItemTitle} />
         </ListItem.Content>
         <CustomText style={styles.titleInfoStyle}>{selectedSummary}</CustomText>
         <ListItem.Chevron />
@@ -89,7 +111,11 @@ const TranslationComponent = () => {
                   enabled
                 />
                 <View
-                  style={Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper}
+                  style={[
+                    Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper,
+                    Platform.OS === "ios" &&
+                      (orientation === constant.LANDSCAPE ? styles.width_90 : styles.width_100),
+                  ]}
                 >
                   <CustomText
                     style={[
@@ -101,6 +127,18 @@ const TranslationComponent = () => {
                     {STRINGS.translations}
                   </CustomText>
                   <Divider />
+                  {/* Off option — turns all translations off */}
+                  <ListItem
+                    key="off"
+                    bottomDivider
+                    containerStyle={styles.containerNightStyles}
+                    onPress={handleTurnAllOff}
+                  >
+                    <ListItem.Content>
+                      <ListItemTitle title={STRINGS.off || "Off"} style={styles.listItemTitle} />
+                    </ListItem.Content>
+                    {isAllOff && <Icon color={theme.colors.primaryText} name="check" />}
+                  </ListItem>
                   {translationOptions.map((item) => (
                     <ListItem
                       key={item.key}
@@ -114,6 +152,9 @@ const TranslationComponent = () => {
                       {item.value && <Icon color={theme.colors.primaryText} name="check" />}
                     </ListItem>
                   ))}
+                  {Platform.OS === "ios" && (
+                    <ListItem bottomDivider containerStyle={styles.containerNightStyles} />
+                  )}
                 </View>
               </Pressable>
             </Modal>

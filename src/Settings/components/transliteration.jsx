@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Modal, View, Pressable, Platform, StyleSheet } from "react-native";
+import { Modal, View, Pressable, Platform, StyleSheet, Dimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { BlurView } from "@react-native-community/blur";
 import { ListItem, Avatar, Divider, Icon } from "@rneui/themed";
 import { setTransliteration, toggleTransliteration } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle, CustomText } from "@common";
+import { STRINGS, ListItemTitle, CustomText, constant } from "@common";
 import createStyles from "../styles";
 import { getTransliteration } from "./comon/strings";
 
@@ -28,6 +28,18 @@ const TransliterationComponent = () => {
   const selectedTitle =
     TRANSLITERATION_LANGUAGES.find((item) => item.key === selectedKey)?.title || "Off";
 
+  // Orientation-aware width — mirrors BottomSheetComponent logic
+  const { width, height } = Dimensions.get("window");
+  const [orientation, setOrientation] = useState(
+    width < height ? constant.PORTRAIT : constant.LANDSCAPE
+  );
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window: { width: w, height: h } }) => {
+      setOrientation(w < h ? constant.PORTRAIT : constant.LANDSCAPE);
+    });
+    return () => sub?.remove?.();
+  }, []);
+
   const handleSelection = (key) => {
     if (key === OFF_KEY) {
       dispatch(toggleTransliteration(false));
@@ -47,7 +59,9 @@ const TransliterationComponent = () => {
         containerStyle={styles.containerNightStyles}
         onPress={() => setIsVisible(true)}
       >
-        <Avatar source={romanizedIcon} avatarStyle={styles.avatarStyle} />
+        <View style={styles.iconContainerStyle}>
+          <Avatar source={romanizedIcon} avatarStyle={styles.avatarStyle} />
+        </View>
         <ListItem.Content>
           <ListItemTitle title={STRINGS.transliteration} style={styles.listItemTitle} />
         </ListItem.Content>
@@ -78,7 +92,11 @@ const TransliterationComponent = () => {
                   enabled
                 />
                 <View
-                  style={Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper}
+                  style={[
+                    Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper,
+                    Platform.OS === "ios" &&
+                      (orientation === constant.LANDSCAPE ? styles.width_90 : styles.width_100),
+                  ]}
                 >
                   <CustomText
                     style={[
@@ -105,6 +123,9 @@ const TransliterationComponent = () => {
                       )}
                     </ListItem>
                   ))}
+                  {Platform.OS === "ios" && (
+                    <ListItem bottomDivider containerStyle={styles.containerNightStyles} />
+                  )}
                 </View>
               </Pressable>
             </Modal>

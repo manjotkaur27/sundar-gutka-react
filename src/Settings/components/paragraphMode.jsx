@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
 import { toggleParagraphMode } from "@common/actions";
@@ -16,7 +17,9 @@ const ParagraphMode = () => {
   const { PARAGRAPH_MODE } = STRINGS;
   return (
     <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-      <Icon color={theme.colors.primaryText} name="view-headline" size={30} />
+      <View style={styles.iconContainerStyle}>
+        <Icon color={theme.colors.primaryText} name="view-headline" size={26} />
+      </View>
       <ListItem.Content>
         <ListItemTitle title={PARAGRAPH_MODE} style={styles.listItemTitle} />
       </ListItem.Content>

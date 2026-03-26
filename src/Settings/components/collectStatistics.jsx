@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { ListItem, Avatar, Switch } from "@rneui/themed";
 import { STRINGS, actions, useThemedStyles, ListItemTitle } from "@common";
@@ -12,7 +13,9 @@ const CollectStatistics = () => {
   const dispatch = useDispatch();
   return (
     <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-      <Avatar source={analyticsIcon} avatarStyle={styles.avatarStyle} />
+      <View style={styles.iconContainerStyle}>
+        <Avatar source={analyticsIcon} avatarStyle={styles.avatarStyle} />
+      </View>
       <ListItem.Content>
         <ListItemTitle title={COLLECT_STATISTICS} style={styles.listItemTitle} />
       </ListItem.Content>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Linking } from "react-native";
+import { View, Linking } from "react-native";
 import { ListItem, Icon } from "@rneui/themed";
 import { STRINGS, useTheme, useThemedStyles, ListItemTitle } from "@common";
 import createStyles from "../styles";
@@ -14,7 +14,9 @@ const Donate = () => {
       containerStyle={styles.containerNightStyles}
       onPress={() => Linking.openURL("https://khalisfoundation.org/donate/")}
     >
-      <Icon color={theme.colors.primaryText} name="volunteer-activism" size={30} />
+      <View style={styles.iconContainerStyle}>
+        <Icon color={theme.colors.primaryText} name="volunteer-activism" size={26} />
+      </View>
       <ListItem.Content>
         <ListItemTitle title={donate} style={styles.listItemTitle} />
       </ListItem.Content>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
 import { setVishraamOption, toggleVishraam, setVishraamSource } from "@common/actions";
@@ -25,7 +26,9 @@ const VishraamComponent = () => {
   return (
     <>
       <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Icon color={theme.colors.primaryText} name="pause" size={30} />
+        <View style={styles.iconContainerStyle}>
+          <Icon color={theme.colors.primaryText} name="pause" size={26} />
+        </View>
         <ListItem.Content>
           <ListItemTitle title={STRINGS.show_vishraams} style={styles.listItemTitle} />
         </ListItem.Content>

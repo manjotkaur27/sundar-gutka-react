@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { ListItem, Avatar, Icon, Switch } from "@rneui/themed";
 import { toggleLarivaar, toggleLarivaarAssist } from "@common/actions";
@@ -18,7 +19,9 @@ const LarivaarComponent = () => {
   return (
     <>
       <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Avatar source={larivaarIcon} avatarStyle={styles.avatarStyle} />
+        <View style={styles.iconContainerStyle}>
+          <Avatar source={larivaarIcon} avatarStyle={styles.avatarStyle} />
+        </View>
         <ListItem.Content>
           <ListItemTitle title={STRINGS.larivaar} style={styles.listItemTitle} />
         </ListItem.Content>
@@ -26,7 +29,9 @@ const LarivaarComponent = () => {
       </ListItem>
       {isLarivaar && (
         <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-          <Icon name="opacity" size={30} color={theme.colors.primaryText} />
+          <View style={styles.iconContainerStyle}>
+            <Icon name="opacity" size={26} color={theme.colors.primaryText} />
+          </View>
           <ListItem.Content>
             <ListItemTitle title={STRINGS.larivaar_assist} style={styles.listItemTitle} />
           </ListItem.Content>

@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { ListItem, Avatar } from "@rneui/themed";
 import PropTypes from "prop-types";
 import { STRINGS, useThemedStyles, ListItemTitle } from "@common";
@@ -14,7 +15,9 @@ const EditBaniOrder = ({ navigate }) => {
       containerStyle={styles.containerNightStyles}
       onPress={() => navigate("EditBaniOrder")}
     >
-      <Avatar source={rearrangeIcon} avatarStyle={styles.avatarStyle} />
+      <View style={styles.iconContainerStyle}>
+        <Avatar source={rearrangeIcon} avatarStyle={styles.avatarStyle} />
+      </View>
       <ListItem.Content>
         <ListItemTitle title={EDIT_BANI_ORDER} style={styles.listItemTitle} />
       </ListItem.Content>
