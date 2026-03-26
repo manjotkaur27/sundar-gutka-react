@@ -21,6 +21,18 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       word-break: break-word;
       margin-top:50px;
     }
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: ${theme.colors.primary};
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
     @font-face {
       font-family: '${constant.GURBANI_AKHAR_TRUE}';
       src: url('${getFontFaceURL(constant.GURBANI_AKHAR_TRUE)}') format('truetype'),local('${
