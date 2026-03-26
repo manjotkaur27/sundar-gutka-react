@@ -259,7 +259,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
           await addAndPlayTrack(
             selectedTrack.id,
             selectedTrack.audioUrl,
-            selectedTrack.displayName,
+            notificationTitle || title,
             selectedTrack.displayName,
             selectedTrack.lyricsUrl,
             selectedTrack.trackLengthSec,
