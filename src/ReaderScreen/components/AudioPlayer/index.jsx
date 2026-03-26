@@ -359,6 +359,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
       handleSeek={handleSeek}
       isAudioEnabled={isAudioEnabled}
       title={title}
+      notificationTitle={notificationTitle || title}
       currentPlaying={currentPlaying}
       onCloseTrackModal={onCloseTrackModal}
       addTrackToManifest={addTrackToManifest}

@@ -46,7 +46,7 @@ class TrackPlayerService {
           waitForBuffer: false,
           maxCacheSize: 51200,
           iosCategory: "playback",
-          alwaysPauseOnInterruption: true,
+          alwaysPauseOnInterruption: false,
         });
 
         await TrackPlayer.setRepeatMode(RepeatMode.Off);

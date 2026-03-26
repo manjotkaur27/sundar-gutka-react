@@ -1,5 +1,6 @@
 const TrackPlayer = require("react-native-track-player").default;
 const { Event, State } = require("react-native-track-player");
+const AsyncStorage = require("@react-native-async-storage/async-storage").default;
 
 /**
  * Background Playback Service (RNTP v4)
@@ -13,6 +14,19 @@ const { Event, State } = require("react-native-track-player");
 module.exports = async function () {
   let duckPauseTimer = null;
   let shouldResumeAfterDuck = false;
+
+  const getIsAutoPlay = async () => {
+    try {
+      const rawState = await AsyncStorage.getItem("persist:root");
+      if (rawState) {
+        const state = JSON.parse(rawState);
+        return JSON.parse(state.isAudioAutoPlay || "false");
+      }
+    } catch (e) {
+      console.error("Failed to read autoplay pref", e);
+    }
+    return false;
+  };
 
   const safeStopAndReset = async () => {
     if (duckPauseTimer) {
@@ -58,14 +72,13 @@ module.exports = async function () {
     TrackPlayer.skipToPrevious().catch(() => {})
   );
 
-  // ── Audio focus / ducking (Android) ────────────────────────────────────────
-  // Pause on transient focus loss and auto-resume when focus returns.
+  // ── Audio focus / ducking (Android & iOS) ──────────────────────────────────
   TrackPlayer.addEventListener(Event.RemoteDuck, async ({ paused, permanent }) => {
     if (permanent) {
-      // Permanent focus loss (e.g. another music app took over) — stop outright
+      // Permanent focus loss (e.g. another music app or video took over) — stop outright
       await safeStopAndReset();
     } else if (paused) {
-      // Pause immediately when focus is lost (including when another app starts audio).
+      // Transient focus loss (e.g. Phone Call or Alarm)
       if (duckPauseTimer) {
         clearTimeout(duckPauseTimer);
         duckPauseTimer = null;
@@ -74,13 +87,19 @@ module.exports = async function () {
       try {
         const playbackState = await TrackPlayer.getPlaybackState();
         const currentState = playbackState?.state ?? playbackState;
-        shouldResumeAfterDuck = currentState === State.Playing || currentState === State.Buffering;
+        const isAutoPlay = await getIsAutoPlay();
+        
+        // ONLY flag for resume if:
+        // A) The audio was actually playing (not paused by user).
+        // B) The user has Autoplay toggled ON in Settings.
+        shouldResumeAfterDuck = isAutoPlay && (currentState === State.Playing || currentState === State.Buffering);
       } catch (_) {
         shouldResumeAfterDuck = false;
       }
 
       await TrackPlayer.pause();
     } else {
+      // Focus regained (Phone call/Alarm ended)
       if (duckPauseTimer) {
         clearTimeout(duckPauseTimer);
         duckPauseTimer = null;

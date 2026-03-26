@@ -44,6 +44,8 @@ const AudioControlBar = ({
   handleTrackSelect,
   onCloseTrackModal,
   baniID,
+  title,
+  notificationTitle = "",
   currentPlaying,
   addTrackToManifest,
   isTrackDownloaded,
@@ -322,7 +324,7 @@ const AudioControlBar = ({
         await addAndPlayTrack(
           currentPlaying.id,
           currentPlaying.audioUrl,
-          currentPlaying.displayName,
+          notificationTitle || title,
           currentPlaying.displayName,
           currentPlaying.lyricsUrl,
           currentPlaying.trackLengthSec,
@@ -547,6 +549,8 @@ AudioControlBar.propTypes = {
   handleTrackSelect: PropTypes.func.isRequired,
   handleSeek: PropTypes.func.isRequired,
   isAudioEnabled: PropTypes.bool.isRequired,
+  title: PropTypes.string,
+  notificationTitle: PropTypes.string,
   onCloseTrackModal: PropTypes.func.isRequired,
   baniID: PropTypes.string.isRequired,
   currentPlaying: PropTypes.shape({
