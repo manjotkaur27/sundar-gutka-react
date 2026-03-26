@@ -6,17 +6,20 @@ import {
   toggleAudio,
   toggleAudioAutoPlay,
   toggleAudioFeatureEnabled,
+  toggleAutoScroll,
+  toggleScreenAwake,
 } from "@common/actions";
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, showInfoToast } from "@common";
 import createStyles from "../styles";
 
 const Audio = () => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isAudio = useSelector((state) => state.isAudio);
+  const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const dispatch = useDispatch();
@@ -63,10 +66,18 @@ const Audio = () => {
         <Switch
           value={setting.value}
           onValueChange={async (value) => {
-            if (setting.id === "main" && !value) {
+            if (setting.id === "main" && value) {
+              if (isAutoScroll) {
+                showInfoToast(STRINGS.AUDIO_DISABLES_AUTO_SCROLL || "AutoScroll has been disabled");
+              }
+            } else if (setting.id === "main" && !value) {
+              // Clean up player
               await stopTrack();
               await resetPlayer();
               dispatch(toggleAudio(false));
+              // See-saw: turning Audio OFF → AutoScroll automatically ON
+              dispatch(toggleAutoScroll(true));
+              dispatch(toggleScreenAwake(true));
             }
             dispatch(setting.action(value));
           }}

@@ -2,7 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
-import { toggleScreenAwake, toggleAutoScroll } from "@common/actions";
+import { toggleScreenAwake, toggleAutoScroll, toggleAudioFeatureEnabled } from "@common/actions";
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
@@ -42,6 +42,10 @@ const AutoScroll = () => {
             } catch (_) {
               // Best effort cleanup
             }
+          } else {
+            // See-saw: turning AutoScroll OFF → Audio Player automatically ON
+            dispatch(toggleAudioFeatureEnabled(true));
+            dispatch(toggleScreenAwake(false));
           }
           dispatch(toggleAutoScroll(value));
         }}
