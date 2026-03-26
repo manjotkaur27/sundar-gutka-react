@@ -3,16 +3,17 @@ import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { ListItem, Icon, Switch } from "@rneui/themed";
 import { toggleScreenAwake, toggleAutoScroll } from "@common/actions";
+import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, showInfoToast } from "@common";
 import createStyles from "../styles";
 
 const AutoScroll = () => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
-  const isAudio = useSelector((state) => state.isAudio);
+  const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const dispatch = useDispatch();
   const { AUTO_SCROLL } = STRINGS;
   return (
@@ -25,10 +26,23 @@ const AutoScroll = () => {
       </ListItem.Content>
       <Switch
         value={isAutoScroll}
-        disabled={isAudio}
-        onValueChange={(value) => {
+        onValueChange={async (value) => {
           /* The screen should remain active whenever Auto Scroll is enabled. */
           dispatch(toggleScreenAwake(value));
+          if (value) {
+            // Warn user that audio will be disabled
+            if (isAudioFeatureEnabled) {
+              showInfoToast(STRINGS.AUTO_SCROLL_DISABLES_AUDIO || "Audio Player has been disabled");
+            }
+            // Stop any active audio playback before enabling auto-scroll
+            // The reducer mutex handles toggling isAudio & isAudioFeatureEnabled off
+            try {
+              await stopTrack();
+              await resetPlayer();
+            } catch (_) {
+              // Best effort cleanup
+            }
+          }
           dispatch(toggleAutoScroll(value));
         }}
       />

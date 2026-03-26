@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { ActivityIndicator, AppState, Platform, Animated, View } from "react-native";
+import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
@@ -18,7 +18,7 @@ import {
   STRINGS,
 } from "@common";
 import { Header, AutoScrollComponent, AudioPlayer } from "./components";
-import { useBookmarks, useFetchShabad, useFooterAnimation } from "./hooks";
+import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
 import { pauseTrack } from "@common/TrackPlayerUtils";
@@ -52,14 +52,13 @@ const Reader = ({ navigation, route }) => {
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
   const [titleText, setTitleText] = useState(null);
-  const [scrollPercentage, setScrollPercentage] = useState(0);
   const currentElementIdRef = useRef(savePosition[id] || null);
 
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
   const { bottom: insetBottom } = useSafeAreaInsets();
 
-  const { animationPosition } = useFooterAnimation(isHeader);
+
 
   const pauseAudioPlayback = useCallback(async () => {
     try {
@@ -198,9 +197,6 @@ const Reader = ({ navigation, route }) => {
         toggleHeader(true);
       } else if (data === "hide") {
         toggleHeader(false);
-      } else if (data.includes("scroll-percent-")) {
-        const percentage = parseFloat(data.split("scroll-percent-")[1]);
-        setScrollPercentage(percentage);
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID from WebView scroll events
         const elementId = data.split("scroll-elementId-")[1];
@@ -281,7 +277,7 @@ const Reader = ({ navigation, route }) => {
         bounces={false}
         overScrollMode="never"
         nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator
         showsHorizontalScrollIndicator={false}
         onContentProcessDidTerminate={reloadWebView}
         source={webViewSource}
@@ -298,21 +294,13 @@ const Reader = ({ navigation, route }) => {
         }}
       />
       {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
-      <Animated.View
-        style={[
-          styles.autoScrollAnimatedView,
-          {
-            bottom: styles.autoScrollAnimatedView.bottom + insetBottom,
-            transform: [{ translateY: animationPosition }],
-          },
-        ]}
-      >
-        {isAutoScroll && <AutoScrollComponent shabadID={id} webViewRef={webViewRef} />}
-      </Animated.View>
+      {isAutoScroll && (
+        <View style={[styles.autoScrollFixedView, { bottom: styles.autoScrollFixedView.bottom + insetBottom }]}>
+          <AutoScrollComponent shabadID={id} webViewRef={webViewRef} />
+        </View>
+      )}
 
-      <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${scrollPercentage}%` }]} />
-      </View>
+
       <BottomNavigation activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"} />
     </SafeArea>
   );

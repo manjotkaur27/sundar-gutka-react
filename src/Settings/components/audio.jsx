@@ -5,7 +5,6 @@ import { ListItem, Icon, Switch } from "@rneui/themed";
 import {
   toggleAudio,
   toggleAudioAutoPlay,
-  toggleAutoScroll,
   toggleAudioFeatureEnabled,
 } from "@common/actions";
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
@@ -20,7 +19,6 @@ const Audio = () => {
   const isAudio = useSelector((state) => state.isAudio);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
-  const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const dispatch = useDispatch();
   const { AUDIO, AUDIO_AUTO_PLAY } = STRINGS;
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
@@ -65,9 +63,6 @@ const Audio = () => {
         <Switch
           value={setting.value}
           onValueChange={async (value) => {
-            if (isAutoScroll) {
-              dispatch(toggleAutoScroll(false));
-            }
             if (setting.id === "main" && !value) {
               await stopTrack();
               await resetPlayer();

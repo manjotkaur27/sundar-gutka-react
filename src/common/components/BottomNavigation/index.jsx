@@ -195,7 +195,7 @@ const BottomNavigation = ({ activeKey }) => {
           navigation.goBack();
         }
 
-        dispatch(actions.toggleAutoScroll(false));
+
 
         // Re-entering Music while audio is already open should reset playback and
         // re-open the preview chooser from a clean player state.

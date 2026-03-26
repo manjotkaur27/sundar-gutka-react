@@ -129,14 +129,15 @@ const createStyles = (theme) => ({
     top: 0,
     zIndex: 10,
   },
-  autoScrollAnimatedView: {
+  autoScrollFixedView: {
     position: "absolute",
     left: 0,
     right: 0,
-    // Base lift above bottom bar; extra inset applied at render time
-    bottom: theme.components.bottomNavigation.height + theme.spacing.lg,
+    bottom: theme.components.bottomNavigation.height + theme.spacing.sm + 5,
     zIndex: 10,
     elevation: 10,
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
 });
 export default createStyles;

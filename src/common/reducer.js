@@ -48,14 +48,21 @@ const isScreenAwake = createReducer(true, {
 
 const isAutoScroll = createReducer(false, {
   [actionTypes.TOGGLE_AUTO_SCROLL]: (state, action) => action.value,
+  // Auto-cancel when Audio turns ON (either runtime or feature toggle)
+  [actionTypes.TOGGLE_AUDIO]: (state, action) => (action.value ? false : state),
+  [actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED]: (state, action) => (action.value ? false : state),
 });
 
 const isAudio = createReducer(false, {
   [actionTypes.TOGGLE_AUDIO]: (state, action) => action.value,
+  // Auto-cancel when AutoScroll turns ON
+  [actionTypes.TOGGLE_AUTO_SCROLL]: (state, action) => (action.value ? false : state),
 });
 
 const isAudioFeatureEnabled = createReducer(true, {
   [actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED]: (state, action) => action.value,
+  // Auto-disable Audio feature when AutoScroll turns ON
+  [actionTypes.TOGGLE_AUTO_SCROLL]: (state, action) => (action.value ? false : state),
 });
 
 const isAudioAutoPlay = createReducer(false, {

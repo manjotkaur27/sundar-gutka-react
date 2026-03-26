@@ -6,6 +6,7 @@ const script = (theme) => {
   return `
 
 let autoScrollTimeout;
+let autoScrollRAF = null;
 let autoScrollSpeed = 0;
 let scrollMultiplier = 1.5;
 let isScrolling;
@@ -14,16 +15,31 @@ let lastHighlightedElement = null;
 let highlightTimeout = null;
 let hasReachedEnd = false;
 let lastPercentage = null;
+let lastPercentageTime = 0;
+let accumulatedScroll = 0;
+let lastFrameTime = 0;
 
 const clearScrollTimeout=()=> {
   if (autoScrollTimeout != null) {
     clearTimeout(autoScrollTimeout);
   }
   autoScrollTimeout = null;
+  if (autoScrollRAF != null) {
+    cancelAnimationFrame(autoScrollRAF);
+    autoScrollRAF = null;
+  }
 }
 
+let lastScrollFuncTime = 0;
+
 const scrollFunc=(e)=> {
-  const elementId = getTopmostElementId();
+  // During auto-scroll, throttle this handler to every 300ms
+  // to prevent 60fps RAF from triggering 60 expensive DOM queries/sec
+  if (autoScrollSpeed > 0) {
+    const now = Date.now();
+    if (now - lastScrollFuncTime < 300) return;
+    lastScrollFuncTime = now;
+  }
 
   // Check if user has reached the end of the document
   const scrollHeight = document.documentElement.scrollHeight;
@@ -38,10 +54,15 @@ const scrollFunc=(e)=> {
     // Reset flag when user scrolls away from the end
     hasReachedEnd = false;
   }
-  if (elementId && !hasReachedEnd) {
-    window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId);
-  } else if (hasReachedEnd) {
-    window.ReactNativeWebView.postMessage("scroll-elementId-null");
+
+  // Only compute element ID during manual scroll (not during auto-scroll)
+  if (autoScrollSpeed == 0) {
+    const elementId = getTopmostElementId();
+    if (elementId && !hasReachedEnd) {
+      window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId);
+    } else if (hasReachedEnd) {
+      window.ReactNativeWebView.postMessage("scroll-elementId-null");
+    }
   }
 
   
@@ -49,20 +70,6 @@ const scrollFunc=(e)=> {
     window.ReactNativeWebView.postMessage("show");
   }
 
-
-  // Calculate percentage
-  const maxScroll = scrollHeight - clientHeight;
-  if (maxScroll > 0) {
-    const percentage = Math.min(
-      Math.max((scrollTop / maxScroll) * 100, 0),
-      100
-    ).toFixed(1);
-
-    if (percentage !== lastPercentage) {
-      lastPercentage = percentage;
-      window.ReactNativeWebView.postMessage("scroll-percent-" + percentage);
-    }
-  }
 
   if (typeof scrollFunc.y == "undefined") {
     scrollFunc.y = window.pageYOffset;
@@ -148,21 +155,49 @@ const fadeInEffect = () => {
   }, 100);
 };
 const setAutoScroll=()=> {
-  const speed = autoScrollSpeed;
-  if (speed > 0) {
-    if (!isManuallyScrolling) {
-      window.scrollBy({
-        behavior: "auto",
-        left: 0,
-        top: 1,
-      });
+  // Cancel any existing animation
+  clearScrollTimeout();
+
+  if (autoScrollSpeed <= 0) return;
+
+  lastFrameTime = performance.now();
+  accumulatedScroll = 0;
+
+  const scrollStep = (currentTime) => {
+    if (autoScrollSpeed <= 0) {
+      autoScrollRAF = null;
+      return;
     }
-    autoScrollTimeout = setTimeout(()=> {
-      setAutoScroll();
-    }, (200 - speed * 2) / scrollMultiplier);
-  } else {
-    clearScrollTimeout();
-  }
+
+    // Stop at bottom
+    const scrollHeight = document.documentElement.scrollHeight;
+    const scrollTop = window.scrollY || window.pageYOffset;
+    const clientHeight = window.innerHeight;
+    if (scrollTop + clientHeight >= scrollHeight - 2) {
+      autoScrollRAF = null;
+      return;
+    }
+
+    if (!isManuallyScrolling) {
+      // Compute from live autoScrollSpeed so speed changes take effect immediately
+      const pxPerSecond = autoScrollSpeed * 1.1 * scrollMultiplier;
+      const deltaMs = currentTime - lastFrameTime;
+      // Cap delta to prevent huge jumps after tab switch
+      const deltaSec = Math.min(deltaMs / 1000, 0.05);
+      accumulatedScroll += pxPerSecond * deltaSec;
+
+      if (accumulatedScroll >= 0.5) {
+        const px = accumulatedScroll;
+        window.scrollBy(0, px);
+        accumulatedScroll = 0;
+      }
+    }
+
+    lastFrameTime = currentTime;
+    autoScrollRAF = requestAnimationFrame(scrollStep);
+  };
+
+  autoScrollRAF = requestAnimationFrame(scrollStep);
 }
 
 window.addEventListener(
@@ -202,7 +237,7 @@ ${listener}.addEventListener(
     // Set a timeout to run after scrolling ends
     isScrolling = setTimeout( ()=> {
       isManuallyScrolling = false;
-    }, 66);
+    }, 300);
   },
   false
 );
@@ -215,7 +250,7 @@ let wasAutoScrolling = false;
 const resumeAutoScroll = () => {
   isManuallyScrolling = false;
   // Resume auto-scroll if it was active before touch
-  if (wasAutoScrolling && autoScrollSpeed !== 0 && autoScrollTimeout == null) {
+  if (wasAutoScrolling && autoScrollSpeed !== 0 && autoScrollRAF == null) {
     wasAutoScrolling = false;
     setAutoScroll();
   }
@@ -257,7 +292,7 @@ ${listener}.addEventListener(
     if (message.hasOwnProperty("autoScroll")) {
       autoScrollSpeed = message.autoScroll;
       scrollMultiplier = message.scrollMultiplier;
-      if (autoScrollTimeout == null) {
+      if (autoScrollRAF == null) {
         setAutoScroll();
       }
     }
