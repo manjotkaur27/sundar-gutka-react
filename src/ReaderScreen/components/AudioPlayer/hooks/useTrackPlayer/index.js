@@ -26,7 +26,7 @@ const useTrackPlayer = () => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initializationError, setInitializationError] = useState(null);
   const playbackState = usePlaybackState();
-  const progress = useProgress();
+  const progress = useProgress(250);
   const [isPlaying, setIsPlaying] = useState(false);
   const isAudio = useSelector((state) => state.isAudio);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
