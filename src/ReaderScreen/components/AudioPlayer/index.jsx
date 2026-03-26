@@ -14,7 +14,7 @@ import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./com
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 
-const AudioPlayer = ({ baniID, title, webViewRef }) => {
+const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const dispatch = useDispatch();
   const defaultAudio = useSelector((state) => state.defaultAudio);
   const hasSavedTrackForCurrentBani = Boolean(defaultAudio?.[baniID]?.id);
@@ -89,7 +89,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         await addAndPlayTrack(
           currentPlaying.id,
           currentPlaying.audioUrl,
-          currentPlaying.displayName,
+          notificationTitle || title,
           currentPlaying.displayName,
           currentPlaying.lyricsUrl,
           currentPlaying.trackLengthSec,
@@ -136,7 +136,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         await addAndPlayTrack(
           firstPlayableTrack.id,
           firstPlayableTrack.audioUrl,
-          firstPlayableTrack.displayName,
+          notificationTitle || title,
           firstPlayableTrack.displayName,
           firstPlayableTrack.lyricsUrl,
           firstPlayableTrack.trackLengthSec,
@@ -323,6 +323,7 @@ const AudioPlayer = ({ baniID, title, webViewRef }) => {
         baniID={baniID}
         handleTrackSelect={handleTrackSelect}
         title={title}
+        notificationTitle={notificationTitle || title}
         tracks={tracks}
         onCloseTrackModal={onCloseTrackModal}
         addAndPlayTrack={addAndPlayTrack}

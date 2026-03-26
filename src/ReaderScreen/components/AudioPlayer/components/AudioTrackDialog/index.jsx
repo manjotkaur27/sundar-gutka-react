@@ -19,6 +19,7 @@ const ACTIVE_TRACK_WAIT_MS = 2200;
 const AudioTrackDialog = ({
   handleTrackSelect,
   title = "",
+  notificationTitle = "",
   tracks = [],
   onCloseTrackModal,
   isHeader = true,
@@ -286,7 +287,7 @@ const AudioTrackDialog = ({
       await addAndPlayTrack(
         track.id,
         track.audioUrl,
-        track.displayName,
+        notificationTitle || title,
         track.displayName,
         track.lyricsUrl,
         track.trackLengthSec,
@@ -308,11 +309,10 @@ const AudioTrackDialog = ({
         return;
       }
 
-      // Retry once through the same player path to avoid stale native state.
       await addAndPlayTrack(
         track.id,
         track.audioUrl,
-        track.displayName,
+        notificationTitle || title,
         track.displayName,
         track.lyricsUrl,
         track.trackLengthSec,

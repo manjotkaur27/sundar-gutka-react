@@ -365,6 +365,7 @@ const useTrackPlayer = () => {
         url: formatUrlForTrackPlayer(playbackUrl),
         title,
         artist,
+        artwork: require("../../../../../../images/sundar_gutka_icon.png"),
         duration: trackLengthSec, // RNTP reads 'duration' — enables instant slider + seek
         lyricsUrl,
         trackSizeMB,

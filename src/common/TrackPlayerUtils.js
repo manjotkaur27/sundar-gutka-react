@@ -54,11 +54,12 @@ class TrackPlayerService {
         await TrackPlayer.updateOptions({
           // Fewer progress events -> less UI/notification churn on low-end devices.
           progressUpdateEventInterval: 2,
+          // Small icon shown in Android notification (RNTP v4 expects a JS map with a uri field)
+          icon: { uri: "ic_notification" },
           android: {
             appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
-            notificationChannelName: "Sundar Gutka",
+            notificationChannelName: "Sundar Gutka Playback V4",
             notificationChannelDescription: "Gurbani audio playback controls",
-            notificationIcon: "ic_launcher",
             notificationColor: 0xFFEEB14F,
           },
           capabilities: [

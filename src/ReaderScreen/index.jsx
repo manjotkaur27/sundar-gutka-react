@@ -297,7 +297,7 @@ const Reader = ({ navigation, route }) => {
           toggleHeader((prev) => !prev);
         }}
       />
-      {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} webViewRef={webViewRef} />}
+      {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
       <Animated.View
         style={[
           styles.autoScrollAnimatedView,
