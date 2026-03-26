@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Pressable } from "react-native";
+import { View, Pressable, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
@@ -7,7 +8,7 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { pauseTrack, stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
-import { CustomText, actions, constant, STRINGS, SafeArea, showErrorToast } from "@common";
+import { CustomText, actions, constant, STRINGS, showErrorToast } from "@common";
 import createStyles from "./style";
 
 const INTERNET_CHECK_URL = "https://www.gstatic.com/generate_204";
@@ -24,6 +25,11 @@ const BottomNavigation = ({ activeKey }) => {
   const [previousRouteName, setPreviousRouteName] = useState(null);
   const [hasInternet, setHasInternet] = useState(true);
   const previousConnectivityRef = useRef(null);
+  const insets = useSafeAreaInsets();
+  // On iOS: apply a small capped padding so icons sit just above the home indicator
+  // without ballooning the navbar height. On Android: gesture bar is hidden by
+  // sticky-immersive mode in MainActivity, so no bottom padding is needed.
+  const bottomPad = Platform.OS === "ios" ? Math.min(insets.bottom, 8) : 0;
 
   const checkInternetConnection = useCallback(async () => {
     const controller = new AbortController();
@@ -242,35 +248,40 @@ const BottomNavigation = ({ activeKey }) => {
   });
 
   return (
-    <SafeArea backgroundColor={theme.colors.primary} edges={["bottom"]} flex={0}>
-      <View style={[styles.container]}>
-        <View style={styles.navigationBar}>
-          {filteredNavigationItems.map((item) => {
-            const IconComponent = item.icon;
+    <View
+      style={[
+        styles.container,
+        // Absorb the home-indicator / gesture-bar height so the navbar background
+        // colour fills behind the indicator while the icons stay compact above it.
+        { paddingBottom: bottomPad },
+      ]}
+    >
+      <View style={styles.navigationBar}>
+        {filteredNavigationItems.map((item) => {
+          const IconComponent = item.icon;
 
-            return (
-              <Pressable
-                key={item.key}
-                style={[styles.iconContainer, item.key === activeKey && styles.activeIconContainer]}
-                onPress={item.handlePress}
-                accessibilityRole="button"
-                accessibilityLabel={`bottomnav-${item.key}`}
-              >
-                <IconComponent
-                  size={24}
-                  color={
-                    item.key === activeKey ? theme.colors.primary : theme.staticColors.WHITE_COLOR
-                  }
-                />
-                {activeKey !== item.key && (
-                  <CustomText style={styles.iconText}>{item.text}</CustomText>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+          return (
+            <Pressable
+              key={item.key}
+              style={[styles.iconContainer, item.key === activeKey && styles.activeIconContainer]}
+              onPress={item.handlePress}
+              accessibilityRole="button"
+              accessibilityLabel={`bottomnav-${item.key}`}
+            >
+              <IconComponent
+                size={24}
+                color={
+                  item.key === activeKey ? theme.colors.primary : theme.staticColors.WHITE_COLOR
+                }
+              />
+              {activeKey !== item.key && (
+                <CustomText style={styles.iconText}>{item.text}</CustomText>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
-    </SafeArea>
+    </View>
   );
 };
 
