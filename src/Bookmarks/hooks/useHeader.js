@@ -10,7 +10,10 @@ const useHeader = (navigation) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const headerLeft = () => (
-    <Pressable onPress={() => navigation.goBack()}>
+    <Pressable
+      onPress={() => navigation.goBack()}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
       <BackArrowIcon size={24} color={theme.colors.primaryText} />
     </Pressable>
   );
@@ -20,6 +23,7 @@ const useHeader = (navigation) => {
       title: STRINGS.bookmarks,
       headerTitleStyle: styles.headerTitleStyle,
       headerStyle: styles.headerStyle,
+      headerBackVisible: false,
       headerLeft,
     });
   }, []);

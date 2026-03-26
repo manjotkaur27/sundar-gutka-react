@@ -9,6 +9,7 @@ const SettingsIconComponent = ({ size, handleSettingsPress, color }) => {
       onPress={() => {
         handleSettingsPress();
       }}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <SettingsIcon size={size} color={color} />
     </Pressable>

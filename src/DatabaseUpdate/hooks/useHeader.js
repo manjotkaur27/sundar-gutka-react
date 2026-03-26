@@ -14,6 +14,7 @@ const useHeader = (navigation) => {
       title: STRINGS.databaseUpdate,
       headerStyle: styles.headerStyle,
       headerTitleStyle: styles.headerTitleStyle,
+      headerBackVisible: false,
       headerLeft,
     });
   }, []);

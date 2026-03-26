@@ -14,6 +14,7 @@ const useHeader = (navigation) => {
       title: STRINGS.Settings,
       headerTitleStyle,
       headerStyle,
+      headerBackVisible: false,
       headerLeft,
     });
   }, [theme]);

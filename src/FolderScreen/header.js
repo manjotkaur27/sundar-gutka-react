@@ -31,6 +31,7 @@ const Header = ({ navigation, title }) => {
       headerStyle: {
         backgroundColor: theme.colors.primary,
       },
+      headerBackVisible: false,
       headerLeft,
       headerRight,
     });
