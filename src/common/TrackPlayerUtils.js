@@ -43,8 +43,17 @@ class TrackPlayerService {
         const { Capability, RepeatMode, AppKilledPlaybackBehavior } = loadRNTP();
 
         await TrackPlayer.setupPlayer({
-          waitForBuffer: false,
-          maxCacheSize: 51200,
+          // waitForBuffer: true tells AVPlayer (iOS) to enable
+          // automaticallyWaitsToMinimizeStalling, and tells ExoPlayer (Android)
+          // to wait until playbackBuffer is filled before starting audio output.
+          // This is the correct setting for streaming — prevents the progress
+          // bar advancing silently while audio is starved.
+          waitForBuffer: true,
+          maxCacheSize: 51200,       // 50 MB ExoPlayer cache
+          minBuffer: 15,             // Android: keep ≥15s buffered ahead at all times
+          maxBuffer: 50,             // Android: buffer up to 50s ahead
+          backBuffer: 0,             // Android: no back-buffer (saves memory)
+          playbackBuffer: 2.5,       // Android: start playing once 2.5s is buffered
           iosCategory: "playback",
           alwaysPauseOnInterruption: false,
         });

@@ -26,6 +26,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const [hasAutoRestoredView, setHasAutoRestoredView] = useState(false);
   const {
     isPlaying,
+    isBuffering,
     progress,
     play,
     pause,
@@ -354,6 +355,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
       baniID={baniID}
       handleTrackSelect={handleTrackSelect}
       isPlaying={isPlaying}
+      isBuffering={isBuffering}
       handlePlayPause={handlePlayPause}
       progress={progress}
       handleSeek={handleSeek}

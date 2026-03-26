@@ -36,6 +36,10 @@ const useTrackPlayer = () => {
   const prefetchInFlightRef = useRef(new Map());
   const seekInFlightRef = useRef(false);
   const pendingSeekRef = useRef(null);
+  // Tracks whether the user had an active play session before a buffer stall.
+  // Used by the auto-resume logic to distinguish a mid-play stall from an
+  // intentional pause/stop.
+  const wasPlayingBeforeBufferRef = useRef(false);
 
   const configurePlayer = useCallback(async () => {
     setInitializationError(null);
@@ -73,6 +77,45 @@ const useTrackPlayer = () => {
     if (!isInitialized) return;
     setIsPlaying(playbackState?.state === State.Playing);
   }, [playbackState, isInitialized]);
+
+  // Track play/stop transitions so the auto-resume knows when a stall is
+  // mid-playback vs. an intentional pause.
+  useEffect(() => {
+    if (playbackState?.state === State.Playing) {
+      wasPlayingBeforeBufferRef.current = true;
+    } else if (
+      playbackState?.state === State.Stopped ||
+      playbackState?.state === State.None
+    ) {
+      wasPlayingBeforeBufferRef.current = false;
+    }
+  }, [playbackState?.state]);
+
+  // Auto-resume: when the buffer refills (State.Ready after a stall) and the
+  // user was playing before, immediately kick the player back into Playing.
+  // This is the primary recovery path — instant, no delay.
+  useEffect(() => {
+    if (!isInitialized || !isAudio || !isAudioFeatureOn) return;
+    if (playbackState?.state !== State.Ready) return;
+    if (!wasPlayingBeforeBufferRef.current) return; // don't auto-play on initial load
+
+    TrackPlayer.play().catch(() => {});
+  }, [isInitialized, isAudio, isAudioFeatureOn, playbackState?.state]);
+
+  // Hard-fallback watchdog: if the player stays in State.Buffering for 2.5s
+  // without transitioning to State.Ready, kick it anyway. Covers edge cases
+  // where the state machine doesn't emit Ready (can happen on some Android OEMs).
+  useEffect(() => {
+    if (!isInitialized || !isAudio || !isAudioFeatureOn) return;
+    if (playbackState?.state !== State.Buffering) return;
+    if (!wasPlayingBeforeBufferRef.current) return;
+
+    const timer = setTimeout(() => {
+      TrackPlayer.play().catch(() => {});
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isInitialized, isAudio, isAudioFeatureOn, playbackState?.state]);
 
   useEffect(() => {
     const teardownWhenFeatureDisabled = async () => {
@@ -380,11 +423,10 @@ const useTrackPlayer = () => {
         await play();
       }
 
-      // Prefetch the full audio file in background to enable instant local seeks.
-      // This only runs when we are streaming from a remote URL.
-      if (!isLocalFile(playbackUrl)) {
-        prefetchForSeek({ ...track, url: playbackUrl });
-      }
+      // No background prefetch on play-start — downloading the full file while
+      // simultaneously streaming it starves the stream buffer on low-bandwidth
+      // connections and causes audio to go mute. Prefetch is triggered by seekTo
+      // instead, which is a more appropriate time (user has already buffered).
     } catch (error) {
       logError("Error adding and playing track:", error);
     }
@@ -404,6 +446,7 @@ const useTrackPlayer = () => {
 
   return {
     isPlaying,
+    isBuffering: playbackState?.state === State.Buffering,
     playbackState,
     progress,
     play,

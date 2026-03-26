@@ -37,6 +37,7 @@ import ScrollViewComponent from "../ScrollViewComponent";
 
 const AudioControlBar = ({
   isPlaying,
+  isBuffering = false,
   handlePlayPause,
   progress,
   handleSeek,
@@ -477,9 +478,9 @@ const AudioControlBar = ({
             <Pressable
               style={styles.playButton}
               onPress={handlePlayPause}
-              disabled={!isAudioEnabled || isPlayerActionLoading}
+              disabled={!isAudioEnabled || isPlayerActionLoading || isBuffering}
             >
-              {isPlayerActionLoading ? (
+              {isPlayerActionLoading || isBuffering ? (
                 <ActivityIndicator
                   testID="player-action-loading-indicator"
                   size="small"
@@ -541,6 +542,7 @@ AudioControlBar.defaultProps = {
 
 AudioControlBar.propTypes = {
   isPlaying: PropTypes.bool.isRequired,
+  isBuffering: PropTypes.bool,
   handlePlayPause: PropTypes.func.isRequired,
   progress: PropTypes.shape({
     position: PropTypes.number.isRequired,
