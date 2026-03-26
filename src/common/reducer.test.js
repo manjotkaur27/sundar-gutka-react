@@ -4,7 +4,7 @@
  * Covers manual test cases:
  *  - "Verify Audio Player setting is ON by default" (#15 → isAudioFeatureEnabled default = true)
  *  - "Verify Audio Auto Play setting is OFF by default" (#16 → isAudioAutoPlay default = false)
- *  - "Verify Sync Scroll is OFF by default" (isAudioSyncScroll default = false)
+ *  - "Verify Sync Scroll is ON by default" (isAudioSyncScroll default = true)
  *  - "Verify turning Audio Player OFF hides Audio Auto Play option" (#17 → derived from state)
  */
 
@@ -22,7 +22,7 @@ describe("Redux Default State (audio settings)", () => {
   });
 
   it("Audio Sync Scroll is disabled (false) by default", () => {
-    expect(defaultState.isAudioSyncScroll).toBe(false);
+    expect(defaultState.isAudioSyncScroll).toBe(true);
   });
 
   it("isAudio (player visible) is false by default - player does not auto-open", () => {

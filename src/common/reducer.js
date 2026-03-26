@@ -69,7 +69,7 @@ const isAudioAutoPlay = createReducer(false, {
   [actionTypes.TOGGLE_AUDIO_AUTO_PLAY]: (state, action) => action.value,
 });
 
-const isAudioSyncScroll = createReducer(false, {
+const isAudioSyncScroll = createReducer(true, {
   [actionTypes.TOGGLE_AUDIO_SYNC_SCROLL]: (state, action) => action.value,
 });
 
