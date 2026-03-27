@@ -92,10 +92,30 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
     .right{
       text-align:right
     }
+    /* ── Scroll progress bar (fixed at bottom of WebView) ─────────────── */
+    #scroll-progress-track {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: ${theme.mode === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.10)"};
+      z-index: 9999;
+      pointer-events: none;
+    }
+    #scroll-progress-fill {
+      height: 100%;
+      width: 100%;
+      background: ${theme.colors.primary};
+      transform-origin: left center;
+      transform: scaleX(0);
+      will-change: transform;
+    }
   </style>
   <script>${script(theme)}</script>
 </head>
 <body>
+  <div id="scroll-progress-track"><div id="scroll-progress-fill"></div></div>
   ${content}  
 </body>
 </html>

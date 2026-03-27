@@ -84,6 +84,7 @@ const useTrackPlayer = () => {
     if (playbackState?.state === State.Playing) {
       wasPlayingBeforeBufferRef.current = true;
     } else if (
+      playbackState?.state === State.Paused ||
       playbackState?.state === State.Stopped ||
       playbackState?.state === State.None
     ) {
@@ -423,10 +424,15 @@ const useTrackPlayer = () => {
         await play();
       }
 
-      // No background prefetch on play-start — downloading the full file while
-      // simultaneously streaming it starves the stream buffer on low-bandwidth
-      // connections and causes audio to go mute. Prefetch is triggered by seekTo
-      // instead, which is a more appropriate time (user has already buffered).
+      // Prefetch the full audio file in background to enable instant local seeks.
+      // Delayed by 8s to let the stream buffer stabilize before competing for
+      // bandwidth — prevents the muting issue seen with immediate prefetch.
+      if (!isLocalFile(playbackUrl)) {
+        const prefetchTrack = { ...track, url: playbackUrl };
+        setTimeout(() => {
+          prefetchForSeek(prefetchTrack);
+        }, 8000);
+      }
     } catch (error) {
       logError("Error adding and playing track:", error);
     }

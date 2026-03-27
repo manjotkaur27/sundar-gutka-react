@@ -139,5 +139,16 @@ const createStyles = (theme) => ({
     alignItems: "center",
     paddingHorizontal: 16,
   },
+  scrollProgressTrack: {
+    height: 3,
+    width: "100%",
+    backgroundColor: theme.mode === "dark"
+      ? "rgba(255, 255, 255, 0.12)"
+      : "rgba(0, 0, 0, 0.08)",
+  },
+  scrollProgressFill: {
+    height: "100%",
+    backgroundColor: theme.colors.primary,
+  },
 });
 export default createStyles;

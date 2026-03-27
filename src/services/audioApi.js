@@ -218,10 +218,70 @@ const INDERMOHAN_TRACKS_BY_BANI = {
 };
 
 // ─── Giani Gurdev Singh track map ────────────────────────────────────────────
-// MP3s not yet uploaded — kept empty so he doesn't appear in the player.
-// TODO: populate once GianiGurdevSingh/*.mp3 files are uploaded to Azure Blob.
-// track_ids in the 3xxx range (reserved).
-const GURDEV_TRACKS_BY_BANI = {};
+// All files confirmed present in Azure Blob (MP3s + JSONs).
+// track_ids in the 3xxx range.
+const GURDEV_TRACKS_BY_BANI = {
+  2: [
+    {
+      bani_id: 2,
+      track_id: 3002,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/JapjiSahib.mp3`,
+      track_length_seconds: 0,
+      track_size_mb: 0,
+      artist_name: GURDEV_ARTIST_NAME,
+      artist_id: GURDEV_ARTIST_ID,
+      lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/JapjiSahib.json`,
+    },
+  ],
+  4: [
+    {
+      bani_id: 4,
+      track_id: 3004,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/JaapSahib.mp3`,
+      track_length_seconds: 0,
+      track_size_mb: 0,
+      artist_name: GURDEV_ARTIST_NAME,
+      artist_id: GURDEV_ARTIST_ID,
+      lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/JaapSahib.json`,
+    },
+  ],
+  6: [
+    {
+      bani_id: 6,
+      track_id: 3006,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/TavParsadSwayiye.mp3`,
+      track_length_seconds: 0,
+      track_size_mb: 0,
+      artist_name: GURDEV_ARTIST_NAME,
+      artist_id: GURDEV_ARTIST_ID,
+      lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/TavParsadSwayiye.json`,
+    },
+  ],
+  9: [
+    {
+      bani_id: 9,
+      track_id: 3009,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.mp3`,
+      track_length_seconds: 0,
+      track_size_mb: 0,
+      artist_name: GURDEV_ARTIST_NAME,
+      artist_id: GURDEV_ARTIST_ID,
+      lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.json`,
+    },
+  ],
+  10: [
+    {
+      bani_id: 10,
+      track_id: 3010,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib.mp3`,
+      track_length_seconds: 0,
+      track_size_mb: 0,
+      artist_name: GURDEV_ARTIST_NAME,
+      artist_id: GURDEV_ARTIST_ID,
+      lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib.json`,
+    },
+  ],
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const normalize = (value) => (value || "").toString().trim().toLowerCase();
@@ -450,8 +510,19 @@ export const fetchArtists = async () => {
       );
     }
 
-    // NOTE: Giani Gurdev Singh is intentionally excluded here until his MP3s
-    // are uploaded. Re-add the hasGurdev injection block once they're live.
+    // Ensure Giani Gurdev Singh is always present
+    const hasGurdev = allowedArtists.some(
+      (artist) => Number(artist.artist_id) === GURDEV_ARTIST_ID
+    );
+    if (!hasGurdev) {
+      allowedArtists.push(
+        mapArtistData({
+          artist_id: GURDEV_ARTIST_ID,
+          display_name: GURDEV_ARTIST_NAME,
+          description: "",
+        })
+      );
+    }
 
     return allowedArtists;
   }

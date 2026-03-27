@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, Pressable, Platform, ActivityIndicator } from "react-native";
+import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
 import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
@@ -32,6 +32,7 @@ const AudioTrackDialog = ({
   const styles = useThemedStyles(audioTrackDialogStyles);
   const fontFace = useSelector((state) => state.fontFace);
   const { theme } = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [previewLoadingTrackId, setPreviewLoadingTrackId] = useState(null);
@@ -378,6 +379,7 @@ const AudioTrackDialog = ({
         style={[
           styles.container,
           Platform.OS === "ios" ? styles.containerIOS : styles.containerAndroid,
+          { maxHeight: windowHeight * 0.7 },
         ]}
       >
         {Platform.OS === "ios" && (

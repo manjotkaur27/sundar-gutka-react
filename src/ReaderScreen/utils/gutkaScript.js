@@ -14,8 +14,6 @@ let isManuallyScrolling = false;
 let lastHighlightedElement = null;
 let highlightTimeout = null;
 let hasReachedEnd = false;
-let lastPercentage = null;
-let lastPercentageTime = 0;
 let accumulatedScroll = 0;
 let lastFrameTime = 0;
 
@@ -63,6 +61,18 @@ const scrollFunc=(e)=> {
     } else if (hasReachedEnd) {
       window.ReactNativeWebView.postMessage("scroll-elementId-null");
     }
+  }
+
+  // ── Scroll progress bar — direct DOM update (60fps, no bridge) ──────────
+  var sh = document.documentElement.scrollHeight;
+  var ch = window.innerHeight;
+  var maxScroll = sh - ch;
+  if (maxScroll > 0) {
+    var pct = (window.scrollY || window.pageYOffset) / maxScroll;
+    if (pct < 0) pct = 0;
+    if (pct > 1) pct = 1;
+    var fill = document.getElementById("scroll-progress-fill");
+    if (fill) fill.style.transform = "scaleX(" + pct + ")";
   }
 
   
