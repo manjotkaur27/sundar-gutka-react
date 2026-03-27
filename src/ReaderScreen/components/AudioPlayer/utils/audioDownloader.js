@@ -9,7 +9,8 @@ import {
   writeFile,
 } from "react-native-fs";
 import { logError, logMessage } from "@common";
-import { checkIsAudioRemoteExists, checkIsJsonRemoteExists } from "./checkHelper";
+import { checkIsJsonRemoteExists } from "./checkHelper";
+import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
 
 /**
  * Audio Downloader Utility
@@ -142,11 +143,6 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
     return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false };
   }
 
-  const audioRemoteExists = await checkIsAudioRemoteExists(url);
-  if (!audioRemoteExists) {
-    logError(`Audio source missing for ${trackTitle}`);
-  }
-
   // progressDivider: 20 — fire the progress callback only once per ~5 % of file size
   // instead of on every bytes chunk, keeping the JS thread free on low-end devices.
   const audioDownloadTask = downloadFile({
@@ -228,18 +224,18 @@ export const prunePrefetchCache = async (maxTracks = 5) => {
     const index = await readPrefetchIndex();
     const allEntries = Object.entries(index);
 
-    const verifiedEntries = [];
-    for (const [fullPath, ts] of allEntries) {
-      // Skip index file itself and stale/missing files.
-      if (fullPath === PREFETCH_INDEX_PATH) {
-        continue;
-      }
-      // eslint-disable-next-line no-await-in-loop
-      const fileExists = await exists(fullPath);
-      if (fileExists) {
-        verifiedEntries.push([fullPath, Number(ts) || 0]);
-      }
-    }
+    // Run all existence checks in parallel — avoids serial filesystem blocking
+    // on every seek (each exists() syscall can take 5-20ms on Android flash).
+    const verifiedEntries = (
+      await Promise.all(
+        allEntries
+          .filter(([fullPath]) => fullPath !== PREFETCH_INDEX_PATH)
+          .map(async ([fullPath, ts]) => {
+            const fileExists = await exists(fullPath);
+            return fileExists ? [fullPath, Number(ts) || 0] : null;
+          })
+      )
+    ).filter(Boolean);
 
     verifiedEntries.sort((a, b) => b[1] - a[1]);
     const keepSet = new Set(verifiedEntries.slice(0, maxTracks).map(([fullPath]) => fullPath));
@@ -283,17 +279,7 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
     await ensureArtistDirectory(artistName);
   }
 
-  const jsonRemoteExists = await checkIsJsonRemoteExists(jsonUrl);
-  if (!jsonRemoteExists) {
-    logMessage(`Lyrics not available for download, skipping: ${jsonFileName}`);
-    return {
-      relativePath: jsonRelativePath,
-      alreadyExists: false,
-      downloaded: false,
-      remoteMissing: true,
-    };
-  }
-
+  // ── 1. Local check first — zero network if already on disk ───────────────
   const jsonFileExists = await exists(fullJsonPath);
   if (jsonFileExists) {
     logMessage(`Lyrics already downloaded: ${jsonFileName}`);
@@ -303,6 +289,22 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
       downloaded: false,
       remoteMissing: false,
     };
+  }
+
+  // ── 2. Bundle lookup — if bundled, we know it's on Azure; skip HEAD ───────
+  // ── 3. HEAD fallback — only for future tracks not yet in the bundle ───────
+  const isBundled = Object.prototype.hasOwnProperty.call(BUNDLED_LYRICS, jsonUrl);
+  if (!isBundled) {
+    const jsonRemoteExists = await checkIsJsonRemoteExists(jsonUrl);
+    if (!jsonRemoteExists) {
+      logMessage(`Lyrics not available for download, skipping: ${jsonFileName}`);
+      return {
+        relativePath: jsonRelativePath,
+        alreadyExists: false,
+        downloaded: false,
+        remoteMissing: true,
+      };
+    }
   }
 
   const jsonDownloadTask = downloadFile({
