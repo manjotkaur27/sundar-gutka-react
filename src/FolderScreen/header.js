@@ -1,43 +1,42 @@
 import React, { useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { BackIconComponent, SettingsIconComponent } from "@common/components";
-import { constant, useTheme, useThemedStyles } from "@common";
-import getHeaderStyles from "./styles";
+import { BackIconComponent, SettingsIconComponent, AppBar } from "@common/components";
+import { constant, useTheme } from "@common";
 
 const Header = ({ navigation, title }) => {
   const { theme } = useTheme();
-  const styles = useThemedStyles(getHeaderStyles);
+
   const handleSettingsPress = useCallback(
     () => navigation.navigate(constant.SETTINGS),
     [navigation]
   );
-  const headerLeft = () => {
-    return <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />;
-  };
-  const headerRight = () => {
-    return (
-      <SettingsIconComponent
-        handleSettingsPress={handleSettingsPress}
-        color={theme.staticColors.WHITE_COLOR}
-        size={30}
-      />
-    );
-  };
 
   useEffect(() => {
-    navigation.setOptions({
-      title,
-      headerTitleStyle: styles.headerTitleStyle,
-      headerStyle: {
-        backgroundColor: theme.colors.primary,
-      },
-      headerBackVisible: false,
-      headerLeft,
-      headerRight,
-    });
-  }, [handleSettingsPress]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
-  return null;
+  return (
+    <AppBar
+      title={title}
+      backgroundColor={theme.colors.primary}
+      titleColor={theme.staticColors.WHITE_COLOR}
+      titleStyle={{
+        fontFamily: theme.typography.fonts.gurbaniPrimary,
+        fontSize: theme.typography.sizes.xxl,
+        fontWeight: theme.typography.weights.normal,
+      }}
+      leftComponent={
+        <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />
+      }
+      rightComponent={
+        <SettingsIconComponent
+          handleSettingsPress={handleSettingsPress}
+          color={theme.staticColors.WHITE_COLOR}
+          size={30}
+        />
+      }
+    />
+  );
 };
 
 Header.propTypes = {

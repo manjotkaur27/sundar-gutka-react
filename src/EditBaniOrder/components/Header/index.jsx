@@ -13,7 +13,7 @@ const Header = ({ setReset }) => {
 
   const headerLeft = useCallback(
     () => <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />,
-    [theme.staticColors.WHITE_COLOR]
+    [theme.staticColors.WHITE_COLOR],
   );
 
   const headerRight = useCallback(
@@ -22,7 +22,7 @@ const Header = ({ setReset }) => {
         <RefreshIcon size={30} color={theme.staticColors.WHITE_COLOR} />
       </Pressable>
     ),
-    [setReset, theme.staticColors.WHITE_COLOR]
+    [setReset, theme.staticColors.WHITE_COLOR],
   );
 
   return (

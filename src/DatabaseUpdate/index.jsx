@@ -25,7 +25,7 @@ const DatabaseUpdateScreen = ({ navigation }) => {
   const baniDBLogoFull = require("../../images/banidblogo.png");
   const [isLoading, setIsLoading] = useState(null);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
-  useHeader(navigation);
+  const appBar = useHeader(navigation);
   const dispatch = useDispatch();
 
   const checkForUpdates = async () => {
@@ -48,6 +48,7 @@ const DatabaseUpdateScreen = ({ navigation }) => {
   return (
     <SafeArea backgroundColor={theme.colors.baniDB}>
       <StatusBarComponent backgroundColor={theme.colors.baniDB} />
+      {appBar}
       <View style={styles.mainWrapper}>
         <CheckUpdatesAnimation isLoading={isLoading} isUpdateAvailable={isUpdateAvailable} />
         {!isLoading && isUpdateAvailable && <DownloadComponent />}

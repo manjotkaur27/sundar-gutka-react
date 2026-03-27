@@ -12,10 +12,7 @@ const BackIconComponent = ({ size, color }) => {
   }, []);
 
   return (
-    <Pressable
-      onPress={handleBackPress}
-      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-    >
+    <Pressable onPress={handleBackPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
       <BackArrowIcon size={size} color={color} />
     </Pressable>
   );

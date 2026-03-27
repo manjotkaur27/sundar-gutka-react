@@ -18,7 +18,7 @@ const AboutScreen = ({ navigation }) => {
   const styles = useThemedStyles(createStyles);
   const { theme } = useTheme();
 
-  useHeader(navigation);
+  const appBar = useHeader(navigation);
   const {
     CREATED_BY,
     SUNDAR_GUTKA,
@@ -38,6 +38,7 @@ const AboutScreen = ({ navigation }) => {
     <SafeArea backgroundColor={theme.colors.surface}>
       <View style={styles.mainWrapper}>
         <StatusBarComponent backgroundColor={styles.headerStyle.backgroundColor} />
+        {appBar}
         <View style={styles.wrapper}>
           <CustomText style={styles.titleText}>{SUNDAR_GUTKA}</CustomText>
           <CustomText style={styles.createdByText}>{CREATED_BY}:</CustomText>
