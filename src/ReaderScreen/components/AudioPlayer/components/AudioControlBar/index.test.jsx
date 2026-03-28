@@ -463,7 +463,7 @@ describe("AudioControlBar", () => {
     expect(props.addAndPlayTrack).toHaveBeenCalledWith(
       defaultCurrentTrack.id,
       defaultCurrentTrack.audioUrl,
-      defaultCurrentTrack.displayName,
+      defaultCurrentTrack.artist,
       defaultCurrentTrack.displayName,
       defaultCurrentTrack.lyricsUrl,
       defaultCurrentTrack.trackLengthSec,

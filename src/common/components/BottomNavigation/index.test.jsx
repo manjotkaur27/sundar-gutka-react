@@ -69,6 +69,11 @@ describe("BottomNavigation", () => {
     mockUseNavigation.mockReturnValue(mockNavigation);
   });
 
+  afterEach(async () => {
+    // Flush microtasks to allow the mocked fetch checkInternetConnection to resolve and set component state safely inside act boundaries
+    await waitFor(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  });
+
   test("renders four buttons with correct accessibility labels", () => {
     const { getByLabelText } = render(<BottomNavigation activeKey="Home" />);
 
@@ -151,7 +156,7 @@ describe("BottomNavigation", () => {
 
     // Dispatches: autoScroll=false, audio toggled from false -> true
     await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      // (Autoscroll is no longer toggled by BottomNavigation)
       expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
     });
   });
@@ -167,7 +172,7 @@ describe("BottomNavigation", () => {
 
     // Dispatches: autoScroll=false, audio toggled from false -> true
     await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      // (Autoscroll is no longer toggled by BottomNavigation)
       expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
     });
   });
@@ -183,7 +188,7 @@ describe("BottomNavigation", () => {
 
     await waitFor(() => {
       expect(mockNavigation.goBack).toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      // (Autoscroll is no longer toggled by BottomNavigation)
       expect(mockStopTrack).toHaveBeenCalled();
       expect(mockResetPlayer).toHaveBeenCalled();
       expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
@@ -202,7 +207,7 @@ describe("BottomNavigation", () => {
 
     await waitFor(() => {
       expect(mockNavigation.goBack).toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      // (Autoscroll is no longer toggled by BottomNavigation)
       expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
     });
   });
@@ -225,7 +230,7 @@ describe("BottomNavigation", () => {
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
     await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
+      // (Autoscroll is no longer toggled by BottomNavigation)
       expect(mockStopTrack).toHaveBeenCalled();
       expect(mockResetPlayer).toHaveBeenCalled();
       expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });

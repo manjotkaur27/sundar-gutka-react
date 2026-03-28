@@ -310,7 +310,7 @@ describe("AudioPlayer", () => {
       expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
         track.id,
         track.audioUrl,
-        track.displayName,
+        "Test Bani",
         track.displayName,
         track.lyricsUrl,
         track.trackLengthSec,
@@ -389,7 +389,7 @@ describe("AudioPlayer", () => {
         expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
           track.id,
           track.audioUrl,
-          track.displayName,
+          "Test Bani",
           track.displayName,
           track.lyricsUrl,
           track.trackLengthSec,
@@ -437,7 +437,7 @@ describe("AudioPlayer", () => {
     expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
       selectedTrack.id,
       selectedTrack.audioUrl,
-      selectedTrack.displayName,
+      "Test Bani",
       selectedTrack.displayName,
       selectedTrack.lyricsUrl,
       selectedTrack.trackLengthSec,
@@ -476,7 +476,7 @@ describe("AudioPlayer", () => {
       expect(mockUseTrackPlayer.addAndPlayTrack).toHaveBeenCalledWith(
         track2.id,
         track2.audioUrl,
-        track2.displayName,
+        "Test Bani",
         track2.displayName,
         track2.lyricsUrl,
         track2.trackLengthSec,

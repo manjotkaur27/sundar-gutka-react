@@ -42,6 +42,13 @@ jest.mock("react-native-track-player", () => ({
   State,
 }));
 
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(() => Promise.resolve(JSON.stringify({ isAudioAutoPlay: "true" }))),
+  },
+}));
+
 describe("TrackPlayerService RemoteDuck behavior", () => {
   let registerService;
 

@@ -177,7 +177,7 @@ describe("AudioTrackDialog", () => {
       expect(props.addAndPlayTrack).toHaveBeenCalledWith(
         defaultTracks[0].id,
         defaultTracks[0].audioUrl,
-        defaultTracks[0].displayName,
+        "Gutka",
         defaultTracks[0].displayName,
         defaultTracks[0].lyricsUrl,
         defaultTracks[0].trackLengthSec,
@@ -204,7 +204,9 @@ describe("AudioTrackDialog", () => {
       expect(getByTestId("preview-loading-id").props.children).toBe("track-1");
     });
 
-    resolvePreview();
+    await act(async () => {
+      resolvePreview();
+    });
   });
 
   it("shows countdown label while preview is playing", async () => {
@@ -259,7 +261,9 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(getByTestId("track-track-2"));
 
     const playButton = getByTestId("play-button");
-    fireEvent.press(playButton);
+    await act(async () => {
+      fireEvent.press(playButton);
+    });
 
     await waitFor(() => {
       expect(props.handleTrackSelect).toHaveBeenCalledWith(defaultTracks[1]);
@@ -283,7 +287,9 @@ describe("AudioTrackDialog", () => {
       expect(getByText("Opening Player...")).toBeTruthy();
     });
 
-    resolveNext();
+    await act(async () => {
+      resolveNext();
+    });
   });
 
   it("resets selection and calls onCloseTrackModal when close button pressed", () => {
@@ -309,7 +315,7 @@ describe("AudioTrackDialog", () => {
       expect(props.addAndPlayTrack).toHaveBeenCalledWith(
         defaultTracks[0].id,
         defaultTracks[0].audioUrl,
-        defaultTracks[0].displayName,
+        "Gutka",
         defaultTracks[0].displayName,
         defaultTracks[0].lyricsUrl,
         defaultTracks[0].trackLengthSec,
@@ -328,7 +334,7 @@ describe("AudioTrackDialog", () => {
       expect(props.addAndPlayTrack).toHaveBeenCalledWith(
         defaultTracks[1].id,
         defaultTracks[1].audioUrl,
-        defaultTracks[1].displayName,
+        "Gutka",
         defaultTracks[1].displayName,
         defaultTracks[1].lyricsUrl,
         defaultTracks[1].trackLengthSec,
