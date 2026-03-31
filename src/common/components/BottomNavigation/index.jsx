@@ -8,7 +8,7 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { pauseTrack, stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
-import { CustomText, actions, constant, STRINGS, showErrorToast } from "@common";
+import { CustomText, actions, constant, STRINGS, showErrorToast, showInfoToast } from "@common";
 import createStyles from "./style";
 
 const INTERNET_CHECK_URL = "https://www.gstatic.com/generate_204";
@@ -19,6 +19,7 @@ const BottomNavigation = ({ activeKey }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isAudio = useSelector((state) => state.isAudio);
+  const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const [isSettings, setIsSettings] = useState(false);
@@ -181,8 +182,14 @@ const BottomNavigation = ({ activeKey }) => {
       key: "Music",
       icon: MusicIcon,
       handlePress: async () => {
-        if (!isAudioFeatureOn) {
+        if (!isAudioFeatureOn && !isAutoScroll) {
           return;
+        }
+
+        if (isAutoScroll) {
+          dispatch(actions.toggleAutoScroll(false));
+          dispatch(actions.toggleAudioFeatureEnabled(true));
+          showInfoToast(STRINGS.AUDIO_DISABLES_AUTO_SCROLL || "AutoScroll has been disabled");
         }
 
         const isConnected = await checkInternetConnection();
@@ -219,7 +226,7 @@ const BottomNavigation = ({ activeKey }) => {
         dispatch(actions.toggleAudio(true));
       },
       text: STRINGS.MUSIC,
-      hidden: !isAudioFeatureOn,
+      hidden: !isAudioFeatureOn && !isAutoScroll,
     },
     {
       key: "Settings",

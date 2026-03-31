@@ -279,7 +279,7 @@ describe("BottomNavigation", () => {
   });
 
   test("hides Music tab when audio feature setting is disabled", () => {
-    setMockState({ isAudio: false, isAudioFeatureEnabled: false });
+    setMockState({ isAudio: false, isAudioFeatureEnabled: false, isAutoScroll: false });
     mockNavigation = createNavigation({ currentRoute: "Reader" });
     mockUseNavigation.mockReturnValue(mockNavigation);
 
@@ -289,5 +289,17 @@ describe("BottomNavigation", () => {
     expect(getByLabelText("bottomnav-Read")).toBeTruthy();
     expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
     expect(queryByLabelText("bottomnav-Music")).toBeNull();
+  });
+
+  test("shows Music tab even when audio feature is disabled IF auto-scroll is running", () => {
+    // Redux sets isAudioFeatureEnabled to false implicitly when isAutoScroll is true
+    setMockState({ isAudio: false, isAudioFeatureEnabled: false, isAutoScroll: true });
+    mockNavigation = createNavigation({ currentRoute: "Reader" });
+    mockUseNavigation.mockReturnValue(mockNavigation);
+
+    const { getByLabelText } = render(<BottomNavigation activeKey="Read" />);
+
+    // Music should NOT be null
+    expect(getByLabelText("bottomnav-Music")).toBeTruthy();
   });
 });

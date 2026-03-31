@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Modal, View, Pressable, Platform, StyleSheet, Dimensions } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "@react-native-community/blur";
 import { ListItem, Avatar, Divider, Icon } from "@rneui/themed";
 import { setTransliteration, toggleTransliteration } from "@common/actions";
@@ -16,6 +16,7 @@ const TransliterationComponent = () => {
   const styles = useThemedStyles(createStyles);
   const romanizedIcon = require("../../../images/romanizeicon.png");
   const [isVisible, setIsVisible] = useState(false);
+  const insets = useSafeAreaInsets();
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const isTransliteration = useSelector((state) => state.isTransliteration);
   const OFF_KEY = "OFF";
@@ -70,67 +71,62 @@ const TransliterationComponent = () => {
       </ListItem>
 
       {isVisible && (
-        <SafeAreaProvider>
-          <SafeAreaView>
-            <Modal
-              visible={isVisible}
-              animationType="fade"
-              transparent
-              supportedOrientations={[
-                "landscape",
-                "landscape-left",
-                "landscape-right",
-                "portrait",
-                "portrait-upside-down",
+        <Modal
+          visible={isVisible}
+          animationType="fade"
+          transparent
+          statusBarTranslucent
+          supportedOrientations={[
+            "landscape",
+            "landscape-left",
+            "landscape-right",
+            "portrait",
+            "portrait-upside-down",
+          ]}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsVisible(false)}>
+            <BlurView
+              reducedTransparencyFallbackColor={theme.staticColors.NIGHT_OPACITY_BLACK}
+              style={styles.blurViewStyle}
+              blurType="dark"
+              enabled
+            />
+            <View
+              style={[
+                Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper,
+                Platform.OS === "ios" &&
+                  (orientation === constant.LANDSCAPE ? styles.width_90 : styles.width_100),
               ]}
             >
-              <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsVisible(false)}>
-                <BlurView
-                  reducedTransparencyFallbackColor={theme.staticColors.NIGHT_OPACITY_BLACK}
-                  style={styles.blurViewStyle}
-                  blurType="dark"
-                  enabled
-                />
-                <View
-                  style={[
-                    Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper,
-                    Platform.OS === "ios" &&
-                      (orientation === constant.LANDSCAPE ? styles.width_90 : styles.width_100),
-                  ]}
+              <CustomText
+                style={[
+                  styles.bottomSheetTitle,
+                  styles.listItemTitle,
+                  styles.containerNightStyles,
+                ]}
+              >
+                {STRINGS.transliteration}
+              </CustomText>
+              <Divider />
+              {TRANSLITERATION_LANGUAGES.map((item) => (
+                <ListItem
+                  key={item.key}
+                  bottomDivider
+                  containerStyle={styles.containerNightStyles}
+                  onPress={() => handleSelection(item.key)}
                 >
-                  <CustomText
-                    style={[
-                      styles.bottomSheetTitle,
-                      styles.listItemTitle,
-                      styles.containerNightStyles,
-                    ]}
-                  >
-                    {STRINGS.transliteration}
-                  </CustomText>
-                  <Divider />
-                  {TRANSLITERATION_LANGUAGES.map((item) => (
-                    <ListItem
-                      key={item.key}
-                      bottomDivider
-                      containerStyle={styles.containerNightStyles}
-                      onPress={() => handleSelection(item.key)}
-                    >
-                      <ListItem.Content>
-                        <ListItemTitle title={item.title} style={styles.listItemTitle} />
-                      </ListItem.Content>
-                      {selectedKey === item.key && (
-                        <Icon color={theme.colors.primaryText} name="check" />
-                      )}
-                    </ListItem>
-                  ))}
-                  {Platform.OS === "ios" && (
-                    <ListItem bottomDivider containerStyle={styles.containerNightStyles} />
+                  <ListItem.Content>
+                    <ListItemTitle title={item.title} style={styles.listItemTitle} />
+                  </ListItem.Content>
+                  {selectedKey === item.key && (
+                    <Icon color={theme.colors.primaryText} name="check" />
                   )}
-                </View>
-              </Pressable>
-            </Modal>
-          </SafeAreaView>
-        </SafeAreaProvider>
+                </ListItem>
+              ))}
+              <View style={[styles.containerNightStyles, { paddingBottom: insets.bottom }]} />
+            </View>
+          </Pressable>
+        </Modal>
       )}
     </>
   );

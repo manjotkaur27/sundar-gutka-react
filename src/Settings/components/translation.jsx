@@ -10,7 +10,7 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { STRINGS, ListItemTitle, CustomText, constant } from "@common";
 import { Modal, View, Pressable, Platform, StyleSheet, Dimensions } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "@react-native-community/blur";
 import createStyles from "../styles";
 
@@ -24,6 +24,7 @@ const TranslationComponent = () => {
 
   const dispatch = useDispatch();
   const [isVisible, setIsVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Orientation-aware width — mirrors BottomSheetComponent logic
   const { width, height } = Dimensions.get("window");
@@ -89,77 +90,72 @@ const TranslationComponent = () => {
       </ListItem>
 
       {isVisible && (
-        <SafeAreaProvider>
-          <SafeAreaView>
-            <Modal
-              visible={isVisible}
-              animationType="fade"
-              transparent
-              supportedOrientations={[
-                "landscape",
-                "landscape-left",
-                "landscape-right",
-                "portrait",
-                "portrait-upside-down",
+        <Modal
+          visible={isVisible}
+          animationType="fade"
+          transparent
+          statusBarTranslucent
+          supportedOrientations={[
+            "landscape",
+            "landscape-left",
+            "landscape-right",
+            "portrait",
+            "portrait-upside-down",
+          ]}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsVisible(false)}>
+            <BlurView
+              reducedTransparencyFallbackColor={theme.staticColors.NIGHT_OPACITY_BLACK}
+              style={styles.blurViewStyle}
+              blurType="dark"
+              enabled
+            />
+            <View
+              style={[
+                Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper,
+                Platform.OS === "ios" &&
+                  (orientation === constant.LANDSCAPE ? styles.width_90 : styles.width_100),
               ]}
             >
-              <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsVisible(false)}>
-                <BlurView
-                  reducedTransparencyFallbackColor={theme.staticColors.NIGHT_OPACITY_BLACK}
-                  style={styles.blurViewStyle}
-                  blurType="dark"
-                  enabled
-                />
-                <View
-                  style={[
-                    Platform.OS === "ios" ? styles.viewWrapper : styles.androidViewWrapper,
-                    Platform.OS === "ios" &&
-                      (orientation === constant.LANDSCAPE ? styles.width_90 : styles.width_100),
-                  ]}
+              <CustomText
+                style={[
+                  styles.bottomSheetTitle,
+                  styles.listItemTitle,
+                  styles.containerNightStyles,
+                ]}
+              >
+                {STRINGS.translations}
+              </CustomText>
+              <Divider />
+              {/* Off option — turns all translations off */}
+              <ListItem
+                key="off"
+                bottomDivider
+                containerStyle={styles.containerNightStyles}
+                onPress={handleTurnAllOff}
+              >
+                <ListItem.Content>
+                  <ListItemTitle title={STRINGS.off || "Off"} style={styles.listItemTitle} />
+                </ListItem.Content>
+                {isAllOff && <Icon color={theme.colors.primaryText} name="check" />}
+              </ListItem>
+              {translationOptions.map((item) => (
+                <ListItem
+                  key={item.key}
+                  bottomDivider
+                  containerStyle={styles.containerNightStyles}
+                  onPress={() => dispatch(item.action(!item.value))}
                 >
-                  <CustomText
-                    style={[
-                      styles.bottomSheetTitle,
-                      styles.listItemTitle,
-                      styles.containerNightStyles,
-                    ]}
-                  >
-                    {STRINGS.translations}
-                  </CustomText>
-                  <Divider />
-                  {/* Off option — turns all translations off */}
-                  <ListItem
-                    key="off"
-                    bottomDivider
-                    containerStyle={styles.containerNightStyles}
-                    onPress={handleTurnAllOff}
-                  >
-                    <ListItem.Content>
-                      <ListItemTitle title={STRINGS.off || "Off"} style={styles.listItemTitle} />
-                    </ListItem.Content>
-                    {isAllOff && <Icon color={theme.colors.primaryText} name="check" />}
-                  </ListItem>
-                  {translationOptions.map((item) => (
-                    <ListItem
-                      key={item.key}
-                      bottomDivider
-                      containerStyle={styles.containerNightStyles}
-                      onPress={() => dispatch(item.action(!item.value))}
-                    >
-                      <ListItem.Content>
-                        <ListItemTitle title={item.title} style={styles.listItemTitle} />
-                      </ListItem.Content>
-                      {item.value && <Icon color={theme.colors.primaryText} name="check" />}
-                    </ListItem>
-                  ))}
-                  {Platform.OS === "ios" && (
-                    <ListItem bottomDivider containerStyle={styles.containerNightStyles} />
-                  )}
-                </View>
-              </Pressable>
-            </Modal>
-          </SafeAreaView>
-        </SafeAreaProvider>
+                  <ListItem.Content>
+                    <ListItemTitle title={item.title} style={styles.listItemTitle} />
+                  </ListItem.Content>
+                  {item.value && <Icon color={theme.colors.primaryText} name="check" />}
+                </ListItem>
+              ))}
+              <View style={[styles.containerNightStyles, { paddingBottom: insets.bottom }]} />
+            </View>
+          </Pressable>
+        </Modal>
       )}
     </>
   );
