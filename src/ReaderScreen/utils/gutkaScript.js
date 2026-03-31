@@ -63,7 +63,7 @@ const scrollFunc=(e)=> {
     }
   }
 
-  // ── Scroll progress bar — direct DOM update (60fps, no bridge) ──────────
+  // ── Scroll progress — bridge message on every scroll tick ───────────
   var sh = document.documentElement.scrollHeight;
   var ch = window.innerHeight;
   var maxScroll = sh - ch;
@@ -71,8 +71,7 @@ const scrollFunc=(e)=> {
     var pct = (window.scrollY || window.pageYOffset) / maxScroll;
     if (pct < 0) pct = 0;
     if (pct > 1) pct = 1;
-    var fill = document.getElementById("scroll-progress-fill");
-    if (fill) fill.style.transform = "scaleX(" + pct + ")";
+    window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
   }
 
   

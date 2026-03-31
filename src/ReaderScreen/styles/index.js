@@ -140,7 +140,7 @@ const createStyles = (theme) => ({
     paddingHorizontal: 16,
   },
   scrollProgressTrack: {
-    height: 3,
+    height: 5,
     width: "100%",
     backgroundColor: theme.mode === "dark"
       ? "rgba(255, 255, 255, 0.12)"

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { ActivityIndicator, AppState, Platform, View } from "react-native";
+import { ActivityIndicator, AppState, Platform, View, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
@@ -57,6 +57,9 @@ const Reader = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
   const { bottom: insetBottom } = useSafeAreaInsets();
+
+  // Animated progress value — driven by ref to avoid re-renders on every scroll tick
+  const scrollProgressAnim = useRef(new Animated.Value(0)).current;
 
 
 
@@ -210,6 +213,11 @@ const Reader = ({ navigation, route }) => {
       } else if (data.includes("sequenceString-")) {
         const sequenceStringData = data.split("-")[1];
         dispatch(actions.setBookmarkSequenceString(sequenceStringData));
+      } else if (data.startsWith("scroll-progress-")) {
+        const pct = parseFloat(data.split("scroll-progress-")[1]);
+        if (Number.isFinite(pct)) {
+          scrollProgressAnim.setValue(pct);
+        }
       }
     },
     [dispatch, id, navigation, shouldNavigateBack]
@@ -300,6 +308,22 @@ const Reader = ({ navigation, route }) => {
         </View>
       )}
 
+
+      {/* Native scroll progress bar — fixed above BottomNavigation */}
+      <View style={styles.scrollProgressTrack}>
+        <Animated.View
+          style={[
+            styles.scrollProgressFill,
+            {
+              width: scrollProgressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+                extrapolate: "clamp",
+              }),
+            },
+          ]}
+        />
+      </View>
 
       <BottomNavigation activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"} />
     </SafeArea>

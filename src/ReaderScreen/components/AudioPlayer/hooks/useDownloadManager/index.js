@@ -28,7 +28,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
     return false;
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (cancelledRef) => {
     if (!currentPlaying?.audioUrl || downloadingRef.current) {
       return;
     }
@@ -36,13 +36,20 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
     try {
       const downloaded = checkDownloadStatus();
       if (downloaded) {
+        setIsDownloaded(true);
         return;
       }
 
       downloadingRef.current = true;
       setIsDownloading(true);
       const result = await downloadTrack(currentPlaying.audioUrl, currentPlaying.displayName);
-      if (!result.audioRelativePath) {
+
+      // If the track changed while we were downloading, discard stale state updates.
+      if (cancelledRef?.current) {
+        return;
+      }
+
+      if (!result || !result.audioRelativePath) {
         return;
       }
       setIsDownloaded(true);
@@ -51,16 +58,26 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
       logError("Download error:", error);
     } finally {
       downloadingRef.current = false;
-      setIsDownloading(false);
+      if (!cancelledRef?.current) {
+        setIsDownloading(false);
+      }
     }
   };
 
   useEffect(() => {
+    // Reset state whenever the track changes so the badge doesn't leak
+    // from a previous track's lifecycle into the next one.
+    setIsDownloading(false);
+    setIsDownloaded(false);
+    downloadingRef.current = false;
+
+    const cancelledRef = { current: false };
+
     const autoDownload = async () => {
       const isDownloadedStatus = checkDownloadStatus();
 
       if (currentPlaying?.audioUrl && !isDownloadedStatus) {
-        await handleDownload();
+        await handleDownload(cancelledRef);
       } else {
         setIsDownloaded(true);
       }
@@ -69,6 +86,12 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
     if (currentPlaying?.audioUrl) {
       autoDownload();
     }
+
+    return () => {
+      // Mark this effect cycle as stale so in-flight downloads don't update
+      // state after the track has already changed.
+      cancelledRef.current = true;
+    };
   }, [currentPlaying?.audioUrl]);
 
   return {
