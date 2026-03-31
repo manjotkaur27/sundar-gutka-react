@@ -114,6 +114,9 @@ jest.mock("@common", () => {
       MAAFI_JI: "Maafi ji 🙏🏽",
       YET: "yet.",
     },
+    constant: {
+      ICON_SIZE_SMALL: 18,
+    },
     CustomText: ({ children, ...props }) => (
       <Text accessibilityRole="text" {...props}>
         {children}

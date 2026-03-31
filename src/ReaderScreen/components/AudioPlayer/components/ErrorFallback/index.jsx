@@ -3,7 +3,7 @@ import { View, Pressable } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
-import { useTheme, useThemedStyles, CustomText, STRINGS } from "@common";
+import { useTheme, useThemedStyles, CustomText, STRINGS, constant } from "@common";
 import createStyles from "./styles";
 
 const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle }) => {
@@ -41,7 +41,7 @@ const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle 
         >
           <View style={styles.joinMailingListContent}>
             <CustomText style={styles.joinMailingListText}>{buttonText}</CustomText>
-            <ArrowRightIcon size={18} color={theme.colors.primary} />
+            <ArrowRightIcon size={constant.ICON_SIZE_SMALL} color={theme.colors.primary} />
           </View>
         </Pressable>
       </View>

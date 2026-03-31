@@ -11,7 +11,7 @@ import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
 import { CustomText, actions, constant, STRINGS, showErrorToast, showInfoToast } from "@common";
 import createStyles from "./style";
 
-const INTERNET_CHECK_URL = "https://www.gstatic.com/generate_204";
+const { INTERNET_CHECK_URL } = constant;
 
 const BottomNavigation = ({ activeKey }) => {
   const navigation = useNavigation();
