@@ -15,36 +15,16 @@ import {
 } from "@common";
 import createStyles from "../styles";
 
-const SPEED_PRESETS = [
-  { label: "0.25x", value: 8 },
-  { label: "0.5x", value: 15 },
-  { label: "1x", value: 30 },
-  { label: "1.5x", value: 50 },
-  { label: "2x", value: 70 },
-];
+import { Slider } from "@miblanchard/react-native-slider";
 
 const AutoScrollComponent = ({ shabadID, webViewRef }) => {
   const { theme } = useTheme();
   const isFocused = useIsFocused();
   const [isPaused, togglePaused] = useState(true);
   const autoScrollSpeedObj = useSelector((state) => state.autoScrollSpeedObj);
-  const savedSpeed = autoScrollSpeedObj[shabadID] || constant.DEFAULT_SPEED;
+  const savedSpeed = autoScrollSpeedObj[shabadID] || 30;
 
-  // Find closest preset to saved speed
-  const getPresetIndex = (speed) => {
-    let closest = 0;
-    let minDiff = Math.abs(SPEED_PRESETS[0].value - speed);
-    for (let i = 1; i < SPEED_PRESETS.length; i++) {
-      const diff = Math.abs(SPEED_PRESETS[i].value - speed);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = i;
-      }
-    }
-    return closest;
-  };
-
-  const [selectedPreset, setSelectedPreset] = useState(getPresetIndex(savedSpeed));
+  const [sliderValue, setSliderValue] = useState(savedSpeed);
   const dispatch = useDispatch();
   const styles = useThemedStyles(createStyles);
 
@@ -52,7 +32,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
   useEffect(() => {
     // If screen not focused or manually paused, send stop signal
     const shouldScroll = isFocused && !isPaused;
-    const speed = shouldScroll ? SPEED_PRESETS[selectedPreset].value : 0;
+    const speed = shouldScroll ? sliderValue : 0;
     const autoScrollObj = {
       autoScroll: speed,
       scrollMultiplier: 1.0,
@@ -66,13 +46,13 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPaused, selectedPreset, isFocused]);
+  }, [isPaused, sliderValue, isFocused]);
 
-  const handleSpeedSelect = useCallback(
-    (index) => {
-      setSelectedPreset(index);
-      dispatch(actions.setAutoScrollSpeed(SPEED_PRESETS[index].value, shabadID));
-      trackReaderEvent("autoScrollSpeed", SPEED_PRESETS[index].value);
+  const handleSlidingComplete = useCallback(
+    (valueArr) => {
+      const val = Math.floor(valueArr[0]);
+      dispatch(actions.setAutoScrollSpeed(val, shabadID));
+      trackReaderEvent("autoScrollSpeed", val);
     },
     [dispatch, shabadID]
   );
@@ -117,44 +97,42 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
         </Pressable>
 
         {/* Divider */}
-        <View style={[localStyles.divider, { backgroundColor: pillBorder }]} />
+        <View style={[localStyles.divider, { backgroundColor: pillBorder, marginRight: 16 }]} />
 
-        {/* Speed preset buttons */}
-        <View style={localStyles.presetsContainer}>
-          {SPEED_PRESETS.map((preset, index) => {
-            const isSelected = index === selectedPreset;
-            return (
-              <Pressable
-                key={preset.label}
-                onPress={() => handleSpeedSelect(index)}
-                style={({ pressed }) => [
-                  localStyles.presetButton,
-                  {
-                    backgroundColor: isSelected
-                      ? pillSelectedBg
-                      : pressed
-                      ? "rgba(255, 255, 255, 0.08)"
-                      : "transparent",
-                    borderColor: isSelected ? pillSelectedBorder : pillBorder,
-                  },
-                ]}
-                accessibilityLabel={`Speed ${preset.label}`}
-              >
-                <CustomText
-                  style={[
-                    localStyles.presetLabel,
-                    {
-                      color: textColor,
-                      fontWeight: isSelected ? "700" : "400",
-                      opacity: isSelected ? 1 : 0.65,
-                    },
-                  ]}
-                >
-                  {preset.label}
-                </CustomText>
-              </Pressable>
-            );
-          })}
+        {/* Slider Controls with 0-100 Bounds & Current Value */}
+        <View style={localStyles.sliderContainer}>
+          <CustomText style={[localStyles.rangeLabel, { color: textColor }]}>
+            0
+          </CustomText>
+          
+          <View style={localStyles.sliderWrapper}>
+            <Slider
+              value={sliderValue}
+              minimumValue={0}
+              maximumValue={100}
+              step={1}
+              onValueChange={(val) => setSliderValue(Math.floor(val[0]))}
+              onSlidingComplete={handleSlidingComplete}
+              thumbStyle={localStyles.sliderThumb}
+              trackStyle={localStyles.sliderTrack}
+              minimumTrackTintColor={textColor}
+              maximumTrackTintColor="rgba(255, 255, 255, 0.3)"
+            />
+          </View>
+
+          <CustomText style={[localStyles.rangeLabel, { color: textColor }]}>
+            100
+          </CustomText>
+
+          {/* Divider */}
+          <View style={[localStyles.divider, { backgroundColor: pillBorder, marginHorizontal: 12 }]} />
+          
+          {/* Current Value Preview */}
+          <View style={localStyles.currentValueBox}>
+            <CustomText style={[localStyles.currentValueText, { color: textColor }]}>
+              {sliderValue}
+            </CustomText>
+          </View>
         </View>
       </View>
     </View>
@@ -195,25 +173,44 @@ const localStyles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 1,
   },
-  presetsContainer: {
+  sliderContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-evenly",
-    gap: 6,
   },
-  presetButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    minWidth: 42,
+  sliderWrapper: {
+    flex: 1,
+    marginHorizontal: 10,
+    justifyContent: "center",
+  },
+  sliderTrack: {
+    height: 4,
+    borderRadius: 2,
+  },
+  sliderThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  rangeLabel: {
+    fontSize: 11,
+    opacity: 0.7,
+    fontWeight: "600",
+  },
+  currentValueBox: {
+    minWidth: 28,
     alignItems: "center",
+    justifyContent: "center",
   },
-  presetLabel: {
-    fontSize: 12.5,
-    textAlign: "center",
-    letterSpacing: 0.3,
+  currentValueText: {
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
 

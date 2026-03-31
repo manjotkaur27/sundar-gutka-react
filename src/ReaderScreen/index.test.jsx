@@ -586,6 +586,11 @@ describe("Reader", () => {
     mockState.isAutoScroll = true;
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
+    const webview = getByTestId("webview");
+    act(() => {
+      webview.props.onTouchStart();
+    });
+
     expect(getByTestId("auto-scroll-component")).toBeTruthy();
   });
 

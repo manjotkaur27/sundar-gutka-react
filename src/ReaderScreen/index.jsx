@@ -295,7 +295,7 @@ const Reader = ({ navigation, route }) => {
       />
       {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
       {isAutoScroll && (
-        <View style={[styles.autoScrollFixedView, { bottom: styles.autoScrollFixedView.bottom + insetBottom }]}>
+        <View style={[styles.autoScrollFixedView, { bottom: styles.autoScrollFixedView.bottom + insetBottom, display: isHeader ? "flex" : "none" }]}>
           <AutoScrollComponent shabadID={id} webViewRef={webViewRef} />
         </View>
       )}

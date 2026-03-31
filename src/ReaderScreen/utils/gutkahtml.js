@@ -98,7 +98,7 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       bottom: 0;
       left: 0;
       right: 0;
-      height: 8px;
+      height: 5px;
       background: ${theme.mode === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.10)"};
       z-index: 9999;
       pointer-events: none;
