@@ -6,6 +6,8 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
   const SEEK_PROGRESS_SETTLE_MS = 1800;
   const SEEK_PROGRESS_TOLERANCE_SEC = 1.25;
   const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
+  const isAudioSyncScrollRef = useRef(isAudioSyncScroll);
+  isAudioSyncScrollRef.current = isAudioSyncScroll;
   const isParagraphMode = useSelector((state) => state.isParagraphMode);
   const lastSequenceRef = useRef(null);
   const lastHandledSeekTokenRef = useRef(null);
@@ -86,7 +88,7 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
   const scrollToSequence = (sequence, timeOut, options = {}) => {
     const { force = false, behavior = "auto" } = options;
 
-    if (!webViewRef?.current?.postMessage || !sequence) {
+    if (!isAudioSyncScrollRef.current || !webViewRef?.current?.postMessage || !sequence) {
       return false;
     }
 

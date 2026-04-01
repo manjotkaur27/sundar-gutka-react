@@ -68,6 +68,7 @@ const AudioControlBar = ({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
+  const [isLyricsChecking, setIsLyricsChecking] = useState(true);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const progressRef = useRef(progress);
   const currentPlayingRef = useRef(currentPlaying);
@@ -289,12 +290,14 @@ const AudioControlBar = ({
 
   useEffect(() => {
     const checkLyrics = async () => {
+      setIsLyricsChecking(true);
       if (currentPlaying?.lyricsUrl) {
         const isAvailable = await checkLyricsFileAvailable(currentPlaying?.lyricsUrl);
         setIsLyricsAvailable(isAvailable);
       } else {
         setIsLyricsAvailable(false);
       }
+      setIsLyricsChecking(false);
     };
     checkLyrics();
   }, [currentPlaying?.lyricsUrl]);
@@ -450,7 +453,11 @@ const AudioControlBar = ({
           style={[styles.modalAnimation, { height: modalHeight, opacity: modalOpacity }]}
         >
           {isSettingsModalOpen && (
-            <AudioSettingsModal isLyricsAvailable={isLyricsAvailable} setRate={setRate} />
+            <AudioSettingsModal
+              isLyricsAvailable={isLyricsAvailable}
+              isLyricsChecking={isLyricsChecking}
+              setRate={setRate}
+            />
           )}
 
           {isMoreTracksModalOpen && (

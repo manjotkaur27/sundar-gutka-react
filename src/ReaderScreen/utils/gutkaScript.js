@@ -189,7 +189,8 @@ const setAutoScroll=()=> {
 
     if (!isManuallyScrolling) {
       // Compute from live autoScrollSpeed so speed changes take effect immediately
-      const pxPerSecond = autoScrollSpeed * 1.1 * scrollMultiplier;
+      // Speed reduced by 50% per user request (was 1.1, now 0.55)
+      const pxPerSecond = autoScrollSpeed * 0.55 * scrollMultiplier;
       const deltaMs = currentTime - lastFrameTime;
       // Cap delta to prevent huge jumps after tab switch
       const deltaSec = Math.min(deltaMs / 1000, 0.05);

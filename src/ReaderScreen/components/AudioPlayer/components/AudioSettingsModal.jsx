@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, ScrollView, Pressable } from "react-native";
+import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { Switch } from "@rneui/themed";
 import PropTypes from "prop-types";
@@ -10,7 +10,7 @@ import { PlusIcon, MinusIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioSettingModalStyles } from "../style";
 
-const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
+const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(audioSettingModalStyles);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
@@ -57,10 +57,12 @@ const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
             <View style={styles.modalContainer}>
               <CustomText style={styles.settingItemTitle}>{setting.title}</CustomText>
               <View style={styles.settingHelperTextContainer}>
-                {setting.disabled && !isLyricsAvailable ? (
+                {setting.disabled && !isLyricsAvailable && !isLyricsChecking ? (
                   <CustomText style={styles.settingHelperText}>
                     {STRINGS.SYNC_UNAVAILABLE}
                   </CustomText>
+                ) : setting.disabled && isLyricsChecking ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
                 ) : (
                   <Switch
                     value={setting.defaultValue}
@@ -111,6 +113,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
 
 AudioSettingsModal.propTypes = {
   isLyricsAvailable: PropTypes.bool.isRequired,
+  isLyricsChecking: PropTypes.bool,
   setRate: PropTypes.func.isRequired,
 };
 

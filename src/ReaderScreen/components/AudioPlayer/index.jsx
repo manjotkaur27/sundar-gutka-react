@@ -230,8 +230,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         const previousTrack = currentPlaying;
         const previousPosition = progress?.position;
 
-        // Stop current playback
+        // Stop current playback and reset queue so same-track reopening
+        // doesn't retain old timeline/state (critical for preview -> full play transition)
         await stop();
+        await reset();
 
         // Set the new track as current and close modal together
         setCurrentPlaying(selectedTrack);
