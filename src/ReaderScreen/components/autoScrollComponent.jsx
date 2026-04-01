@@ -21,6 +21,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
   const { theme } = useTheme();
   const isFocused = useIsFocused();
   const [isPaused, togglePaused] = useState(true);
+  const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const autoScrollSpeedObj = useSelector((state) => state.autoScrollSpeedObj);
   const savedSpeed = autoScrollSpeedObj[shabadID] || 30;
 
@@ -28,10 +29,23 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
   const dispatch = useDispatch();
   const styles = useThemedStyles(createStyles);
 
+  // Send a stop signal to the WebView to halt auto-scroll
+  const sendStopSignal = useCallback(() => {
+    if (webViewRef?.current?.postMessage) {
+      try {
+        webViewRef.current.postMessage(
+          JSON.stringify({ autoScroll: 0, scrollMultiplier: 1.0 })
+        );
+      } catch (error) {
+        logError("Error sending auto-scroll stop:", error);
+      }
+    }
+  }, [webViewRef]);
+
   // Send auto-scroll state to WebView — pauses when screen loses focus, resumes on return
   useEffect(() => {
-    // If screen not focused or manually paused, send stop signal
-    const shouldScroll = isFocused && !isPaused;
+    // If screen not focused, manually paused, or auto-scroll disabled, send stop signal
+    const shouldScroll = isFocused && !isPaused && isAutoScroll;
     const speed = shouldScroll ? sliderValue : 0;
     const autoScrollObj = {
       autoScroll: speed,
@@ -46,7 +60,15 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPaused, sliderValue, isFocused]);
+  }, [isPaused, sliderValue, isFocused, isAutoScroll]);
+
+  // Send stop signal on unmount so the WebView doesn't keep scrolling
+  // after the component is removed (e.g. when user switches to Audio mode)
+  useEffect(() => {
+    return () => {
+      sendStopSignal();
+    };
+  }, [sendStopSignal]);
 
   const handleSlidingComplete = useCallback(
     (valueArr) => {
@@ -66,9 +88,6 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
   }, []);
 
   const barBg = theme.colors.primary;
-  const pillSelectedBg = "rgba(255, 255, 255, 0.25)";
-  const pillBorder = "rgba(255, 255, 255, 0.2)";
-  const pillSelectedBorder = "rgba(255, 255, 255, 0.6)";
   const textColor = theme.staticColors.WHITE_COLOR;
 
   return (
@@ -77,63 +96,36 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
         {/* Play/Pause */}
         <Pressable
           onPress={isPaused ? handlePlay : handlePause}
-          style={({ pressed }) => [
-            localStyles.playPauseButton,
-            {
-              backgroundColor: pressed
-                ? "rgba(255, 255, 255, 0.15)"
-                : isPaused
-                ? "rgba(255, 255, 255, 0.08)"
-                : "rgba(255, 255, 255, 0.18)",
-            },
-          ]}
+          hitSlop={8}
           accessibilityLabel={isPaused ? "Play auto-scroll" : "Pause auto-scroll"}
         >
           <Icon
             name={isPaused ? "play-arrow" : "pause"}
             color={textColor}
-            size={24}
+            size={36}
           />
         </Pressable>
 
-        {/* Divider */}
-        <View style={[localStyles.divider, { backgroundColor: pillBorder, marginRight: 16 }]} />
-
-        {/* Slider Controls with 0-100 Bounds & Current Value */}
-        <View style={localStyles.sliderContainer}>
-          <CustomText style={[localStyles.rangeLabel, { color: textColor }]}>
-            0
-          </CustomText>
-          
-          <View style={localStyles.sliderWrapper}>
-            <Slider
-              value={sliderValue}
-              minimumValue={0}
-              maximumValue={100}
-              step={1}
-              onValueChange={(val) => setSliderValue(Math.floor(val[0]))}
-              onSlidingComplete={handleSlidingComplete}
-              thumbStyle={localStyles.sliderThumb}
-              trackStyle={localStyles.sliderTrack}
-              minimumTrackTintColor={textColor}
-              maximumTrackTintColor="rgba(255, 255, 255, 0.3)"
-            />
-          </View>
-
-          <CustomText style={[localStyles.rangeLabel, { color: textColor }]}>
-            100
-          </CustomText>
-
-          {/* Divider */}
-          <View style={[localStyles.divider, { backgroundColor: pillBorder, marginHorizontal: 12 }]} />
-          
-          {/* Current Value Preview */}
-          <View style={localStyles.currentValueBox}>
-            <CustomText style={[localStyles.currentValueText, { color: textColor }]}>
-              {sliderValue}
-            </CustomText>
-          </View>
+        {/* Slider */}
+        <View style={localStyles.sliderWrapper}>
+          <Slider
+            value={sliderValue}
+            minimumValue={0}
+            maximumValue={100}
+            step={1}
+            onValueChange={(val) => setSliderValue(Math.floor(val[0]))}
+            onSlidingComplete={handleSlidingComplete}
+            thumbStyle={localStyles.sliderThumb}
+            trackStyle={localStyles.sliderTrack}
+            minimumTrackTintColor={textColor}
+            maximumTrackTintColor="rgba(255, 255, 255, 0.3)"
+          />
         </View>
+
+        {/* Current Speed Value */}
+        <CustomText style={[localStyles.currentValueText, { color: textColor }]}>
+          {sliderValue}
+        </CustomText>
       </View>
     </View>
   );
@@ -143,9 +135,9 @@ const localStyles = StyleSheet.create({
   outerContainer: {
     width: "100%",
     maxWidth: 500,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -155,32 +147,11 @@ const localStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    height: 44,
-  },
-  playPauseButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  playPauseIcon: {
-    fontSize: 16,
-  },
-  divider: {
-    width: 1,
-    height: 24,
-    marginHorizontal: 10,
-    borderRadius: 1,
-  },
-  sliderContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    height: 48,
   },
   sliderWrapper: {
     flex: 1,
-    marginHorizontal: 10,
+    marginHorizontal: 16,
     justifyContent: "center",
   },
   sliderTrack: {
@@ -198,19 +169,11 @@ const localStyles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 4,
   },
-  rangeLabel: {
-    fontSize: 11,
-    opacity: 0.7,
-    fontWeight: "600",
-  },
-  currentValueBox: {
-    minWidth: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   currentValueText: {
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: "700",
+    minWidth: 36,
+    textAlign: "right",
   },
 });
 
