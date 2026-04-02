@@ -3,8 +3,10 @@ import { useSelector } from "react-redux";
 import fetchLRCData from "../../utils/fetchLRC";
 
 const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSyncRequest = null) => {
-  const SEEK_PROGRESS_SETTLE_MS = 1800;
-  const SEEK_PROGRESS_TOLERANCE_SEC = 1.25;
+  // Large remote-stream seeks can take 3-5 s for progress.position to reflect
+  // the new target. Guard must outlast the worst-case buffering delay.
+  const SEEK_PROGRESS_SETTLE_MS = 5000;
+  const SEEK_PROGRESS_TOLERANCE_SEC = 2.5;
   const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
   const isAudioSyncScrollRef = useRef(isAudioSyncScroll);
   isAudioSyncScrollRef.current = isAudioSyncScroll;
@@ -165,15 +167,34 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
         Math.abs(progress.position - targetPosition) <= SEEK_PROGRESS_TOLERANCE_SEC;
 
       if (!isGuardExpired && !isNearSeekTarget) {
+        // Still waiting for progress to converge — skip this stale tick.
         return;
       }
 
+      // Guard is lifting. Deactivate it first.
       seekGuardRef.current = {
         active: false,
         targetPosition: null,
         targetSequence: null,
         expiresAt: 0,
       };
+
+      // When the guard expires by clock timeout (position never converged to the
+      // seek target — common on slow remote streams), force-scroll to wherever
+      // progress has settled right now rather than waiting for the next tick.
+      if (isGuardExpired && !isNearSeekTarget) {
+        const syncResult = findCurrentSequence(progress.position);
+        if (syncResult?.currentSequence && syncResult.currentSequence !== lastSequenceRef.current) {
+          const didScroll = scrollToSequence(syncResult.currentSequence, syncResult.timeOut, {
+            force: true,
+            behavior: "auto",
+          });
+          if (didScroll) {
+            lastSequenceRef.current = syncResult.currentSequence;
+          }
+        }
+        return;
+      }
     }
 
     const { currentSequence, timeOut } = findCurrentSequence(progress.position);
