@@ -43,8 +43,6 @@ const AutoScroll = () => {
               // Best effort cleanup
             }
           } else {
-            // See-saw: turning AutoScroll OFF → Audio Player automatically ON
-            dispatch(toggleAudioFeatureEnabled(true));
             dispatch(toggleScreenAwake(false));
           }
           dispatch(toggleAutoScroll(value));

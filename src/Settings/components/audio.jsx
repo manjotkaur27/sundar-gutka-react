@@ -75,9 +75,6 @@ const Audio = () => {
               await stopTrack();
               await resetPlayer();
               dispatch(toggleAudio(false));
-              // See-saw: turning Audio OFF → AutoScroll automatically ON
-              dispatch(toggleAutoScroll(true));
-              dispatch(toggleScreenAwake(true));
             }
             dispatch(setting.action(value));
           }}

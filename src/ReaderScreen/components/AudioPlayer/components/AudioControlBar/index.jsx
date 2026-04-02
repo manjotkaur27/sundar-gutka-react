@@ -450,7 +450,7 @@ const AudioControlBar = ({
         {/* Separator */}
         <View style={styles.separator} />
         <Animated.View
-          style={[styles.modalAnimation, { height: modalHeight, opacity: modalOpacity }]}
+          style={[styles.modalAnimation, { maxHeight: modalHeight, opacity: modalOpacity }]}
         >
           {isSettingsModalOpen && (
             <AudioSettingsModal

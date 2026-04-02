@@ -23,7 +23,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
   const [isPaused, togglePaused] = useState(true);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const autoScrollSpeedObj = useSelector((state) => state.autoScrollSpeedObj);
-  const savedSpeed = autoScrollSpeedObj[shabadID] || 30;
+  const savedSpeed = autoScrollSpeedObj[shabadID] || constant.DEFAULT_SPEED;
 
   const [sliderValue, setSliderValue] = useState(savedSpeed);
   const dispatch = useDispatch();
@@ -34,7 +34,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
     if (webViewRef?.current?.postMessage) {
       try {
         webViewRef.current.postMessage(
-          JSON.stringify({ autoScroll: 0, scrollMultiplier: 1.0 })
+          JSON.stringify({ autoScroll: 0, scrollMultiplier: 1.5 })
         );
       } catch (error) {
         logError("Error sending auto-scroll stop:", error);
@@ -49,7 +49,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
     const speed = shouldScroll ? sliderValue : 0;
     const autoScrollObj = {
       autoScroll: speed,
-      scrollMultiplier: 1.0,
+      scrollMultiplier: 1.25,
     };
 
     if (webViewRef?.current?.postMessage) {
@@ -102,7 +102,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
           <Icon
             name={isPaused ? "play-arrow" : "pause"}
             color={textColor}
-            size={36}
+            size={24}
           />
         </Pressable>
 
@@ -110,7 +110,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
         <View style={localStyles.sliderWrapper}>
           <Slider
             value={sliderValue}
-            minimumValue={0}
+            minimumValue={1}
             maximumValue={100}
             step={1}
             onValueChange={(val) => setSliderValue(Math.floor(val[0]))}
@@ -155,13 +155,13 @@ const localStyles = StyleSheet.create({
     justifyContent: "center",
   },
   sliderTrack: {
-    height: 4,
-    borderRadius: 2,
+    height: 2,
+    borderRadius: 1,
   },
   sliderThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: "#fff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -170,8 +170,8 @@ const localStyles = StyleSheet.create({
     elevation: 4,
   },
   currentValueText: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "normal",
     minWidth: 36,
     textAlign: "right",
   },
