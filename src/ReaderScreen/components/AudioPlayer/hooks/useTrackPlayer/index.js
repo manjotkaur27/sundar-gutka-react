@@ -26,7 +26,7 @@ const useTrackPlayer = () => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initializationError, setInitializationError] = useState(null);
   const playbackState = usePlaybackState();
-  const progress = useProgress(250);
+  const progress = useProgress(100);
   const [isPlaying, setIsPlaying] = useState(false);
   const isAudio = useSelector((state) => state.isAudio);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
@@ -36,6 +36,11 @@ const useTrackPlayer = () => {
   const prefetchInFlightRef = useRef(new Map());
   const seekInFlightRef = useRef(false);
   const pendingSeekRef = useRef(null);
+  // When addAndPlayTrack is called by handleTrackSelect, this ref is set to
+  // true so that AudioControlBar's loadActiveTrack effect skips re-loading
+  // the same track (avoiding the destructive reset→add→reset→add race that
+  // kills mid-buffer M4A moov parsing).
+  const skipNextLoadRef = useRef(false);
   // Tracks whether the user had an active play session before a buffer stall.
   // Used by the auto-resume logic to distinguish a mid-play stall from an
   // intentional pause/stop.
@@ -79,16 +84,24 @@ const useTrackPlayer = () => {
   }, [playbackState, isInitialized]);
 
   // Track play/stop transitions so the auto-resume knows when a stall is
-  // mid-playback vs. an intentional pause.
+  // mid-playback vs. an intentional pause. We use a timestamp to prevent
+  // stale native bridge events from overwriting the user's intent.
+  const explicitPlayTriggeredAtRef = useRef(0);
+
   useEffect(() => {
     if (playbackState?.state === State.Playing) {
       wasPlayingBeforeBufferRef.current = true;
+    } else if (playbackState?.state === State.Paused) {
+      wasPlayingBeforeBufferRef.current = false;
     } else if (
-      playbackState?.state === State.Paused ||
       playbackState?.state === State.Stopped ||
       playbackState?.state === State.None
     ) {
-      wasPlayingBeforeBufferRef.current = false;
+      // If play() was explicitly called within the last 2000ms, ignore this
+      // stale Stop/None event coming from the pre-play reset() command!
+      if (Date.now() - explicitPlayTriggeredAtRef.current > 2000) {
+        wasPlayingBeforeBufferRef.current = false;
+      }
     }
   }, [playbackState?.state]);
 
@@ -103,9 +116,12 @@ const useTrackPlayer = () => {
     TrackPlayer.play().catch(() => {});
   }, [isInitialized, isAudio, isAudioFeatureOn, playbackState?.state]);
 
-  // Hard-fallback watchdog: if the player stays in State.Buffering for 2.5s
+  // Hard-fallback watchdog: if the player stays in State.Buffering for 5s
   // without transitioning to State.Ready, kick it anyway. Covers edge cases
   // where the state machine doesn't emit Ready (can happen on some Android OEMs).
+  // NOTE: 5000ms (not 500ms) because M4A containers require multi-second moov
+  // atom parsing before ExoPlayer can begin buffering audio data. A 500ms
+  // watchdog fires during initial load and interferes with the state machine.
   useEffect(() => {
     if (!isInitialized || !isAudio || !isAudioFeatureOn) return;
     if (playbackState?.state !== State.Buffering) return;
@@ -113,7 +129,7 @@ const useTrackPlayer = () => {
 
     const timer = setTimeout(() => {
       TrackPlayer.play().catch(() => {});
-    }, 500);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [isInitialized, isAudio, isAudioFeatureOn, playbackState?.state]);
@@ -184,6 +200,11 @@ const useTrackPlayer = () => {
       return;
     }
     try {
+      explicitPlayTriggeredAtRef.current = Date.now();
+      // Record user intent instantly. This ensures that when the stream completes
+      // its initial buffering and transitions to State.Ready, our auto-resume
+      // logic guarantees it kicks into State.Playing instead of stalling.
+      wasPlayingBeforeBufferRef.current = true;
       await playTrack();
     } catch (error) {
       logError("Error playing track:", error);
@@ -393,16 +414,29 @@ const useTrackPlayer = () => {
         }
       }
 
+      // ── URL resolution: local cache → prefetch cache → stream ──────────
+      // M4A files have faststart (moov atom at front), so HTTP streaming
+      // works with a single request — no range-request negotiation needed.
+      // Local playback is still preferred (instant seek, zero network).
       if (!isLocalFile(playbackUrl)) {
         const prefetchPath = getFullPrefetchTrackPath(playbackUrl);
-        const hasPrefetchedAudio = await exists(prefetchPath);
-        if (hasPrefetchedAudio) {
+        let hasCachedCopy = false;
+
+        try {
+          hasCachedCopy = await exists(prefetchPath);
+        } catch (_) {
+          hasCachedCopy = false;
+        }
+
+        if (hasCachedCopy) {
           playbackUrl = prefetchPath;
-          // Refresh LRU stamp when reusing a cached track.
-          await touchPrefetchTrack(url);
-          await prunePrefetchCache(5);
+          await touchPrefetchTrack(url).catch(() => {});
+          await prunePrefetchCache(5).catch(() => {});
         }
       }
+
+      // Determine MIME type so ExoPlayer skips format sniffing.
+      const isM4A = /\.m4a(\?|$)/i.test(playbackUrl) || /\.m4a(\?|$)/i.test(url);
 
       const track = {
         id,
@@ -413,9 +447,14 @@ const useTrackPlayer = () => {
         duration: trackLengthSec, // RNTP reads 'duration' — enables instant slider + seek
         lyricsUrl,
         trackSizeMB,
+        ...(isM4A ? { contentType: "audio/mp4" } : {}),
       };
 
       currentTrackIdRef.current = id;
+
+      // Signal that this addAndPlayTrack invocation is loading the track,
+      // so AudioControlBar's loadActiveTrack effect should NOT re-trigger.
+      skipNextLoadRef.current = true;
 
       await reset();
       await addTrack(track);
@@ -424,14 +463,19 @@ const useTrackPlayer = () => {
         await play();
       }
 
-      // Prefetch the full audio file in background to enable instant local seeks.
-      // Delayed by 8s to let the stream buffer stabilize before competing for
-      // bandwidth — prevents the muting issue seen with immediate prefetch.
+      // ── Background prefetch (non-blocking) ──────────────────────────────
+      // Start downloading immediately so the local copy is ready by the time
+      // the user presses "Next" (preview → full player) or seeks.
+      // With faststart M4A, streaming and downloading use separate HTTP
+      // connections — no bandwidth starvation because the stream only needs
+      // a tiny initial burst to fill the 1s playback buffer, then trickles.
       if (!isLocalFile(playbackUrl)) {
-        const prefetchTrack = { ...track, url: playbackUrl };
-        setTimeout(() => {
-          prefetchForSeek(prefetchTrack);
-        }, 8000);
+        prefetchForSeek({
+          id,
+          url: playbackUrl,
+          title,
+          artist,
+        });
       }
     } catch (error) {
       logError("Error adding and playing track:", error);
@@ -468,6 +512,7 @@ const useTrackPlayer = () => {
     isInitializing,
     initializationError,
     retryInitialization,
+    skipNextLoadRef,
   };
 };
 

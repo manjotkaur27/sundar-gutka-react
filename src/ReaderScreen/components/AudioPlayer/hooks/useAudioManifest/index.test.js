@@ -61,7 +61,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 1,
             artist_id: 4,
-            track_url: "https://example.com/track1.mp3",
+            track_url: "https://example.com/track1.m4a",
             artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
@@ -69,7 +69,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 2,
             artist_id: 8,
-            track_url: "https://example.com/track2.mp3",
+            track_url: "https://example.com/track2.m4a",
             artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
@@ -102,7 +102,7 @@ describe("useAudioManifest", () => {
         id: 1,
         track_id: 1,
         artistID: 4,
-        audioUrl: "https://example.com/track1.mp3",
+        audioUrl: "https://example.com/track1.m4a",
         displayName: "Jarnail Singh",
         trackLengthSec: 300,
         trackSizeMB: 5.2,
@@ -113,7 +113,7 @@ describe("useAudioManifest", () => {
         id: 2,
         track_id: 2,
         artistID: 8,
-        audioUrl: "https://example.com/track2.mp3",
+        audioUrl: "https://example.com/track2.m4a",
         displayName: "Indermohan Kaur UK",
         trackLengthSec: 250,
         trackSizeMB: 4.8,
@@ -183,7 +183,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 1,
             artist_id: 4,
-            track_url: "https://example.com/track1.mp3",
+            track_url: "https://example.com/track1.m4a",
             artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
@@ -196,7 +196,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 4,
-          audioUrl: "track1.mp3",
+          audioUrl: "track1.m4a",
           displayName: "Jarnail Singh",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -225,7 +225,7 @@ describe("useAudioManifest", () => {
         expect(hookResult?.tracks).toHaveLength(1);
       });
 
-      expect(hookResult.tracks[0].audioUrl).toBe("/mock/document/path/audio/track1.mp3");
+      expect(hookResult.tracks[0].audioUrl).toBe("/mock/document/path/audio/track1.m4a");
       expect(hookResult.tracks[0].lyricsUrl).toBe("/mock/document/path/audio/track1.json");
 
       unmount();
@@ -237,7 +237,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 4,
-          audioUrl: "track1.mp3",
+          audioUrl: "track1.m4a",
           displayName: "Jarnail Singh",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -266,7 +266,7 @@ describe("useAudioManifest", () => {
         expect(hookResult?.tracks).toHaveLength(1);
       });
 
-      expect(hookResult.tracks[0].audioUrl).toBe("/mock/document/path/audio/track1.mp3");
+      expect(hookResult.tracks[0].audioUrl).toBe("/mock/document/path/audio/track1.m4a");
       expect(hookResult.tracks[0].lyricsUrl).toBe("/mock/document/path/audio/track1.json");
 
       unmount();
@@ -278,7 +278,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 1,
             artist_id: 4,
-            track_url: "https://example.com/track1.mp3",
+            track_url: "https://example.com/track1.m4a",
             artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
@@ -286,7 +286,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 2,
             artist_id: 8,
-            track_url: "https://example.com/track2.mp3",
+            track_url: "https://example.com/track2.m4a",
             artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
@@ -382,7 +382,7 @@ describe("useAudioManifest", () => {
             {
               track_id: 1,
               artist_id: 4,
-              track_url: "https://example.com/track1.mp3",
+              track_url: "https://example.com/track1.m4a",
               artist_name: "Jarnail Singh",
               track_length_seconds: 300,
               track_size_mb: 5.2,
@@ -428,7 +428,7 @@ describe("useAudioManifest", () => {
       };
 
       act(() => {
-        hookResult.addTrackToManifest(track, "track1.mp3", "track1.json");
+        hookResult.addTrackToManifest(track, "track1.m4a", "track1.json");
       });
 
       expect(mockDispatch).toHaveBeenCalledWith(
@@ -437,7 +437,7 @@ describe("useAudioManifest", () => {
             id: 1,
             track_id: 1,
             artistID: 1,
-            audioUrl: "track1.mp3",
+            audioUrl: "track1.m4a",
             displayName: "Artist One",
             trackLengthSec: 300,
             trackSizeMB: 5.2,
@@ -455,7 +455,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 1,
-          audioUrl: "track1.mp3",
+          audioUrl: "track1.m4a",
           displayName: "Artist One",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -495,7 +495,7 @@ describe("useAudioManifest", () => {
       };
 
       act(() => {
-        hookResult.addTrackToManifest(track, "track1.mp3", "track1.json");
+        hookResult.addTrackToManifest(track, "track1.m4a", "track1.json");
       });
 
       // Should not dispatch since track already exists
@@ -532,7 +532,7 @@ describe("useAudioManifest", () => {
       };
 
       act(() => {
-        hookResult.addTrackToManifest(track, "track1.mp3", null);
+        hookResult.addTrackToManifest(track, "track1.m4a", null);
       });
 
       expect(mockDispatch).toHaveBeenCalledWith(
@@ -541,7 +541,7 @@ describe("useAudioManifest", () => {
             id: 1,
             track_id: 1,
             artistID: 1,
-            audioUrl: "track1.mp3",
+            audioUrl: "track1.m4a",
             displayName: "Artist One",
             trackLengthSec: 300,
             trackSizeMB: 5.2,
@@ -561,7 +561,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 1,
-          audioUrl: "/local/path/track1.mp3",
+          audioUrl: "/local/path/track1.m4a",
           displayName: "Artist One",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -601,7 +601,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 1,
-          audioUrl: "/local/path/track1.mp3",
+          audioUrl: "/local/path/track1.m4a",
           displayName: "Artist One",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -641,7 +641,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 1,
-          audioUrl: "https://example.com/track1.mp3",
+          audioUrl: "https://example.com/track1.m4a",
           displayName: "Artist One",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -681,7 +681,7 @@ describe("useAudioManifest", () => {
           id: 1,
           track_id: 1,
           artistID: 1,
-          audioUrl: "/local/path/track1.mp3",
+          audioUrl: "/local/path/track1.m4a",
           displayName: "Artist One",
           trackLengthSec: 300,
           trackSizeMB: 5.2,
@@ -770,7 +770,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 1,
             artist_id: 4,
-            track_url: "https://example.com/track1.mp3",
+            track_url: "https://example.com/track1.m4a",
             artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
@@ -778,7 +778,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 2,
             artist_id: 8,
-            track_url: "https://example.com/track2.mp3",
+            track_url: "https://example.com/track2.m4a",
             artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,
@@ -817,7 +817,7 @@ describe("useAudioManifest", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle track_url without .mp3 extension", async () => {
+    it("should handle track_url without .m4a extension", async () => {
       const mockManifest = {
         data: [
           {
@@ -847,7 +847,7 @@ describe("useAudioManifest", () => {
         expect(hookResult?.tracks).toHaveLength(1);
       });
 
-      // Should still create lyricsUrl by replacing .mp3, but since there's no .mp3, replace returns original
+      // Should still create lyricsUrl by replacing .m4a, but since there's no .m4a, replace returns original
       expect(hookResult.tracks[0].lyricsUrl).toBe("https://example.com/track1");
 
       unmount();
@@ -859,7 +859,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 1,
             artist_id: 4,
-            track_url: "https://example.com/track1.mp3",
+            track_url: "https://example.com/track1.m4a",
             artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
@@ -927,7 +927,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 1,
             artist_id: 4,
-            track_url: "https://example.com/track1.mp3",
+            track_url: "https://example.com/track1.m4a",
             artist_name: "Jarnail Singh",
             track_length_seconds: 300,
             track_size_mb: 5.2,
@@ -940,7 +940,7 @@ describe("useAudioManifest", () => {
           {
             track_id: 2,
             artist_id: 8,
-            track_url: "https://example.com/track2.mp3",
+            track_url: "https://example.com/track2.m4a",
             artist_name: "Indermohan Kaur UK",
             track_length_seconds: 250,
             track_size_mb: 4.8,

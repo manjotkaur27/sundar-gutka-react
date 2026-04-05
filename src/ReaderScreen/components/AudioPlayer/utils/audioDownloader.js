@@ -1,6 +1,8 @@
 import {
   downloadFile,
+  stopDownload,
   exists,
+  stat,
   DocumentDirectoryPath,
   unlink,
   mkdir,
@@ -140,7 +142,7 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
   const audioFileExists = await exists(fullAudioPath);
   if (audioFileExists) {
     logMessage(`Audio already downloaded: ${fileName}`);
-    return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false };
+    return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false, jobId: null };
   }
 
   // progressDivider: 20 — fire the progress callback only once per ~5 % of file size
@@ -154,19 +156,32 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
     },
   });
 
+  const jobId = audioDownloadTask.jobId;
   const audioResult = await audioDownloadTask.promise;
 
+  // ── Strict validation: reject anything that isn't a clean 200 download ──
   if (audioResult.statusCode !== 200) {
-    logError(`Audio download failed with status code: ${audioResult.statusCode}`);
+    // Delete partial/error file so exists() never returns true for a corrupt file.
+    await unlink(fullAudioPath).catch(() => {});
+    throw new Error(`Audio download failed with HTTP ${audioResult.statusCode}`);
   }
 
   const finalAudioExists = await exists(fullAudioPath);
   if (!finalAudioExists) {
-    logError("Audio download completed but file was not created");
+    throw new Error("Audio download completed but file was not created on disk");
   }
 
-  logMessage(`Audio download completed: ${fileName}`);
-  return { relativePath: audioRelativePath, alreadyExists: false, downloaded: true };
+  // Size sanity check — a valid M4A bani audio file is always well over 100KB.
+  // A file under 100KB means the download was truncated (server closed early,
+  // network drop, DOZE killed the connection, etc.) or the moov atom is missing.
+  const fileStat = await stat(fullAudioPath);
+  if (Number(fileStat.size) < 100000) {
+    await unlink(fullAudioPath).catch(() => {});
+    throw new Error(`Downloaded file too small: ${fileStat.size} bytes — likely corrupt/truncated`);
+  }
+
+  logMessage(`Audio download completed: ${fileName} (${fileStat.size} bytes)`);
+  return { relativePath: audioRelativePath, alreadyExists: false, downloaded: true, jobId };
 };
 
 const readPrefetchIndex = async () => {

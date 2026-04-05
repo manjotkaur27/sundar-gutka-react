@@ -52,12 +52,12 @@ const mockUseAudioManifest = {
   tracks: [
     {
       id: "track1",
-      audioUrl: "https://example.com/track1.mp3",
+      audioUrl: "https://example.com/track1.m4a",
       displayName: "Artist 1",
       lyricsUrl: "https://example.com/track1.json",
       trackLengthSec: 300,
       trackSizeMB: 5,
-      remoteUrl: "https://example.com/track1.mp3",
+      remoteUrl: "https://example.com/track1.m4a",
     },
   ],
   currentPlaying: null,
@@ -217,12 +217,12 @@ describe("AudioPlayer", () => {
     mockUseAudioManifest.tracks = [
       {
         id: "track1",
-        audioUrl: "https://example.com/track1.mp3",
+        audioUrl: "https://example.com/track1.m4a",
         displayName: "Artist 1",
         lyricsUrl: "https://example.com/track1.json",
         trackLengthSec: 300,
         trackSizeMB: 5,
-        remoteUrl: "https://example.com/track1.mp3",
+        remoteUrl: "https://example.com/track1.m4a",
       },
     ];
     mockUseAudioManifest.currentPlaying = null;
@@ -451,12 +451,12 @@ describe("AudioPlayer", () => {
     const track1 = mockUseAudioManifest.tracks[0];
     const track2 = {
       id: "track2",
-      audioUrl: "https://example.com/track2.mp3",
+      audioUrl: "https://example.com/track2.m4a",
       displayName: "Artist 2",
       lyricsUrl: "https://example.com/track2.json",
       trackLengthSec: 210,
       trackSizeMB: 7,
-      remoteUrl: "https://example.com/track2.mp3",
+      remoteUrl: "https://example.com/track2.m4a",
     };
     mockUseAudioManifest.tracks = [track1, track2];
     mockUseAudioManifest.currentPlaying = track1;
@@ -692,7 +692,7 @@ describe("AudioPlayer", () => {
     const props = createProps();
     mockState.defaultAudio = {
       [props.baniID]: {
-        audioUrl: "https://example.com/track1.mp3",
+        audioUrl: "https://example.com/track1.m4a",
         // no 'id' field, so hasSavedTrackForCurrentBani = false
       },
     };

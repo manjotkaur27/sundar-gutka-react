@@ -2,9 +2,9 @@ const BLOB_BASE = "https://banidb.blob.core.windows.net/audios";
 
 const jarnailArtist = { display_name: "Bhai Jarnail Singh Ji", artist_id: 4 };
 const indermohanArtist = { display_name: "Indermohan Kaur UK", artist_id: 8 };
-// gurdevArtist intentionally excluded until MP3s are uploaded.
+const gurdevArtist = { display_name: "Giani Gurdev Singh", artist_id: 9 };
 
-const dummyArtists = [jarnailArtist, indermohanArtist];
+const dummyArtists = [jarnailArtist, indermohanArtist, gurdevArtist];
 
 const dummyData = {
   // ── Bani 2: Japji Sahib ──────────────────────────────────────────────────
@@ -12,9 +12,9 @@ const dummyData = {
     {
       bani_id: 2,
       track_id: 1002,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/japji-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "18.61",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/JapjiSahib.m4a`,
+      track_length_seconds: 981,
+      track_size_mb: "15.23",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/japji-sahib.json`,
@@ -22,9 +22,9 @@ const dummyData = {
     {
       bani_id: 2,
       track_id: 2002,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/JapjiSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "44.11",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/JapjiSahib.m4a`,
+      track_length_seconds: 1156,
+      track_size_mb: "17.94",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/JapjiSahib.json`,
@@ -36,9 +36,9 @@ const dummyData = {
     {
       bani_id: 4,
       track_id: 1004,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/jaap-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "19.91",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/JaapSahib.m4a`,
+      track_length_seconds: 987,
+      track_size_mb: "15.36",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/jaap-sahib.json`,
@@ -46,9 +46,9 @@ const dummyData = {
     {
       bani_id: 4,
       track_id: 2004,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/JaapSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "44.61",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/JaapSahib.m4a`,
+      track_length_seconds: 1170,
+      track_size_mb: "18.18",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/JaapSahib.json`,
@@ -60,9 +60,9 @@ const dummyData = {
     {
       bani_id: 6,
       track_id: 1006,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "4.08",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/Saviye.m4a`,
+      track_length_seconds: 207,
+      track_size_mb: "3.23",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.json`,
@@ -70,9 +70,9 @@ const dummyData = {
     {
       bani_id: 6,
       track_id: 2006,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/TavParsadSwayiye.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "8.69",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/TavParsadSwayiye.m4a`,
+      track_length_seconds: 227,
+      track_size_mb: "3.52",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/TavParsadSwayiye.json`,
@@ -84,9 +84,9 @@ const dummyData = {
     {
       bani_id: 9,
       track_id: 1009,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/chopai-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "6.22",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/ChaupaiSahib.m4a`,
+      track_length_seconds: 317,
+      track_size_mb: "4.95",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/chopai-sahib.json`,
@@ -94,9 +94,9 @@ const dummyData = {
     {
       bani_id: 9,
       track_id: 2009,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/ChaupaiSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "10.24",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/ChaupaiSahib.m4a`,
+      track_length_seconds: 268,
+      track_size_mb: "4.17",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/ChaupaiSahib.json`,
@@ -108,9 +108,9 @@ const dummyData = {
     {
       bani_id: 10,
       track_id: 1010,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/anand-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "15.71",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/AnandSahib.m4a`,
+      track_length_seconds: 784,
+      track_size_mb: "12.18",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/anand-sahib.json`,
@@ -118,9 +118,9 @@ const dummyData = {
     {
       bani_id: 10,
       track_id: 2010,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "33.14",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib.m4a`,
+      track_length_seconds: 869,
+      track_size_mb: "13.48",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib.json`,
@@ -132,9 +132,9 @@ const dummyData = {
     {
       bani_id: 21,
       track_id: 1021,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "11.28",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/RehrasSahib.m4a`,
+      track_length_seconds: 1335,
+      track_size_mb: "20.49",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib.json`,
@@ -142,9 +142,9 @@ const dummyData = {
     {
       bani_id: 21,
       track_id: 2021,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "43.67",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.m4a`,
+      track_length_seconds: 1145,
+      track_size_mb: "17.80",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.json`,
@@ -156,9 +156,9 @@ const dummyData = {
     {
       bani_id: 23,
       track_id: 1023,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "2.76",
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/KirtanSohaila.m4a`,
+      track_length_seconds: 333,
+      track_size_mb: "5.03",
       artist_name: jarnailArtist.display_name,
       artist_id: jarnailArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila.json`,
@@ -166,9 +166,9 @@ const dummyData = {
     {
       bani_id: 23,
       track_id: 2023,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/KirtanSohaila.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: "9.11",
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/KirtanSohaila.m4a`,
+      track_length_seconds: 239,
+      track_size_mb: "3.71",
       artist_name: indermohanArtist.display_name,
       artist_id: indermohanArtist.artist_id,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/KirtanSohaila.json`,

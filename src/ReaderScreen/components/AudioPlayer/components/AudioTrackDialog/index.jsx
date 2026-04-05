@@ -12,9 +12,11 @@ import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent from "../ScrollViewComponent";
 
 const PREVIEW_DURATION_MS = 30000;
-const PREVIEW_START_TIMEOUT_MS = 5000;
 const ACTIVE_TRACK_POLL_MS = 150;
-const ACTIVE_TRACK_WAIT_MS = 2200;
+// M4A containers require moov atom parsing before ExoPlayer can begin
+// buffering. On mobile networks this can take 10-20+ seconds for 15-20MB files.
+// 30s accommodates slow 3G connections; MP3 would start within 1-2s.
+const PREVIEW_LOAD_TIMEOUT_MS = 30000;
 
 const AudioTrackDialog = ({
   handleTrackSelect,
@@ -53,41 +55,80 @@ const AudioTrackDialog = ({
     setTimeout(resolve, ms);
   });
 
-  const hasTrackPlaybackStarted = async (trackId) => {
+  /**
+   * Check the track's current load state. Returns:
+   * - 'playing'  — audio is audible to the user (State.Playing)
+   * - 'loading'  — track is active and buffering/ready (M4A moov parsing, data streaming)
+   * - 'inactive' — track is not active or in a non-progress state (None/Stopped/etc.)
+   */
+  const getTrackLoadState = async (trackId) => {
     try {
-      const [activeTrack, playbackState, progress] = await Promise.all([
+      const [activeTrack, playbackState] = await Promise.all([
         TrackPlayer.getActiveTrack(),
         TrackPlayer.getPlaybackState(),
-        TrackPlayer.getProgress().catch(() => null),
       ]);
 
       const isTargetActive =
         activeTrack?.id != null && String(activeTrack.id) === String(trackId);
       if (!isTargetActive) {
-        return false;
+        return "inactive";
       }
 
-      const isPlayerRunning = playbackState?.state === State.Playing;
-      const progressed = Number(progress?.position) > 0.08;
+      const currentState = playbackState?.state;
 
-      return isPlayerRunning || progressed;
+      if (currentState === State.Playing) {
+        return "playing";
+      }
+
+      // Buffering/Ready = the track is actively loading (M4A moov parse,
+      // data streaming). The load is alive — don't kill it with a timeout,
+      // but don't start the preview countdown yet either.
+      if (
+        currentState === State.Buffering ||
+        currentState === State.Ready ||
+        currentState === "ready"
+      ) {
+        return "loading";
+      }
+
+      return "inactive";
     } catch (_) {
-      return false;
+      return "inactive";
     }
   };
 
-  const waitForPlaybackStart = async (trackId, timeoutMs = 7000) => {
-    const startAt = Date.now();
-    while (Date.now() - startAt < timeoutMs) {
-      // eslint-disable-next-line no-await-in-loop
-      const started = await hasTrackPlaybackStarted(trackId);
-      if (started) {
-        return true;
+  /**
+   * Wait for the track to reach State.Playing (audio audible).
+   * While the track is in Buffering/Ready ("loading"), the timeout resets
+   * so M4A moov atom parsing doesn't get killed prematurely.
+   * The timeout only fires when the track is truly inactive (not loading at all).
+   */
+  const waitForPlaybackStart = async (trackId, timeoutMs = PREVIEW_LOAD_TIMEOUT_MS) => {
+    let lastProgressAt = Date.now();
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const elapsed = Date.now() - lastProgressAt;
+      if (elapsed >= timeoutMs) {
+        return false;
       }
+
+      // eslint-disable-next-line no-await-in-loop
+      const loadState = await getTrackLoadState(trackId);
+
+      if (loadState === "playing") {
+        return true; // Audio is audible — start the preview timer now
+      }
+
+      if (loadState === "loading") {
+        // Track is alive and buffering — reset timeout so we don't kill
+        // a healthy M4A moov parse that's just slow on mobile network.
+        lastProgressAt = Date.now();
+      }
+      // If 'inactive': don't reset — let the timeout count down.
+
       // eslint-disable-next-line no-await-in-loop
       await wait(ACTIVE_TRACK_POLL_MS);
     }
-    return false;
   };
 
   const clearPreviewTimeout = useCallback(() => {
@@ -116,25 +157,43 @@ const AudioTrackDialog = ({
     setPreviewRemainingSec(PREVIEW_DURATION_MS / 1000);
   }, []);
 
-  const startPreviewTicker = useCallback(() => {
-    clearPreviewInterval();
-    previewStartedAtRef.current = Date.now();
-    setPreviewProgress(0);
-    setPreviewRemainingSec(PREVIEW_DURATION_MS / 1000);
+  /**
+   * The preview ticker is the single source of truth for both the visual
+   * countdown AND the 30-second stop. When elapsed reaches PREVIEW_DURATION_MS,
+   * the interval itself stops the audio. This guarantees the countdown shows 0
+   * at exactly the moment audio stops — no separate setTimeout that can drift.
+   */
+  const startPreviewTicker = useCallback(
+    (track, sessionId) => {
+      clearPreviewInterval();
+      previewStartedAtRef.current = Date.now();
+      setPreviewProgress(0);
+      setPreviewRemainingSec(PREVIEW_DURATION_MS / 1000);
 
-    previewIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - previewStartedAtRef.current;
-      const clampedElapsed = Math.min(elapsed, PREVIEW_DURATION_MS);
-      const remainingMs = Math.max(0, PREVIEW_DURATION_MS - clampedElapsed);
+      previewIntervalRef.current = setInterval(async () => {
+        const elapsed = Date.now() - previewStartedAtRef.current;
+        const clampedElapsed = Math.min(elapsed, PREVIEW_DURATION_MS);
+        const remainingMs = Math.max(0, PREVIEW_DURATION_MS - clampedElapsed);
 
-      setPreviewProgress(clampedElapsed / PREVIEW_DURATION_MS);
-      setPreviewRemainingSec(Math.ceil(remainingMs / 1000));
+        setPreviewProgress(clampedElapsed / PREVIEW_DURATION_MS);
+        setPreviewRemainingSec(Math.ceil(remainingMs / 1000));
 
-      if (clampedElapsed >= PREVIEW_DURATION_MS) {
-        clearPreviewInterval();
-      }
-    }, 250);
-  }, [clearPreviewInterval]);
+        // Time's up — stop audio from within the same tick that shows 0
+        if (clampedElapsed >= PREVIEW_DURATION_MS) {
+          clearPreviewInterval();
+          if (previewSessionRef.current !== sessionId) return;
+          try { await stop(); } catch (_) {}
+          try { await reset(); } catch (_) {}
+          await restoreNotificationCapabilities();
+          resetPreviewProgress();
+          setPreviewLoadingTrackId(null);
+          setPreviewActiveTrackId(null);
+          setPlayingTrack((current) => (current?.id === track.id ? null : current));
+        }
+      }, 250);
+    },
+    [clearPreviewInterval, stop, reset, restoreNotificationCapabilities, resetPreviewProgress]
+  );
 
   // Restore full notification capabilities after a preview ends.
   // Called after stop()+reset() so there is no queue left to show controls for,
@@ -189,6 +248,11 @@ const AudioTrackDialog = ({
     resetPreviewProgress,
   ]);
 
+  /**
+   * Start the 30-second preview window. Called only AFTER audio is confirmed
+   * playing (State.Playing + position > 0). The ticker handles both the visual
+   * countdown and the auto-stop — no separate timeout needed.
+   */
   const startPreviewWindow = useCallback(
     (track, sessionId) => {
       if (!track?.id) {
@@ -196,32 +260,10 @@ const AudioTrackDialog = ({
       }
 
       setPreviewActiveTrackId(track.id);
-      startPreviewTicker();
       clearPreviewTimeout();
-      previewTimeoutRef.current = setTimeout(async () => {
-        if (previewSessionRef.current !== sessionId) {
-          return;
-        }
-        try {
-          await stop();
-        } catch (_) {
-          // Preview timeout stop should never block UI.
-        }
-        try {
-          await reset();
-        } catch (_) {
-          // Best effort hard reset for consistent preview stop.
-        }
-        // Restore full capabilities after the 30s preview expires.
-        await restoreNotificationCapabilities();
-        clearPreviewInterval();
-        resetPreviewProgress();
-        setPreviewLoadingTrackId(null);
-        setPreviewActiveTrackId(null);
-        setPlayingTrack((current) => (current?.id === track.id ? null : current));
-      }, PREVIEW_DURATION_MS);
+      startPreviewTicker(track, sessionId);
     },
-    [startPreviewTicker, clearPreviewTimeout, stop, reset, restoreNotificationCapabilities, clearPreviewInterval, resetPreviewProgress]
+    [startPreviewTicker, clearPreviewTimeout]
   );
 
   useEffect(() => {
@@ -301,46 +343,25 @@ const AudioTrackDialog = ({
         return;
       }
 
-      let playbackStarted = await waitForPlaybackStart(track.id, ACTIVE_TRACK_WAIT_MS + 800);
-      if (playbackStarted && previewSessionRef.current === sessionId) {
-        clearPreviewStartTimeout();
-        setPreviewLoadingTrackId(null);
-        setPlayingTrack(track);
-        startPreviewWindow(track, sessionId);
-        return;
-      }
-
-      await addAndPlayTrack(
-        track.id,
-        track.audioUrl,
-        notificationTitle || title,
-        track.displayName,
-        track.lyricsUrl,
-        track.trackLengthSec,
-        track.trackSizeMB,
-        true,
-        track.remoteUrl || track.audioUrl
-      );
-
-      playbackStarted = await waitForPlaybackStart(track.id, ACTIVE_TRACK_WAIT_MS + 1200);
+      // Wait for audio to start buffering or playing.
+      // M4A containers need longer to parse moov atom + buffer on Android.
+      const playbackStarted = await waitForPlaybackStart(track.id);
 
       if (playbackStarted && previewSessionRef.current === sessionId) {
         clearPreviewStartTimeout();
         setPreviewLoadingTrackId(null);
         setPlayingTrack(track);
         startPreviewWindow(track, sessionId);
-        return;
-      }
-
-      previewStartTimeoutRef.current = setTimeout(() => {
-        if (previewSessionRef.current !== sessionId) {
-          return;
-        }
+      } else if (previewSessionRef.current === sessionId) {
+        // Playback didn't start within the timeout — clean up
         setPreviewLoadingTrackId(null);
         setPreviewActiveTrackId(null);
         setPlayingTrack(null);
         resetPreviewProgress();
-      }, PREVIEW_START_TIMEOUT_MS);
+        try { await stop(); } catch (_) {}
+        try { await reset(); } catch (_) {}
+        await restoreNotificationCapabilities();
+      }
     } catch (_) {
       clearPreviewTimeout();
       clearPreviewStartTimeout();

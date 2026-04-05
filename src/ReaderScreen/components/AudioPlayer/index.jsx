@@ -39,6 +39,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     reset,
     isInitializing,
     retryInitialization,
+    skipNextLoadRef,
   } = useTrackPlayer();
   const {
     tracks,
@@ -378,6 +379,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
       play={play}
       isPlayerActionLoading={isPlayerActionLoading}
       onReopenPreviewModal={handleReopenPreviewModal}
+      skipNextLoadRef={skipNextLoadRef}
     />
   );
 };

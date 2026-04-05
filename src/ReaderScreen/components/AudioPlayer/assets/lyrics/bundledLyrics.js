@@ -53,7 +53,7 @@ const BUNDLED_LYRICS = {
     require("./IndermohanKaurUK/KirtanSohaila.json"),
 
   // ── Giani Gurdev Singh ───────────────────────────────────────────────────
-  // MP3s + JSONs confirmed on Azure Blob. Sync-scroll ready.
+  // M4As + JSONs confirmed on Azure Blob. Sync-scroll ready.
   "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/JapjiSahib.json":
     require("./GianiGurdevSingh/JapjiSahib.json"),
 

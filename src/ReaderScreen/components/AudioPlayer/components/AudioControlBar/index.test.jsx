@@ -219,9 +219,9 @@ jest.mock("../ScrollViewComponent", () => {
 const defaultCurrentTrack = {
   id: "track-1",
   displayName: "Test Track",
-  audioUrl: "file:///track-1.mp3",
+  audioUrl: "file:///track-1.m4a",
   lyricsUrl: "file:///track-1.lrc",
-  remoteUrl: "https://example.com/track-1.mp3",
+  remoteUrl: "https://example.com/track-1.m4a",
   trackLengthSec: 120,
   trackSizeMB: 5,
 };

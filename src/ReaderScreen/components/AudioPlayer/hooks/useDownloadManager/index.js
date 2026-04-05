@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import { AppState } from "react-native";
+import { stopDownload, unlink, exists, stat } from "react-native-fs";
 import { logError } from "@common";
-import { downloadTrack } from "../../utils/audioDownloader";
+import { downloadTrack, getFullLocalTrackPath } from "../../utils/audioDownloader";
 
 const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloaded) => {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -8,6 +10,13 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
   // Ref-based in-flight guard: prevents a second download from starting if
   // currentPlaying.audioUrl changes while a download is already running.
   const downloadingRef = useRef(false);
+  // Stores the RNFS download jobId so the watchdog can cancel the native
+  // download task instead of just hiding the badge and abandoning it.
+  const downloadJobIdRef = useRef(null);
+  // Prevents retry within the same track session after the watchdog fires.
+  // Without this, a re-render after the watchdog clears downloadingRef could
+  // trigger a second download that overwrites the first partial file mid-write.
+  const downloadFailedRef = useRef(false);
 
   const checkDownloadStatus = () => {
     // Primary: isLocallyDownloaded is stamped by mergeDownloadedTracks after a real
@@ -29,7 +38,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
   };
 
   const handleDownload = async (cancelledRef) => {
-    if (!currentPlaying?.audioUrl || downloadingRef.current) {
+    if (!currentPlaying?.audioUrl || downloadingRef.current || downloadFailedRef.current) {
       return;
     }
 
@@ -41,8 +50,35 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
       }
 
       downloadingRef.current = true;
+      downloadJobIdRef.current = null;
       setIsDownloading(true);
+
+      // Failsafe watchdog: If the native filesystem pipeline hangs silently without returning or throwing
+      // (common with backgrounded file downloads on Android DOZE), cancel the download
+      // and clean up the partial file after 5 minutes.
+      const watchdog = setTimeout(() => {
+        if (downloadingRef.current && !cancelledRef?.current) {
+          // Cancel the actual RNFS download task — stops bytes from being written.
+          if (downloadJobIdRef.current != null) {
+            stopDownload(downloadJobIdRef.current);
+            downloadJobIdRef.current = null;
+          }
+          // Delete partial file so exists() never returns true for a corrupt M4A.
+          // A truncated M4A with a missing/incomplete moov atom will cause ExoPlayer
+          // to silently fail the fast-seek swap and rebuffer from the remote URL.
+          if (currentPlaying?.audioUrl) {
+            const partialPath = getFullLocalTrackPath(currentPlaying.audioUrl);
+            unlink(partialPath).catch(() => {});
+          }
+          downloadFailedRef.current = true;
+          setIsDownloading(false);
+          downloadingRef.current = false;
+        }
+      }, 5 * 60 * 1000);
+
       const result = await downloadTrack(currentPlaying.audioUrl, currentPlaying.displayName);
+      clearTimeout(watchdog);
+      downloadJobIdRef.current = null;
 
       // If the track changed while we were downloading, discard stale state updates.
       if (cancelledRef?.current) {
@@ -56,8 +92,11 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
       addTrackToManifest(currentPlaying, result.audioRelativePath, result.jsonRelativePath);
     } catch (error) {
       logError("Download error:", error);
+      // Mark as failed so the watchdog-cleared guard prevents retry this session.
+      downloadFailedRef.current = true;
     } finally {
       downloadingRef.current = false;
+      downloadJobIdRef.current = null;
       if (!cancelledRef?.current) {
         setIsDownloading(false);
       }
@@ -70,6 +109,9 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
     setIsDownloading(false);
     setIsDownloaded(false);
     downloadingRef.current = false;
+    downloadJobIdRef.current = null;
+    // Reset the failure guard when the track changes — new track, fresh attempt.
+    downloadFailedRef.current = false;
 
     const cancelledRef = { current: false };
 
@@ -92,6 +134,61 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
       // state after the track has already changed.
       cancelledRef.current = true;
     };
+  }, [currentPlaying?.audioUrl]);
+
+  // ── Foreground-resume recovery ────────────────────────────────────────────
+  // Android DOZE kills background network work silently — no error thrown,
+  // no promise rejection. JS timers are frozen too, so the 5-minute watchdog
+  // never fires. When the app returns to foreground, downloadingRef is still
+  // true and the badge is stuck. This listener checks the real file state
+  // and resolves accordingly.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && downloadingRef.current) {
+        const checkAndResolve = async () => {
+          try {
+            if (!currentPlaying?.audioUrl) {
+              setIsDownloading(false);
+              downloadingRef.current = false;
+              return;
+            }
+
+            const path = getFullLocalTrackPath(currentPlaying.audioUrl);
+            const fileExists = await exists(path);
+
+            if (fileExists) {
+              const fileStat = await stat(path);
+              if (Number(fileStat.size) > 100000) {
+                // File completed in background — clear badge, keep file.
+                setIsDownloading(false);
+                setIsDownloaded(true);
+                downloadingRef.current = false;
+                downloadJobIdRef.current = null;
+                return;
+              }
+            }
+
+            // File incomplete or missing — cancel and clean up.
+            if (downloadJobIdRef.current != null) {
+              stopDownload(downloadJobIdRef.current);
+              downloadJobIdRef.current = null;
+            }
+            if (fileExists) {
+              await unlink(path).catch(() => {});
+            }
+            downloadFailedRef.current = true;
+            setIsDownloading(false);
+            downloadingRef.current = false;
+          } catch (_) {
+            // Best effort — at minimum clear the badge.
+            setIsDownloading(false);
+            downloadingRef.current = false;
+          }
+        };
+        checkAndResolve();
+      }
+    });
+    return () => subscription.remove();
   }, [currentPlaying?.audioUrl]);
 
   return {

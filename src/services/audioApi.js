@@ -21,13 +21,13 @@ const ALLOWED_ARTIST_URL_KEYWORDS = [
 
 // ─── Saviye (bani 6) Jarnail track override ──────────────────────────────────
 const SAVIYE_BANI_ID = 6;
-const SAVIYE_JARNAIL_TRACK_URL = `${BLOB_BASE}/BhaiJarnailSingh/saviye.mp3`;
+const SAVIYE_JARNAIL_TRACK_URL = `${BLOB_BASE}/BhaiJarnailSingh/Saviye.m4a`;
 const SAVIYE_PRIMARY_TRACK = {
   bani_id: SAVIYE_BANI_ID,
   track_id: 6001,
   track_url: SAVIYE_JARNAIL_TRACK_URL,
-  track_length_seconds: 0,
-  track_size_mb: 4.08,
+  track_length_seconds: 207,
+  track_size_mb: 3.23,
   artist_name: "Bhai Jarnail Singh Ji",
   artist_id: JARNAIL_ARTIST_ID,
   lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.json`,
@@ -45,9 +45,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 2,
       track_id: 1002,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/japji-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 18.61,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/JapjiSahib.m4a`,
+      track_length_seconds: 981,
+      track_size_mb: 15.23,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/japji-sahib.json`,
@@ -57,9 +57,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 4,
       track_id: 1004,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/jaap-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 19.91,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/JaapSahib.m4a`,
+      track_length_seconds: 987,
+      track_size_mb: 15.36,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/jaap-sahib.json`,
@@ -69,9 +69,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 6,
       track_id: 1006,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 4.08,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/Saviye.m4a`,
+      track_length_seconds: 207,
+      track_size_mb: 3.23,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.json`,
@@ -81,9 +81,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 9,
       track_id: 1009,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/chopai-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 6.22,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/ChaupaiSahib.m4a`,
+      track_length_seconds: 317,
+      track_size_mb: 4.95,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/chopai-sahib.json`,
@@ -93,9 +93,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 10,
       track_id: 1010,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/anand-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 15.71,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/AnandSahib.m4a`,
+      track_length_seconds: 784,
+      track_size_mb: 12.18,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/anand-sahib.json`,
@@ -105,9 +105,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 21,
       track_id: 1021,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 11.28,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/RehrasSahib.m4a`,
+      track_length_seconds: 1335,
+      track_size_mb: 20.49,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib.json`,
@@ -117,9 +117,9 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 23,
       track_id: 1023,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 2.76,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/KirtanSohaila.m4a`,
+      track_length_seconds: 333,
+      track_size_mb: 5.03,
       artist_name: "Bhai Jarnail Singh Ji",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila.json`,
@@ -128,16 +128,16 @@ const JARNAIL_TRACKS_BY_BANI = {
 };
 
 // ─── Complete Indermohan Kaur UK track map ────────────────────────────────────
-// All files confirmed present in Azure Blob (GET.txt).
+// All files confirmed present in Azure Blob (M4A + JSON).
 // track_ids in the 2xxx range.
 const INDERMOHAN_TRACKS_BY_BANI = {
   2: [
     {
       bani_id: 2,
       track_id: 2002,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/JapjiSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 44.11,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/JapjiSahib.m4a`,
+      track_length_seconds: 1156,
+      track_size_mb: 17.94,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/JapjiSahib.json`,
@@ -147,9 +147,9 @@ const INDERMOHAN_TRACKS_BY_BANI = {
     {
       bani_id: 4,
       track_id: 2004,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/JaapSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 44.61,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/JaapSahib.m4a`,
+      track_length_seconds: 1170,
+      track_size_mb: 18.18,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/JaapSahib.json`,
@@ -159,9 +159,9 @@ const INDERMOHAN_TRACKS_BY_BANI = {
     {
       bani_id: 6,
       track_id: 2006,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/TavParsadSwayiye.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 8.69,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/TavParsadSwayiye.m4a`,
+      track_length_seconds: 227,
+      track_size_mb: 3.52,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/TavParsadSwayiye.json`,
@@ -171,9 +171,9 @@ const INDERMOHAN_TRACKS_BY_BANI = {
     {
       bani_id: 9,
       track_id: 2009,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/ChaupaiSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 10.24,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/ChaupaiSahib.m4a`,
+      track_length_seconds: 268,
+      track_size_mb: 4.17,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/ChaupaiSahib.json`,
@@ -183,9 +183,9 @@ const INDERMOHAN_TRACKS_BY_BANI = {
     {
       bani_id: 10,
       track_id: 2010,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 33.14,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib.m4a`,
+      track_length_seconds: 869,
+      track_size_mb: 13.48,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib.json`,
@@ -195,9 +195,9 @@ const INDERMOHAN_TRACKS_BY_BANI = {
     {
       bani_id: 21,
       track_id: 2021,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 43.67,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.m4a`,
+      track_length_seconds: 1145,
+      track_size_mb: 17.80,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.json`,
@@ -207,9 +207,9 @@ const INDERMOHAN_TRACKS_BY_BANI = {
     {
       bani_id: 23,
       track_id: 2023,
-      track_url: `${BLOB_BASE}/IndermohanKaurUK/KirtanSohaila.mp3`,
-      track_length_seconds: 0,
-      track_size_mb: 9.11,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/KirtanSohaila.m4a`,
+      track_length_seconds: 239,
+      track_size_mb: 3.71,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/KirtanSohaila.json`,
@@ -218,16 +218,16 @@ const INDERMOHAN_TRACKS_BY_BANI = {
 };
 
 // ─── Giani Gurdev Singh track map ────────────────────────────────────────────
-// All files confirmed present in Azure Blob (MP3s + JSONs).
+// All files confirmed present in Azure Blob (M4A + JSON).
 // track_ids in the 3xxx range.
 const GURDEV_TRACKS_BY_BANI = {
   2: [
     {
       bani_id: 2,
       track_id: 3002,
-      track_url: `${BLOB_BASE}/GianiGurdevSingh/JapjiSahib.mp3`,
-      track_length_seconds: 1257, // (~20m57s based on 20.1 MB)
-      track_size_mb: 19.18,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/JapjiSahib.m4a`,
+      track_length_seconds: 1257,
+      track_size_mb: 19.69,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/JapjiSahib.json`,
@@ -237,9 +237,9 @@ const GURDEV_TRACKS_BY_BANI = {
     {
       bani_id: 4,
       track_id: 3004,
-      track_url: `${BLOB_BASE}/GianiGurdevSingh/JaapSahib.mp3`,
-      track_length_seconds: 1280, // (~21m20s based on 20.4 MB)
-      track_size_mb: 19.54,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/JaapSahib.m4a`,
+      track_length_seconds: 1281,
+      track_size_mb: 20.06,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/JaapSahib.json`,
@@ -249,9 +249,9 @@ const GURDEV_TRACKS_BY_BANI = {
     {
       bani_id: 6,
       track_id: 3006,
-      track_url: `${BLOB_BASE}/GianiGurdevSingh/TavParsadSwayiye.mp3`,
-      track_length_seconds: 237, // (~3m57s based on 3.8 MB)
-      track_size_mb: 3.62,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/TavParsadSwayiye.m4a`,
+      track_length_seconds: 237,
+      track_size_mb: 3.71,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/TavParsadSwayiye.json`,
@@ -261,9 +261,9 @@ const GURDEV_TRACKS_BY_BANI = {
     {
       bani_id: 9,
       track_id: 3009,
-      track_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.mp3`,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.m4a`,
       track_length_seconds: 378,
-      track_size_mb: 5.77,
+      track_size_mb: 5.90,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.json`,
@@ -273,9 +273,9 @@ const GURDEV_TRACKS_BY_BANI = {
     {
       bani_id: 10,
       track_id: 3010,
-      track_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib.mp3`,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib.m4a`,
       track_length_seconds: 994,
-      track_size_mb: 15.17,
+      track_size_mb: 15.52,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib.json`,
@@ -311,7 +311,7 @@ const isAllowedArtist = ({ artistId, artistName, trackUrl }) => {
 
 /**
  * Attach a lyrics_url to a track if one can be resolved.
- * Priority: explicit map entry → existing field → mp3→json inference.
+ * Priority: explicit map entry → existing field → audio-ext→json inference.
  */
 const attachLyricsUrlIfAvailable = (track) => {
   if (!track?.track_url) return track;
@@ -320,9 +320,9 @@ const attachLyricsUrlIfAvailable = (track) => {
   // just return as-is.
   if (track.lyrics_url) return track;
 
-  // Fallback: infer from mp3 URL
-  const fallbackLyricsUrl = /\.mp3$/i.test(track.track_url)
-    ? track.track_url.replace(/\.mp3$/i, ".json")
+  // Fallback: infer lyrics URL from .m4a audio URL
+  const fallbackLyricsUrl = /\.m4a$/i.test(track.track_url)
+    ? track.track_url.replace(/\.m4a$/i, ".json")
     : null;
 
   return { ...track, lyrics_url: fallbackLyricsUrl };
@@ -330,16 +330,22 @@ const attachLyricsUrlIfAvailable = (track) => {
 
 /**
  * Merge a static per-bani track list into an existing tracks array.
- * Tracks that are already present (by URL) are skipped to avoid duplicates.
+ * For artists we have static data for, our static tracks REPLACE any API tracks
+ * (the API may still return stale MP3 URLs that no longer exist on the blob).
+ * Tracks for artists NOT in the static map are kept as-is from the API.
  */
 const mergeStaticTracksForBani = (baniId, tracks, staticMap) => {
   const extras = staticMap[Number(baniId)] || [];
   if (!extras.length) return tracks;
 
-  const existingUrls = new Set(tracks.map((t) => normalize(t?.track_url)));
-  const missing = extras.filter((t) => !existingUrls.has(normalize(t?.track_url)));
+  // Collect artist_ids covered by this static map for this bani
+  const staticArtistIds = new Set(extras.map((t) => Number(t.artist_id)));
 
-  return [...tracks, ...missing];
+  // Drop any API tracks whose artist is covered by our static map —
+  // our static data has the correct M4A URLs and sizes.
+  const filtered = tracks.filter((t) => !staticArtistIds.has(Number(t?.artist_id)));
+
+  return [...filtered, ...extras];
 };
 
 /**
@@ -391,7 +397,7 @@ const applyManifestOverrides = (baniId, data) => {
     nextTracks = [SAVIYE_PRIMARY_TRACK, ...restTracks];
   }
 
-  // ── Filter to allowed artists only ───────────────────────────────────────
+  // ── Filter to allowed artists only and enforce M4A extension ────────────
   nextTracks = nextTracks
     .filter((track) =>
       isAllowedArtist({
@@ -400,6 +406,14 @@ const applyManifestOverrides = (baniId, data) => {
         trackUrl: track?.track_url,
       })
     )
+    .map((track) => {
+      // Force all API tracks to .m4a since we deleted MP3s from the Azure Blob.
+      // Fixes streaming 404s for tracks that aren't in our static maps.
+      if (track?.track_url) {
+        return { ...track, track_url: track.track_url.replace(/\.mp3$/i, ".m4a") };
+      }
+      return track;
+    })
     .map(attachLyricsUrlIfAvailable);
 
   // ── Merge all static track lists (ensures all 3 artists appear) ──────────

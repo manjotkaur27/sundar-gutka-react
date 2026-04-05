@@ -60,6 +60,7 @@ const AudioControlBar = ({
   play,
   isPlayerActionLoading,
   onReopenPreviewModal,
+  skipNextLoadRef,
 }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -306,6 +307,15 @@ const AudioControlBar = ({
   useEffect(() => {
     const loadActiveTrack = async () => {
       if (!isInitialized || !currentPlaying?.id || !currentPlaying?.audioUrl) {
+        return;
+      }
+
+      // Guard: if handleTrackSelect already initiated playback via
+      // addAndPlayTrack (which sets skipNextLoadRef = true), skip this
+      // effect to prevent the destructive double-load race condition.
+      // M4A moov parse takes seconds — a second reset() kills it.
+      if (skipNextLoadRef?.current) {
+        skipNextLoadRef.current = false;
         return;
       }
 
@@ -588,6 +598,7 @@ AudioControlBar.propTypes = {
   play: PropTypes.func.isRequired,
   isPlayerActionLoading: PropTypes.bool,
   onReopenPreviewModal: PropTypes.func.isRequired,
+  skipNextLoadRef: PropTypes.shape({ current: PropTypes.bool }),
 };
 
 export default AudioControlBar;

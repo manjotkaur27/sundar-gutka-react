@@ -69,9 +69,19 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
       }
     }
 
+    // If we are before the very first sequence, don't highlight anything yet.
+    // This fixes the issue where a sequence starting at >0s gets incorrectly
+    // highlighted starting from 0:00.
+    if (hi < 0) {
+      return {
+        currentSequence: null,
+        timeOut: 0,
+      };
+    }
+
     // If there is no exact timestamp hit (common around tiny timing gaps),
     // anchor to the nearest previous line so sync never gets stuck after seek.
-    const fallbackIndex = hi < 0 ? 0 : lo >= baniLRC.length ? baniLRC.length - 1 : hi;
+    const fallbackIndex = lo >= baniLRC.length ? baniLRC.length - 1 : hi;
     const fallback = baniLRC[fallbackIndex];
     if (!fallback) {
       return {
@@ -136,7 +146,7 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
       scrollTimeoutRef.current = setTimeout(() => {
         isScrollingRef.current = false;
         scrollTimeoutRef.current = null;
-      }, force ? 120 : 250);
+      }, force ? 80 : 150);
       return true;
     } catch (error) {
       isScrollingRef.current = false;

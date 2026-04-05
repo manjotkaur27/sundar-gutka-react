@@ -376,7 +376,6 @@ ${listener}.addEventListener(
         const originalBackgroundColor = element.style.backgroundColor;
         element.style.backgroundColor = "${theme.staticColors.HIGHLIGHT_COLOR}";
         element.style.borderRadius = "15px";
-        element.style.transition = "background-color 0.3s ease";
         
         // Store current element
         lastHighlightedElement = element;
