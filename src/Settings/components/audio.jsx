@@ -6,8 +6,6 @@ import {
   toggleAudio,
   toggleAudioAutoPlay,
   toggleAudioFeatureEnabled,
-  toggleAutoScroll,
-  toggleScreenAwake,
 } from "@common/actions";
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
@@ -18,7 +16,6 @@ import createStyles from "../styles";
 const Audio = () => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const isAudio = useSelector((state) => state.isAudio);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);

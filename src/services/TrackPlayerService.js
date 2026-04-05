@@ -12,7 +12,6 @@ const AsyncStorage = require("@react-native-async-storage/async-storage").defaul
  * Runs in a separate JS context on a background thread — keep handlers lean.
  */
 module.exports = async function () {
-  let duckPauseTimer = null;
   let shouldResumeAfterDuck = false;
 
   const getIsAutoPlay = async () => {
@@ -29,11 +28,6 @@ module.exports = async function () {
   };
 
   const safeStopAndReset = async () => {
-    if (duckPauseTimer) {
-      clearTimeout(duckPauseTimer);
-      duckPauseTimer = null;
-    }
-
     // Keep stop idempotent: each call is guarded so one native failure does not
     // prevent remaining cleanup steps.
     try {
@@ -79,11 +73,6 @@ module.exports = async function () {
       await safeStopAndReset();
     } else if (paused) {
       // Transient focus loss (e.g. Phone Call or Alarm)
-      if (duckPauseTimer) {
-        clearTimeout(duckPauseTimer);
-        duckPauseTimer = null;
-      }
-
       try {
         const playbackState = await TrackPlayer.getPlaybackState();
         const currentState = playbackState?.state ?? playbackState;
@@ -100,10 +89,6 @@ module.exports = async function () {
       await TrackPlayer.pause();
     } else {
       // Focus regained (Phone call/Alarm ended)
-      if (duckPauseTimer) {
-        clearTimeout(duckPauseTimer);
-        duckPauseTimer = null;
-      }
       if (shouldResumeAfterDuck) {
         shouldResumeAfterDuck = false;
         await TrackPlayer.play().catch(() => {});

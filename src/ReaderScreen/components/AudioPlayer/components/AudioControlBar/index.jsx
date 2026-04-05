@@ -4,7 +4,7 @@ import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
-import { useNavigation } from "@react-navigation/native";
+
 import PropTypes from "prop-types";
 import { setAudioProgress } from "@common/actions";
 import useTheme from "@common/context";
@@ -64,7 +64,6 @@ const AudioControlBar = ({
 }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
-  const navigation = useNavigation();
   const styles = useThemedStyles(audioControlBarStyles);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);

@@ -1,6 +1,5 @@
 import {
   downloadFile,
-  stopDownload,
   exists,
   stat,
   DocumentDirectoryPath,

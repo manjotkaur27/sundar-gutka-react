@@ -6,14 +6,12 @@ import { useIsFocused } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import {
   useTheme,
-  useThemedStyles,
   constant,
   actions,
   trackReaderEvent,
   logError,
   CustomText,
 } from "@common";
-import createStyles from "../styles";
 
 import { Slider } from "@miblanchard/react-native-slider";
 
@@ -27,7 +25,6 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
 
   const [sliderValue, setSliderValue] = useState(savedSpeed);
   const dispatch = useDispatch();
-  const styles = useThemedStyles(createStyles);
 
   // Send a stop signal to the WebView to halt auto-scroll
   const sendStopSignal = useCallback(() => {
