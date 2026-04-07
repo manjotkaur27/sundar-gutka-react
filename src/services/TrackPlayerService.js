@@ -69,8 +69,13 @@ module.exports = async function () {
   // ── Audio focus / ducking (Android & iOS) ──────────────────────────────────
   TrackPlayer.addEventListener(Event.RemoteDuck, async ({ paused, permanent }) => {
     if (permanent) {
-      // Permanent focus loss (e.g. another music app or video took over) — stop outright
-      await safeStopAndReset();
+      // Permanent focus loss (e.g. another music app or video took over).
+      // Just pause — do NOT stop()+reset(). stop() resets position to 0:00
+      // and reset() wipes the queue, so when the user returns to the app the
+      // slider shows 0:00 instead of where they left off. A simple pause()
+      // preserves both the queue and the current position; the user taps Play
+      // to resume exactly where they were.
+      await TrackPlayer.pause().catch(() => {});
     } else if (paused) {
       // Transient focus loss (e.g. Phone Call or Alarm)
       try {

@@ -80,13 +80,14 @@ describe("TrackPlayerService RemoteDuck behavior", () => {
     expect(mockTrackPlayer.play).not.toHaveBeenCalled();
   });
 
-  it("stops and resets on permanent duck and never auto-resumes", async () => {
+  it("pauses on permanent duck to preserve position, and does not auto-resume", async () => {
     await listeners[Event.RemoteDuck]({ paused: true, permanent: true });
     await listeners[Event.RemoteDuck]({ paused: false, permanent: false });
 
     expect(mockTrackPlayer.pause).toHaveBeenCalled();
-    expect(mockTrackPlayer.stop).toHaveBeenCalled();
-    expect(mockTrackPlayer.reset).toHaveBeenCalled();
+    // stop()+reset() should NOT be called — they wipe position to 0:00
+    expect(mockTrackPlayer.stop).not.toHaveBeenCalled();
+    expect(mockTrackPlayer.reset).not.toHaveBeenCalled();
     expect(mockTrackPlayer.play).not.toHaveBeenCalled();
   });
 
