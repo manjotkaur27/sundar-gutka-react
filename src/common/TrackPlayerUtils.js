@@ -40,7 +40,7 @@ class TrackPlayerService {
         // Resolve RNTP lazily here — by the time initialize() is called the
         // native module is guaranteed to be registered by the Android runtime.
         const TrackPlayer = loadRNTP().default;
-        const { Capability, RepeatMode, AppKilledPlaybackBehavior, IOSCategoryOptions } = loadRNTP();
+        const { Capability, RepeatMode, AppKilledPlaybackBehavior } = loadRNTP();
 
         await TrackPlayer.setupPlayer({
           // waitForBuffer: true makes ExoPlayer/AVPlayer pause (transition to
@@ -56,7 +56,6 @@ class TrackPlayerService {
           backBuffer: 0,             // Android: no back-buffer (saves memory)
           playbackBuffer: 1,         // Android: start playing once 1s is buffered
           iosCategory: "playback",
-          iosCategoryOptions: [IOSCategoryOptions.MixWithOthers],
           alwaysPauseOnInterruption: false,
         });
 
