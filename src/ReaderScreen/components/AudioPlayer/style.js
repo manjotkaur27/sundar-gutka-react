@@ -302,7 +302,9 @@ export const audioTrackDialogStyles = (theme) => ({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-end",
-    minWidth: 120,
+    // Fixed width so the button does not resize when the countdown text
+    // changes (e.g. "Next (30s)" → "Next (9s)" drops a character).
+    minWidth: 150,
     zIndex: 1,
     overflow: "hidden",
   },
@@ -312,6 +314,7 @@ export const audioTrackDialogStyles = (theme) => ({
     fontWeight: theme.typography.weights.semibold,
     marginRight: theme.spacing.md,
     fontFamily: theme.typography.fonts.balooPaaji,
+    fontVariant: ["tabular-nums"],
   },
   nextLoadingSpinner: {
     marginRight: theme.spacing.sm,

@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, Pressable, ActivityIndicator } from "react-native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
@@ -18,15 +18,7 @@ const ScrollViewComponent = ({
   const { theme } = useTheme();
   const styles = useThemedStyles(audioTrackDialogStyles);
   return (
-    <ScrollView
-      style={styles.trackList}
-      contentContainerStyle={styles.trackListContent}
-      showsVerticalScrollIndicator
-      scrollEnabled
-      nestedScrollEnabled
-      keyboardShouldPersistTaps="handled"
-      bounces={false}
-    >
+    <View style={styles.trackList}>
       {tracks.map((track) => (
         <Pressable
           key={track.id}
@@ -84,7 +76,7 @@ const ScrollViewComponent = ({
           )}
         </Pressable>
       ))}
-    </ScrollView>
+    </View>
   );
 };
 
