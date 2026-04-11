@@ -46,9 +46,9 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
 }');
     }
     @font-face {
-      font-family: '${constant.GURBANI_AKAR_THICK_TRUE}';
-      src: url('${getFontFaceURL(constant.GURBANI_AKAR_THICK_TRUE)}') format('truetype'),local('${
-  constant.GURBANI_AKAR_THICK_TRUE
+      font-family: '${constant.GURBANI_AKHAR_THICK_TRUE}';
+      src: url('${getFontFaceURL(constant.GURBANI_AKHAR_THICK_TRUE)}') format('truetype'),local('${
+  constant.GURBANI_AKHAR_THICK_TRUE
 }');
     }
     @font-face {
@@ -74,7 +74,7 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       padding: 0.2em;
       font-family: '${fontFace}', '${constant.GURBANI_AKHAR_HEAVY_TRUE}', '${
   constant.GURBANI_AKHAR_TRUE
-}', '${constant.GURBANI_AKAR_THICK_TRUE}', '${constant.ANMOL_LIPI}';
+}', '${constant.GURBANI_AKHAR_THICK_TRUE}', '${constant.ANMOL_LIPI}';
     }
     .transliteration, .translation {
       padding: 0.2em;
