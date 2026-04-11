@@ -34,7 +34,7 @@ const BottomNavigation = ({ activeKey }) => {
 
   const checkInternetConnection = useCallback(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     try {
       const response = await fetch(INTERNET_CHECK_URL, {
@@ -141,7 +141,7 @@ const BottomNavigation = ({ activeKey }) => {
     };
 
     syncConnectivity();
-    const intervalId = setInterval(syncConnectivity, 10000);
+    const intervalId = setInterval(syncConnectivity, 5000);
 
     return () => {
       isMounted = false;

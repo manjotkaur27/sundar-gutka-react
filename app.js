@@ -3,6 +3,7 @@ import ErrorBoundary from "react-native-error-boundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
 import Toast from "react-native-toast-message";
+import toastConfig from "./src/common/toastConfig";
 import { Provider } from "react-redux";
 import notifee, { EventType } from "@notifee/react-native";
 import { PersistGate } from "redux-persist/integration/react";
@@ -56,7 +57,7 @@ const App = () => {
           <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
             <SafeAreaProvider>
               <Navigation />
-              <Toast />
+              <Toast config={toastConfig} />
             </SafeAreaProvider>
           </ErrorBoundary>
         </ThemeProvider>
