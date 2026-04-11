@@ -263,8 +263,9 @@ const useTrackPlayer = () => {
         // Capture playing state via native API (React state is stale in async).
         // Used by both seek paths to auto-resume after the seek settles.
         const playbackStateNow = await TrackPlayer.getPlaybackState().catch(() => null);
-        const wasPlaying = playbackStateNow?.state === State.Playing ||
-          playbackStateNow?.state === State.Buffering;
+        const wasPlaying =
+          playbackStateNow?.state === State.Playing ||
+          (playbackStateNow?.state === State.Buffering && wasPlayingBeforeBufferRef.current === true);
 
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack) {

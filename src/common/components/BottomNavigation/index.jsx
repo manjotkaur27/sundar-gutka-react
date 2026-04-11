@@ -26,6 +26,10 @@ const BottomNavigation = ({ activeKey }) => {
   const [previousRouteName, setPreviousRouteName] = useState(null);
   const [hasInternet, setHasInternet] = useState(true);
   const previousConnectivityRef = useRef(null);
+  // Require 2 consecutive poll failures before declaring "offline" to
+  // avoid false-positive toasts from transient mobile network blips
+  // (DNS hiccup, DOZE wake, tower switch, etc.).
+  const consecutiveFailuresRef = useRef(0);
   const insets = useSafeAreaInsets();
   // On iOS: apply a small capped padding so icons sit just above the home indicator
   // without ballooning the navbar height. On Android: gesture bar is hidden by
@@ -34,11 +38,12 @@ const BottomNavigation = ({ activeKey }) => {
 
   const checkInternetConnection = useCallback(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     try {
+      // HEAD is lighter than GET — no body to download, lower latency.
       const response = await fetch(INTERNET_CHECK_URL, {
-        method: "GET",
+        method: "HEAD",
         cache: "no-store",
         signal: controller.signal,
       });
@@ -123,6 +128,12 @@ const BottomNavigation = ({ activeKey }) => {
         return;
       }
 
+      if (isConnected) {
+        consecutiveFailuresRef.current = 0;
+      } else {
+        consecutiveFailuresRef.current += 1;
+      }
+
       const wasConnected = previousConnectivityRef.current;
       previousConnectivityRef.current = isConnected;
 
@@ -131,7 +142,9 @@ const BottomNavigation = ({ activeKey }) => {
         return;
       }
 
-      if (wasConnected && !isConnected) {
+      // Only declare offline after 2 consecutive failures to avoid
+      // false-positive toasts from single transient network blips.
+      if (wasConnected && !isConnected && consecutiveFailuresRef.current >= 2) {
         // Mirror settings "Audio off" behavior to remove notification controls.
         await stopTrack();
         await resetPlayer();
@@ -232,9 +245,12 @@ const BottomNavigation = ({ activeKey }) => {
       key: "Settings",
       icon: SettingsIcon,
       handlePress: async () => {
+        // Pause playback but keep isAudio=true so the audio player UI
+        // is preserved. When the user taps Back from Settings, they
+        // return to the audio view (paused). If autoplay is on, the
+        // AudioControlBar's loadActiveTrack effect will auto-resume.
         if (isAudio) {
           await pauseTrack();
-          dispatch(actions.toggleAudio(false));
         }
         navigation.navigate(constant.SETTINGS);
       },
