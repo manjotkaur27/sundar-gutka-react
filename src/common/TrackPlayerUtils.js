@@ -56,7 +56,6 @@ class TrackPlayerService {
           backBuffer: 0,             // Android: no back-buffer (saves memory)
           playbackBuffer: 1,         // Android: start playing once 1s is buffered
           iosCategory: "playback",
-          alwaysPauseOnInterruption: false,
         });
 
         await TrackPlayer.setRepeatMode(RepeatMode.Off);

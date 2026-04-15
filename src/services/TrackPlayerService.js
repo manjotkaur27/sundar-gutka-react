@@ -5,11 +5,13 @@ const AsyncStorage = require("@react-native-async-storage/async-storage").defaul
 /**
  * Background Playback Service (RNTP v4)
  *
- * This is the ONLY context where TrackPlayer API calls are safe to make in
- * response to OS/hardware events (lock-screen controls, headphones, Bluetooth,
- * Android notification actions, CarPlay / Android Auto).
+ * Handles OS/hardware events: lock-screen controls, headphones, Bluetooth,
+ * Android notification actions, phone calls, alarms.
  *
- * Runs in a separate JS context on a background thread — keep handlers lean.
+ * Call/alarm interruption logic:
+ *  - Autoplay OFF → pause on interrupt, stay paused forever.
+ *  - Autoplay ON  → pause on interrupt, auto-resume when interrupt ends.
+ *  - Notification volume duck → OS handles volume dip natively, no pause.
  */
 module.exports = async function () {
   let shouldResumeAfterDuck = false;
@@ -28,36 +30,21 @@ module.exports = async function () {
   };
 
   const safeStopAndReset = async () => {
-    // Keep stop idempotent: each call is guarded so one native failure does not
-    // prevent remaining cleanup steps.
-    try {
-      await TrackPlayer.pause();
-    } catch (_) {}
-
-    try {
-      await TrackPlayer.stop();
-    } catch (_) {}
-
-    try {
-      await TrackPlayer.reset();
-    } catch (_) {}
-
+    try { await TrackPlayer.pause(); } catch (_) {}
+    try { await TrackPlayer.stop(); } catch (_) {}
+    try { await TrackPlayer.reset(); } catch (_) {}
     shouldResumeAfterDuck = false;
   };
 
   // ── Remote control / notification actions ──────────────────────────────────
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
-
   TrackPlayer.addEventListener(Event.RemotePause, () => TrackPlayer.pause());
-
   TrackPlayer.addEventListener(Event.RemoteStop, safeStopAndReset);
 
-  // Seek bar scrub from lock-screen / notification
   TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) =>
     TrackPlayer.seekTo(position)
   );
 
-  // Skip buttons (notification compact view has Next; keep graceful no-ops)
   TrackPlayer.addEventListener(Event.RemoteNext, () =>
     TrackPlayer.skipToNext().catch(() => {})
   );
@@ -66,50 +53,63 @@ module.exports = async function () {
     TrackPlayer.skipToPrevious().catch(() => {})
   );
 
-  // ── Audio focus / ducking (Android & iOS) ──────────────────────────────────
+  // ── Audio focus / call & alarm interruptions ───────────────────────────────
+  //
+  // RemoteDuck fires for ALL audio focus changes:
+  //  • permanent=true          → another app took audio (Spotify, YouTube)
+  //  • permanent=false, paused → transient loss (phone call, alarm)
+  //  • permanent=false, !paused→ focus regained (call/alarm ended)
+  //
+  // Notification sound ducks do NOT fire paused=true — the OS just lowers
+  // volume briefly and restores it. We don't need to handle that case.
   TrackPlayer.addEventListener(Event.RemoteDuck, async ({ paused, permanent }) => {
     if (permanent) {
-      // Permanent focus loss (e.g. another music app or video took over).
-      // Just pause — do NOT stop()+reset(). stop() resets position to 0:00
-      // and reset() wipes the queue, so when the user returns to the app the
-      // slider shows 0:00 instead of where they left off. A simple pause()
-      // preserves both the queue and the current position; the user taps Play
-      // to resume exactly where they were.
+      // Another app took audio permanently. Stay paused, never auto-resume.
+      shouldResumeAfterDuck = false;
       await TrackPlayer.pause().catch(() => {});
-    } else if (paused) {
-      // Transient focus loss (e.g. Phone Call or Alarm)
+      return;
+    }
+
+    if (paused) {
+      // Call/alarm arrived. Check if we should resume when it ends.
+      shouldResumeAfterDuck = false;
+
       try {
-        const playbackState = await TrackPlayer.getPlaybackState();
+        const [playbackState, isAutoPlay] = await Promise.all([
+          TrackPlayer.getPlaybackState(),
+          getIsAutoPlay(),
+        ]);
+
         const currentState = playbackState?.state ?? playbackState;
-        const isAutoPlay = await getIsAutoPlay();
-        
-        // ONLY flag for resume if:
-        // A) The audio was actually playing (not paused by user).
-        // B) The user has Autoplay toggled ON in Settings.
-        shouldResumeAfterDuck = isAutoPlay && (currentState === State.Playing || currentState === State.Buffering);
+        const wasPlaying =
+          currentState === State.Playing || currentState === State.Buffering;
+
+        // Resume after interrupt ONLY if autoplay is ON AND audio was playing.
+        shouldResumeAfterDuck = isAutoPlay && wasPlaying;
       } catch (_) {
         shouldResumeAfterDuck = false;
       }
 
-      await TrackPlayer.pause();
-    } else {
-      // Focus regained (Phone call/Alarm ended)
-      if (shouldResumeAfterDuck) {
-        shouldResumeAfterDuck = false;
-        await TrackPlayer.play().catch(() => {});
-      }
+      await TrackPlayer.pause().catch(() => {});
+      return;
+    }
+
+    // Focus regained — call/alarm ended.
+    if (shouldResumeAfterDuck) {
+      shouldResumeAfterDuck = false;
+      // Brief delay so the OS audio session is fully restored on all OEMs.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await TrackPlayer.play().catch(() => {});
     }
   });
 
   // ── Playback lifecycle ──────────────────────────────────────────────────────
-  // Queue ended (track finished) — reset so UI reflects stopped state
-  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async ({ track, position }) => {
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async ({ track }) => {
     if (track != null) {
       await safeStopAndReset();
     }
   });
 
-  // Surface native playback errors to the JS error logger
   TrackPlayer.addEventListener(Event.PlaybackError, ({ code, message }) => {
     console.error("[TrackPlayer] Playback error:", code, message);
   });

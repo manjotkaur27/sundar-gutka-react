@@ -242,7 +242,9 @@ export const audioTrackDialogStyles = (theme) => ({
     top: theme.spacing.md,
     right: theme.spacing.md,
     zIndex: 10,
+    padding: theme.spacing.md,
   },
+
   welcomeText: {
     fontFamily: constant.BALOO_PAAJI_SEMI_BOLD,
     fontSize: theme.typography.sizes.xxl,
