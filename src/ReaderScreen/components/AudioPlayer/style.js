@@ -242,7 +242,6 @@ export const audioTrackDialogStyles = (theme) => ({
     top: theme.spacing.md,
     right: theme.spacing.md,
     zIndex: 10,
-    padding: theme.spacing.md,
   },
 
   welcomeText: {
