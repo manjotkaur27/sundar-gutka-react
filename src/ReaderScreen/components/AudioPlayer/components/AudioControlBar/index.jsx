@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
@@ -88,6 +89,32 @@ const AudioControlBar = ({
   );
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
   useArtistListeningDuration(baniID, isPlaying, currentPlaying);
+  const navigation = useNavigation();
+
+  // Auto-resume on screen focus: when the user navigates back to the audio
+  // screen (via device back button, back arrow, or tab re-tap from Settings/
+  // Bookmarks), check if autoplay is ON and the same track is already loaded.
+  // The existing loadActiveTrack effect only fires on currentPlaying?.id
+  // change, which doesn't happen on simple back-navigation.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", async () => {
+      if (!isAudioAutoPlay || !isInitialized || !currentPlaying?.id) return;
+
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        const isSameTrack =
+          activeTrack?.id != null && String(activeTrack.id) === String(currentPlaying.id);
+
+        if (isSameTrack) {
+          await play();
+        }
+      } catch (_) {
+        // Non-critical — user can always tap play manually.
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, isAudioAutoPlay, isInitialized, currentPlaying?.id, play]);
 
   const sanitizeDuration = (value) => {
     const numericValue = Number(value);
