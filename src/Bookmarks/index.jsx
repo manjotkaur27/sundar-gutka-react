@@ -47,19 +47,19 @@ const Bookmarks = ({ navigation, route }) => {
   });
 
   return (
-    <SafeArea backgroundColor={theme.staticColors.NIGHT_BLACK}>
-      <StatusBarComponent backgroundColor={theme.staticColors.NIGHT_BLACK} />
+    <SafeArea backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface}>
+      <StatusBarComponent backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface} />
       <AppBar
         title={STRINGS.bookmarks}
-        backgroundColor={theme.staticColors.NIGHT_BLACK}
-        titleColor={theme.staticColors.WHITE_COLOR}
+        backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface}
+        titleColor={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK}
         titleStyle={{
           fontFamily: theme.typography.fonts.balooPaajiSemiBold,
           fontSize: theme.typography.sizes.xxl,
           fontWeight: theme.typography.weights.normal,
         }}
         leftComponent={
-          <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />
+          <BackIconComponent size={30} color={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK} />
         }
       />
       <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
