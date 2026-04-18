@@ -1,7 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import {
   toggleAudio,
   toggleAudioAutoPlay,
@@ -10,7 +10,7 @@ import {
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle, showInfoToast } from "@common";
+import { STRINGS, ListItemTitle, showInfoToast, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const Audio = () => {
@@ -60,7 +60,7 @@ const Audio = () => {
         <ListItem.Content>
           <ListItemTitle title={setting.title} style={styles.listItemTitle} />
         </ListItem.Content>
-        <Switch
+        <ThemedSwitch
           value={setting.value}
           onValueChange={async (value) => {
             if (setting.id === "main" && value) {

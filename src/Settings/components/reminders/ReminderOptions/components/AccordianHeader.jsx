@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { View, TouchableOpacity } from "react-native";
 import DateTimePicker from "react-native-modal-datetime-picker";
 import { useDispatch, useSelector } from "react-redux";
-import { Switch, Icon, Divider } from "@rneui/themed";
+import { Icon, Divider } from "@rneui/themed";
 import moment from "moment";
 import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { constant, updateReminders, trackReminderEvent, CustomText } from "@common";
+import { constant, updateReminders, trackReminderEvent, CustomText, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const AccordianHeader = ({ section, isActive }) => {
@@ -66,7 +66,7 @@ const AccordianHeader = ({ section, isActive }) => {
           >
             {isTransliteration ? translit : gurmukhi}
           </CustomText>
-          <Switch value={enabled} onValueChange={(value) => handelSwitchToggled(value, key)} />
+          <ThemedSwitch value={enabled} onValueChange={(value) => handelSwitchToggled(value, key)} />
         </View>
         <View style={styles.viewRow}>
           <TouchableOpacity onPress={() => toggleTimePicker(true)}>

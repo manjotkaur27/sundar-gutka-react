@@ -9,6 +9,7 @@ import {
   BottomNavigation,
   SafeArea,
   StatusBarComponent,
+  ThemedSwitch,
 } from "./components";
 import orderedBani from "./components/BaniList/baniOrderHelper";
 import constant from "./constant";
@@ -113,4 +114,5 @@ export {
   useBackHandler,
   trackArtistListeningDuration,
   trackArtist,
+  ThemedSwitch,
 };

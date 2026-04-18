@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Alert, Linking, View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
@@ -14,6 +14,7 @@ import {
   logMessage,
   FallBack,
   ListItemTitle,
+  ThemedSwitch,
 } from "@common";
 import { getBaniList } from "@database";
 import createStyles from "../../styles";
@@ -85,7 +86,7 @@ const RemindersComponent = ({ navigation }) => {
         <ListItem.Content>
           <ListItemTitle title={STRINGS.reminders} style={styles.listItemTitle} />
         </ListItem.Content>
-        <Switch value={isReminders} onValueChange={(value) => handleReminders(value)} />
+        <ThemedSwitch value={isReminders} onValueChange={(value) => handleReminders(value)} />
       </ListItem>
 
       {isReminders && (

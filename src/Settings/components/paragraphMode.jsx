@@ -1,11 +1,11 @@
 import React from "react";
 import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import { toggleParagraphMode } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const ParagraphMode = () => {
@@ -23,7 +23,7 @@ const ParagraphMode = () => {
       <ListItem.Content>
         <ListItemTitle title={PARAGRAPH_MODE} style={styles.listItemTitle} />
       </ListItem.Content>
-      <Switch
+      <ThemedSwitch
         value={isParagraphMode}
         onValueChange={(value) => dispatch(toggleParagraphMode(value))}
       />

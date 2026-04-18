@@ -1,11 +1,11 @@
 import React from "react";
 import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import { toggleStatusBar } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const StatusBar = () => {
@@ -26,7 +26,7 @@ const StatusBar = () => {
       <ListItem.Content>
         <ListItemTitle title={HIDE_STATUS_BAR} style={styles.listItemTitle} />
       </ListItem.Content>
-      <Switch value={isStatusBar} onValueChange={(value) => dispatch(toggleStatusBar(value))} />
+      <ThemedSwitch value={isStatusBar} onValueChange={(value) => dispatch(toggleStatusBar(value))} />
     </ListItem>
   );
 };

@@ -9,6 +9,7 @@ import ListItemTitle from "./ListItemTitle";
 import SafeArea from "./SafeArea";
 import SettingsIconComponent from "./SettingsIconComponent";
 import StatusBarComponent from "./StatusBar";
+import ThemedSwitch from "./ThemedSwitch";
 
 export {
   AppBar,
@@ -22,4 +23,5 @@ export {
   ListItemTitle,
   BackIconComponent,
   SettingsIconComponent,
+  ThemedSwitch,
 };

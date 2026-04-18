@@ -1,12 +1,12 @@
 import React from "react";
 import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import { toggleScreenAwake, toggleAutoScroll } from "@common/actions";
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle, showInfoToast } from "@common";
+import { STRINGS, ListItemTitle, showInfoToast, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const AutoScroll = () => {
@@ -24,7 +24,7 @@ const AutoScroll = () => {
       <ListItem.Content>
         <ListItemTitle title={AUTO_SCROLL} style={{ color: theme.colors.primaryText }} />
       </ListItem.Content>
-      <Switch
+      <ThemedSwitch
         value={isAutoScroll}
         onValueChange={async (value) => {
           /* The screen should remain active whenever Auto Scroll is enabled. */

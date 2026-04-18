@@ -1,13 +1,12 @@
 import React, { useEffect } from "react";
 import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { Switch } from "@rneui/themed";
 import PropTypes from "prop-types";
 import { toggleAudioAutoPlay, toggleAudioSyncScroll, setAudioPlaybackSpeed } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlusIcon, MinusIcon } from "@common/icons";
-import { STRINGS, CustomText } from "@common";
+import { STRINGS, CustomText, ThemedSwitch } from "@common";
 import { audioSettingModalStyles } from "../style";
 
 const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) => {
@@ -64,15 +63,8 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) =>
                 ) : setting.disabled && isLyricsChecking ? (
                   <ActivityIndicator size="small" color={theme.colors.primary} />
                 ) : (
-                  <Switch
+                  <ThemedSwitch
                     value={setting.defaultValue}
-                    ios_backgroundColor={theme.staticColors.SWITCH_BACKGROUND_COLOR}
-                    trackColor={{
-                      false: theme.staticColors.SWITCH_THUMB_COLOR,
-                      true: theme.colors.primary,
-                    }}
-                    thumbColor={setting.defaultValue ? theme.staticColors.WHITE_COLOR : "#f4f3f4"}
-                    style={styles.switchStyle}
                     onValueChange={setting.onValueChange}
                     disabled={setting.disabled}
                   />
