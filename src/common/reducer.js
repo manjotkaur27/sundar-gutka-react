@@ -38,7 +38,7 @@ const theme = createReducer(constant.Default, {
   [actionTypes.SET_THEME]: (state, action) => action.value,
 });
 
-const isStatusBar = createReducer(false, {
+const isStatusBar = createReducer(true, {
   [actionTypes.TOGGLE_STATUS_BAR]: (state, action) => action.value,
 });
 

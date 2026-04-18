@@ -18,10 +18,10 @@ const StatusBar = () => {
   return (
     <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
       <View style={styles.iconContainerStyle}>
-        {!isStatusBar && (
+        {isStatusBar && (
           <Icon color={theme.colors.primaryText} name="visibility-off" type="material" size={26} />
         )}
-        {isStatusBar && <Icon color={theme.colors.primaryText} name="visibility" type="material" size={26} />}
+        {!isStatusBar && <Icon color={theme.colors.primaryText} name="visibility" type="material" size={26} />}
       </View>
       <ListItem.Content>
         <ListItemTitle title={HIDE_STATUS_BAR} style={styles.listItemTitle} />
