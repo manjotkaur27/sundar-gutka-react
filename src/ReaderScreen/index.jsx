@@ -53,6 +53,7 @@ const Reader = ({ navigation, route }) => {
   const [dateKey, setDateKey] = useState(Date.now().toString());
   const [titleText, setTitleText] = useState(null);
   const currentElementIdRef = useRef(savePosition[id] || null);
+  const currentSequenceRef = useRef(null);
 
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
@@ -201,9 +202,11 @@ const Reader = ({ navigation, route }) => {
       } else if (data === "hide") {
         toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {
-        // Capture element ID from WebView scroll events
-        const elementId = data.split("scroll-elementId-")[1];
+        // Capture element ID (and optional sequence) from WebView scroll events
+        const payload = data.split("scroll-elementId-")[1];
+        const [elementId, seqPart] = payload.split("|seq-");
         currentElementIdRef.current = elementId;
+        currentSequenceRef.current = seqPart || null;
         // Save immediately when element ID changes
         dispatch(actions.setPosition(elementId, id));
         if (shouldNavigateBack) {
@@ -235,6 +238,7 @@ const Reader = ({ navigation, route }) => {
       const scrollMessage = {
         action: "scrollToPosition",
         elementId: currentElementIdRef.current,
+        sequence: currentSequenceRef.current,
       };
       webViewRef.current.postMessage(JSON.stringify(scrollMessage));
     }

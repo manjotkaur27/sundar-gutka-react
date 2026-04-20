@@ -57,7 +57,9 @@ const scrollFunc=(e)=> {
   if (autoScrollSpeed == 0) {
     const elementId = getTopmostElementId();
     if (elementId && !hasReachedEnd) {
-      window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId);
+      const topEl = document.getElementById(String(elementId));
+      const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
+      window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
     } else if (hasReachedEnd) {
       window.ReactNativeWebView.postMessage("scroll-elementId-null");
     }
@@ -308,19 +310,27 @@ ${listener}.addEventListener(
     }
       // Handle scroll to saved element or position
     if (message.hasOwnProperty("action") && message.action === "scrollToPosition") {
-      // Try element ID first if provided
+      let element = null;
       if (message.elementId) {
-        const element = document.getElementById(String(message.elementId));
-        if (element) {
-          element.scrollIntoView({
-            behavior: "auto",
-            block: "start",
-            inline: "nearest"
-          });
-          console.log("No Element Found");
-          return;
+        element = document.getElementById(String(message.elementId));
+      }
+      // Fallback: locate by sequence so toggling paragraph mode mid-read
+      // still restores position even though DOM ids changed.
+      if (!element && message.sequence) {
+        const seq = parseInt(message.sequence, 10);
+        if (Number.isInteger(seq) && seq > 0) {
+          element = document.querySelector('[data-sequences*="|' + seq + '|"]')
+                 || document.querySelector('[data-sequence="' + seq + '"]');
         }
       }
+      if (element) {
+        element.scrollIntoView({
+          behavior: "auto",
+          block: "start",
+          inline: "nearest"
+        });
+      }
+      return;
     }
       // Handle sync scroll to sequence
     if (message.hasOwnProperty("action") && message.action === "scrollToSequence") {
