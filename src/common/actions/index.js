@@ -175,8 +175,8 @@ export const setBaniList = (value) => {
   return { type: actionTypes.SET_BANI_LIST, value };
 };
 
-export const setPosition = (pos, shabadID) => {
-  const value = { [shabadID]: pos };
+export const setPosition = (elementId, shabadID, sequence = null) => {
+  const value = { [shabadID]: { elementId, sequence } };
   return { type: actionTypes.SET_SAVE_POSITION, value };
 };
 

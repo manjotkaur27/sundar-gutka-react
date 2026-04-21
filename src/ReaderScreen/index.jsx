@@ -52,8 +52,17 @@ const Reader = ({ navigation, route }) => {
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
   const [titleText, setTitleText] = useState(null);
-  const currentElementIdRef = useRef(savePosition[id] || null);
-  const currentSequenceRef = useRef(null);
+  const readSavedPosition = (entry) => {
+    if (!entry) return { elementId: null, sequence: null };
+    if (typeof entry === "string") return { elementId: entry, sequence: null };
+    if (typeof entry === "object") {
+      return { elementId: entry.elementId || null, sequence: entry.sequence || null };
+    }
+    return { elementId: null, sequence: null };
+  };
+  const initialSaved = readSavedPosition(savePosition[id]);
+  const currentElementIdRef = useRef(initialSaved.elementId);
+  const currentSequenceRef = useRef(initialSaved.sequence);
 
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
@@ -75,8 +84,9 @@ const Reader = ({ navigation, route }) => {
   // Save element ID when leaving screen or app goes to background
   const saveScrollPosition = useCallback(() => {
     const elementIdToSave = currentElementIdRef.current;
+    const sequenceToSave = currentSequenceRef.current;
     if (elementIdToSave) {
-      dispatch(actions.setPosition(elementIdToSave, id));
+      dispatch(actions.setPosition(elementIdToSave, id, sequenceToSave));
     }
   }, [dispatch, id]);
 
@@ -165,14 +175,15 @@ const Reader = ({ navigation, route }) => {
   // Set currentElementId from savePosition when it changes
   useEffect(() => {
     if (savePosition && id && savePosition[id]) {
-      const savedElementId = savePosition[id];
-      // Check if it's a number (old position format) or string (element ID)
-      if (typeof savedElementId === "string") {
-        currentElementIdRef.current = savedElementId;
-      } else if (typeof savedElementId === "number" && savedElementId > 0.9) {
-        // Old position format - reset to null if at end
+      const saved = savePosition[id];
+      if (typeof saved === "number" && saved > 0.9) {
+        // Old numeric format — reset if at end of doc
         currentElementIdRef.current = null;
+        return;
       }
+      const { elementId, sequence } = readSavedPosition(saved);
+      currentElementIdRef.current = elementId;
+      currentSequenceRef.current = sequence;
     }
   }, [savePosition, id]);
 
@@ -205,10 +216,11 @@ const Reader = ({ navigation, route }) => {
         // Capture element ID (and optional sequence) from WebView scroll events
         const payload = data.split("scroll-elementId-")[1];
         const [elementId, seqPart] = payload.split("|seq-");
+        const sequence = seqPart || null;
         currentElementIdRef.current = elementId;
-        currentSequenceRef.current = seqPart || null;
+        currentSequenceRef.current = sequence;
         // Save immediately when element ID changes
-        dispatch(actions.setPosition(elementId, id));
+        dispatch(actions.setPosition(elementId, id, sequence));
         if (shouldNavigateBack) {
           navigation.goBack();
           setShouldNavigateBack(false);

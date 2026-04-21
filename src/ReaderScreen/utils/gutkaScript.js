@@ -53,16 +53,16 @@ const scrollFunc=(e)=> {
     hasReachedEnd = false;
   }
 
-  // Only compute element ID during manual scroll (not during auto-scroll)
-  if (autoScrollSpeed == 0) {
-    const elementId = getTopmostElementId();
-    if (elementId && !hasReachedEnd) {
-      const topEl = document.getElementById(String(elementId));
-      const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
-      window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
-    } else if (hasReachedEnd) {
-      window.ReactNativeWebView.postMessage("scroll-elementId-null");
-    }
+  // Report topmost element on both manual and auto-scroll so read context
+  // survives background/terminate mid-auto-scroll. The 300ms throttle above
+  // keeps this off the 60fps RAF hot path during auto-scroll.
+  const elementId = getTopmostElementId();
+  if (elementId && !hasReachedEnd) {
+    const topEl = document.getElementById(String(elementId));
+    const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
+    window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
+  } else if (hasReachedEnd) {
+    window.ReactNativeWebView.postMessage("scroll-elementId-null");
   }
 
   // ── Scroll progress — bridge message on every scroll tick ───────────
