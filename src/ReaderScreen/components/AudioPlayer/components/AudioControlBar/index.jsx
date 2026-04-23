@@ -447,6 +447,45 @@ const AudioControlBar = ({
     };
   }, [baniID]);
 
+  // iOS kills the app fast on swipe-up and the unmount cleanup above doesn't
+  // run in time for redux-persist to flush. Mirror the read-position pattern
+  // from ReaderScreen (which dispatches on every scroll event so disk stays
+  // seconds-fresh) by persisting playback position every few seconds while
+  // playing. Now an iOS kill at any moment loses at most ~5s of progress.
+  useEffect(() => {
+    if (!isPlaying || !currentPlaying?.id) return undefined;
+
+    const intervalId = setInterval(() => {
+      const currentProgress = progressRef.current;
+      const currentTrack = currentPlayingRef.current;
+      const trackId = currentTrack?.id;
+      if (!trackId) return;
+
+      const persistDuration =
+        sanitizeDuration(currentProgress?.duration) ||
+        sanitizeDuration(currentTrack?.trackLengthSec);
+      const persistPosition = sanitizePosition(currentProgress?.position, persistDuration);
+      if (persistPosition <= 0) return;
+
+      const lyricsUrl = currentTrack?.lyricsUrl;
+      if (!lyricsUrl) {
+        dispatch(setAudioProgress(baniID, trackId, persistPosition, null));
+        return;
+      }
+      (async () => {
+        let sequence = null;
+        try {
+          sequence = await getSequenceFromPosition(lyricsUrl, persistPosition);
+        } catch (_) {
+          // Best-effort sequence — falls back to position-only on restore.
+        }
+        dispatch(setAudioProgress(baniID, trackId, persistPosition, sequence));
+      })();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [isPlaying, currentPlaying?.id, baniID, dispatch]);
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       {isDownloading && !isDownloaded && <DownloadBadge />}

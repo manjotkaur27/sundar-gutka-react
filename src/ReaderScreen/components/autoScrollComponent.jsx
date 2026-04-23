@@ -15,7 +15,7 @@ import {
 
 import { Slider } from "@miblanchard/react-native-slider";
 
-const AutoScrollComponent = ({ shabadID, webViewRef }) => {
+const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick }) => {
   const { theme } = useTheme();
   const isFocused = useIsFocused();
   const [isPaused, togglePaused] = useState(true);
@@ -39,7 +39,10 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
     }
   }, [webViewRef]);
 
-  // Send auto-scroll state to WebView — pauses when screen loses focus, resumes on return
+  // Send auto-scroll state to WebView — pauses when screen loses focus, resumes on return.
+  // webViewLoadTick is included so we re-send after a WebView remount (e.g. paragraph
+  // mode/larivaar toggled in Settings): on iOS postMessages sent before the fresh
+  // WKWebView is ready get dropped, so without this the scroll silently stalls.
   useEffect(() => {
     // If screen not focused, manually paused, or auto-scroll disabled, send stop signal
     const shouldScroll = isFocused && !isPaused && isAutoScroll;
@@ -57,7 +60,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef }) => {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPaused, sliderValue, isFocused, isAutoScroll]);
+  }, [isPaused, sliderValue, isFocused, isAutoScroll, webViewLoadTick]);
 
   // Send stop signal on unmount so the WebView doesn't keep scrolling
   // after the component is removed (e.g. when user switches to Audio mode)
@@ -181,6 +184,11 @@ AutoScrollComponent.propTypes = {
       postMessage: PropTypes.func,
     }),
   }).isRequired,
+  webViewLoadTick: PropTypes.number,
+};
+
+AutoScrollComponent.defaultProps = {
+  webViewLoadTick: 0,
 };
 
 export default React.memo(AutoScrollComponent);

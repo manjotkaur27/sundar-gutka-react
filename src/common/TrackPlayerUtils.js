@@ -77,7 +77,6 @@ class TrackPlayerService {
             Capability.SkipToNext,
             Capability.SkipToPrevious,
             Capability.Stop,
-            Capability.SeekTo,
           ],
           compactCapabilities: [
             Capability.Play,
