@@ -179,14 +179,17 @@ const BottomNavigation = ({ activeKey }) => {
       key: "Read",
       icon: ReadIcon,
       handlePress: async () => {
-        const currentNavRoute = getCurrentRouteName();
-
-        if (currentNavRoute === constant.SETTINGS) {
-          navigation.goBack();
-        }
+        // Pause and disable audio BEFORE navigating back so that
+        // AudioControlBar's focus-based auto-resume doesn't fire
+        // (it would see isAudio=true and call play() on the focus event).
         if (isAudio) {
           await pauseTrack();
           dispatch(actions.toggleAudio(false));
+        }
+
+        const currentNavRoute = getCurrentRouteName();
+        if (currentNavRoute === constant.SETTINGS) {
+          navigation.goBack();
         }
       },
       text: STRINGS.READ,
@@ -218,21 +221,21 @@ const BottomNavigation = ({ activeKey }) => {
         const currentNavRoute = getCurrentRouteName();
 
         if (currentNavRoute === constant.SETTINGS) {
+          // Coming back from Settings — audio is already active (just paused).
+          // Simply go back and let AudioControlBar's auto-resume handle playback.
+          // Don't toggle audio off→on, which causes a visible nav flicker.
+          if (isAudio) {
+            navigation.goBack();
+            return;
+          }
           navigation.goBack();
         }
 
-
-
-        // Re-entering Music while audio is already open should reset playback and
-        // re-open the preview chooser from a clean player state.
+        // Audio is already active — nothing to do. The user can switch
+        // artists via the player's own UI. Avoid the destructive
+        // toggleAudio(false)→wait→toggleAudio(true) remount cycle which
+        // causes a visible Read↔Music nav flicker.
         if (isAudio) {
-          await stopTrack();
-          await resetPlayer();
-          dispatch(actions.toggleAudio(false));
-          // Ensure Redux/UI observes an actual OFF state before re-enabling,
-          // so AudioPlayer remounts into preview mode consistently.
-          await wait(60);
-          dispatch(actions.toggleAudio(true));
           return;
         }
 

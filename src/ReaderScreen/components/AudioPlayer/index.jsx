@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Linking } from "react-native";
 import TrackPlayer from "react-native-track-player";
 import { useSelector, useDispatch } from "react-redux";
@@ -21,6 +21,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const [showTrackModal, setShowTrackModal] = useState(!hasSavedTrackForCurrentBani);
   const [isPlayerActionLoading, setIsPlayerActionLoading] = useState(false);
   const [seekSyncRequest, setSeekSyncRequest] = useState(null);
+  // Guard ref: prevents the safe-exit effect from reopening the modal during
+  // an active handleTrackSelect transition (React state + Redux dispatch can
+  // commit in separate render batches, causing a false-positive defaultAudioWiped).
+  const isSelectingTrackRef = useRef(false);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
   const [hasAutoRestoredView, setHasAutoRestoredView] = useState(false);
@@ -199,6 +203,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // user sees either the unavailable message or the valid artists for this length.
   useEffect(() => {
     if (isTracksLoading) return;
+    // Skip while a track selection is in progress — React state (currentPlaying)
+    // may have committed before the Redux dispatch (setDefaultAudio) propagates
+    // through useSelector, which would cause a false-positive defaultAudioWiped.
+    if (isSelectingTrackRef.current) return;
 
     const tracksEmpty = !Array.isArray(tracks) || tracks.length === 0;
     const currentArtistTrackInNewManifest = 
@@ -290,6 +298,8 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
           return;
         }
 
+        isSelectingTrackRef.current = true;
+
         const previousTrack = currentPlaying;
         const previousPosition = progress?.position;
 
@@ -298,11 +308,6 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         await stop();
         await reset();
 
-        // Set the new track as current and close modal together
-        setCurrentPlaying(selectedTrack);
-        setShowTrackModal(false);
-        setHasAutoRestoredView(true);
-        // Set the new track as current
         // Save current sequence before switching artists
         if (previousTrack?.id && previousPosition != null) {
           let currentSequence = null;
@@ -315,8 +320,15 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
           );
         }
 
-        // Dispatch action
+        // Dispatch Redux action BEFORE setting React state so that when the
+        // safe-exit effect runs, defaultAudio is already up-to-date and the
+        // defaultAudioWiped check doesn't false-positive.
         dispatch(setDefaultAudio(selectedTrack, baniID));
+
+        // Set the new track as current and close modal together
+        setCurrentPlaying(selectedTrack);
+        setShowTrackModal(false);
+        setHasAutoRestoredView(true);
 
         // After selecting a track (including from preview -> Next), enter full player
         // with playback already running so no extra Play tap is required.
@@ -340,6 +352,8 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         logError("Error switching track:", error);
         showErrorToast(`${STRINGS.UNABLE_TO_SWITCH_TRACK} ${STRINGS.PLEASE_TRY_AGAIN}`);
         setIsPlayerActionLoading(false);
+      } finally {
+        isSelectingTrackRef.current = false;
       }
     },
     [baniID, isAudioEnabled, isAudioAutoPlay, currentPlaying, progress?.position]
