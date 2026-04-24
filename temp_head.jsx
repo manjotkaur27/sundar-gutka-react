@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
 import TrackPlayer, { State } from "react-native-track-player";
@@ -36,7 +36,6 @@ const AudioTrackDialog = ({
   const { theme } = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const [selectedTrack, setSelectedTrack] = useState(null);
-  const selectedTrackRef = useRef(null);
   const [playingTrack, setPlayingTrack] = useState(null);
   const [previewLoadingTrackId, setPreviewLoadingTrackId] = useState(null);
   const [previewActiveTrackId, setPreviewActiveTrackId] = useState(null);
@@ -58,9 +57,9 @@ const AudioTrackDialog = ({
 
   /**
    * Check the track's current load state. Returns:
-   * - 'playing'  — audio is audible to the user (State.Playing)
-   * - 'loading'  — track is active and buffering/ready (M4A moov parsing, data streaming)
-   * - 'inactive' — track is not active or in a non-progress state (None/Stopped/etc.)
+   * - 'playing'  ΓÇö audio is audible to the user (State.Playing)
+   * - 'loading'  ΓÇö track is active and buffering/ready (M4A moov parsing, data streaming)
+   * - 'inactive' ΓÇö track is not active or in a non-progress state (None/Stopped/etc.)
    */
   const getTrackLoadState = async (trackId) => {
     try {
@@ -82,7 +81,7 @@ const AudioTrackDialog = ({
       }
 
       // Buffering/Ready = the track is actively loading (M4A moov parse,
-      // data streaming). The load is alive — don't kill it with a timeout,
+      // data streaming). The load is alive ΓÇö don't kill it with a timeout,
       // but don't start the preview countdown yet either.
       if (
         currentState === State.Buffering ||
@@ -104,13 +103,10 @@ const AudioTrackDialog = ({
    * so M4A moov atom parsing doesn't get killed prematurely.
    * The timeout only fires when the track is truly inactive (not loading at all).
    */
-  const waitForPlaybackStart = async (trackId, sessionId, timeoutMs = PREVIEW_LOAD_TIMEOUT_MS) => {
+  const waitForPlaybackStart = async (trackId, timeoutMs = PREVIEW_LOAD_TIMEOUT_MS) => {
     let lastProgressAt = Date.now();
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      if (previewSessionRef.current !== sessionId) {
-        return false;
-      }
       const elapsed = Date.now() - lastProgressAt;
       if (elapsed >= timeoutMs) {
         return false;
@@ -119,20 +115,16 @@ const AudioTrackDialog = ({
       // eslint-disable-next-line no-await-in-loop
       const loadState = await getTrackLoadState(trackId);
 
-      if (previewSessionRef.current !== sessionId) {
-        return false;
-      }
-
       if (loadState === "playing") {
-        return true; // Audio is audible — start the preview timer now
+        return true; // Audio is audible ΓÇö start the preview timer now
       }
 
       if (loadState === "loading") {
-        // Track is alive and buffering — reset timeout so we don't kill
+        // Track is alive and buffering ΓÇö reset timeout so we don't kill
         // a healthy M4A moov parse that's just slow on mobile network.
         lastProgressAt = Date.now();
       }
-      // If 'inactive': don't reset — let the timeout count down.
+      // If 'inactive': don't reset ΓÇö let the timeout count down.
 
       // eslint-disable-next-line no-await-in-loop
       await wait(ACTIVE_TRACK_POLL_MS);
@@ -169,7 +161,7 @@ const AudioTrackDialog = ({
    * The preview ticker is the single source of truth for both the visual
    * countdown AND the 30-second stop. When elapsed reaches PREVIEW_DURATION_MS,
    * the interval itself stops the audio. This guarantees the countdown shows 0
-   * at exactly the moment audio stops — no separate setTimeout that can drift.
+   * at exactly the moment audio stops ΓÇö no separate setTimeout that can drift.
    */
   const startPreviewTicker = useCallback(
     (track, sessionId) => {
@@ -186,7 +178,7 @@ const AudioTrackDialog = ({
         setPreviewProgress(clampedElapsed / PREVIEW_DURATION_MS);
         setPreviewRemainingSec(Math.ceil(remainingMs / 1000));
 
-        // Time's up — stop audio from within the same tick that shows 0
+        // Time's up ΓÇö stop audio from within the same tick that shows 0
         if (clampedElapsed >= PREVIEW_DURATION_MS) {
           clearPreviewInterval();
           if (previewSessionRef.current !== sessionId) return;
@@ -258,7 +250,7 @@ const AudioTrackDialog = ({
   /**
    * Start the 30-second preview window. Called only AFTER audio is confirmed
    * playing (State.Playing + position > 0). The ticker handles both the visual
-   * countdown and the auto-stop — no separate timeout needed.
+   * countdown and the auto-stop ΓÇö no separate timeout needed.
    */
   const startPreviewWindow = useCallback(
     (track, sessionId) => {
@@ -292,10 +284,7 @@ const AudioTrackDialog = ({
     previewActionInFlightRef.current = true;
     const sessionId = previewSessionRef.current + 1;
     previewSessionRef.current = sessionId;
-    
-    selectedTrackRef.current = track;
     setSelectedTrack(track);
-    
     setPreviewActiveTrackId(null);
 
     if (!isHeader) {
@@ -334,7 +323,7 @@ const AudioTrackDialog = ({
       try {
         await TrackPlayer.updateOptions({ capabilities: [], compactCapabilities: [] });
       } catch (_) {
-        // Non-critical — preview audio still plays without notification controls.
+        // Non-critical ΓÇö preview audio still plays without notification controls.
       }
 
       await addAndPlayTrack(
@@ -355,7 +344,7 @@ const AudioTrackDialog = ({
 
       // Wait for audio to start buffering or playing.
       // M4A containers need longer to parse moov atom + buffer on Android.
-      const playbackStarted = await waitForPlaybackStart(track.id, sessionId);
+      const playbackStarted = await waitForPlaybackStart(track.id);
 
       if (playbackStarted && previewSessionRef.current === sessionId) {
         clearPreviewStartTimeout();
@@ -363,7 +352,7 @@ const AudioTrackDialog = ({
         setPlayingTrack(track);
         startPreviewWindow(track, sessionId);
       } else if (previewSessionRef.current === sessionId) {
-        // Playback didn't start within the timeout — clean up
+        // Playback didn't start within the timeout ΓÇö clean up
         setPreviewLoadingTrackId(null);
         setPreviewActiveTrackId(null);
         setPlayingTrack(null);
@@ -386,23 +375,11 @@ const AudioTrackDialog = ({
   };
 
   const handlePlay = async () => {
-    const trackToPlay = selectedTrackRef.current || selectedTrack;
-    if (trackToPlay) {
+    if (selectedTrack) {
       setIsNextLoading(true);
       try {
-        // Eagerly increment session ID so that if a preview is currently in `waitForPlaybackStart`,
-        // it aborts immediately.
-        previewSessionRef.current += 1;
-
-        // Spin-wait for handleSelectTrack to finish its critical TrackPlayer operations (addAndPlayTrack)
-        // so we don't cause a race condition with stopPreview()'s reset().
-        while (previewActionInFlightRef.current) {
-          // eslint-disable-next-line no-await-in-loop
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-
         await stopPreview();
-        await handleTrackSelect(trackToPlay);
+        await handleTrackSelect(selectedTrack);
       } finally {
         setIsNextLoading(false);
       }
@@ -472,7 +449,7 @@ const AudioTrackDialog = ({
             testID="play-button"
             style={[styles.playButton, !selectedTrack && styles.playButtonDisabled]}
             onPress={handlePlay}
-            disabled={isNextLoading}
+            disabled={!selectedTrack || isNextLoading}
             activeOpacity={0.8}
           >
             {isNextLoading && (

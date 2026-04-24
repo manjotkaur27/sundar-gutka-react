@@ -174,7 +174,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
 
     const hasTracks = Array.isArray(tracks) && tracks.length > 0;
     const hasCurrentTrack = Boolean(currentPlaying?.id);
-    const hasSavedDefaultTrack = Boolean(defaultAudio?.[baniID]?.id);
+    const hasSavedDefaultTrack = Boolean(
+      defaultAudio?.[baniID]?.id &&
+      tracks?.some((t) => String(t.artistID) === String(defaultAudio[baniID].artistID))
+    );
 
     if (hasTracks && (hasCurrentTrack || hasSavedDefaultTrack)) {
       setShowTrackModal(false);
@@ -188,6 +191,65 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     defaultAudio,
     baniID,
   ]);
+
+  // Safe-exit: fires when bani length changes and the new track list no longer
+  // includes the currently playing artist (e.g. InderMohan on Long/XL) or is
+  // empty (XL — no artist recorded the opening Dohra). In both cases we stop
+  // audio, clear currentPlaying, and return to the track-selection modal so the
+  // user sees either the unavailable message or the valid artists for this length.
+  useEffect(() => {
+    if (isTracksLoading) return;
+
+    const tracksEmpty = !Array.isArray(tracks) || tracks.length === 0;
+    const currentArtistTrackInNewManifest = 
+      currentPlaying?.artistID != null && Array.isArray(tracks)
+        ? tracks.find((t) => String(t.artistID) === String(currentPlaying.artistID))
+        : null;
+
+    const currentArtistGone =
+      currentPlaying?.artistID != null &&
+      Array.isArray(tracks) &&
+      tracks.length > 0 &&
+      !currentArtistTrackInNewManifest;
+
+    const currentTrackUrlChanged =
+      currentArtistTrackInNewManifest != null &&
+      currentPlaying?.audioUrl != null &&
+      currentArtistTrackInNewManifest.audioUrl !== currentPlaying.audioUrl;
+
+    // If the component remounted (e.g. returning from Settings), currentPlaying 
+    // initializes to null. If the modal is hidden (because the app expected 
+    // defaultAudio to be valid), but the saved artist is actually invalid for 
+    // this length, we are stuck on a blank player. Force the modal open.
+    const isStuckOnBlankPlayer =
+      !showTrackModal &&
+      !currentPlaying?.id &&
+      Array.isArray(tracks) &&
+      tracks.length > 0 &&
+      !Boolean(
+        defaultAudio?.[baniID]?.id &&
+        tracks.some((t) => String(t.artistID) === String(defaultAudio[baniID].artistID))
+      );
+
+    // If defaultAudio for this bani was wiped from Redux (e.g., due to a bani length change),
+    // we must exit and reset the player to show the modal again.
+    const defaultAudioWiped = currentPlaying?.id != null && !defaultAudio?.[baniID]?.id;
+
+    const needsExit = tracksEmpty || currentArtistGone || currentTrackUrlChanged || isStuckOnBlankPlayer || defaultAudioWiped;
+
+    // Only execute if we actually need to change state (prevents infinite loop of stop/reset)
+    if (needsExit && (!showTrackModal || currentPlaying != null)) {
+      // Stop and reset the player silently, then surface the selection UI.
+      (async () => {
+        try { await stop(); } catch (_) {}
+        try { await reset(); } catch (_) {}
+      })();
+      setCurrentPlaying(null);
+      setShowTrackModal(true);
+      setHasAutoRestoredView(true); // prevent autoRestore from hiding the modal immediately
+    }
+  }, [tracks, isTracksLoading, showTrackModal, currentPlaying?.id, defaultAudio, baniID]);
+
 
   const handleSeek = async (value) => {
     if (!isAudioEnabled || !isInitialized) return;

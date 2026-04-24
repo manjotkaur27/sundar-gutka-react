@@ -176,18 +176,36 @@ const AudioControlBar = ({
   }, [currentPlaying?.id, progress.duration]);
 
   const sliderMax =
-    durationTrackId && durationTrackId === getTrackId(currentPlaying) ? displayDuration : 0;
+    durationTrackId && durationTrackId === getTrackId(currentPlaying) && displayDuration > 0
+      ? displayDuration
+      : (Number(currentPlaying?.trackLengthSec) || 0);
 
   const safePosition = useMemo(
     () => {
-      if (sliderMax <= 0) {
-        return 0;
+      let basePosition = progress.position;
+
+      // If native player hasn't caught up, show the exact position we saved in Redux
+      // to avoid visual "0:00" flashing when returning to the screen.
+      // We also check basePosition < 0.5 because the native player sometimes reports
+      // a momentary 0.001s position right after addAndPlayTrack before the seekTo executes.
+      if (!basePosition || basePosition < 0.5 || isSeekLoading) {
+        const savedProgress = audioProgress?.[baniID];
+        if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
+          basePosition = savedProgress.position || basePosition;
+        }
       }
-      const basePosition =
-        optimisticSeekPosition != null ? optimisticSeekPosition : sanitizePosition(progress.position, sliderMax);
+
+      if (optimisticSeekPosition != null) {
+        basePosition = optimisticSeekPosition;
+      }
+
+      if (sliderMax <= 0) {
+        return basePosition;
+      }
+
       return sanitizePosition(basePosition, sliderMax);
     },
-    [progress.position, sliderMax, optimisticSeekPosition]
+    [progress.position, sliderMax, optimisticSeekPosition, audioProgress, baniID, currentPlaying?.id, isSeekLoading]
   );
 
   useEffect(() => {
@@ -348,8 +366,15 @@ const AudioControlBar = ({
       try {
         setIsSeekLoading(true);
         const activeTrack = await TrackPlayer.getActiveTrack();
+        // A track is truly "the same" only when both the ID and the audio URL
+        // match. Bani-length variants share the same track_id but use different
+        // M4A files (e.g. ChaupaiSahib-short.m4a vs ChaupaiSahib.m4a), so an
+        // ID-only check would incorrectly skip the reload when the user switches
+        // bani length while audio is already loaded in the player.
         const isSameActiveTrack =
-          activeTrack?.id != null && String(activeTrack.id) === String(currentPlaying.id);
+          activeTrack?.id != null &&
+          String(activeTrack.id) === String(currentPlaying.id) &&
+          activeTrack?.url === currentPlaying.audioUrl;
 
         // Keep current playback timeline when reopening the same bani/track.
         if (isSameActiveTrack) {
@@ -379,27 +404,9 @@ const AudioControlBar = ({
           const isSavedProgressForCurrentTrack =
             savedProgress.trackId != null && String(savedProgress.trackId) === String(currentPlaying.id);
 
-          // Restore only if saved progress belongs to the currently selected track.
-          if (
-            isSavedProgressForCurrentTrack &&
-            savedProgress.sequence != null &&
-            currentPlaying?.lyricsUrl
-          ) {
-            const sequencePosition = await getPositionFromSequence(
-              currentPlaying.lyricsUrl,
-              savedProgress.sequence
-            );
-            if (sequencePosition != null) {
-              await seekTo(sequencePosition);
-              if (isAudioAutoPlay) {
-                await play();
-              }
-              setIsSeekLoading(false);
-              return;
-            }
-          }
-
-          // Fallback to saved position if sequence not found or not available
+          // Restore exact saved position if it belongs to the currently selected track.
+          // We intentionally avoid restoring from sequence ID to prevent snapping backwards
+          // to the start of a lyric block, which causes the user to lose progress.
           if (savedProgress.position && isSavedProgressForCurrentTrack) {
             await seekTo(savedProgress.position);
           }

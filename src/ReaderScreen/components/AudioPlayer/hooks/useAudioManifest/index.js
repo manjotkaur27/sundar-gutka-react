@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { DocumentDirectoryPath, exists } from "react-native-fs";
 import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
+import constant from "@common/constant";
 import { fetchManifest } from "@service";
 
 const ALLOWED_ARTIST_IDS = [4, 8, 9];
@@ -41,13 +42,63 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       { bani_id: 6, track_id: 3006, track_url: `${_BLOB}/GianiGurdevSingh/TavParsadSwayiye.m4a`, track_length_seconds: 237, track_size_mb: 3.71, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/TavParsadSwayiye.json` },
     ],
   },
-  9: {
-    status: "success",
-    data: [
-      { bani_id: 9, track_id: 1009, track_url: `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib.m4a`, track_length_seconds: 317, track_size_mb: 4.95, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/chopai-sahib.json` },
-      { bani_id: 9, track_id: 2009, track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.m4a`, track_length_seconds: 268, track_size_mb: 4.17, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json` },
-      { bani_id: 9, track_id: 3009, track_url: `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.m4a`, track_length_seconds: 378, track_size_mb: 5.90, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.json` },
-    ],
+  9: (baniLength) => {
+    // Chaupai Sahib — DB flag zones:
+    //   Seqs  1–42 : existsBuddhaDal only (XL-only opening Dohra — no artist recorded this)
+    //   Seqs 43–146: all flags = 1 (Short / Medium / Long / XL all include these)
+    //   Seqs 147–173: existsTaksal + existsBuddhaDal (Long+XL closing sections)
+    //
+    // Audio availability:
+    //   Short / Medium → trimmed M4A (seqs 43–146), rebased timestamps
+    //   Long (Taksal)  → full original M4A (seqs 43–173, all closing sections)
+    //   XL (BuddhaDal) → UNAVAILABLE — no artist recorded the seqs 1–42 opening
+    //   InderMohan Kaur → Short/Medium only (her recording ends at seq 146)
+
+    const isShortOrMedium = baniLength !== constant.LONG && baniLength !== constant.EXTRA_LONG;
+    const isXL = baniLength === constant.EXTRA_LONG;
+
+    // XL: no artist covers the XL-only opening (seqs 1–42) — return empty so the
+    // AudioTrackDialog shows the "not available" message.
+    if (isXL) {
+      return { status: "success", data: [] };
+    }
+
+    const bjLyrics = isShortOrMedium
+      ? `${_BLOB}/BhaiJarnailSingh/chopai-sahib-short.json`
+      : `${_BLOB}/BhaiJarnailSingh/chopai-sahib.json`;
+    const bjAudio = isShortOrMedium
+      ? `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib-short.m4a`
+      : `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib.m4a`;
+    const bjLength = isShortOrMedium ? 222 : 317;
+    const bjSize   = isShortOrMedium ? 3.47 : 4.95;
+
+    const ggLyrics = isShortOrMedium
+      ? `${_BLOB}/GianiGurdevSingh/ChaupaiSahib-short.json`
+      : `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.json`;
+    const ggAudio = isShortOrMedium
+      ? `${_BLOB}/GianiGurdevSingh/ChaupaiSahib-short.m4a`
+      : `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.m4a`;
+    const ggLength = isShortOrMedium ? 273 : 378;
+    const ggSize   = isShortOrMedium ? 4.27 : 5.90;
+
+    const tracks = [
+      { bani_id: 9, track_id: 1009, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
+      { bani_id: 9, track_id: 3009, track_url: ggAudio, track_length_seconds: ggLength, track_size_mb: ggSize, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: ggLyrics },
+    ];
+
+    // InderMohan Kaur is only available for Short/Medium (recording ends at seq 146).
+    // Long extends to seq 173 which she didn't record.
+    if (isShortOrMedium) {
+      tracks.splice(1, 0, {
+        bani_id: 9, track_id: 2009,
+        track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.m4a`,
+        track_length_seconds: 268, track_size_mb: 4.17,
+        artist_name: "Indermohan Kaur UK", artist_id: 8,
+        lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json`,
+      });
+    }
+
+    return { status: "success", data: tracks };
   },
   10: {
     status: "success",
@@ -57,19 +108,109 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       { bani_id: 10, track_id: 3010, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.m4a`, track_length_seconds: 994, track_size_mb: 15.52, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.json` },
     ],
   },
-  21: {
-    status: "success",
-    data: [
-      { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib.m4a`, track_length_seconds: 1335, track_size_mb: 20.49, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.json` },
-      { bani_id: 21, track_id: 2021, track_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`, track_length_seconds: 1145, track_size_mb: 17.80, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.json` },
-    ],
+  21: (baniLength) => {
+    // Rehras Sahib — DB flag zones:
+    //   Short (SGPC) -> 1, 20-169, 215-318, 487-540
+    //   Medium -> 1, 12-169, 215-318, 487-563
+    //   Long (Taksal) -> 1, 8-169, 175-178, 207-375, 405-416, 469-471, 473-563
+    //   XL (BuddhaDal) -> 1-563 (No audio available)
+
+    const isShort = baniLength === constant.SHORT;
+    const isMedium = baniLength === constant.MEDIUM;
+    const isLong = baniLength === constant.LONG;
+    const isXL = baniLength === constant.EXTRA_LONG;
+
+    // XL is unavailable for Rehras Sahib.
+    if (isXL) {
+      return { status: "success", data: [] };
+    }
+
+    const bjLyrics = isShort
+      ? `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-short.json`
+      : isMedium
+      ? `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-medium.json`
+      : `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.json`;
+
+    const bjAudio = isShort
+      ? `${_BLOB}/BhaiJarnailSingh/RehrasSahib-short.m4a`
+      : isMedium
+      ? `${_BLOB}/BhaiJarnailSingh/RehrasSahib-medium.m4a`
+      : `${_BLOB}/BhaiJarnailSingh/RehrasSahib.m4a`;
+
+    const bjLength = isShort ? 945 : isMedium ? 1083 : 1335;
+    const bjSize   = isShort ? 14.50 : isMedium ? 16.60 : 20.49;
+
+    const imLyrics = isShort
+      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-short.json`
+      : isMedium
+      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-medium.json`
+      : `${_BLOB}/IndermohanKaurUK/RehrasSahib.json`;
+
+    const imAudio = isShort
+      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-short.m4a`
+      : isMedium
+      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-medium.m4a`
+      : `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`;
+
+    const imLength = isShort ? 1001 : isMedium ? 1125 : 1145;
+    const imSize   = isShort ? 15.50 : isMedium ? 17.50 : 17.80;
+
+    const tracks = [
+      { bani_id: 21, track_id: 1021, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
+    ];
+
+    // InderMohan Kaur is technically missing middle Taksal sequences,
+    // but we make her available in Long form to match user expectations.
+    tracks.push({
+      bani_id: 21, track_id: 2021,
+      track_url: imAudio, track_length_seconds: imLength, track_size_mb: imSize,
+      artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: imLyrics,
+    });
+
+    return { status: "success", data: tracks };
   },
-  23: {
-    status: "success",
-    data: [
-      { bani_id: 23, track_id: 1023, track_url: `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`, track_length_seconds: 333, track_size_mb: 5.03, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.json` },
-      { bani_id: 23, track_id: 2023, track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.m4a`, track_length_seconds: 239, track_size_mb: 3.71, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json` },
-    ],
+  23: (baniLength) => {
+    // Kirtan Sohila
+    // Short/Medium: seq 32-86
+    // Long: seq 1-86
+    // XL: seq 1-146 (No artist has recorded up to 146)
+    
+    const isShortOrMedium = baniLength === constant.SHORT || baniLength === constant.MEDIUM;
+    const isXL = baniLength === constant.EXTRA_LONG;
+
+    // XL is completely unavailable (Maafi)
+    if (isXL) {
+      return { status: "success", data: [] };
+    }
+
+    // BJS is available for Short/Medium and Long
+    const bjLyrics = isShortOrMedium
+      ? `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila-short.json`
+      : `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.json`;
+      
+    const bjAudio = isShortOrMedium
+      ? `${_BLOB}/BhaiJarnailSingh/KirtanSohaila-short.m4a`
+      : `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`;
+      
+    const bjLength = isShortOrMedium ? 252 : 333;
+    const bjSize   = isShortOrMedium ? 3.80 : 5.03;
+
+    const tracks = [
+      { bani_id: 23, track_id: 1023, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
+    ];
+
+    // InderMohan Kaur only recorded Short/Medium (seq 33-86).
+    if (isShortOrMedium) {
+      tracks.push({
+        bani_id: 23, track_id: 2023,
+        track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.m4a`,
+        track_length_seconds: 239, track_size_mb: 3.71,
+        artist_name: "Indermohan Kaur UK", artist_id: 8,
+        lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json`,
+      });
+    }
+
+    return { status: "success", data: tracks };
   },
 };
 
@@ -103,12 +244,21 @@ export const __resetManifestApiCacheForTests = () => {
   _manifestApiCache.clear();
 };
 
+/**
+ * Banis whose track_url / lyrics_url must be resolved client-side based on
+ * bani length (because the remote API is unaware of per-length variants).
+ * For these banis the emergency manifest is ALWAYS used as the source of
+ * truth for URLs, regardless of what the API returns.
+ */
+const BANI_IDS_WITH_LENGTH_VARIANTS = new Set([9, 21, 23]);
+
 const useAudioManifest = (baniID) => {
   const [tracks, setTracks] = useState([]);
   const [currentPlaying, setCurrentPlaying] = useState(null);
-  const [isTracksLoading, setIsLoading] = useState(false);
+  const [isTracksLoading, setIsLoading] = useState(true);
   const [manifestError, setManifestError] = useState(null);
   const defaultAudio = useSelector((state) => state.defaultAudio);
+  const baniLength = useSelector((state) => state.baniLength);
 
   const dispatch = useDispatch();
   const audioManifest = useSelector((state) => state.audioManifest);
@@ -156,7 +306,13 @@ const useAudioManifest = (baniID) => {
       });
   };
 
-  const getEmergencyManifest = () => EMERGENCY_MANIFEST_BY_BANI[Number(baniID)] || null;
+  const getEmergencyManifest = () => {
+    const entry = EMERGENCY_MANIFEST_BY_BANI[Number(baniID)];
+    if (!entry) return null;
+    // Bani 9 (Chaupai Sahib) emergency manifest is a function that resolves
+    // the correct track/lyrics URLs based on the current bani length setting.
+    return typeof entry === "function" ? entry(baniLength) : entry;
+  };
 
   // Merge downloaded tracks with API tracks
   const mergeDownloadedTracks = async (apiTracks, downloadedTracks) => {
@@ -225,12 +381,23 @@ const useAudioManifest = (baniID) => {
         const downloadedTrack = downloadedTracks.find(
           (downloaded) => String(downloaded.id) === String(apiTrack.id)
         );
-        const fullLocalPath = downloadedTrack
-          ? `${DocumentDirectoryPath}/audio/${downloadedTrack.audioUrl}`
+
+        // For bani-length variants, the same track_id maps to different audio
+        // files depending on the selected length (e.g. ChaupaiSahib-short.m4a
+        // vs ChaupaiSahib.m4a both use track_id 1009). If the cached entry's
+        // remoteUrl doesn't match the currently expected URL, the local file
+        // belongs to a different length — ignore it and stream the correct one.
+        const remoteUrlMatches =
+          !downloadedTrack?.remoteUrl ||
+          downloadedTrack.remoteUrl === apiTrack.audioUrl;
+        const validDownloadedTrack = downloadedTrack && remoteUrlMatches ? downloadedTrack : null;
+
+        const fullLocalPath = validDownloadedTrack
+          ? `${DocumentDirectoryPath}/audio/${validDownloadedTrack.audioUrl}`
           : null;
         const lyricsUrlPath =
-          downloadedTrack && downloadedTrack.lyricsUrl
-            ? `${DocumentDirectoryPath}/audio/${downloadedTrack.lyricsUrl}`
+          validDownloadedTrack && validDownloadedTrack.lyricsUrl
+            ? `${DocumentDirectoryPath}/audio/${validDownloadedTrack.lyricsUrl}`
             : null;
 
         let hasAudio = false;
@@ -252,18 +419,18 @@ const useAudioManifest = (baniID) => {
           }
         }
 
-        if (downloadedTrack && hasAudio) {
+        if (validDownloadedTrack && hasAudio) {
           return {
             ...apiTrack,
             audioUrl: fullLocalPath,
             // If local lyrics are missing, keep remote lyricsUrl for sync-scroll.
-            lyricsUrl: downloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : apiTrack.lyricsUrl,
+            lyricsUrl: validDownloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : apiTrack.lyricsUrl,
             remoteUrl: apiTrack.audioUrl,
             isLocallyDownloaded: true,
           };
         }
 
-        // Fallback to remote API track when local file is missing
+        // Fallback to remote API track when local file is missing or wrong length
         return {
           ...apiTrack,
           remoteUrl: apiTrack.audioUrl,
@@ -281,11 +448,20 @@ const useAudioManifest = (baniID) => {
       return;
     }
 
-    // Check if user has a preferred audio for this bani
-    if (defaultAudio[baniID]) {
-      // Find track with matching artist ID
+    // Determine which artistID to prefer:
+    //  1. Saved user preference (defaultAudio) — primary source
+    //  2. Currently playing track — used when baniLength changes while audio
+    //     is active; ensures currentPlaying gets the new-length URL instantly
+    const preferredArtistId =
+      defaultAudio[baniID]?.artistID != null
+        ? defaultAudio[baniID].artistID.toString()
+        : currentPlaying?.artistID != null
+        ? currentPlaying.artistID.toString()
+        : null;
+
+    if (preferredArtistId) {
       const defaultTrack = trackList.find(
-        (track) => track.artistID.toString() === defaultAudio[baniID].artistID.toString()
+        (track) => track.artistID.toString() === preferredArtistId
       );
       if (defaultTrack && defaultTrack.audioUrl) {
         setCurrentPlaying(defaultTrack);
@@ -302,7 +478,10 @@ const useAudioManifest = (baniID) => {
       // user navigates back to the same bani. The downloaded-tracks merge still
       // runs fresh each time so local file changes are always reflected.
       let manifest;
-      const cachedManifest = _manifestApiCache.get(baniID);
+      // Cache is keyed by baniID+baniLength so a length change always triggers
+      // a fresh fetch (different track/lyrics URLs may be needed).
+      const cacheKey = `${baniID}:${baniLength}`;
+      const cachedManifest = _manifestApiCache.get(cacheKey);
       const hasNonEmptyCachedData =
         cachedManifest && Array.isArray(cachedManifest.data) && cachedManifest.data.length > 0;
 
@@ -311,20 +490,35 @@ const useAudioManifest = (baniID) => {
       } else {
         manifest = await fetchManifest(baniID);
         if (manifest && Array.isArray(manifest.data) && manifest.data.length > 0) {
-          _manifestApiCache.set(baniID, manifest);
+          _manifestApiCache.set(cacheKey, manifest);
         }
       }
 
       // Map API data to tracks
-      let mappedData = mapApiDataToTracks(manifest);
-      if (!mappedData || mappedData.length === 0) {
-        mappedData = mapApiDataToTracks(getEmergencyManifest());
+      let mappedData;
+      const emergencyManifest = getEmergencyManifest();
+
+      if (BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID))) {
+        // For length-variant banis (e.g. Chaupai Sahib), the emergency manifest
+        // holds the authoritative, length-correct URLs. Use it directly.
+        // We still map API data first (if available) for metadata consistency,
+        // but always override track_url and lyrics_url from the emergency manifest.
+        mappedData = mapApiDataToTracks(emergencyManifest);
+      } else {
+        mappedData = mapApiDataToTracks(manifest);
+        if (!mappedData || mappedData.length === 0) {
+          mappedData = mapApiDataToTracks(emergencyManifest);
+        }
       }
       // Get downloaded tracks from Redux
       const downloadedTracks = audioManifest[baniID];
       // Merge downloaded tracks with API tracks if available
       if (downloadedTracks && downloadedTracks.length > 0) {
-        mappedData = await mergeDownloadedTracks(mappedData, downloadedTracks);
+        const mappedDataLength = mappedData ? mappedData.length : 0;
+        const isExplicitlyEmpty = BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID)) && mappedDataLength === 0;
+        if (!isExplicitlyEmpty) {
+          mappedData = await mergeDownloadedTracks(mappedData || [], downloadedTracks);
+        }
       }
       // Set tracks and default playing track
       if (mappedData && mappedData.length > 0) {
@@ -400,7 +594,7 @@ const useAudioManifest = (baniID) => {
     if (baniID && isRehydrated) {
       fetchAudioManifest();
     }
-  }, [baniID, isRehydrated]);
+  }, [baniID, isRehydrated, baniLength]);
 
   return {
     tracks,

@@ -52,23 +52,29 @@ const crashlyticsMiddleware = (store) => (next) => (action) => {
     return next(action);
   }
 
-  // Track the action type
-  setCustomKey("last-action", action.type);
-
-  // Track action value/payload
-  const actionValue = action.value !== undefined ? action.value : action.payload;
-  if (actionValue !== undefined) {
-    setCustomKey("last-action-value", safeStringify(actionValue));
-  }
-
-  // Let the action go through
+  // Let the action go through first so React can re-render immediately.
   const result = next(action);
 
-  // After state update, track a small summary of the state to avoid overflow
-  const stateSummary = summarizeState(store.getState());
-  if (Object.keys(stateSummary).length > 0) {
-    setCustomKey(stateSummary);
-  }
+  // Defer ALL Crashlytics native bridge calls to the next idle tick.
+  // On cold start the Crashlytics bridge is not yet warm, so synchronous
+  // setAttribute calls block the JS thread and cause a visible ~200 ms lag
+  // on the very first toggle/dispatch. setImmediate ensures the UI updates
+  // (Redux state + React re-render) complete before any native I/O happens.
+  setImmediate(() => {
+    // Track the action type and value
+    setCustomKey("last-action", action.type);
+
+    const actionValue = action.value !== undefined ? action.value : action.payload;
+    if (actionValue !== undefined) {
+      setCustomKey("last-action-value", safeStringify(actionValue));
+    }
+
+    // Track a small summary of the post-action state
+    const stateSummary = summarizeState(store.getState());
+    if (Object.keys(stateSummary).length > 0) {
+      setCustomKey(stateSummary);
+    }
+  });
 
   return result;
 };

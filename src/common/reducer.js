@@ -197,6 +197,13 @@ const defaultAudio = (state = {}, action) => {
   switch (action.type) {
     case actionTypes.SET_DEFAULT_AUDIO:
       return { ...state, ...action.value };
+    case actionTypes.SET_BANI_LENGTH: {
+      const newState = { ...state };
+      delete newState["9"];
+      delete newState["21"];
+      delete newState["23"];
+      return newState;
+    }
     default:
       return state;
   }
@@ -237,6 +244,13 @@ const audioProgress = (state = {}, action) => {
       const { baniId } = action.payload;
       const newState = { ...state };
       delete newState[baniId];
+      return newState;
+    }
+    case actionTypes.SET_BANI_LENGTH: {
+      const newState = { ...state };
+      delete newState["9"];
+      delete newState["21"];
+      delete newState["23"];
       return newState;
     }
     default:

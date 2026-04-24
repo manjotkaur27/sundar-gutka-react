@@ -4,8 +4,18 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
 import { Icon } from "@rneui/themed";
 import { CustomText, STRINGS, useThemedStyles, useTheme } from "@common";
+import constant from "@common/constant";
 import { setBaniLength } from "../../actions";
 import createStyles from "./style";
+
+// Map each display label → its Redux constant value.
+// toUpperCase() fails for "Extra Long" → "EXTRA LONG" (space ≠ underscore).
+const LENGTH_CONSTANT_MAP = {
+  [STRINGS.short]:      constant.SHORT,
+  [STRINGS.medium]:     constant.MEDIUM ?? "MEDIUM",
+  [STRINGS.long]:       constant.LONG,
+  [STRINGS.extra_long]: constant.EXTRA_LONG,
+};
 
 const BaniLengthSelector = () => {
   const styles = useThemedStyles(createStyles);
@@ -14,7 +24,8 @@ const BaniLengthSelector = () => {
   const dispatch = useDispatch();
 
   const handleOnpress = (length) => {
-    dispatch(setBaniLength(length.toUpperCase()));
+    const constantValue = LENGTH_CONSTANT_MAP[length] ?? length.toUpperCase();
+    dispatch(setBaniLength(constantValue));
   };
   const baniLengthInfo = () => {
     Alert.alert(
