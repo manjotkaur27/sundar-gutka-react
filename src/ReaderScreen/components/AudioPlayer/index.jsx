@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Linking } from "react-native";
 import TrackPlayer from "react-native-track-player";
+import { useIsFocused } from "@react-navigation/native";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import {
@@ -16,6 +17,7 @@ import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 
 const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const dispatch = useDispatch();
+  const isFocused = useIsFocused();
   const defaultAudio = useSelector((state) => state.defaultAudio);
   const hasSavedTrackForCurrentBani = Boolean(defaultAudio?.[baniID]?.id);
   const [showTrackModal, setShowTrackModal] = useState(!hasSavedTrackForCurrentBani);
@@ -121,7 +123,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
 
   useEffect(() => {
     const autoStartFirstTrack = async () => {
-      if (!isAudioAutoPlay || !showTrackModal || !isAudioEnabled || isTracksLoading) {
+      // Don't auto-start playback while the screen is not focused (e.g. user
+      // is on Settings and changed bani length). Playback will start when
+      // the user navigates back and isFocused flips to true.
+      if (!isFocused || !isAudioAutoPlay || !showTrackModal || !isAudioEnabled || isTracksLoading) {
         return;
       }
       if (currentPlaying || (defaultAudio[baniID] && defaultAudio[baniID].audioUrl)) {
@@ -159,6 +164,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
 
     autoStartFirstTrack();
   }, [
+    isFocused,
     isAudioAutoPlay,
     showTrackModal,
     isAudioEnabled,
@@ -332,7 +338,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
 
         // After selecting a track (including from preview -> Next), enter full player
         // with playback already running so no extra Play tap is required.
+        // Don't actually start playback if screen is not focused (e.g. bani
+        // length changed while on Settings) — defer to focus-based auto-resume.
         if (isAudioEnabled) {
+          const shouldPlay = isAudioAutoPlay && isFocused;
           setIsPlayerActionLoading(true);
           await addAndPlayTrack(
             selectedTrack.id,
@@ -342,7 +351,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
             selectedTrack.lyricsUrl,
             selectedTrack.trackLengthSec,
             selectedTrack.trackSizeMB,
-            isAudioAutoPlay, // Respect autoplay setting — don't start if autoplay is off
+            shouldPlay,
             selectedTrack.remoteUrl || selectedTrack.audioUrl
           );
           setIsPlayerActionLoading(false);
@@ -356,7 +365,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isSelectingTrackRef.current = false;
       }
     },
-    [baniID, isAudioEnabled, isAudioAutoPlay, currentPlaying, progress?.position]
+    [baniID, isAudioEnabled, isAudioAutoPlay, isFocused, currentPlaying, progress?.position]
   );
 
   // Memoize error fallback renderer to prevent recreation
