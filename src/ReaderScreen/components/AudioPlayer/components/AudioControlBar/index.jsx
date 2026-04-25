@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
@@ -90,6 +90,7 @@ const AudioControlBar = ({
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
   useArtistListeningDuration(baniID, isPlaying, currentPlaying);
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
 
   // Auto-resume on screen focus: when the user navigates back to the audio
   // screen (via device back button, back arrow, or tab re-tap from Settings/
@@ -378,7 +379,7 @@ const AudioControlBar = ({
 
         // Keep current playback timeline when reopening the same bani/track.
         if (isSameActiveTrack) {
-          if (isAudioAutoPlay) {
+          if (isAudioAutoPlay && isFocused) {
             await play();
           }
           setIsSeekLoading(false);
@@ -412,7 +413,7 @@ const AudioControlBar = ({
           }
         }
 
-        if (isAudioAutoPlay) {
+        if (isAudioAutoPlay && isFocused) {
           await play();
         }
         setIsSeekLoading(false);
@@ -429,6 +430,7 @@ const AudioControlBar = ({
     currentPlaying?.audioUrl,
     currentPlaying?.lyricsUrl,
     baniID,
+    isFocused,
   ]);
 
   // Save audio progress when component unmounts or user leaves the screen

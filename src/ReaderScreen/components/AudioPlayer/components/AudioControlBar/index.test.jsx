@@ -29,6 +29,7 @@ jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({
     addListener: () => jest.fn(), // unsubscribe
   }),
+  useIsFocused: () => true,
 }));
 
 // Mock theme + styles
