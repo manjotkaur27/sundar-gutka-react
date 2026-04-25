@@ -50,11 +50,11 @@ class TrackPlayerService {
           // Combined with playbackBuffer: 1, initial playback starts after just
           // 1 second of buffering — fast enough for good UX.
           waitForBuffer: true,
-          maxCacheSize: 51200,       // 50 MB ExoPlayer cache
-          minBuffer: 5,              // Android: keep ≥5s buffered ahead
-          maxBuffer: 30,             // Android: buffer up to 30s ahead
-          backBuffer: 0,             // Android: no back-buffer (saves memory)
-          playbackBuffer: 1,         // Android: start playing once 1s is buffered
+          maxCacheSize: 51200, // 50 MB ExoPlayer cache
+          minBuffer: 5, // Android: keep ≥5s buffered ahead
+          maxBuffer: 30, // Android: buffer up to 30s ahead
+          backBuffer: 0, // Android: no back-buffer (saves memory)
+          playbackBuffer: 1, // Android: start playing once 1s is buffered
           iosCategory: "playback",
         });
 
@@ -69,7 +69,7 @@ class TrackPlayerService {
             appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
             notificationChannelName: "Sundar Gutka Playback V4",
             notificationChannelDescription: "Gurbani audio playback controls",
-            notificationColor: 0xFFEEB14F,
+            notificationColor: 0xffeeb14f,
           },
           capabilities: [
             Capability.Play,
@@ -78,11 +78,7 @@ class TrackPlayerService {
             Capability.SkipToPrevious,
             Capability.Stop,
           ],
-          compactCapabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.SkipToNext,
-          ],
+          compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
         });
 
         this.isInitialized = true;

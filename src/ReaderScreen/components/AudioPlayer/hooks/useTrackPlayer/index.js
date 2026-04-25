@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Platform } from "react-native";
 import { exists } from "react-native-fs";
 import TrackPlayer, { usePlaybackState, useProgress, State } from "react-native-track-player";
 import { useSelector } from "react-redux";
@@ -206,6 +207,29 @@ const useTrackPlayer = () => {
       // logic guarantees it kicks into State.Playing instead of stalling.
       wasPlayingBeforeBufferRef.current = true;
       await playTrack();
+
+      // ── iOS Control Center fix ────────────────────────────────────────
+      // After reset()→add()→play(), iOS's MPNowPlayingInfoCenter can get
+      // stuck showing the play button (paused) because the playbackRate in
+      // NowPlayingInfo remains 0 from the add() phase (when playWhenReady
+      // was false). updateNowPlayingMetadata() doesn't help because it only
+      // updates title/artist/duration — NOT playbackRate.
+      //
+      // Calling setRate(currentRate) triggers the native
+      // updateNowPlayingPlaybackValues() which correctly sets:
+      //   playbackRate = playWhenReady ? rate : 0
+      // Since the player is now playing, playWhenReady is true, so
+      // playbackRate > 0 → iOS shows the pause button.
+      if (Platform.OS === "ios") {
+        setTimeout(async () => {
+          try {
+            const currentRate = await TrackPlayer.getRate().catch(() => 1);
+            await TrackPlayer.setRate(currentRate);
+          } catch (_) {
+            // Best-effort — the background service listener is the fallback.
+          }
+        }, 500);
+      }
     } catch (error) {
       logError("Error playing track:", error);
     }

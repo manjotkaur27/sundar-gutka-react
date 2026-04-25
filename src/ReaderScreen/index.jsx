@@ -51,6 +51,10 @@ const Reader = ({ navigation, route }) => {
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
+  // Counter that increments on every WebView load — passed to AutoScrollComponent
+  // so it can re-send the scroll command after a WKWebView remount (iOS drops
+  // postMessages sent to a stale WebView instance).
+  const [webViewLoadTick, setWebViewLoadTick] = useState(0);
   const [titleText, setTitleText] = useState(null);
   const readSavedPosition = (entry) => {
     if (!entry) return { elementId: null, sequence: null };
@@ -254,6 +258,12 @@ const Reader = ({ navigation, route }) => {
       };
       webViewRef.current.postMessage(JSON.stringify(scrollMessage));
     }
+    // Signal AutoScrollComponent that a fresh WebView is ready AFTER a short
+    // delay so the scrollToPosition message above has time to execute in the
+    // WebView. Without this, auto-scroll resumes from the top of the page.
+    setTimeout(() => {
+      setWebViewLoadTick((prev) => prev + 1);
+    }, 500);
   }, []);
 
   const handleError = useCallback((syntheticEvent) => {
@@ -320,7 +330,7 @@ const Reader = ({ navigation, route }) => {
       {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
       {isAutoScroll && (
         <View style={[styles.autoScrollFixedView, { bottom: styles.autoScrollFixedView.bottom + insetBottom, display: isHeader ? "flex" : "none" }]}>
-          <AutoScrollComponent shabadID={id} webViewRef={webViewRef} />
+          <AutoScrollComponent shabadID={id} webViewRef={webViewRef} webViewLoadTick={webViewLoadTick} />
         </View>
       )}
 
