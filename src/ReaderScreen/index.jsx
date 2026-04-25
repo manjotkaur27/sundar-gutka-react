@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { ActivityIndicator, AppState, Platform, View, Animated } from "react-native";
+import { ActivityIndicator, AppState, Platform, View, Animated, NativeModules } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
@@ -75,6 +75,11 @@ const Reader = ({ navigation, route }) => {
   // Animated progress value — driven by ref to avoid re-renders on every scroll tick
   const scrollProgressAnim = useRef(new Animated.Value(0)).current;
 
+  // iPad scroll guard: blocks spurious WebView scroll events during and shortly
+  // after screen transitions (Bookmarks → Reader). WKWebView can fire scroll-to-0
+  // events both while backgrounded AND during the return transition animation.
+  const iPadScrollGuardRef = useRef(false);
+
 
 
   const pauseAudioPlayback = useCallback(async () => {
@@ -116,10 +121,47 @@ const Reader = ({ navigation, route }) => {
   useEffect(() => {
     const unsubscribeBlur = navigation.addListener("blur", () => {
       pauseAudioPlayback();
+      // iPad: Activate scroll guard when leaving the screen. WKWebView can
+      // trigger a layout recalculation that resets scrollY to 0 while the
+      // Reader is backgrounded, then again during the return transition.
+      if (Platform.OS === "ios") {
+        iPadScrollGuardRef.current = true;
+      }
     });
 
     return unsubscribeBlur;
   }, [navigation, pauseAudioPlayback]);
+
+  // iPad: Restore WebView scroll position when returning from Bookmarks.
+  // The scroll guard stays active for a grace period after focus so that
+  // spurious scroll events fired during the transition animation are also
+  // blocked. The guard is cleared after the WebView has had time to
+  // process the scrollToPosition message.
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+
+    const unsubscribeFocus = navigation.addListener("focus", () => {
+      if (!iPadScrollGuardRef.current) return;
+
+      // Restore position — the WebView may have scrolled to 0 while backgrounded
+      if (webViewRef.current && currentElementIdRef.current) {
+        const scrollMessage = {
+          action: "scrollToPosition",
+          elementId: currentElementIdRef.current,
+          sequence: currentSequenceRef.current,
+        };
+        webViewRef.current.postMessage(JSON.stringify(scrollMessage));
+      }
+
+      // Keep the guard active for 800ms to block scroll events that fire
+      // during the navigation transition animation
+      setTimeout(() => {
+        iPadScrollGuardRef.current = false;
+      }, 800);
+    });
+
+    return unsubscribeFocus;
+  }, [navigation]);
 
   // Memoize WebView key to prevent unnecessary remounts
   const webViewKey = useMemo(() => {
@@ -211,19 +253,29 @@ const Reader = ({ navigation, route }) => {
     (message) => {
       // Update last activity timestamp
       const { data } = message.nativeEvent;
+
+      // GUARD: On iOS, navigating away (e.g. to Bookmarks) can trigger a WKWebView
+      // layout recalculation that resets scrollY to 0. This fires spurious scroll
+      // events both while backgrounded AND during the return transition animation.
+      // The ref-based guard (set on blur, cleared 800ms after focus) blocks all
+      // scroll-derived messages during this window.
+      if (iPadScrollGuardRef.current) {
+        if (
+          data === "show" ||
+          data === "hide" ||
+          data.includes("scroll-elementId-") ||
+          data.startsWith("scroll-progress-")
+        ) {
+          return;
+        }
+      }
+
       // Handle UI messages (removed toggle since it's handled by onTouchStart)
       if (data === "show") {
         toggleHeader(true);
       } else if (data === "hide") {
         toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {
-        // SURGICAL FIX: On iOS iPad, navigating to the Bookmarks screen can trigger a layout
-        // shift in the backgrounded WebView, which fires a spurious scroll event and resets
-        // read progress to 0. Ignore scroll updates if the screen is no longer focused.
-        if (Platform.OS === "ios" && Platform.isPad && !navigation.isFocused()) {
-          return;
-        }
-
         // Capture element ID (and optional sequence) from WebView scroll events
         const payload = data.split("scroll-elementId-")[1];
         const [elementId, seqPart] = payload.split("|seq-");
@@ -265,6 +317,16 @@ const Reader = ({ navigation, route }) => {
       };
       webViewRef.current.postMessage(JSON.stringify(scrollMessage));
     }
+
+    // iPad fix: Disable the native iOS "tap status bar to scroll to top"
+    // gesture on this WebView. On iPad, the touch target extends into the
+    // app header, causing scroll resets when tapping back/title/bookmark.
+    // Uses the custom WebViewScrollFixer native module (ios/WebViewScrollFixer.m)
+    // so we don't need to patch react-native-webview.
+    if (Platform.OS === "ios" && NativeModules.WebViewScrollFixer) {
+      NativeModules.WebViewScrollFixer.disableScrollsToTop();
+    }
+
     // Signal AutoScrollComponent that a fresh WebView is ready AFTER a short
     // delay so the scrollToPosition message above has time to execute in the
     // WebView. Without this, auto-scroll resumes from the top of the page.

@@ -115,44 +115,65 @@ module.exports = async function () {
   //   3. play() sets playWhenReady=true, but the audio session may not be
   //      fully re-activated yet, causing iOS to ignore the rate update
   //
-  // The key insight: updateNowPlayingMetadata() only updates title/artist/
-  // duration — it does NOT touch playbackRate. We must call setRate() which
-  // triggers the native updateNowPlayingPlaybackValues() that correctly
-  // sets playbackRate = playWhenReady ? rate : 0.
+  // TrackPlayer.setRate() does NOT update NowPlayingInfo — it only sets the
+  // internal AVPlayer rate. To fix this, we use the custom NowPlayingHelper
+  // native module (ios/NowPlayingHelper.swift) which directly writes
+  // playbackRate to MPNowPlayingInfoCenter.default().nowPlayingInfo.
   //
-  // Two attempts with increasing delay cover both fast (local) and slow
-  // (streaming) audio session reactivation in release builds.
+  // On iPad, the audio session reactivation takes much longer than iPhone,
+  // so we poll every 600ms for up to ~5 seconds to guarantee the sync.
   if (Platform.OS === "ios") {
-    const forceNowPlayingRateSync = async () => {
-      try {
-        const playbackState = await TrackPlayer.getPlaybackState().catch(() => null);
-        const currentState = playbackState?.state ?? playbackState;
-        // Only sync if the player is actually playing — avoid overwriting
-        // a user-initiated pause.
-        if (currentState !== State.Playing) return;
+    const { NativeModules } = require("react-native");
+    const NowPlayingHelper = NativeModules.NowPlayingHelper;
+    let rateSyncTimer = null;
 
-        const currentRate = await TrackPlayer.getRate().catch(() => 1);
-        // Re-setting the same rate triggers native updateNowPlayingPlaybackValues()
-        // which sets playbackRate = playWhenReady ? rate : 0.
-        // Since the player is in Playing state, playWhenReady is true, so
-        // this correctly sets playbackRate > 0 → iOS shows the pause button.
-        await TrackPlayer.setRate(currentRate);
-      } catch (_) {
-        // Non-critical — worst case the button stays stale until next
-        // native state change refreshes it.
+    const startRateSyncPolling = () => {
+      if (rateSyncTimer) {
+        clearInterval(rateSyncTimer);
+        rateSyncTimer = null;
       }
+
+      let attempts = 0;
+      const MAX_ATTEMPTS = 8; // 8 × 600ms = ~5 seconds
+      const INTERVAL_MS = 600;
+
+      rateSyncTimer = setInterval(async () => {
+        attempts += 1;
+
+        try {
+          const playbackState = await TrackPlayer.getPlaybackState().catch(() => null);
+          const currentState = playbackState?.state ?? playbackState;
+
+          // Stop if user paused/stopped — don't overwrite their intent.
+          if (currentState !== State.Playing) {
+            clearInterval(rateSyncTimer);
+            rateSyncTimer = null;
+            return;
+          }
+
+          const currentRate = await TrackPlayer.getRate().catch(() => 1);
+          // Directly set playbackRate on MPNowPlayingInfoCenter via native module.
+          // This is what actually makes the Control Center show the pause button.
+          if (NowPlayingHelper) {
+            NowPlayingHelper.forcePlaybackRate(currentRate);
+          }
+        } catch (_) {
+          // Non-critical — next iteration will retry.
+        }
+
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(rateSyncTimer);
+          rateSyncTimer = null;
+        }
+      }, INTERVAL_MS);
     };
 
-    TrackPlayer.addEventListener(Event.PlaybackState, async ({ state }) => {
+    TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
       if (state === State.Playing) {
-        // First attempt: 500ms gives the audio session time to fully activate.
-        // In release builds, the native bridge is ~10× faster than debug,
-        // so the 150ms delay from the previous fix was too short.
-        setTimeout(forceNowPlayingRateSync, 500);
-        // Second attempt: 1200ms covers cases where the audio session
-        // reactivation takes longer (e.g., first play after app launch,
-        // or when switching from Bluetooth to speaker).
-        setTimeout(forceNowPlayingRateSync, 1200);
+        startRateSyncPolling();
+      } else if (rateSyncTimer) {
+        clearInterval(rateSyncTimer);
+        rateSyncTimer = null;
       }
     });
   }

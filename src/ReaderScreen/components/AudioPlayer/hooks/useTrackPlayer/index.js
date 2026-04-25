@@ -207,29 +207,9 @@ const useTrackPlayer = () => {
       // logic guarantees it kicks into State.Playing instead of stalling.
       wasPlayingBeforeBufferRef.current = true;
       await playTrack();
-
-      // ── iOS Control Center fix ────────────────────────────────────────
-      // After reset()→add()→play(), iOS's MPNowPlayingInfoCenter can get
-      // stuck showing the play button (paused) because the playbackRate in
-      // NowPlayingInfo remains 0 from the add() phase (when playWhenReady
-      // was false). updateNowPlayingMetadata() doesn't help because it only
-      // updates title/artist/duration — NOT playbackRate.
-      //
-      // Calling setRate(currentRate) triggers the native
-      // updateNowPlayingPlaybackValues() which correctly sets:
-      //   playbackRate = playWhenReady ? rate : 0
-      // Since the player is now playing, playWhenReady is true, so
-      // playbackRate > 0 → iOS shows the pause button.
-      if (Platform.OS === "ios") {
-        setTimeout(async () => {
-          try {
-            const currentRate = await TrackPlayer.getRate().catch(() => 1);
-            await TrackPlayer.setRate(currentRate);
-          } catch (_) {
-            // Best-effort — the background service listener is the fallback.
-          }
-        }, 500);
-      }
+      // NOTE: iOS Control Center play/pause state sync is handled by the
+      // polling retry in TrackPlayerService.js (Event.PlaybackState listener).
+      // No inline setRate() call needed here.
     } catch (error) {
       logError("Error playing track:", error);
     }
