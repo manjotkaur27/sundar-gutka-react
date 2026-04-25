@@ -18,6 +18,11 @@ jest.mock("react-redux", () => ({
   useSelector: (selectorFn) => selectorFn(mockState),
 }));
 
+// Mock @react-navigation/native so useIsFocused doesn't require NavigationContainer
+jest.mock("@react-navigation/native", () => ({
+  useIsFocused: () => true,
+}));
+
 // Mock react-native-track-player
 jest.mock("react-native-track-player", () => {
   const getActiveTrack = jest.fn();
@@ -205,18 +210,10 @@ describe("AudioPlayer", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetActiveTrack.mockResolvedValue(null);
-    mockState = {
-      defaultAudio: {},
-      audioPlaybackSpeed: 1.0,
-      isAudioAutoPlay: false,
-    };
-    mockUseTrackPlayer.isInitialized = true;
-    mockUseTrackPlayer.isInitializing = false;
-    mockUseTrackPlayer.isAudioEnabled = true;
-    mockUseTrackPlayer.isPlaying = false;
     mockUseAudioManifest.tracks = [
       {
         id: "track1",
+        artistID: "artist1",
         audioUrl: "https://example.com/track1.m4a",
         displayName: "Artist 1",
         lyricsUrl: "https://example.com/track1.json",
@@ -225,12 +222,27 @@ describe("AudioPlayer", () => {
         remoteUrl: "https://example.com/track1.m4a",
       },
     ];
+    mockState = {
+      // Pre-seed defaultAudio so the safe-exit effect doesn't false-positive
+      // when currentPlaying is set (defaultAudioWiped check requires id to match).
+      defaultAudio: {
+        bani123: { id: "track1", artistID: "artist1" },
+      },
+      audioPlaybackSpeed: 1.0,
+      isAudioAutoPlay: false,
+    };
+    mockUseTrackPlayer.isInitialized = true;
+    mockUseTrackPlayer.isInitializing = false;
+    mockUseTrackPlayer.isAudioEnabled = true;
+    mockUseTrackPlayer.isPlaying = false;
     mockUseAudioManifest.currentPlaying = null;
     mockUseAudioManifest.isTracksLoading = false;
     mockUseAudioManifest.manifestError = null;
   });
 
   it("disables sync scroll in preview modal and enables it in full player", async () => {
+    // Start with modal open so we can press track-track1
+    mockState.defaultAudio = {};
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
@@ -294,12 +306,17 @@ describe("AudioPlayer", () => {
   });
 
   it("renders AudioTrackDialog when showTrackModal is true", () => {
+    // Clear defaultAudio so hasSavedTrackForCurrentBani is false → modal starts open
+    mockState.defaultAudio = {};
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
     expect(getByTestId("audio-track-dialog")).toBeTruthy();
   });
 
   it("auto-starts the first track when Audio Auto Play is enabled", async () => {
+    // Clear defaultAudio so hasSavedTrackForCurrentBani is false → modal starts open
+    // (autoStartFirstTrack effect only runs when showTrackModal is true)
+    mockState.defaultAudio = {};
     mockState.isAudioAutoPlay = true;
     const track = mockUseAudioManifest.tracks[0];
     const props = createProps();
@@ -322,12 +339,10 @@ describe("AudioPlayer", () => {
   });
 
   it("renders AudioControlBar when showTrackModal is false", async () => {
+    // With defaultAudio pre-seeded (hasSavedTrackForCurrentBani=true), the
+    // AudioControlBar renders on mount without needing to press a track button.
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
-
-    await act(async () => {
-      fireEvent.press(getByTestId("track-track1"));
-    });
 
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
@@ -403,6 +418,8 @@ describe("AudioPlayer", () => {
   });
 
   it("calls handleSeek when seek button is pressed", async () => {
+    // Start with modal open so we can press track-track1 to navigate to control bar
+    mockState.defaultAudio = {};
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
@@ -423,6 +440,8 @@ describe("AudioPlayer", () => {
   });
 
   it("handles track selection correctly", async () => {
+    // Start with modal open so AudioTrackDialog shows track buttons
+    mockState.defaultAudio = {};
     const selectedTrack = mockUseAudioManifest.tracks[0];
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
@@ -451,6 +470,7 @@ describe("AudioPlayer", () => {
     const track1 = mockUseAudioManifest.tracks[0];
     const track2 = {
       id: "track2",
+      artistID: "artist2",
       audioUrl: "https://example.com/track2.m4a",
       displayName: "Artist 2",
       lyricsUrl: "https://example.com/track2.json",
@@ -620,6 +640,8 @@ describe("AudioPlayer", () => {
   it("handles errors in handleSeek gracefully", async () => {
     const { showErrorToast } = require("@common/toast");
     mockUseTrackPlayer.seekTo.mockRejectedValue(new Error("Seek error"));
+    // Start with modal open so we can navigate to control bar via track selection
+    mockState.defaultAudio = {};
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
 
@@ -643,6 +665,8 @@ describe("AudioPlayer", () => {
     const { showErrorToast } = require("@common/toast");
     // Mock stop to reject
     mockUseTrackPlayer.stop.mockImplementationOnce(() => Promise.reject(new Error("Stop error")));
+    // Start with modal open so AudioTrackDialog shows track buttons
+    mockState.defaultAudio = {};
     const selectedTrack = mockUseAudioManifest.tracks[0];
     const props = createProps();
     const { getByTestId } = render(<AudioPlayer {...props} />);
@@ -661,9 +685,10 @@ describe("AudioPlayer", () => {
   });
 
   it("keeps preview modal open on entry even when currentPlaying exists", async () => {
-    // When app first opens, showTrackModal defaults to true (since hasSavedTrackForCurrentBani is false).
+    // When app first opens with no saved defaultAudio.id, showTrackModal defaults to true.
     // But the auto-restore effect will close the modal when both tracks and currentPlaying are present.
     // So when currentPlaying is set via rerender AFTER initial render, the modal closes automatically.
+    mockState.defaultAudio = {};
     const props = createProps();
     const { queryByTestId, rerender } = render(<AudioPlayer {...props} />);
 
@@ -671,8 +696,12 @@ describe("AudioPlayer", () => {
     expect(queryByTestId("audio-track-dialog")).toBeTruthy();
 
     // Simulate setting currentPlaying (e.g., from manifest loading).
-    // The auto-restore effect (hasAutoRestoredView guard) will close the modal.
-    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
+    // In production, defaultAudio is also updated before currentPlaying is set
+    // (via handleTrackSelect dispatching setDefaultAudio). Mirror that here to
+    // prevent the safe-exit defaultAudioWiped false-positive.
+    const track = mockUseAudioManifest.tracks[0];
+    mockState.defaultAudio = { [props.baniID]: { id: track.id, artistID: track.artistID } };
+    mockUseAudioManifest.currentPlaying = track;
     rerender(<AudioPlayer {...props} />);
 
     // After currentPlaying is set, the auto-restore effect closes the modal

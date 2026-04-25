@@ -520,7 +520,10 @@ describe("AudioControlBar", () => {
 
   it("resumes same active track when re-opened and autoplay is enabled", async () => {
     mockState.isAudioAutoPlay = true;
-    TrackPlayer.getActiveTrack.mockResolvedValueOnce({ id: "track-1" });
+    TrackPlayer.getActiveTrack.mockResolvedValueOnce({
+      id: "track-1",
+      url: "file:///track-1.m4a",
+    });
 
     const props = createProps({
       isInitialized: true,
@@ -538,7 +541,10 @@ describe("AudioControlBar", () => {
 
   it("keeps same active track paused when re-opened and autoplay is disabled", async () => {
     mockState.isAudioAutoPlay = false;
-    TrackPlayer.getActiveTrack.mockResolvedValueOnce({ id: "track-1" });
+    TrackPlayer.getActiveTrack.mockResolvedValueOnce({
+      id: "track-1",
+      url: "file:///track-1.m4a",
+    });
 
     const props = createProps({
       isInitialized: true,

@@ -24,7 +24,6 @@ const BottomNavigation = ({ activeKey }) => {
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const [isSettings, setIsSettings] = useState(false);
   const [previousRouteName, setPreviousRouteName] = useState(null);
-  const [hasInternet, setHasInternet] = useState(true);
   const previousConnectivityRef = useRef(null);
   // Require 2 consecutive poll failures before declaring "offline" to
   // avoid false-positive toasts from transient mobile network blips
@@ -49,10 +48,8 @@ const BottomNavigation = ({ activeKey }) => {
       });
 
       const isConnected = response?.ok ?? false;
-      setHasInternet(isConnected);
       return isConnected;
     } catch (_) {
-      setHasInternet(false);
       return false;
     } finally {
       clearTimeout(timeoutId);

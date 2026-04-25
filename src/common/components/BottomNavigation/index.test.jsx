@@ -187,12 +187,11 @@ describe("BottomNavigation", () => {
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
     await waitFor(() => {
+      // When audio is already on and coming from Settings, the new behaviour
+      // is a simple goBack() — stop/reset are not called to avoid flicker.
       expect(mockNavigation.goBack).toHaveBeenCalled();
-      // (Autoscroll is no longer toggled by BottomNavigation)
-      expect(mockStopTrack).toHaveBeenCalled();
-      expect(mockResetPlayer).toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+      expect(mockStopTrack).not.toHaveBeenCalled();
+      expect(mockResetPlayer).not.toHaveBeenCalled();
     });
   });
 
@@ -230,11 +229,13 @@ describe("BottomNavigation", () => {
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
     await waitFor(() => {
-      // (Autoscroll is no longer toggled by BottomNavigation)
-      expect(mockStopTrack).toHaveBeenCalled();
-      expect(mockResetPlayer).toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+      // When isAudio is already true and already on Reader, the new behaviour
+      // is a no-op (early return) to avoid the stop→toggle flicker.
+      expect(mockStopTrack).not.toHaveBeenCalled();
+      expect(mockResetPlayer).not.toHaveBeenCalled();
+      // toggleAudio is also not called — user stays in the player
+      expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+      expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
     });
   });
 

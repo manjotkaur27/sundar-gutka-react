@@ -217,6 +217,13 @@ const Reader = ({ navigation, route }) => {
       } else if (data === "hide") {
         toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {
+        // SURGICAL FIX: On iOS iPad, navigating to the Bookmarks screen can trigger a layout
+        // shift in the backgrounded WebView, which fires a spurious scroll event and resets
+        // read progress to 0. Ignore scroll updates if the screen is no longer focused.
+        if (Platform.OS === "ios" && Platform.isPad && !navigation.isFocused()) {
+          return;
+        }
+
         // Capture element ID (and optional sequence) from WebView scroll events
         const payload = data.split("scroll-elementId-")[1];
         const [elementId, seqPart] = payload.split("|seq-");
