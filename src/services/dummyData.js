@@ -127,6 +127,40 @@ const dummyData = {
     },
   ],
 
+  // ── Bani 1000: Anand Sahib (6 Pauri) ─────────────────────────────────────
+  1000: [
+    {
+      bani_id: 1000,
+      track_id: 11000,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`,
+      track_length_seconds: 151,
+      track_size_mb: "2.34",
+      artist_name: jarnailArtist.display_name,
+      artist_id: jarnailArtist.artist_id,
+      lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/anand-sahib-6-pauri.json`,
+    },
+    {
+      bani_id: 1000,
+      track_id: 21000,
+      track_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`,
+      track_length_seconds: 143,
+      track_size_mb: "2.19",
+      artist_name: indermohanArtist.display_name,
+      artist_id: indermohanArtist.artist_id,
+      lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/AnandSahib-6-pauri.json`,
+    },
+    {
+      bani_id: 1000,
+      track_id: 31000,
+      track_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`,
+      track_length_seconds: 183,
+      track_size_mb: "2.84",
+      artist_name: gurdevArtist.display_name,
+      artist_id: gurdevArtist.artist_id,
+      lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/AnandSahib-6-pauri.json`,
+    },
+  ],
+
   // ── Bani 21: Rehras Sahib ────────────────────────────────────────────────
   21: [
     {

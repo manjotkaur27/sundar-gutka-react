@@ -29,6 +29,9 @@ const BUNDLED_LYRICS = {
   "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/anand-sahib.json":
     require("./BhaiJarnailSingh/anand-sahib.json"),
 
+  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/anand-sahib-6-pauri.json":
+    require("./BhaiJarnailSingh/anand-sahib-6-pauri.json"),
+
   "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/Rehras-sahib.json":
     require("./BhaiJarnailSingh/Rehras-sahib.json"),
 
@@ -60,6 +63,9 @@ const BUNDLED_LYRICS = {
   "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/AnandSahib.json":
     require("./IndermohanKaurUK/AnandSahib.json"),
 
+  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/AnandSahib-6-pauri.json":
+    require("./IndermohanKaurUK/AnandSahib-6-pauri.json"),
+
   "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/RehrasSahib.json":
     require("./IndermohanKaurUK/RehrasSahib.json"),
 
@@ -82,6 +88,9 @@ const BUNDLED_LYRICS = {
 
   "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/AnandSahib.json":
     require("./GianiGurdevSingh/AnandSahib.json"),
+
+  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/AnandSahib-6-pauri.json":
+    require("./GianiGurdevSingh/AnandSahib-6-pauri.json"),
 
   // Chaupai Sahib — XL (Buddha Dal): full recording incl. all closing sections
   "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/ChaupaiSahib.json":

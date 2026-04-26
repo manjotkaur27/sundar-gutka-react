@@ -108,6 +108,16 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       { bani_id: 10, track_id: 3010, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.m4a`, track_length_seconds: 994, track_size_mb: 15.52, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.json` },
     ],
   },
+  // Anand Sahib 6 Paudi — pauris 1–5 + pauri 40 (last) trimmed from bani 10 audio.
+  // Audio files are trimmed M4As; JSON timestamps are rebased to match the trimmed audio.
+  1000: {
+    status: "success",
+    data: [
+      { bani_id: 1000, track_id: 11000, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 151, track_size_mb: 2.34, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 21000, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`, track_length_seconds: 143, track_size_mb: 2.19, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 31000, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 183, track_size_mb: 2.84, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.json` },
+    ],
+  },
   21: (baniLength) => {
     // Rehras Sahib — DB flag zones:
     //   Short (SGPC) -> 1, 20-169, 215-318, 487-540
