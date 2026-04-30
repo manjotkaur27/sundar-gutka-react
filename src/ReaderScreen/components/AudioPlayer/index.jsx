@@ -396,11 +396,11 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
           buttonPress={async () => {
             try {
               await trackAudioEvent("requestAudioLink", title || "unknown");
-              await Linking.openURL("https://khalisfoundation.org");
+              await Linking.openURL("https://forms.gle/N4YBdzfYGLAFsDMW7");
             } catch (error) {
               // Fallback: try opening the URL again if first attempt fails
               try {
-                await Linking.openURL("https://khalisfoundation.org");
+                await Linking.openURL("https://forms.gle/N4YBdzfYGLAFsDMW7");
               } catch (fallbackError) {
                 // Silently handle error - user may have no browser/app to handle URL
                 console.warn("Failed to open URL:", fallbackError);

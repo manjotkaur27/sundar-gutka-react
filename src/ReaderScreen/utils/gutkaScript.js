@@ -368,7 +368,9 @@ ${listener}.addEventListener(
         
         // Remove highlight from previous element if different
         if (lastHighlightedElement && !isSameElement) {
-          lastHighlightedElement.style.backgroundColor = '';
+          lastHighlightedElement.style.backgroundColor = lastHighlightedElement.dataset.origBg || '';
+          lastHighlightedElement.style.width = lastHighlightedElement.dataset.origWidth || '';
+          lastHighlightedElement.style.margin = lastHighlightedElement.dataset.origMargin || '';
           lastHighlightedElement.style.transition = '';
         }
         
@@ -382,10 +384,27 @@ ${listener}.addEventListener(
           });
         }
         
-        // Apply highlight
+        // Store original styles so they can be restored
         const originalBackgroundColor = element.style.backgroundColor;
+        const originalWidth = element.style.width;
+        const originalMargin = element.style.margin;
+        
+        element.dataset.origBg = originalBackgroundColor;
+        element.dataset.origWidth = originalWidth;
+        element.dataset.origMargin = originalMargin;
+
+        // Apply highlight
         element.style.backgroundColor = "${theme.staticColors.HIGHLIGHT_COLOR}";
         element.style.borderRadius = "15px";
+        element.style.width = "fit-content";
+        
+        // Preserve alignment when using fit-content
+        if (element.classList.contains("center")) {
+          element.style.margin = "0 auto";
+        } else if (element.classList.contains("right")) {
+          element.style.marginLeft = "auto";
+          element.style.marginRight = "0";
+        }
         
         // Store current element
         lastHighlightedElement = element;
@@ -393,6 +412,8 @@ ${listener}.addEventListener(
         // Remove highlight after timeout
         highlightTimeout = setTimeout(()=> {
           element.style.backgroundColor = originalBackgroundColor;
+          element.style.width = originalWidth;
+          element.style.margin = originalMargin;
           highlightTimeout = null;
         }, timeOut);        
       }

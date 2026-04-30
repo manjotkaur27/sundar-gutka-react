@@ -78,7 +78,7 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
     }
     .transliteration, .translation {
       padding: 0.2em;
-      font-family: '${theme.typography.fonts.balooPaaji}';
+      font-family: '${constant.BALOO_PAAJI}';
     }
     * {
       -webkit-user-select: none;
