@@ -17,6 +17,20 @@ let hasReachedEnd = false;
 let accumulatedScroll = 0;
 let lastFrameTime = 0;
 
+const clearAllHighlights = () => {
+  if (highlightTimeout != null) {
+    clearTimeout(highlightTimeout);
+    highlightTimeout = null;
+  }
+  if (lastHighlightedElement) {
+    lastHighlightedElement.style.backgroundColor = lastHighlightedElement.dataset.origBg || '';
+    lastHighlightedElement.style.width = lastHighlightedElement.dataset.origWidth || '';
+    lastHighlightedElement.style.margin = lastHighlightedElement.dataset.origMargin || '';
+    lastHighlightedElement.style.borderRadius = '';
+    lastHighlightedElement = null;
+  }
+};
+
 const clearScrollTimeout=()=> {
   if (autoScrollTimeout != null) {
     clearTimeout(autoScrollTimeout);
@@ -300,7 +314,10 @@ ${listener}.addEventListener(
       const sequenceString = sequenceStringNormal ? sequenceStringNormal : sequenceStringParagraph;
       window.ReactNativeWebView.postMessage("sequenceString-" + sequenceString);
       window.ReactNativeWebView.postMessage("hide");
-    } 
+    }
+    if (message.hasOwnProperty("resetHighlight")) {
+      clearAllHighlights();
+    }
     if (message.hasOwnProperty("autoScroll")) {
       autoScrollSpeed = message.autoScroll;
       scrollMultiplier = message.scrollMultiplier;

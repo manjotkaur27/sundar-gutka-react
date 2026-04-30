@@ -27,6 +27,14 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
   useEffect(() => {
     let isMounted = true;
 
+    // Always clear any stale highlight when the track changes, before the
+    // new LRC is available to drive a fresh sync-scroll sequence.
+    if (webViewRef?.current?.postMessage) {
+      try {
+        webViewRef.current.postMessage(JSON.stringify({ resetHighlight: true }));
+      } catch (_) {}
+    }
+
     if (!lyricsUrl || !isAudioSyncScroll) {
       setBaniLRC(null);
       return undefined;
@@ -269,6 +277,16 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
         scrollTimeoutRef.current = null;
+      }
+      // Clear any lingering highlight in the WebView so stale highlighted
+      // elements don't remain visible after returning from background or
+      // re-opening the audio list.
+      if (webViewRef?.current?.postMessage) {
+        try {
+          webViewRef.current.postMessage(JSON.stringify({ resetHighlight: true }));
+        } catch (_) {
+          // Best-effort; WebView may not be mounted yet
+        }
       }
     }
   }, [isAudioSyncScroll, isPlaying, baniLRC]);
