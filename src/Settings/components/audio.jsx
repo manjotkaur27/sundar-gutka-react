@@ -63,11 +63,7 @@ const Audio = () => {
         <ThemedSwitch
           value={setting.value}
           onValueChange={async (value) => {
-            if (setting.id === "main" && value) {
-              if (isAutoScroll) {
-                showInfoToast(STRINGS.AUDIO_DISABLES_AUTO_SCROLL || "AutoScroll has been disabled");
-              }
-            } else if (setting.id === "main" && !value) {
+            if (setting.id === "main" && !value) {
               // Clean up player
               await stopTrack();
               await resetPlayer();

@@ -31,9 +31,6 @@ const AutoScroll = () => {
           dispatch(toggleScreenAwake(value));
           dispatch(toggleAutoScroll(value));
           if (value) {
-            if (isAudioFeatureEnabled) {
-              showInfoToast(STRINGS.AUTO_SCROLL_DISABLES_AUDIO || "Audio Player has been disabled");
-            }
             // Fire-and-forget native cleanup; reducer mutex already flipped audio state.
             (async () => {
               try {

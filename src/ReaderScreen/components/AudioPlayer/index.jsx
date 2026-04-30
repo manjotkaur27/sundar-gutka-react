@@ -56,6 +56,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     isTrackDownloaded,
     manifestError,
     refetchManifest,
+    isAudioUnavailableForCurrentLengthOnly,
   } = useAudioManifest(baniID);
 
   // Disable sync scroll while preview modal is open to prevent stale lyrics
@@ -384,9 +385,13 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // Memoize audio track dialog to prevent unnecessary re-renders
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
+      const titleString = isAudioUnavailableForCurrentLengthOnly
+        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH
+        : STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR;
+
       return (
         <ErrorFallback
-          title={STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR}
+          title={titleString}
           baniTitle={title}
           buttonPress={async () => {
             try {
@@ -421,7 +426,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isPlaying={isPlaying}
       />
     );
-  }, [tracks, title, baniID, isPlaying]);
+  }, [tracks, title, baniID, isPlaying, isAudioUnavailableForCurrentLengthOnly]);
 
   // Don't render if TrackPlayer is not initialized
   if (!isInitialized && !isInitializing) {

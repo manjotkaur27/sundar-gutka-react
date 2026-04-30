@@ -606,6 +606,9 @@ const useAudioManifest = (baniID) => {
     }
   }, [baniID, isRehydrated, baniLength]);
 
+  const isAudioUnavailableForCurrentLengthOnly =
+    BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID)) && tracks.length === 0;
+
   return {
     tracks,
     currentPlaying,
@@ -614,6 +617,7 @@ const useAudioManifest = (baniID) => {
     addTrackToManifest,
     isTrackDownloaded,
     manifestError,
+    isAudioUnavailableForCurrentLengthOnly,
     refetchManifest: () => fetchAudioManifest(true),
   };
 };

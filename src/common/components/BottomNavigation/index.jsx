@@ -202,7 +202,6 @@ const BottomNavigation = ({ activeKey }) => {
         if (isAutoScroll) {
           dispatch(actions.toggleAutoScroll(false));
           dispatch(actions.toggleAudioFeatureEnabled(true));
-          showInfoToast(STRINGS.AUDIO_DISABLES_AUTO_SCROLL || "AutoScroll has been disabled");
         }
 
         const isConnected = await checkInternetConnection();
