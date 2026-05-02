@@ -3,7 +3,7 @@ const createStyles = (theme) => ({
     color: theme.staticColors.WHITE_COLOR,
     fontFamily: theme.typography.fonts.gurbaniThick,
     textAlign: "center",
-    fontSize: theme.typography.sizes.massive + theme.spacing.xl,
+    fontSize: theme.typography.sizes.massive + theme.spacing.sm,
   },
   viewWrapper: {
     margin: theme.spacing.md,
@@ -13,12 +13,12 @@ const createStyles = (theme) => ({
     backgroundColor: theme.colors.primary,
   },
   baniLengthMessage: {
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.md,
     color: theme.staticColors.WHITE_COLOR,
     fontSize: theme.typography.sizes.md,
   },
   textPreferrence: {
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.md,
     color: theme.staticColors.WHITE_COLOR,
     fontWeight: theme.typography.weights.bold,
     fontSize: theme.typography.sizes.xl,
@@ -27,13 +27,13 @@ const createStyles = (theme) => ({
     backgroundColor: theme.colors.surface,
     color: theme.colors.primaryText,
     padding: theme.spacing.lg,
-    marginTop: theme.spacing.lg,
-    fontSize: theme.typography.sizes.xxxl,
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.bold,
     textAlign: "center",
     textTransform: "uppercase",
     borderRadius: theme.components.button.borderRadius,
-    minHeight: theme.components.button.minHeight,
+    minHeight: theme.components.button.minHeight * 0.9,
   },
   helpText: {
     color: theme.colors.primaryVariant,
@@ -49,7 +49,7 @@ const createStyles = (theme) => ({
   helpWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.md,
   },
 });
 export default createStyles;
