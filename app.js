@@ -9,6 +9,7 @@ import notifee, { EventType } from "@notifee/react-native";
 import { PersistGate } from "redux-persist/integration/react";
 import {
   createStore,
+  STRINGS,
   logError,
   initializeCrashlytics,
   FallBack,
@@ -21,6 +22,20 @@ import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
 import Navigation from "./src/navigation";
 
 const { store, persistor } = createStore();
+
+/**
+ * After redux-persist rehydrates the store, sync the localization library
+ * with the persisted language. Without this, STRINGS stays on the default
+ * locale (English) because redux-persist's REHYDRATE action does not
+ * trigger the setLanguage action creator where STRINGS.setLanguage() lives.
+ */
+const handleBeforeLift = () => {
+  const { language } = store.getState();
+  if (language) {
+    STRINGS.setLanguage(language);
+  }
+};
+
 const App = () => {
   useEffect(() => {
     // Code to run on component mount
@@ -52,7 +67,7 @@ const App = () => {
 
   return (
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
+      <PersistGate loading={null} persistor={persistor} onBeforeLift={handleBeforeLift}>
         <ThemeProvider>
           <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
             <SafeAreaProvider>
