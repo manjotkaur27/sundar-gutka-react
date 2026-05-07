@@ -69,8 +69,8 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     const bjAudio = isShortOrMedium
       ? `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib-short.m4a`
       : `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib.m4a`;
-    const bjLength = isShortOrMedium ? 222 : 317;
-    const bjSize   = isShortOrMedium ? 3.47 : 4.95;
+    const bjLength = isShortOrMedium ? 225 : 317;
+    const bjSize   = isShortOrMedium ? 3.51 : 4.95;
 
     const ggLyrics = isShortOrMedium
       ? `${_BLOB}/GianiGurdevSingh/ChaupaiSahib-short.json`
@@ -78,7 +78,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     const ggAudio = isShortOrMedium
       ? `${_BLOB}/GianiGurdevSingh/ChaupaiSahib-short.m4a`
       : `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.m4a`;
-    const ggLength = isShortOrMedium ? 273 : 378;
+    const ggLength = isShortOrMedium ? 274 : 378;
     const ggSize   = isShortOrMedium ? 4.27 : 5.90;
 
     const tracks = [
@@ -147,8 +147,8 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       ? `${_BLOB}/BhaiJarnailSingh/RehrasSahib-medium.m4a`
       : `${_BLOB}/BhaiJarnailSingh/RehrasSahib.m4a`;
 
-    const bjLength = isShort ? 945 : isMedium ? 1083 : 1335;
-    const bjSize   = isShort ? 14.50 : isMedium ? 16.60 : 20.49;
+    const bjLength = isShort ? 945 : isMedium ? 1082 : 1335;
+    const bjSize   = isShort ? 14.60 : isMedium ? 16.72 : 20.49;
 
     const imLyrics = isShort
       ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-short.json`
@@ -162,8 +162,8 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-medium.m4a`
       : `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`;
 
-    const imLength = isShort ? 1001 : isMedium ? 1125 : 1145;
-    const imSize   = isShort ? 15.50 : isMedium ? 17.50 : 17.80;
+    const imLength = isShort ? 999 : isMedium ? 1125 : 1145;
+    const imSize   = isShort ? 15.53 : isMedium ? 17.48 : 17.80;
 
     const tracks = [
       { bani_id: 21, track_id: 1021, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
@@ -202,8 +202,8 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       ? `${_BLOB}/BhaiJarnailSingh/KirtanSohaila-short.m4a`
       : `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`;
       
-    const bjLength = isShortOrMedium ? 252 : 333;
-    const bjSize   = isShortOrMedium ? 3.80 : 5.03;
+    const bjLength = isShortOrMedium ? 250 : 333;
+    const bjSize   = isShortOrMedium ? 3.86 : 5.03;
 
     const tracks = [
       { bani_id: 23, track_id: 1023, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },

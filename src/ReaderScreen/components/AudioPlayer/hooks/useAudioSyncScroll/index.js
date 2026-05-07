@@ -35,8 +35,16 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
       } catch (_) {}
     }
 
+    // Clear stale LRC data immediately so the old track's timestamps cannot
+    // drive a scrollToSequence call during the async window before the new
+    // data resolves. Without this, the transition from full→short Chaupai
+    // Sahib keeps the old baniLRC active for one render cycle and can cause
+    // the last line of the previous track to be highlighted at the start of
+    // the new one.
+    setBaniLRC(null);
+    lastSequenceRef.current = null;
+
     if (!lyricsUrl || !isAudioSyncScroll) {
-      setBaniLRC(null);
       return undefined;
     }
 
@@ -50,6 +58,7 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
       isMounted = false;
     };
   }, [lyricsUrl, isAudioSyncScroll]);
+
 
   // Find current sequence based on audio progress.
   // LRC entries are sorted by start time, so we can binary-search instead of

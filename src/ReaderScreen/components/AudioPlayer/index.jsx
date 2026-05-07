@@ -10,10 +10,18 @@ import {
   setAudioProgress,
 } from "@common/actions";
 import { showErrorToast } from "@common/toast";
-import { STRINGS, logError, trackAudioEvent } from "@common";
+import { STRINGS, logError, trackAudioEvent, constant } from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
+
+// Maps each Redux baniLength constant to its human-readable display label.
+const BANI_LENGTH_LABEL = {
+  [constant.SHORT]:      STRINGS.short,
+  ["MEDIUM"]:            STRINGS.medium,
+  [constant.LONG]:       STRINGS.long,
+  [constant.EXTRA_LONG]: STRINGS.extra_long,
+};
 
 const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const dispatch = useDispatch();
@@ -29,6 +37,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const isSelectingTrackRef = useRef(false);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
+  const baniLength = useSelector((state) => state.baniLength);
   const [hasAutoRestoredView, setHasAutoRestoredView] = useState(false);
   const {
     isPlaying,
@@ -385,8 +394,9 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // Memoize audio track dialog to prevent unnecessary re-renders
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
+      const lengthLabel = BANI_LENGTH_LABEL[baniLength] || baniLength;
       const titleString = isAudioUnavailableForCurrentLengthOnly
-        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH
+        ? `${STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR} the ${lengthLabel} version of`
         : STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR;
 
       return (

@@ -172,7 +172,6 @@ const STRINGS = new LocalizedStrings({
     PERMISSION_ERROR: "Broadcast permission check failed — missing or denied permission",
     MAAFI_JI: "Maafi ji 🙏🏽",
     WE_DO_NOT_HAVE_AUDIOS_FOR: "We do not have audios for",
-    WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH: "We do not have audios for this length of",
     REQUEST_AUDIO_FOR_THIS_PAATH: "Request audio for this paath.",
     YET: "yet.",
     SYNC_UNAVAILABLE: "Unavailable",

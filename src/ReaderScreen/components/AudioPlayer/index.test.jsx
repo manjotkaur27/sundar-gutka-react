@@ -176,8 +176,19 @@ jest.mock("@common", () => ({
     UNABLE_TO_SEEK: "Unable to seek",
     UNABLE_TO_SWITCH_TRACK: "Unable to switch track",
     PLEASE_TRY_AGAIN: "Please try again.",
+    short: "Short",
+    medium: "Medium",
+    long: "Long",
+    extra_long: "Extra Long",
+  },
+  constant: {
+    SHORT: "SHORT",
+    MEDIUM: "MEDIUM",
+    LONG: "LONG",
+    EXTRA_LONG: "EXTRA_LONG",
   },
   logError: jest.fn(),
+  trackAudioEvent: jest.fn(),
 }));
 
 // Mock Linking
