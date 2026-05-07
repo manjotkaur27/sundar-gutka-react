@@ -8,6 +8,7 @@ const createStyles = (theme) => ({
   navigationBar: {
     flexDirection: "row",
     justifyContent: "space-evenly",
+    alignItems: "flex-end",
     width: "85%",
     marginLeft: "auto",
     marginRight: "auto",
@@ -15,7 +16,7 @@ const createStyles = (theme) => ({
   },
   iconContainer: {
     flexBasis: 50,
-    height: 50,
+    minHeight: 50,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -28,6 +29,7 @@ const createStyles = (theme) => ({
     fontSize: theme.typography.sizes.sm,
     color: theme.staticColors.WHITE_COLOR,
     fontFamily: theme.typography.fonts.balooPaaji,
+    textAlign: "center",
   },
 });
 

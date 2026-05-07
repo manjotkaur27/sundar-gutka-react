@@ -297,7 +297,13 @@ const BottomNavigation = ({ activeKey }) => {
                 }
               />
               {activeKey !== item.key && (
-                <CustomText style={styles.iconText}>{item.text}</CustomText>
+                <CustomText
+                  style={styles.iconText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {item.text}
+                </CustomText>
               )}
             </Pressable>
           );
