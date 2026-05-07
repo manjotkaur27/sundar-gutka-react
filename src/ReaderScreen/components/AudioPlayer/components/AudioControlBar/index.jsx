@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
-import TrackPlayer from "react-native-track-player";
+import TrackPlayer, { useTrackPlayerEvents, Event } from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
@@ -81,6 +81,7 @@ const AudioControlBar = ({
   const optimisticSeekTimerRef = useRef(null);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
+  const trackEndedNaturallyRef = useRef(false);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
   const { isDownloading, isDownloaded } = useDownloadManager(
     currentPlaying,
@@ -116,6 +117,18 @@ const AudioControlBar = ({
 
     return unsubscribe;
   }, [navigation, isAudioAutoPlay, isInitialized, currentPlaying?.id, play]);
+
+  // Natural end detection: position near manifest duration = track finished.
+  // Mid-track position = programmatic reset() (navigate away, track switch) — ignore.
+  // We only set a display flag here; Redux progress is never touched so
+  // resume-from-saved-position continues to work normally.
+  useTrackPlayerEvents([Event.PlaybackQueueEnded], ({ position }) => {
+    const currentTrack = currentPlayingRef.current;
+    const manifestDuration = currentTrack?.trackLengthSec || 0;
+    if (manifestDuration > 0 && position >= manifestDuration - 5) {
+      trackEndedNaturallyRef.current = true;
+    }
+  });
 
   const sanitizeDuration = (value) => {
     const numericValue = Number(value);
@@ -168,10 +181,15 @@ const AudioControlBar = ({
     }
 
     const nativeDuration = sanitizeDuration(progress.duration);
+    const manifestDuration = Number(currentPlaying?.trackLengthSec) || 0;
 
-    // Show only verified native duration to avoid placeholder/incorrect totals
-    // coming from manifest values (e.g., repeated 28:29).
-    const nextDuration = nativeDuration || 0;
+    // Guard against stale ELST atoms in stream-copied/trimmed M4A files:
+    // if the native player reports a duration far beyond the manifest value
+    // (e.g. the edit list still references the original full-file length),
+    // fall back to the manifest value so the slider doesn't collapse.
+    const isNativeSuspect =
+      manifestDuration > 0 && nativeDuration > manifestDuration * 1.1;
+    const nextDuration = isNativeSuspect ? manifestDuration : (nativeDuration || 0);
     setDisplayDuration(nextDuration);
     setDurationTrackId(currentTrackId);
   }, [currentPlaying?.id, progress.duration]);
@@ -190,10 +208,15 @@ const AudioControlBar = ({
       // We also check basePosition < 0.5 because the native player sometimes reports
       // a momentary 0.001s position right after addAndPlayTrack before the seekTo executes.
       if (!basePosition || basePosition < 0.5 || isSeekLoading) {
-        const savedProgress = audioProgress?.[baniID];
-        if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
-          basePosition = savedProgress.position || basePosition;
+        if (!trackEndedNaturallyRef.current) {
+          const savedProgress = audioProgress?.[baniID];
+          if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
+            basePosition = savedProgress.position || basePosition;
+          }
         }
+      } else {
+        // Active playback position — track is running again, clear the ended flag.
+        trackEndedNaturallyRef.current = false;
       }
 
       if (optimisticSeekPosition != null) {
@@ -351,6 +374,7 @@ const AudioControlBar = ({
   // Load the active track when component mounts or currentPlaying changes
   useEffect(() => {
     const loadActiveTrack = async () => {
+      trackEndedNaturallyRef.current = false;
       if (!isInitialized || !currentPlaying?.id || !currentPlaying?.audioUrl) {
         return;
       }
