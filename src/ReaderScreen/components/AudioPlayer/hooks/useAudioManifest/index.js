@@ -202,7 +202,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       ? `${_BLOB}/BhaiJarnailSingh/KirtanSohaila-short.m4a`
       : `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`;
       
-    const bjLength = isShortOrMedium ? 250 : 333;
+    const bjLength = isShortOrMedium ? 250.608 : 333;
     const bjSize   = isShortOrMedium ? 3.77 : 5.03;
 
     const tracks = [

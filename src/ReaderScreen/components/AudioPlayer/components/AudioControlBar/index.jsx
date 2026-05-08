@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
-import TrackPlayer, { useTrackPlayerEvents, Event } from "react-native-track-player";
+import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
@@ -81,7 +81,6 @@ const AudioControlBar = ({
   const optimisticSeekTimerRef = useRef(null);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
-  const trackEndedNaturallyRef = useRef(false);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
   const { isDownloading, isDownloaded } = useDownloadManager(
     currentPlaying,
@@ -117,18 +116,6 @@ const AudioControlBar = ({
 
     return unsubscribe;
   }, [navigation, isAudioAutoPlay, isInitialized, currentPlaying?.id, play]);
-
-  // Natural end detection: position near manifest duration = track finished.
-  // Mid-track position = programmatic reset() (navigate away, track switch) — ignore.
-  // We only set a display flag here; Redux progress is never touched so
-  // resume-from-saved-position continues to work normally.
-  useTrackPlayerEvents([Event.PlaybackQueueEnded], ({ position }) => {
-    const currentTrack = currentPlayingRef.current;
-    const manifestDuration = currentTrack?.trackLengthSec || 0;
-    if (manifestDuration > 0 && position >= manifestDuration - 5) {
-      trackEndedNaturallyRef.current = true;
-    }
-  });
 
   const sanitizeDuration = (value) => {
     const numericValue = Number(value);
@@ -203,20 +190,25 @@ const AudioControlBar = ({
     () => {
       let basePosition = progress.position;
 
-      // If native player hasn't caught up, show the exact position we saved in Redux
-      // to avoid visual "0:00" flashing when returning to the screen.
-      // We also check basePosition < 0.5 because the native player sometimes reports
-      // a momentary 0.001s position right after addAndPlayTrack before the seekTo executes.
-      if (!basePosition || basePosition < 0.5 || isSeekLoading) {
-        if (!trackEndedNaturallyRef.current) {
-          const savedProgress = audioProgress?.[baniID];
-          if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
-            basePosition = savedProgress.position || basePosition;
+      // If native player hasn't caught up (position is 0 or near-0 right after
+      // addAndPlayTrack / reset), show the Redux-saved position to avoid a 0:00 flash.
+      // isSeekLoading is intentionally excluded: keeping it here caused the stale
+      // Redux position to flash over the live player position on every focus return.
+      if (!basePosition || basePosition < 0.5) {
+        const savedProgress = audioProgress?.[baniID];
+        if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
+          const candidatePos = savedProgress.position || basePosition;
+          const manifestDuration = Number(currentPlaying?.trackLengthSec) || 0;
+          // Periodic saves fire up to 5s before a natural track end. If the saved
+          // position is within that window of the manifest duration, the track
+          // completed — don't restore so the display resets to 0:00.
+          // Safe to do here because a mid-track pause keeps progress.position ≥ 0.5,
+          // so the fallback never even triggers for intentional pauses near the end.
+          const trackCompleted = manifestDuration > 0 && candidatePos >= manifestDuration - 5;
+          if (!trackCompleted) {
+            basePosition = candidatePos;
           }
         }
-      } else {
-        // Active playback position — track is running again, clear the ended flag.
-        trackEndedNaturallyRef.current = false;
       }
 
       if (optimisticSeekPosition != null) {
@@ -229,7 +221,7 @@ const AudioControlBar = ({
 
       return sanitizePosition(basePosition, sliderMax);
     },
-    [progress.position, sliderMax, optimisticSeekPosition, audioProgress, baniID, currentPlaying?.id, isSeekLoading]
+    [progress.position, sliderMax, optimisticSeekPosition, audioProgress, baniID, currentPlaying?.id]
   );
 
   useEffect(() => {
@@ -374,7 +366,6 @@ const AudioControlBar = ({
   // Load the active track when component mounts or currentPlaying changes
   useEffect(() => {
     const loadActiveTrack = async () => {
-      trackEndedNaturallyRef.current = false;
       if (!isInitialized || !currentPlaying?.id || !currentPlaying?.audioUrl) {
         return;
       }
@@ -396,10 +387,17 @@ const AudioControlBar = ({
         // M4A files (e.g. ChaupaiSahib-short.m4a vs ChaupaiSahib.m4a), so an
         // ID-only check would incorrectly skip the reload when the user switches
         // bani length while audio is already loaded in the player.
+        // Compare by canonical remote URL so a prefetch/download URL swap
+        // (remote → file://) doesn't falsely trigger a reload. For bani-length
+        // variants that reuse the same track_id with different audio files, the
+        // remoteUrl stored on the RNTP track will differ from currentPlaying's
+        // canonical URL, correctly triggering a reload.
+        const activeTrackCanonicalUrl = activeTrack?.remoteUrl || activeTrack?.url;
+        const currentCanonicalUrl = currentPlaying.remoteUrl || currentPlaying.audioUrl;
         const isSameActiveTrack =
           activeTrack?.id != null &&
           String(activeTrack.id) === String(currentPlaying.id) &&
-          activeTrack?.url === currentPlaying.audioUrl;
+          activeTrackCanonicalUrl === currentCanonicalUrl;
 
         // Keep current playback timeline when reopening the same bani/track.
         if (isSameActiveTrack) {

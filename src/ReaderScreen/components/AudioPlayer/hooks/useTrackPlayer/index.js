@@ -446,6 +446,10 @@ const useTrackPlayer = () => {
       const track = {
         id,
         url: formatUrlForTrackPlayer(playbackUrl),
+        // Canonical remote URL — may differ from url when prefetch/download resolved
+        // a local copy. Used by AudioControlBar to reliably detect same-track across
+        // focus changes even when the resolved playback URL has changed.
+        remoteUrl: fallbackUrl || url,
         title,
         artist,
         artwork: require("../../../../../../images/sundar_gutka_icon.png"),
