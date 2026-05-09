@@ -71,9 +71,17 @@ const AudioControlBar = ({
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
   const [isLyricsChecking, setIsLyricsChecking] = useState(true);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
+  const baniLength = useSelector((state) => state.baniLength);
   const progressRef = useRef(progress);
   const currentPlayingRef = useRef(currentPlaying);
   const audioProgress = useSelector((state) => state.audioProgress);
+  // When baniLength changes while playing, the reducer clears saved progress for
+  // length-variant banis. Guard the periodic save and unmount save so they don't
+  // write the stale position straight back before the safe-exit fires.
+  const mountBaniLengthRef = useRef(baniLength);
+  const baniLengthChangedRef = useRef(false);
+  // Bani IDs whose tracks vary by length — must match the reducer's SET_BANI_LENGTH case.
+  const LENGTH_VARIANT_BANI_IDS = new Set(["9", "21", "23"]);
   const [isSeekLoading, setIsSeekLoading] = useState(false);
   const [displayDuration, setDisplayDuration] = useState(0);
   const [durationTrackId, setDurationTrackId] = useState(null);
@@ -276,6 +284,12 @@ const AudioControlBar = ({
     currentPlayingRef.current = currentPlaying;
   }, [currentPlaying]);
 
+  useEffect(() => {
+    if (baniLength !== mountBaniLengthRef.current) {
+      baniLengthChangedRef.current = true;
+    }
+  }, [baniLength]);
+
   // Snapshot saved progress once on mount — before any in-session playback saves can
   // overwrite audioProgress in Redux and accidentally re-trigger loadActiveTrack.
   useEffect(() => {
@@ -465,6 +479,7 @@ const AudioControlBar = ({
         sanitizeDuration(currentProgress?.duration) || sanitizeDuration(currentTrack?.trackLengthSec);
       const unmountPosition = sanitizePosition(currentProgress?.position, unmountDuration);
       if (trackId && unmountPosition != null) {
+        if (baniLengthChangedRef.current && LENGTH_VARIANT_BANI_IDS.has(String(baniID))) return;
         // Save sequence along with position
         (async () => {
           let sequence = null;
@@ -491,6 +506,7 @@ const AudioControlBar = ({
       const currentTrack = currentPlayingRef.current;
       const trackId = currentTrack?.id;
       if (!trackId) return;
+      if (baniLengthChangedRef.current && LENGTH_VARIANT_BANI_IDS.has(String(baniID))) return;
 
       const persistDuration =
         sanitizeDuration(currentProgress?.duration) ||
