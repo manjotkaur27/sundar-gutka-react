@@ -21,7 +21,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   2: {
     status: "success",
     data: [
-      { bani_id: 2, track_id: 1002, track_url: `${_BLOB}/BhaiJarnailSingh/JapjiSahib.m4a`, track_length_seconds: 981, track_size_mb: 15.23, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.json` },
+      { bani_id: 2, track_id: 1002, track_url: `${_BLOB}/BhaiJarnailSingh/JapjiSahib.m4a`, track_length_seconds: 985.547, track_size_mb: 15.39, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.json` },
       { bani_id: 2, track_id: 2002, track_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.m4a`, track_length_seconds: 1156, track_size_mb: 17.94, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.json` },
       { bani_id: 2, track_id: 3002, track_url: `${_BLOB}/GianiGurdevSingh/JapjiSahib.m4a`, track_length_seconds: 1257, track_size_mb: 19.69, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/JapjiSahib.json` },
     ],
