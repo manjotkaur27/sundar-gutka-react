@@ -195,8 +195,12 @@ const BottomNavigation = ({ activeKey }) => {
       key: "Music",
       icon: MusicIcon,
       handlePress: async () => {
-        if (!isAudioFeatureOn && !isAutoScroll) {
-          return;
+        // If the audio feature has been disabled (e.g. by AutoScroll or Settings),
+        // tapping the Music button re-enables it — same as flipping the Settings switch.
+        // This gives users (especially elderly ones) an easy recovery path.
+        if (!isAudioFeatureOn) {
+          dispatch(actions.toggleAudioFeatureEnabled(true));
+          // Fall through to start audio normally below.
         }
 
         if (isAutoScroll) {
@@ -238,7 +242,8 @@ const BottomNavigation = ({ activeKey }) => {
         dispatch(actions.toggleAudio(true));
       },
       text: STRINGS.MUSIC,
-      hidden: !isAudioFeatureOn && !isAutoScroll,
+      // Music button is always visible — it doubles as a recovery shortcut
+      // to re-enable the audio feature if it was turned off in Settings.
     },
     {
       key: "Settings",
