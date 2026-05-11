@@ -23,6 +23,8 @@ import {
   trackAudioEvent,
   trackArtistListeningDuration,
   trackArtist,
+  trackBaniOpen,
+  trackTrackDownload,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
 import {
@@ -114,5 +116,7 @@ export {
   useBackHandler,
   trackArtistListeningDuration,
   trackArtist,
+  trackBaniOpen,
+  trackTrackDownload,
   ThemedSwitch,
 };

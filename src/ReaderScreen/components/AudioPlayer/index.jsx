@@ -10,7 +10,7 @@ import {
   setAudioProgress,
 } from "@common/actions";
 import { showErrorToast } from "@common/toast";
-import { STRINGS, logError, trackAudioEvent, constant } from "@common";
+import { STRINGS, logError, trackAudioEvent, trackBaniOpen, constant } from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
@@ -77,6 +77,10 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     showTrackModal ? null : currentPlaying?.lyricsUrl,
     seekSyncRequest
   );
+
+  useEffect(() => {
+    trackBaniOpen(baniID, title);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply saved playback speed when initialized
   useEffect(() => {

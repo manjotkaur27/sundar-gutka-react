@@ -271,7 +271,7 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
     }
   }, [seekSyncRequest, isAudioSyncScroll, baniLRC]);
 
-  // Reset when sync scroll is disabled or audio stops
+  // Sync scroll state cleanup when audio stops or sync is disabled.
   useEffect(() => {
     if (!isAudioSyncScroll || !isPlaying || !baniLRC) {
       lastSequenceRef.current = null;
@@ -282,25 +282,39 @@ const useAudioSyncScroll = (progress, isPlaying, webViewRef, lyricsUrl, seekSync
         targetSequence: null,
         expiresAt: 0,
       };
-      // Clear any pending timeout
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
         scrollTimeoutRef.current = null;
       }
-      // Clear any lingering highlight in the WebView so stale highlighted
-      // elements don't remain visible after returning from background or
-      // re-opening the audio list.
       if (webViewRef?.current?.postMessage) {
         try {
-          webViewRef.current.postMessage(JSON.stringify({ resetHighlight: true }));
-        } catch (_) {
-          // Best-effort; WebView may not be mounted yet
-        }
+          if (!isPlaying && isAudioSyncScroll && baniLRC) {
+            // Audio paused while still on the audio screen — cancel the
+            // auto-clear timeout so the highlight stays visible, but don't
+            // wipe it. It clears when the user leaves the audio screen.
+            webViewRef.current.postMessage(JSON.stringify({ freezeHighlight: true }));
+          } else {
+            // Sync scroll disabled or lyrics unavailable — clear highlight.
+            webViewRef.current.postMessage(JSON.stringify({ resetHighlight: true }));
+          }
+        } catch (_) {}
       }
     }
   }, [isAudioSyncScroll, isPlaying, baniLRC]);
 
-  // Cleanup timeout on unmount
+  // Clear highlight instantly when the audio player closes (unmounts).
+  // Fires for any exit path: X button, Read nav tap, bani length change, etc.
+  useEffect(() => {
+    return () => {
+      if (webViewRef?.current?.postMessage) {
+        try {
+          webViewRef.current.postMessage(JSON.stringify({ resetHighlight: true }));
+        } catch (_) {}
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup scroll timeout on unmount
   useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) {

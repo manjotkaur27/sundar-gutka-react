@@ -107,6 +107,24 @@ const trackArtist = async (baniID, artist) => {
   await logEvent(analytics, "audio", params);
 };
 
+const trackBaniOpen = async (baniID, title) => {
+  const params = {
+    event: "openBani",
+    baniID,
+    title,
+  };
+  await logEvent(analytics, "audio", params);
+};
+
+const trackTrackDownload = async (baniID, artist) => {
+  const params = {
+    event: "trackDownload",
+    baniID,
+    artist,
+  };
+  await logEvent(analytics, "audio", params);
+};
+
 const trackSettingEvent = async (action, label) => {
   await trackEvent("setting", action, label);
 };
@@ -134,4 +152,6 @@ export {
   trackAudioEvent,
   trackArtistListeningDuration,
   trackArtist,
+  trackBaniOpen,
+  trackTrackDownload,
 };

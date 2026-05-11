@@ -318,6 +318,12 @@ ${listener}.addEventListener(
     if (message.hasOwnProperty("resetHighlight")) {
       clearAllHighlights();
     }
+    if (message.hasOwnProperty("freezeHighlight")) {
+      if (highlightTimeout != null) {
+        clearTimeout(highlightTimeout);
+        highlightTimeout = null;
+      }
+    }
     if (message.hasOwnProperty("autoScroll")) {
       autoScrollSpeed = message.autoScroll;
       scrollMultiplier = message.scrollMultiplier;
@@ -401,20 +407,24 @@ ${listener}.addEventListener(
           });
         }
         
-        // Store original styles so they can be restored
-        const originalBackgroundColor = element.style.backgroundColor;
-        const originalWidth = element.style.width;
-        const originalMargin = element.style.margin;
-        
-        element.dataset.origBg = originalBackgroundColor;
-        element.dataset.origWidth = originalWidth;
-        element.dataset.origMargin = originalMargin;
+        // Only snapshot original styles the first time this element is highlighted.
+        // Re-highlighting the same element (e.g. multiple sequences in one paragraph)
+        // must NOT overwrite origBg — it would capture the highlight colour and make
+        // clearAllHighlights restore to the highlight colour instead of transparent.
+        if (!isSameElement) {
+          element.dataset.origBg = element.style.backgroundColor;
+          element.dataset.origWidth = element.style.width;
+          element.dataset.origMargin = element.style.margin;
+        }
+        const originalBackgroundColor = element.dataset.origBg || '';
+        const originalWidth = element.dataset.origWidth || '';
+        const originalMargin = element.dataset.origMargin || '';
 
         // Apply highlight
         element.style.backgroundColor = "${theme.staticColors.HIGHLIGHT_COLOR}";
         element.style.borderRadius = "15px";
         element.style.width = "fit-content";
-        
+
         // Preserve alignment when using fit-content
         if (element.classList.contains("center")) {
           element.style.margin = "0 auto";
@@ -422,10 +432,10 @@ ${listener}.addEventListener(
           element.style.marginLeft = "auto";
           element.style.marginRight = "0";
         }
-        
+
         // Store current element
         lastHighlightedElement = element;
-        
+
         // Remove highlight after timeout
         highlightTimeout = setTimeout(()=> {
           element.style.backgroundColor = originalBackgroundColor;

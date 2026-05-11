@@ -93,7 +93,8 @@ const AudioControlBar = ({
   const { isDownloading, isDownloaded } = useDownloadManager(
     currentPlaying,
     addTrackToManifest,
-    isTrackDownloaded
+    isTrackDownloaded,
+    baniID
   );
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
   useArtistListeningDuration(baniID, isPlaying, currentPlaying);
