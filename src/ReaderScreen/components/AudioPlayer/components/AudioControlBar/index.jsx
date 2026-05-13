@@ -86,6 +86,10 @@ const AudioControlBar = ({
   const [displayDuration, setDisplayDuration] = useState(0);
   const [durationTrackId, setDurationTrackId] = useState(null);
   const [optimisticSeekPosition, setOptimisticSeekPosition] = useState(null);
+  // Set once loadActiveTrack confirms the track is in RNTP. Until then, RNTP
+  // may still be reporting the previous track's position, so safePosition
+  // ignores progress.position and shows the saved/restore value instead.
+  const [confirmedCurrentTrackId, setConfirmedCurrentTrackId] = useState(null);
   const optimisticSeekTimerRef = useRef(null);
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
@@ -197,6 +201,22 @@ const AudioControlBar = ({
 
   const safePosition = useMemo(
     () => {
+      // While loadActiveTrack hasn't confirmed the new track in RNTP yet,
+      // progress.position may still be the previous track's stale value (e.g.
+      // 4:44 from a just-left track). Show saved/restore position or 0 instead.
+      if (confirmedCurrentTrackId !== String(currentPlaying?.id ?? "")) {
+        const savedProgress = audioProgress?.[baniID];
+        if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
+          const candidatePos = savedProgress.position || 0;
+          const manifestDuration = Number(currentPlaying?.trackLengthSec) || 0;
+          const trackCompleted = manifestDuration > 0 && candidatePos >= manifestDuration - 5;
+          if (!trackCompleted && candidatePos > 0) {
+            return sliderMax > 0 ? sanitizePosition(candidatePos, sliderMax) : candidatePos;
+          }
+        }
+        return 0;
+      }
+
       let basePosition = progress.position;
 
       // If native player hasn't caught up (position is 0 or near-0 right after
@@ -208,11 +228,6 @@ const AudioControlBar = ({
         if (savedProgress?.trackId && String(savedProgress.trackId) === String(currentPlaying?.id)) {
           const candidatePos = savedProgress.position || basePosition;
           const manifestDuration = Number(currentPlaying?.trackLengthSec) || 0;
-          // Periodic saves fire up to 5s before a natural track end. If the saved
-          // position is within that window of the manifest duration, the track
-          // completed — don't restore so the display resets to 0:00.
-          // Safe to do here because a mid-track pause keeps progress.position ≥ 0.5,
-          // so the fallback never even triggers for intentional pauses near the end.
           const trackCompleted = manifestDuration > 0 && candidatePos >= manifestDuration - 5;
           if (!trackCompleted) {
             basePosition = candidatePos;
@@ -230,7 +245,7 @@ const AudioControlBar = ({
 
       return sanitizePosition(basePosition, sliderMax);
     },
-    [progress.position, sliderMax, optimisticSeekPosition, audioProgress, baniID, currentPlaying?.id]
+    [progress.position, sliderMax, optimisticSeekPosition, audioProgress, baniID, currentPlaying?.id, confirmedCurrentTrackId]
   );
 
   useEffect(() => {
@@ -419,6 +434,7 @@ const AudioControlBar = ({
           if (isAudioAutoPlay && isFocused) {
             await play();
           }
+          setConfirmedCurrentTrackId(String(currentPlaying.id));
           setIsSeekLoading(false);
           return;
         }
@@ -453,6 +469,7 @@ const AudioControlBar = ({
         if (isAudioAutoPlay && isFocused) {
           await play();
         }
+        setConfirmedCurrentTrackId(String(currentPlaying.id));
         setIsSeekLoading(false);
       } catch (error) {
         logError("Error loading active track:", error);

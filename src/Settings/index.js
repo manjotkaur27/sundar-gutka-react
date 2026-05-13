@@ -45,7 +45,7 @@ const Settings = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { displayOptionsText, end } = styles;
-  const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS } = STRINGS;
+  const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO } = STRINGS;
   const language = useSelector((state) => state.language);
   const { about, databaseUpdate } = STRINGS;
 
@@ -67,6 +67,8 @@ const Settings = ({ navigation }) => {
         <HideStatusBar />
         <AutoScroll />
         <KeepAwake />
+        {/* Audio Player */}
+        <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
         <Audio />
         {/* Bani Options */}
         <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
