@@ -406,6 +406,7 @@ const AudioControlBar = ({
       // M4A moov parse takes seconds — a second reset() kills it.
       if (skipNextLoadRef?.current) {
         skipNextLoadRef.current = false;
+        setConfirmedCurrentTrackId(String(currentPlaying.id));
         return;
       }
 
