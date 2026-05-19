@@ -127,11 +127,30 @@ module.exports = async function () {
     const NowPlayingHelper = NativeModules.NowPlayingHelper;
     let rateSyncTimer = null;
 
+    const forceRateNow = async () => {
+      try {
+        const playbackState = await TrackPlayer.getPlaybackState().catch(() => null);
+        const currentState = playbackState?.state ?? playbackState;
+        if (currentState !== State.Playing) return;
+        const currentRate = await TrackPlayer.getRate().catch(() => 1);
+        if (NowPlayingHelper) {
+          NowPlayingHelper.forcePlaybackRate(currentRate);
+        }
+      } catch (_) {
+        // Non-critical — the polling backstop will retry.
+      }
+    };
+
     const startRateSyncPolling = () => {
       if (rateSyncTimer) {
         clearInterval(rateSyncTimer);
         rateSyncTimer = null;
       }
+
+      // Force immediately so the widget reflects Playing without waiting
+      // for the first 600ms tick. The interval below stays as a backstop
+      // for the iPad audio-session reactivation race.
+      forceRateNow();
 
       let attempts = 0;
       const MAX_ATTEMPTS = 8; // 8 × 600ms = ~5 seconds
