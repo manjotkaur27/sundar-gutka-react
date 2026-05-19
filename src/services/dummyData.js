@@ -1,7 +1,7 @@
 const BLOB_BASE = "https://banidb.blob.core.windows.net/audios";
 
-const jarnailArtist = { display_name: "Bhai Jarnail Singh Ji", artist_id: 4 };
-const indermohanArtist = { display_name: "Indermohan Kaur UK", artist_id: 8 };
+const jarnailArtist = { display_name: "Bhai Jarnail Singh", artist_id: 4 };
+const indermohanArtist = { display_name: "Bibi Indermohan Kaur", artist_id: 8 };
 const gurdevArtist = { display_name: "Giani Gurdev Singh", artist_id: 9 };
 
 const dummyArtists = [jarnailArtist, indermohanArtist, gurdevArtist];

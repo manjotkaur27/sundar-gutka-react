@@ -8,7 +8,7 @@ const JARNAIL_ARTIST_ID = 4;
 const INDERMOHAN_ARTIST_ID = 8;
 const GURDEV_ARTIST_ID = 9;
 
-const INDERMOHAN_ARTIST_NAME = "Indermohan Kaur UK";
+const INDERMOHAN_ARTIST_NAME = "Bibi Indermohan Kaur";
 const GURDEV_ARTIST_NAME = "Giani Gurdev Singh";
 
 // Keywords used by the filter gate
@@ -28,7 +28,7 @@ const SAVIYE_PRIMARY_TRACK = {
   track_url: SAVIYE_JARNAIL_TRACK_URL,
   track_length_seconds: 207,
   track_size_mb: 3.23,
-  artist_name: "Bhai Jarnail Singh Ji",
+  artist_name: "Bhai Jarnail Singh",
   artist_id: JARNAIL_ARTIST_ID,
   lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.json`,
 };
@@ -48,7 +48,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/JapjiSahib.m4a`,
       track_length_seconds: 985.547,
       track_size_mb: 15.39,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/japji-sahib.json`,
     },
@@ -60,7 +60,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/JaapSahib.m4a`,
       track_length_seconds: 987,
       track_size_mb: 15.36,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/jaap-sahib.json`,
     },
@@ -72,7 +72,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/Saviye.m4a`,
       track_length_seconds: 207,
       track_size_mb: 3.23,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/saviye.json`,
     },
@@ -84,7 +84,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/ChaupaiSahib.m4a`,
       track_length_seconds: 317,
       track_size_mb: 4.95,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/chopai-sahib.json`,
     },
@@ -96,7 +96,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/AnandSahib.m4a`,
       track_length_seconds: 784,
       track_size_mb: 12.18,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/anand-sahib.json`,
     },
@@ -108,7 +108,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/RehrasSahib.m4a`,
       track_length_seconds: 1335,
       track_size_mb: 20.49,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib.json`,
     },
@@ -120,7 +120,7 @@ const JARNAIL_TRACKS_BY_BANI = {
       track_url: `${BLOB_BASE}/BhaiJarnailSingh/KirtanSohaila.m4a`,
       track_length_seconds: 333,
       track_size_mb: 5.03,
-      artist_name: "Bhai Jarnail Singh Ji",
+      artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila.json`,
     },

@@ -21,24 +21,24 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   2: {
     status: "success",
     data: [
-      { bani_id: 2, track_id: 1002, track_url: `${_BLOB}/BhaiJarnailSingh/JapjiSahib.m4a`, track_length_seconds: 985.547, track_size_mb: 15.39, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.json` },
-      { bani_id: 2, track_id: 2002, track_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.m4a`, track_length_seconds: 1156, track_size_mb: 17.94, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.json` },
+      { bani_id: 2, track_id: 1002, track_url: `${_BLOB}/BhaiJarnailSingh/JapjiSahib.m4a`, track_length_seconds: 985.547, track_size_mb: 15.39, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.json` },
+      { bani_id: 2, track_id: 2002, track_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.m4a`, track_length_seconds: 1156, track_size_mb: 17.94, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.json` },
       { bani_id: 2, track_id: 3002, track_url: `${_BLOB}/GianiGurdevSingh/JapjiSahib.m4a`, track_length_seconds: 1257, track_size_mb: 19.69, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/JapjiSahib.json` },
     ],
   },
   4: {
     status: "success",
     data: [
-      { bani_id: 4, track_id: 1004, track_url: `${_BLOB}/BhaiJarnailSingh/JaapSahib.m4a`, track_length_seconds: 987, track_size_mb: 15.36, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/jaap-sahib.json` },
-      { bani_id: 4, track_id: 2004, track_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.m4a`, track_length_seconds: 1170, track_size_mb: 18.18, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.json` },
+      { bani_id: 4, track_id: 1004, track_url: `${_BLOB}/BhaiJarnailSingh/JaapSahib.m4a`, track_length_seconds: 987, track_size_mb: 15.36, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/jaap-sahib.json` },
+      { bani_id: 4, track_id: 2004, track_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.m4a`, track_length_seconds: 1170, track_size_mb: 18.18, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.json` },
       { bani_id: 4, track_id: 3004, track_url: `${_BLOB}/GianiGurdevSingh/JaapSahib.m4a`, track_length_seconds: 1281, track_size_mb: 20.06, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/JaapSahib.json` },
     ],
   },
   6: {
     status: "success",
     data: [
-      { bani_id: 6, track_id: 1006, track_url: `${_BLOB}/BhaiJarnailSingh/Saviye.m4a`, track_length_seconds: 207, track_size_mb: 3.23, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/saviye.json` },
-      { bani_id: 6, track_id: 2006, track_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.m4a`, track_length_seconds: 227, track_size_mb: 3.52, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.json` },
+      { bani_id: 6, track_id: 1006, track_url: `${_BLOB}/BhaiJarnailSingh/Saviye.m4a`, track_length_seconds: 207, track_size_mb: 3.23, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/saviye.json` },
+      { bani_id: 6, track_id: 2006, track_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.m4a`, track_length_seconds: 227, track_size_mb: 3.52, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.json` },
       { bani_id: 6, track_id: 3006, track_url: `${_BLOB}/GianiGurdevSingh/TavParsadSwayiye.m4a`, track_length_seconds: 237, track_size_mb: 3.71, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/TavParsadSwayiye.json` },
     ],
   },
@@ -82,7 +82,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     const ggSize   = isShortOrMedium ? 4.25 : 5.86;
 
     const tracks = [
-      { bani_id: 9, track_id: 1009, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
+      { bani_id: 9, track_id: 1009, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: bjLyrics },
       { bani_id: 9, track_id: 3009, track_url: ggAudio, track_length_seconds: ggLength, track_size_mb: ggSize, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: ggLyrics },
     ];
 
@@ -93,7 +93,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
         bani_id: 9, track_id: 2009,
         track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.m4a`,
         track_length_seconds: 268, track_size_mb: 4.16,
-        artist_name: "Indermohan Kaur UK", artist_id: 8,
+        artist_name: "Bibi Indermohan Kaur", artist_id: 8,
         lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json`,
       });
     }
@@ -103,8 +103,8 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   10: {
     status: "success",
     data: [
-      { bani_id: 10, track_id: 1010, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib.m4a`, track_length_seconds: 784, track_size_mb: 12.18, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib.json` },
-      { bani_id: 10, track_id: 2010, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.m4a`, track_length_seconds: 869, track_size_mb: 13.48, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.json` },
+      { bani_id: 10, track_id: 1010, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib.m4a`, track_length_seconds: 784, track_size_mb: 12.18, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib.json` },
+      { bani_id: 10, track_id: 2010, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.m4a`, track_length_seconds: 869, track_size_mb: 13.48, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.json` },
       { bani_id: 10, track_id: 3010, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.m4a`, track_length_seconds: 994, track_size_mb: 15.52, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.json` },
     ],
   },
@@ -113,8 +113,8 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   1000: {
     status: "success",
     data: [
-      { bani_id: 1000, track_id: 11000, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 151, track_size_mb: 2.34, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib-6-pauri.json` },
-      { bani_id: 1000, track_id: 21000, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`, track_length_seconds: 143, track_size_mb: 2.19, artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 11000, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 151, track_size_mb: 2.34, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 21000, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`, track_length_seconds: 143, track_size_mb: 2.19, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.json` },
       { bani_id: 1000, track_id: 31000, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 183, track_size_mb: 2.84, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.json` },
     ],
   },
@@ -166,7 +166,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     const imSize   = isShort ? 15.50 : isMedium ? 17.44 : 17.77;
 
     const tracks = [
-      { bani_id: 21, track_id: 1021, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
+      { bani_id: 21, track_id: 1021, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: bjLyrics },
     ];
 
     // InderMohan Kaur is technically missing middle Taksal sequences,
@@ -174,7 +174,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     tracks.push({
       bani_id: 21, track_id: 2021,
       track_url: imAudio, track_length_seconds: imLength, track_size_mb: imSize,
-      artist_name: "Indermohan Kaur UK", artist_id: 8, lyrics_url: imLyrics,
+      artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: imLyrics,
     });
 
     return { status: "success", data: tracks };
@@ -206,7 +206,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     const bjSize   = isShortOrMedium ? 3.77 : 5.03;
 
     const tracks = [
-      { bani_id: 23, track_id: 1023, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh Ji", artist_id: 4, lyrics_url: bjLyrics },
+      { bani_id: 23, track_id: 1023, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: bjLyrics },
     ];
 
     // InderMohan Kaur only recorded Short/Medium (seq 33-86).
@@ -215,7 +215,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
         bani_id: 23, track_id: 2023,
         track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.m4a`,
         track_length_seconds: 239, track_size_mb: 3.70,
-        artist_name: "Indermohan Kaur UK", artist_id: 8,
+        artist_name: "Bibi Indermohan Kaur", artist_id: 8,
         lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json`,
       });
     }
