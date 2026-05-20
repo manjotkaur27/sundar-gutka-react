@@ -415,7 +415,7 @@ const AudioControlBar = ({
         const activeTrack = await TrackPlayer.getActiveTrack();
         // A track is truly "the same" only when both the ID and the audio URL
         // match. Bani-length variants share the same track_id but use different
-        // M4A files (e.g. ChaupaiSahib-short.m4a vs ChaupaiSahib.m4a), so an
+        // M4A files depending on the selected length, so an
         // ID-only check would incorrectly skip the reload when the user switches
         // bani length while audio is already loaded in the player.
         // Compare by canonical remote URL so a prefetch/download URL swap

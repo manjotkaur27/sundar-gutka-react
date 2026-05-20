@@ -52,53 +52,33 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     //   Short / Medium → trimmed M4A (seqs 43–146), rebased timestamps
     //   Long (Taksal)  → full original M4A (seqs 43–173, all closing sections)
     //   XL (BuddhaDal) → UNAVAILABLE — no artist recorded the seqs 1–42 opening
-    //   InderMohan Kaur → Short/Medium only (her recording ends at seq 146)
+    // Original (no-suffix) files only — no trimmed variants.
+    // BJS + GGS originals cover Long (seq 1–173).
+    // Indermohan's original covers Short/Medium (her recording ends at seq 146).
+    // Any other length combination → empty → maafi message.
 
     const isShortOrMedium = baniLength !== constant.LONG && baniLength !== constant.EXTRA_LONG;
     const isXL = baniLength === constant.EXTRA_LONG;
 
-    // XL: no artist covers the XL-only opening (seqs 1–42) — return empty so the
-    // AudioTrackDialog shows the "not available" message.
-    if (isXL) {
-      return { status: "success", data: [] };
-    }
+    if (isXL) return { status: "success", data: [] };
 
-    const bjLyrics = isShortOrMedium
-      ? `${_BLOB}/BhaiJarnailSingh/chopai-sahib-short.json`
-      : `${_BLOB}/BhaiJarnailSingh/chopai-sahib.json`;
-    const bjAudio = isShortOrMedium
-      ? `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib-short.m4a`
-      : `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib.m4a`;
-    const bjLength = isShortOrMedium ? 225 : 317;
-    const bjSize   = isShortOrMedium ? 3.49 : 4.94;
-
-    const ggLyrics = isShortOrMedium
-      ? `${_BLOB}/GianiGurdevSingh/ChaupaiSahib-short.json`
-      : `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.json`;
-    const ggAudio = isShortOrMedium
-      ? `${_BLOB}/GianiGurdevSingh/ChaupaiSahib-short.m4a`
-      : `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.m4a`;
-    const ggLength = isShortOrMedium ? 274 : 378;
-    const ggSize   = isShortOrMedium ? 4.25 : 5.86;
-
-    const tracks = [
-      { bani_id: 9, track_id: 1009, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: bjLyrics },
-      { bani_id: 9, track_id: 3009, track_url: ggAudio, track_length_seconds: ggLength, track_size_mb: ggSize, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: ggLyrics },
-    ];
-
-    // InderMohan Kaur is only available for Short/Medium (recording ends at seq 146).
-    // Long extends to seq 173 which she didn't record.
     if (isShortOrMedium) {
-      tracks.splice(1, 0, {
-        bani_id: 9, track_id: 2009,
-        track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.m4a`,
-        track_length_seconds: 268, track_size_mb: 4.16,
-        artist_name: "Bibi Indermohan Kaur", artist_id: 8,
-        lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json`,
-      });
+      return {
+        status: "success",
+        data: [
+          { bani_id: 9, track_id: 2009, track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.m4a`, track_length_seconds: 268, track_size_mb: 4.16, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json` },
+        ],
+      };
     }
 
-    return { status: "success", data: tracks };
+    // LONG
+    return {
+      status: "success",
+      data: [
+        { bani_id: 9, track_id: 1009, track_url: `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib.m4a`, track_length_seconds: 317, track_size_mb: 4.94, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/chopai-sahib.json` },
+        { bani_id: 9, track_id: 3009, track_url: `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.m4a`, track_length_seconds: 378, track_size_mb: 5.86, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.json` },
+      ],
+    };
   },
   10: {
     status: "success",
@@ -113,9 +93,9 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   1000: {
     status: "success",
     data: [
-      { bani_id: 1000, track_id: 11000, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 151, track_size_mb: 2.34, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib-6-pauri.json` },
-      { bani_id: 1000, track_id: 21000, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`, track_length_seconds: 143, track_size_mb: 2.19, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.json` },
-      { bani_id: 1000, track_id: 31000, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 183, track_size_mb: 2.84, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 11000, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 150.977, track_size_mb: 2.34, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 21000, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`, track_length_seconds: 142.631, track_size_mb: 2.19, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.json` },
+      { bani_id: 1000, track_id: 31000, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 182.856, track_size_mb: 2.84, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.json` },
     ],
   },
   21: (baniLength) => {
@@ -125,59 +105,21 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     //   Long (Taksal) -> 1, 8-169, 175-178, 207-375, 405-416, 469-471, 473-563
     //   XL (BuddhaDal) -> 1-563 (No audio available)
 
-    const isShort = baniLength === constant.SHORT;
-    const isMedium = baniLength === constant.MEDIUM;
+    // Original (no-suffix) files only — no trimmed variants.
+    // BJS + Indermohan originals cover Long only.
+    // Short/Medium/XL → empty → maafi message.
+
     const isLong = baniLength === constant.LONG;
-    const isXL = baniLength === constant.EXTRA_LONG;
 
-    // XL is unavailable for Rehras Sahib.
-    if (isXL) {
-      return { status: "success", data: [] };
-    }
+    if (!isLong) return { status: "success", data: [] };
 
-    const bjLyrics = isShort
-      ? `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-short.json`
-      : isMedium
-      ? `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-medium.json`
-      : `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.json`;
-
-    const bjAudio = isShort
-      ? `${_BLOB}/BhaiJarnailSingh/RehrasSahib-short.m4a`
-      : isMedium
-      ? `${_BLOB}/BhaiJarnailSingh/RehrasSahib-medium.m4a`
-      : `${_BLOB}/BhaiJarnailSingh/RehrasSahib.m4a`;
-
-    const bjLength = isShort ? 945 : isMedium ? 1082 : 1335;
-    const bjSize   = isShort ? 14.61 : isMedium ? 16.72 : 20.50;
-
-    const imLyrics = isShort
-      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-short.json`
-      : isMedium
-      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-medium.json`
-      : `${_BLOB}/IndermohanKaurUK/RehrasSahib.json`;
-
-    const imAudio = isShort
-      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-short.m4a`
-      : isMedium
-      ? `${_BLOB}/IndermohanKaurUK/RehrasSahib-medium.m4a`
-      : `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`;
-
-    const imLength = isShort ? 999 : isMedium ? 1125 : 1145;
-    const imSize   = isShort ? 15.50 : isMedium ? 17.44 : 17.77;
-
-    const tracks = [
-      { bani_id: 21, track_id: 1021, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: bjLyrics },
-    ];
-
-    // InderMohan Kaur is technically missing middle Taksal sequences,
-    // but we make her available in Long form to match user expectations.
-    tracks.push({
-      bani_id: 21, track_id: 2021,
-      track_url: imAudio, track_length_seconds: imLength, track_size_mb: imSize,
-      artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: imLyrics,
-    });
-
-    return { status: "success", data: tracks };
+    return {
+      status: "success",
+      data: [
+        { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib.m4a`, track_length_seconds: 1335, track_size_mb: 20.50, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.json` },
+        { bani_id: 21, track_id: 2021, track_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`, track_length_seconds: 1145, track_size_mb: 17.77, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.json` },
+      ],
+    };
   },
   23: (baniLength) => {
     // Kirtan Sohila
@@ -185,42 +127,32 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     // Long: seq 1-86
     // XL: seq 1-146 (No artist has recorded up to 146)
     
+    // Original (no-suffix) files only — no trimmed variants.
+    // Indermohan's original covers Short/Medium (seq 33–86).
+    // BJS original covers Long (seq 1–86).
+    // XL → empty → maafi message.
+
     const isShortOrMedium = baniLength === constant.SHORT || baniLength === constant.MEDIUM;
     const isXL = baniLength === constant.EXTRA_LONG;
 
-    // XL is completely unavailable (Maafi)
-    if (isXL) {
-      return { status: "success", data: [] };
-    }
+    if (isXL) return { status: "success", data: [] };
 
-    // BJS is available for Short/Medium and Long
-    const bjLyrics = isShortOrMedium
-      ? `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila-short.json`
-      : `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.json`;
-      
-    const bjAudio = isShortOrMedium
-      ? `${_BLOB}/BhaiJarnailSingh/KirtanSohaila-short.m4a`
-      : `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`;
-      
-    const bjLength = isShortOrMedium ? 250.608 : 333;
-    const bjSize   = isShortOrMedium ? 3.77 : 5.03;
-
-    const tracks = [
-      { bani_id: 23, track_id: 1023, track_url: bjAudio, track_length_seconds: bjLength, track_size_mb: bjSize, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: bjLyrics },
-    ];
-
-    // InderMohan Kaur only recorded Short/Medium (seq 33-86).
     if (isShortOrMedium) {
-      tracks.push({
-        bani_id: 23, track_id: 2023,
-        track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.m4a`,
-        track_length_seconds: 239, track_size_mb: 3.70,
-        artist_name: "Bibi Indermohan Kaur", artist_id: 8,
-        lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json`,
-      });
+      return {
+        status: "success",
+        data: [
+          { bani_id: 23, track_id: 2023, track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.m4a`, track_length_seconds: 239, track_size_mb: 3.70, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json` },
+        ],
+      };
     }
 
-    return { status: "success", data: tracks };
+    // LONG
+    return {
+      status: "success",
+      data: [
+        { bani_id: 23, track_id: 1023, track_url: `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`, track_length_seconds: 333, track_size_mb: 5.03, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.json` },
+      ],
+    };
   },
 };
 
@@ -393,8 +325,7 @@ const useAudioManifest = (baniID) => {
         );
 
         // For bani-length variants, the same track_id maps to different audio
-        // files depending on the selected length (e.g. ChaupaiSahib-short.m4a
-        // vs ChaupaiSahib.m4a both use track_id 1009). If the cached entry's
+        // files depending on the selected length. If the cached entry's
         // remoteUrl doesn't match the currently expected URL, the local file
         // belongs to a different length — ignore it and stream the correct one.
         const remoteUrlMatches =
