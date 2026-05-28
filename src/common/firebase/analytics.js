@@ -176,11 +176,12 @@ const trackBaniArtistDefault = async (baniID, artist) => {
   }
 };
 
-const trackTrackDownload = async (baniID, artist) => {
+const trackTrackDownload = async (baniID, artist, baniTitle) => {
   try {
     await logEvent(analytics, "track_download", {
       bani_id: safeStr(baniID),
       artist: safeStr(artist, "none"),
+      bani_title: safeStr(baniTitle),
     });
   } catch (error) {
     logError(new Error(`track_download tracking failed - ${error?.message || "Unknown error"}`));

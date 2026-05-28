@@ -4,7 +4,7 @@ import { stopDownload, unlink, exists, stat } from "react-native-fs";
 import { logError, trackTrackDownload } from "@common";
 import { downloadTrack, getFullLocalTrackPath } from "../../utils/audioDownloader";
 
-const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloaded, baniID) => {
+const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloaded, baniID, baniTitle) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   // Ref-based in-flight guard: prevents a second download from starting if
@@ -90,7 +90,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
       }
       setIsDownloaded(true);
       addTrackToManifest(currentPlaying, result.audioRelativePath, result.jsonRelativePath);
-      trackTrackDownload(baniID, currentPlaying?.displayName);
+      trackTrackDownload(baniID, currentPlaying?.displayName, baniTitle);
     } catch (error) {
       logError("Download error:", error);
       // Mark as failed so the watchdog-cleared guard prevents retry this session.

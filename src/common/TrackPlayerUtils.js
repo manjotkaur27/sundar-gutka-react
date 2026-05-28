@@ -67,7 +67,6 @@ class TrackPlayerService {
           icon: { uri: "ic_notification" },
           android: {
             appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-            alwaysPauseOnInterruption: true,
             notificationChannelName: "Sundar Gutka Playback V4",
             notificationChannelDescription: "Gurbani audio playback controls",
             notificationColor: 0xffeeb14f,

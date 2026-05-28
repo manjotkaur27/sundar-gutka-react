@@ -284,19 +284,19 @@ describe("trackBaniArtistDefault", () => {
 
 describe("trackTrackDownload", () => {
   it("fires track_download with correct params", async () => {
-    await trackTrackDownload("2", "Bhai Jarnail Singh");
+    await trackTrackDownload("2", "Bhai Jarnail Singh", "Japji Sahib");
     expect(lastEventName()).toBe("track_download");
-    expect(lastParams()).toEqual({ bani_id: "2", artist: "Bhai Jarnail Singh" });
+    expect(lastParams()).toEqual({ bani_id: "2", artist: "Bhai Jarnail Singh", bani_title: "Japji Sahib" });
   });
 
   it('sends artist="none" when undefined', async () => {
-    await trackTrackDownload("2", undefined);
+    await trackTrackDownload("2", undefined, "Japji Sahib");
     expect(lastParams().artist).toBe("none");
   });
 
   it("does not throw when logEvent rejects", async () => {
     logEvent.mockRejectedValueOnce(new Error("err"));
-    await expect(trackTrackDownload("2", "Artist")).resolves.toBeUndefined();
+    await expect(trackTrackDownload("2", "Artist", "Japji Sahib")).resolves.toBeUndefined();
     expect(logError).toHaveBeenCalled();
   });
 });
@@ -548,7 +548,7 @@ describe("null safety — no (not set) across all dedicated events", () => {
     ["trackBaniListen",            () => trackBaniListen(null, null, null, null, null)],
     ["trackBaniListenCompletion",  () => trackBaniListenCompletion(null, null, null, null, null)],
     ["trackBaniArtistDefault",     () => trackBaniArtistDefault(null, null)],
-    ["trackTrackDownload",         () => trackTrackDownload(null, null)],
+    ["trackTrackDownload",         () => trackTrackDownload(null, null, null)],
     ["trackAudioLinkRequest",      () => trackAudioLinkRequest(null, null, null)],
     ["trackScrollProgress",        () => trackScrollProgress(null, null, null, null)],
   ];
@@ -589,7 +589,7 @@ describe("canonical artist names — only approved display names used in events"
     ["bani_listen — Giani Gurdev Singh",      () => trackBaniListen("2", "Japji Sahib", "Giani Gurdev Singh", 90, 985)],
     ["bani_listen_completion — Bibi Indermohan Kaur", () => trackBaniListenCompletion("2", "Japji Sahib", "Bibi Indermohan Kaur", 500, 985)],
     ["bani_artist_default — Bibi Indermohan Kaur",    () => trackBaniArtistDefault("2", "Bibi Indermohan Kaur")],
-    ["track_download — Giani Gurdev Singh",            () => trackTrackDownload("2", "Giani Gurdev Singh")],
+    ["track_download — Giani Gurdev Singh",            () => trackTrackDownload("2", "Giani Gurdev Singh", "Japji Sahib")],
   ];
 
   test.each(artistEvents)("%s: artist param is a canonical name", async (_label, fn) => {

@@ -98,7 +98,8 @@ const AudioControlBar = ({
     currentPlaying,
     addTrackToManifest,
     isTrackDownloaded,
-    baniID
+    baniID,
+    title
   );
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
   useArtistListeningDuration(baniID, title, isPlaying, currentPlaying);
