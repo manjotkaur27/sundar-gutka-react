@@ -9,6 +9,8 @@ import useAudioManifest, { __resetManifestApiCacheForTests } from "./index";
 jest.mock("react-native-fs", () => ({
   DocumentDirectoryPath: "/mock/document/path",
   exists: jest.fn(() => Promise.resolve(true)),
+  stat: jest.fn(() => Promise.resolve({ size: 5000000 })),
+  unlink: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("@common", () => ({

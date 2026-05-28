@@ -76,7 +76,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
         }
       }, 5 * 60 * 1000);
 
-      const result = await downloadTrack(currentPlaying.audioUrl, currentPlaying.displayName);
+      const result = await downloadTrack(currentPlaying.audioUrl, currentPlaying.displayName, currentPlaying.trackSizeMB);
       clearTimeout(watchdog);
       downloadJobIdRef.current = null;
 

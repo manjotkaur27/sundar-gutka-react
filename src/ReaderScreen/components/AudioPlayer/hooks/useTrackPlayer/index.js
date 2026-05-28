@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Platform } from "react-native";
-import { exists } from "react-native-fs";
+import { exists, stat } from "react-native-fs";
 import TrackPlayer, { usePlaybackState, useProgress, State } from "react-native-track-player";
 import { useSelector } from "react-redux";
 import {
@@ -287,17 +287,25 @@ const useTrackPlayer = () => {
           const fullDownloadedPath = getFullLocalTrackPath(remoteUrl);
           // Priority 2: background prefetch copy (temporary LRU cache)
           const prefetchPath = getFullPrefetchTrackPath(remoteUrl);
+          const expectedBytes = (activeTrack.trackSizeMB || 0) * 1024 * 1024;
 
           let localPath = null;
           try {
             if (await exists(fullDownloadedPath)) {
-              localPath = fullDownloadedPath;
-            } else if (await exists(prefetchPath)) {
-              localPath = prefetchPath;
-              await touchPrefetchTrack(remoteUrl).catch(() => {});
+              const fileStat = await stat(fullDownloadedPath);
+              if (expectedBytes <= 0 || Number(fileStat.size) >= expectedBytes * 0.9) {
+                localPath = fullDownloadedPath;
+              }
+            }
+            if (!localPath && (await exists(prefetchPath))) {
+              const fileStat = await stat(prefetchPath);
+              if (expectedBytes <= 0 || Number(fileStat.size) >= expectedBytes * 0.9) {
+                localPath = prefetchPath;
+                await touchPrefetchTrack(remoteUrl).catch(() => {});
+              }
             }
           } catch (_) {
-            // exists() failure is non-fatal; fall through to plain remote seek.
+            // exists/stat failure is non-fatal; fall through to plain remote seek.
           }
 
           if (localPath) {
@@ -429,6 +437,10 @@ const useTrackPlayer = () => {
 
         try {
           hasCachedCopy = await exists(prefetchPath);
+          if (hasCachedCopy && trackSizeMB > 0) {
+            const prefetchStat = await stat(prefetchPath);
+            hasCachedCopy = Number(prefetchStat.size) >= trackSizeMB * 1024 * 1024 * 0.9;
+          }
         } catch (_) {
           hasCachedCopy = false;
         }

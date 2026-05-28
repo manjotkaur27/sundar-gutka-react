@@ -127,7 +127,7 @@ export const getFullLocalJsonPath = (url) => {
 };
 
 export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
-  const { skipDirectorySetup = false, targetDirectory = "main" } = options;
+  const { skipDirectorySetup = false, targetDirectory = "main", expectedSizeMB = 0 } = options;
   const baseDirectory = targetDirectory === "prefetch" ? PREFETCH_AUDIO_DIRECTORY : AUDIO_DIRECTORY;
   const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(
     url,
@@ -140,8 +140,19 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
 
   const audioFileExists = await exists(fullAudioPath);
   if (audioFileExists) {
-    logMessage(`Audio already downloaded: ${fileName}`);
-    return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false, jobId: null };
+    const expectedBytes = expectedSizeMB > 0 ? expectedSizeMB * 1024 * 1024 : 0;
+    if (expectedBytes > 0) {
+      const existingFileStat = await stat(fullAudioPath);
+      if (Number(existingFileStat.size) < expectedBytes * 0.9) {
+        await unlink(fullAudioPath).catch(() => {});
+      } else {
+        logMessage(`Audio already downloaded: ${fileName}`);
+        return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false, jobId: null };
+      }
+    } else {
+      logMessage(`Audio already downloaded: ${fileName}`);
+      return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false, jobId: null };
+    }
   }
 
   // progressDivider: 20 — fire the progress callback only once per ~5 % of file size
@@ -353,13 +364,13 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
 /**
  * Download audio track with progress tracking
  */
-export const downloadTrack = async (url, trackTitle) => {
+export const downloadTrack = async (url, trackTitle, expectedSizeMB = 0) => {
   try {
     const { artistName, fileName, jsonFileName } = buildTrackPaths(url);
 
     await ensureArtistDirectory(artistName);
 
-    const audioResult = await downloadAudioOnly(url, trackTitle, { skipDirectorySetup: true });
+    const audioResult = await downloadAudioOnly(url, trackTitle, { skipDirectorySetup: true, expectedSizeMB });
     const lyricsResult = await downloadLyricsOnly(url, trackTitle, { skipDirectorySetup: true });
     const lyricsAvailable = !lyricsResult.remoteMissing;
     const lyricsSatisfied = lyricsAvailable

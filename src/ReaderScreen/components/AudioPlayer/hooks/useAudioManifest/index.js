@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DocumentDirectoryPath, exists } from "react-native-fs";
+import { DocumentDirectoryPath, exists, stat, unlink } from "react-native-fs";
 import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
 import constant from "@common/constant";
@@ -271,6 +271,7 @@ const useAudioManifest = (baniID) => {
       if (!downloadedTracks || downloadedTracks.length === 0) {
         return [];
       }
+      const corruptIds1 = new Set();
       const validatedDownloads = await Promise.all(
         downloadedTracks.map(async (track) => {
           if (
@@ -291,6 +292,17 @@ const useAudioManifest = (baniID) => {
           let hasLyrics = true;
           try {
             hasAudio = await exists(fullLocalPath);
+            if (hasAudio) {
+              const expectedBytes = (track.trackSizeMB || 0) * 1024 * 1024;
+              if (expectedBytes > 0) {
+                const fileStat = await stat(fullLocalPath);
+                if (Number(fileStat.size) < expectedBytes * 0.9) {
+                  await unlink(fullLocalPath).catch(() => {});
+                  corruptIds1.add(String(track.id));
+                  hasAudio = false;
+                }
+              }
+            }
           } catch (error) {
             // If file existence check fails, treat as missing
             hasAudio = false;
@@ -321,11 +333,15 @@ const useAudioManifest = (baniID) => {
         })
       );
 
+      if (corruptIds1.size > 0) {
+        dispatch(actions.setAudioManifest(baniID, (audioManifest[baniID] || []).filter((t) => !corruptIds1.has(String(t.id)))));
+      }
       // Filter out any missing/broken downloads
       return validatedDownloads.filter((track) => track !== null);
     }
 
     // Merge downloaded tracks with API tracks, falling back to remote if local file is missing
+    const corruptIds2 = new Set();
     const mergedTracks = await Promise.all(
       apiTracks.map(async (apiTrack) => {
         const downloadedTrack = downloadedTracks.find(
@@ -354,6 +370,17 @@ const useAudioManifest = (baniID) => {
         if (fullLocalPath) {
           try {
             hasAudio = await exists(fullLocalPath);
+            if (hasAudio) {
+              const expectedBytes = (validDownloadedTrack.trackSizeMB || apiTrack.trackSizeMB || 0) * 1024 * 1024;
+              if (expectedBytes > 0) {
+                const fileStat = await stat(fullLocalPath);
+                if (Number(fileStat.size) < expectedBytes * 0.9) {
+                  await unlink(fullLocalPath).catch(() => {});
+                  corruptIds2.add(String(apiTrack.id));
+                  hasAudio = false;
+                }
+              }
+            }
           } catch (error) {
             // If file existence check fails, treat as missing
             hasAudio = false;
@@ -387,6 +414,10 @@ const useAudioManifest = (baniID) => {
         };
       })
     );
+
+    if (corruptIds2.size > 0) {
+      dispatch(actions.setAudioManifest(baniID, (audioManifest[baniID] || []).filter((t) => !corruptIds2.has(String(t.id)))));
+    }
 
     return mergedTracks;
   };
