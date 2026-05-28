@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { AppState } from "react-native";
 import ErrorBoundary from "react-native-error-boundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
@@ -43,11 +44,28 @@ const App = () => {
   }, []); // The empty array causes this effect to only run on mount
 
   useEffect(() => {
-    (async () => {
+    const runSetup = async () => {
       await initializePerformanceMonitoring();
       await initializeCrashlytics();
       await TrackPlayerSetup();
-    })();
+    };
+
+    // Guard against OS-initiated background cold starts (service revival, FCM,
+    // Bluetooth events). startForeground() is blocked in background-restricted
+    // states on Android 12+, so we must not call setupPlayer() until the app is
+    // actually in the foreground. On a normal launcher tap AppState is already
+    // 'active' and we run immediately with no overhead.
+    if (AppState.currentState !== "active") {
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+          sub.remove();
+          runSetup().catch(logError);
+        }
+      });
+      return () => sub.remove();
+    }
+
+    runSetup().catch(logError);
   }, []);
 
   useEffect(() => {
