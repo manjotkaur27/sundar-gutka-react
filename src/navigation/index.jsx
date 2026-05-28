@@ -1,19 +1,66 @@
 import React, { useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { navigationRef, stopTrace, resetTrace, startPerformanceTrace, logError } from "@common";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import {
+  navigationRef,
+  stopTrace,
+  resetTrace,
+  startPerformanceTrace,
+  logError,
+  constant,
+} from "@common";
 import AboutScreen from "../AboutScreen";
 import Bookmarks from "../Bookmarks";
 import { trackScreenView } from "../common/firebase/analytics";
 import DatabaseUpdateScreen from "../DatabaseUpdate";
+import DashboardScreen from "../DashboardScreen";
 import EditBaniOrder from "../EditBaniOrder";
 import FolderScreen from "../FolderScreen";
 import HomeScreen from "../HomeScreen";
 import ReaderScreen from "../ReaderScreen";
 import Settings from "../Settings";
+import SevaScreen from "../SevaScreen";
 import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
+import BottomNavigation from "../common/components/BottomNavigation";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// Custom tab bar that uses the refactored context-aware BottomNavigation component
+const CustomTabBar = (props) => {
+  const { state, navigation } = props;
+  const currentRoute = state.routes[state.index];
+  const activeKey = currentRoute.name;
+
+  return (
+    <BottomNavigation
+      activeKey={activeKey}
+      context="home"
+      visible={true}
+      navigation={navigation}
+    />
+  );
+};
+
+// Main tab navigator for Home, Dashboard, Seva, Settings
+const MainTabs = () => {
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+        tabBarHideOnKeyboard: true,
+      }}
+      backBehavior="none"
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Seva" component={SevaScreen} />
+      <Tab.Screen name="Settings" component={Settings} />
+    </Tab.Navigator>
+  );
+};
 
 const Navigation = () => {
   const routeNameRef = useRef();
@@ -31,9 +78,9 @@ const Navigation = () => {
       // Silently fail - performance monitoring should never crash the app
       logError(
         new Error(
-          `Performance trace failed for route: ${state.routes[state.index]?.name || "unknown"} - ${
-            error?.message || "Unknown error"
-          }`
+          `Performance trace failed for route: ${
+            state.routes[state.index]?.name || "unknown"
+          } - ${error?.message || "Unknown error"}`
         )
       );
       trace.current = resetTrace();
@@ -71,15 +118,21 @@ const Navigation = () => {
           headerTitleAlign: "center",
         }}
       >
+        {/* Main tabs - no animation between tabs */}
         <Stack.Screen
+          name="MainTabs"
+          component={MainTabs}
           options={{
             headerShown: false,
+            animation: "none",
           }}
-          name="Home"
-          component={HomeScreen}
         />
-        <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Settings" component={Settings} />
+        {/* Stack screens - these push with animation */}
+        <Stack.Screen
+          name="Reader"
+          component={ReaderScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="FolderScreen" component={FolderScreen} />
         <Stack.Screen

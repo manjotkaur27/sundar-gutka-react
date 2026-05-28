@@ -47,11 +47,16 @@ const BaniList = React.memo(({ data, onPress }) => {
 
   const renderBanis = useCallback(
     (row) => {
+      const isDarkMode = theme.mode === "dark";
+      const itemTextColor = isDarkMode ? theme.staticColors.WHITE_COLOR : theme.colors.primary;
+      const displayFont = !isTransliteration ? fontFace : null;
+
       return (
         <ListItem
-          bottomDivider
+          bottomDivider={theme.mode === "light"}
           containerStyle={{
-            backgroundColor: theme.colors.surface,
+            backgroundColor: isDarkMode ? "#041126" : theme.colors.surface,
+            paddingVertical: 16,
           }}
           onPress={() => onPress(row)}
         >
@@ -65,10 +70,11 @@ const BaniList = React.memo(({ data, onPress }) => {
             <ListItemTitle
               title={getBaniTuk(row)}
               style={[
-                { color: theme.colors.primaryText },
+                { color: itemTextColor },
                 {
-                  fontSize: baseFontSize(fontSize, isTransliteration),
-                  fontFamily: !isTransliteration ? fontFace : null,
+                  fontSize: baseFontSize(fontSize, isTransliteration) + 1,
+                  fontFamily: displayFont,
+                  ...(!displayFont && { fontWeight: "700" }),
                 },
               ]}
             />
@@ -76,9 +82,9 @@ const BaniList = React.memo(({ data, onPress }) => {
               <ListItemTitle
                 title={row.item.tukGurmukhi}
                 style={[
-                  { color: theme.colors.primaryText },
-                  { fontFamily: !isTransliteration ? fontFace : null },
-                  { fontSize: 17 },
+                  { color: isDarkMode ? theme.colors.textDisabled : theme.colors.primaryText },
+                  { fontFamily: displayFont },
+                  { fontSize: 17, ...(!displayFont && { fontWeight: "600" }) },
                 ]}
               />
             )}

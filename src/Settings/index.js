@@ -9,7 +9,6 @@ import {
   StatusBarComponent,
   SafeArea,
   CustomText,
-  BottomNavigation,
   useBackHandler,
 } from "@common";
 import Audio from "./components/audio";
@@ -96,7 +95,6 @@ const Settings = ({ navigation }) => {
         />
         <CustomText style={end} />
       </ScrollView>
-      <BottomNavigation activeKey="Settings" />
     </SafeArea>
   );
 };

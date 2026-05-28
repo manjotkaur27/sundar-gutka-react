@@ -3,31 +3,24 @@ import htmlTemplate from "./gutkahtml";
 import script from "./gutkaScript";
 
 export const fontColorForReader = (header, theme, text) => {
+  const isDarkMode = theme.mode === "dark";
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  const getHeaderColor1 = () => theme.colors.primaryHeaderVariant;
-  const getHeaderColor2 = () => theme.colors.primaryText;
-
-  const defaultColor = getHeaderColor2();
-  const gurmukhiMapping = {
-    1: getHeaderColor1(),
-    2: getHeaderColor1(),
-    6: defaultColor,
-    default: defaultColor,
+  const getGurmukhiColor = () => {
+    return isDarkMode ? "#FAF9F6" : "#113979";
   };
 
-  const colorMapping = {
-    [GURMUKHI]: gurmukhiMapping,
-    [TRANSLITERATION]: getHeaderColor1(),
-    [TRANSLATION]: defaultColor,
+  const getTranslationColor = () => {
+    return isDarkMode ? "#8A99AD" : "#4A5568";
   };
 
-  const color = colorMapping[text];
-  if (typeof color === "object") {
-    return color[header] || color.default;
+  if (text === GURMUKHI) {
+    return getGurmukhiColor();
+  } else if (text === TRANSLATION || text === TRANSLITERATION) {
+    return getTranslationColor();
   }
 
-  return color || null;
+  return isDarkMode ? "#FAF9F6" : "#121212";
 };
 
 export const fontSizeForReader = (fontSizeString, headerLevel, hasTransliteration) => {
@@ -83,7 +76,8 @@ export const loadHTML = (
   isLarivaar
 ) => {
   try {
-    const backColor = theme.colors.surface;
+    const isDarkMode = theme.mode === "dark";
+    const backColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#F0F4F8";
     const content = shabad
       .map((item) => {
         const textAlignMap = {

@@ -18,3 +18,5 @@ export { default as MinusIcon } from "./minusIcon";
 export { default as ReadIcon } from "./ReadIcon";
 export { default as RefreshIcon } from "./RefreshIcon";
 export { default as ChevronDownIcon } from "./ChevronDownIcon";
+export { default as DashboardIcon } from "./DashboardIcon";
+export { default as SevaIcon } from "./SevaIcon";
