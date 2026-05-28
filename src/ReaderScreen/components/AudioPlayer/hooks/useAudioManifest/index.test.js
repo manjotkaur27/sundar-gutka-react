@@ -103,7 +103,7 @@ describe("useAudioManifest", () => {
         track_id: 1,
         artistID: 4,
         audioUrl: "https://example.com/track1.m4a",
-        displayName: "Jarnail Singh",
+        displayName: "Bhai Jarnail Singh",
         trackLengthSec: 300,
         trackSizeMB: 5.2,
         lyricsUrl: "https://example.com/track1.json",
@@ -114,7 +114,7 @@ describe("useAudioManifest", () => {
         track_id: 2,
         artistID: 8,
         audioUrl: "https://example.com/track2.m4a",
-        displayName: "Indermohan Kaur UK",
+        displayName: "Bibi Indermohan Kaur",
         trackLengthSec: 250,
         trackSizeMB: 4.8,
         lyricsUrl: "https://example.com/track2.json",
@@ -964,6 +964,134 @@ describe("useAudioManifest", () => {
 
       expect(fetchManifest).toHaveBeenCalledTimes(2);
 
+      unmount();
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Canonical artist name canonicalization
+  // ───────────────────────────────────────────────────────────────────────────
+
+  describe("canonical artist names — API variants are rewritten to approved display names", () => {
+    const CANONICAL_NAMES = [
+      "Bhai Jarnail Singh",
+      "Bibi Indermohan Kaur",
+      "Giani Gurdev Singh",
+    ];
+
+    it("canonicalizes artist_id=4 regardless of API artist_name", async () => {
+      fetchManifest.mockResolvedValueOnce({
+        data: [
+          {
+            track_id: 1,
+            artist_id: 4,
+            track_url: "https://example.com/track1.m4a",
+            artist_name: "Jarnail Singh", // non-canonical API variant
+            track_length_seconds: 300,
+            track_size_mb: 5,
+          },
+        ],
+      });
+
+      let hookResult;
+      const { unmount } = render(
+        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+      );
+      await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
+
+      expect(hookResult.tracks[0].displayName).toBe("Bhai Jarnail Singh");
+      unmount();
+    });
+
+    it("canonicalizes artist_id=8 regardless of API artist_name", async () => {
+      fetchManifest.mockResolvedValueOnce({
+        data: [
+          {
+            track_id: 2,
+            artist_id: 8,
+            track_url: "https://example.com/track2.m4a",
+            artist_name: "Indermohan Kaur UK", // non-canonical API variant
+            track_length_seconds: 250,
+            track_size_mb: 4,
+          },
+        ],
+      });
+
+      let hookResult;
+      const { unmount } = render(
+        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+      );
+      await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
+
+      expect(hookResult.tracks[0].displayName).toBe("Bibi Indermohan Kaur");
+      unmount();
+    });
+
+    it("canonicalizes artist_id=9 regardless of API artist_name", async () => {
+      fetchManifest.mockResolvedValueOnce({
+        data: [
+          {
+            track_id: 3,
+            artist_id: 9,
+            track_url: "https://example.com/track3.m4a",
+            artist_name: "Gurdev Singh", // non-canonical API variant
+            track_length_seconds: 400,
+            track_size_mb: 6,
+          },
+        ],
+      });
+
+      let hookResult;
+      const { unmount } = render(
+        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+      );
+      await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
+
+      expect(hookResult.tracks[0].displayName).toBe("Giani Gurdev Singh");
+      unmount();
+    });
+
+    it("all track displayNames from API are canonical", async () => {
+      fetchManifest.mockResolvedValueOnce({
+        data: [
+          { track_id: 1, artist_id: 4, track_url: "https://example.com/t1.m4a", artist_name: "Jarnail", track_length_seconds: 300, track_size_mb: 5 },
+          { track_id: 2, artist_id: 8, track_url: "https://example.com/t2.m4a", artist_name: "Indermohan Kaur UK", track_length_seconds: 250, track_size_mb: 4 },
+          { track_id: 3, artist_id: 9, track_url: "https://example.com/t3.m4a", artist_name: "Gurdev", track_length_seconds: 400, track_size_mb: 6 },
+        ],
+      });
+
+      let hookResult;
+      const { unmount } = render(
+        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+      );
+      await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
+
+      expect(hookResult.tracks).toHaveLength(3);
+      hookResult.tracks.forEach((track) => {
+        expect(CANONICAL_NAMES).toContain(track.displayName);
+      });
+      unmount();
+    });
+
+    it("no two tracks share a non-canonical duplicate name variant", async () => {
+      fetchManifest.mockResolvedValueOnce({
+        data: [
+          { track_id: 1, artist_id: 4, track_url: "https://example.com/t1.m4a", artist_name: "Bhai Jarnail Singh", track_length_seconds: 300, track_size_mb: 5 },
+          { track_id: 2, artist_id: 8, track_url: "https://example.com/t2.m4a", artist_name: "Bibi Indermohan Kaur", track_length_seconds: 250, track_size_mb: 4 },
+          { track_id: 3, artist_id: 9, track_url: "https://example.com/t3.m4a", artist_name: "Giani Gurdev Singh", track_length_seconds: 400, track_size_mb: 6 },
+        ],
+      });
+
+      let hookResult;
+      const { unmount } = render(
+        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+      );
+      await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
+
+      const names = hookResult.tracks.map((t) => t.displayName);
+      const uniqueNames = new Set(names);
+      // All 3 tracks have distinct canonical names — no duplicates
+      expect(uniqueNames.size).toBe(3);
       unmount();
     });
   });

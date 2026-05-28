@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Linking } from "react-native";
 import TrackPlayer from "react-native-track-player";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import {
@@ -10,7 +10,14 @@ import {
   setAudioProgress,
 } from "@common/actions";
 import { showErrorToast } from "@common/toast";
-import { STRINGS, logError, trackAudioEvent, trackBaniOpen, constant } from "@common";
+import {
+  STRINGS,
+  logError,
+  trackBaniOpen,
+  trackBaniListenCompletion,
+  trackAudioLinkRequest,
+  constant,
+} from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
@@ -25,6 +32,7 @@ const BANI_LENGTH_LABEL = {
 
 const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const isFocused = useIsFocused();
   const defaultAudio = useSelector((state) => state.defaultAudio);
   const hasSavedTrackForCurrentBani = Boolean(defaultAudio?.[baniID]?.id);
@@ -79,7 +87,39 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   );
 
   useEffect(() => {
-    trackBaniOpen(baniID, title);
+    trackBaniOpen(baniID, title, defaultAudio[baniID]?.displayName);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tracks the latest playback position and track metadata in a ref so the
+  // completion event handler always reads current values without stale closures.
+  const completionDataRef = useRef({ positionSec: 0, trackLengthSec: 0, artist: null });
+  const completionFiredRef = useRef(false);
+
+  useEffect(() => {
+    completionDataRef.current = {
+      positionSec: progress?.position ?? 0,
+      trackLengthSec: currentPlaying?.trackLengthSec ?? 0,
+      artist: currentPlaying?.displayName ?? null,
+    };
+    // Reset guard when a new track starts so we fire again on next exit.
+    completionFiredRef.current = false;
+  }, [progress?.position, currentPlaying?.trackLengthSec, currentPlaying?.displayName]);
+
+  // Fire bani_listen_completion once when the user leaves this screen.
+  useEffect(() => {
+    const fireCompletion = () => {
+      if (completionFiredRef.current) return;
+      const { positionSec, trackLengthSec, artist } = completionDataRef.current;
+      if (positionSec > 0) {
+        completionFiredRef.current = true;
+        trackBaniListenCompletion(baniID, title, artist, positionSec, trackLengthSec);
+      }
+    };
+    const unsubscribe = navigation.addListener("blur", fireCompletion);
+    return () => {
+      unsubscribe();
+      fireCompletion(); // safety-net on unmount
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply saved playback speed when initialized
@@ -409,7 +449,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
           baniTitle={title}
           buttonPress={async () => {
             try {
-              await trackAudioEvent("requestAudioLink", title || "unknown");
+              await trackAudioLinkRequest(title, baniID, baniLength);
               await Linking.openURL("https://forms.gle/N4YBdzfYGLAFsDMW7");
             } catch (error) {
               // Fallback: try opening the URL again if first attempt fails

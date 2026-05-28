@@ -18,9 +18,10 @@ jest.mock("react-redux", () => ({
   useSelector: (selectorFn) => selectorFn(mockState),
 }));
 
-// Mock @react-navigation/native so useIsFocused doesn't require NavigationContainer
+// Mock @react-navigation/native so useIsFocused/useNavigation don't require NavigationContainer
 jest.mock("@react-navigation/native", () => ({
   useIsFocused: () => true,
+  useNavigation: () => ({ addListener: jest.fn(() => jest.fn()) }),
 }));
 
 // Mock react-native-track-player
@@ -189,6 +190,9 @@ jest.mock("@common", () => ({
   },
   logError: jest.fn(),
   trackAudioEvent: jest.fn(),
+  trackBaniOpen: jest.fn(),
+  trackBaniListenCompletion: jest.fn(),
+  trackAudioLinkRequest: jest.fn(),
 }));
 
 // Mock Linking

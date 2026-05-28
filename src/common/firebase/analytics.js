@@ -23,6 +23,16 @@ const sanitize = (value, fallback) => {
   return sanitized;
 };
 
+const safeStr = (value, fallback = "unknown") =>
+  value != null && String(value).trim() !== ""
+    ? String(value).slice(0, MAX_VALUE_LENGTH)
+    : fallback;
+
+const safeInt = (value, fallback = 0) => {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? Math.max(0, n) : fallback;
+};
+
 // Safely log events with error handling
 const trackEvent = async (category, action, label) => {
   const eventName = sanitize(category, "custom_event");
@@ -34,7 +44,6 @@ const trackEvent = async (category, action, label) => {
       [paramName]: paramValue,
     });
   } catch (error) {
-    // Silently fail - analytics should never crash the app
     logError(
       new Error(
         `Analytics tracking failed for category: ${eventName}, param: ${paramName} - ${
@@ -49,7 +58,6 @@ const allowTracking = async (isStatistics) => {
   try {
     await setAnalyticsCollectionEnabled(analytics, isStatistics);
   } catch (error) {
-    // Silently fail - analytics initialization should never crash the app
     logError(
       new Error(`Failed to initialize analytics tracking - ${error?.message || "Unknown error"}`)
     );
@@ -63,7 +71,6 @@ const trackScreenView = async (screenName, key, title) => {
       screen_class: (screenName || "unknown").replace(/\s+/g, ""),
     };
 
-    // Only add optional parameters if they have values
     if (key != null) {
       params.key = String(key).slice(0, MAX_VALUE_LENGTH);
     }
@@ -73,7 +80,6 @@ const trackScreenView = async (screenName, key, title) => {
 
     await logEvent(analytics, "screen_view", params);
   } catch (error) {
-    // Silently fail - screen tracking should never crash the app
     logError(
       new Error(`Failed to track screen view: ${screenName} - ${error?.message || "Unknown error"}`)
     );
@@ -88,43 +94,6 @@ const trackAudioEvent = async (action, label) => {
   await trackEvent("audio", action, label);
 };
 
-const trackArtistListeningDuration = async (baniID, artist, duration) => {
-  const params = {
-    event: "artistListenDuration",
-    baniID,
-    artist,
-    duration,
-  };
-  await logEvent(analytics, "audio", params);
-};
-
-const trackArtist = async (baniID, artist) => {
-  const params = {
-    event: "defaultArtist",
-    baniID,
-    artist,
-  };
-  await logEvent(analytics, "audio", params);
-};
-
-const trackBaniOpen = async (baniID, title) => {
-  const params = {
-    event: "openBani",
-    baniID,
-    title,
-  };
-  await logEvent(analytics, "audio", params);
-};
-
-const trackTrackDownload = async (baniID, artist) => {
-  const params = {
-    event: "trackDownload",
-    baniID,
-    artist,
-  };
-  await logEvent(analytics, "audio", params);
-};
-
 const trackSettingEvent = async (action, label) => {
   await trackEvent("setting", action, label);
 };
@@ -133,13 +102,121 @@ const trackReminderEvent = async (action, label) => {
   await trackEvent("reminder", action, label);
 };
 
-// Wrapper to safely handle analytics operations
-export const safeAnalyticsOperation = (operation) => {
+// ---------------------------------------------------------------------------
+// Dedicated audio analytics events — one Firebase event name per action type.
+// This eliminates (not set) values that result from sharing a single "audio"
+// event name across params that only some sub-events populate.
+// ---------------------------------------------------------------------------
+
+const trackBaniOpen = async (baniID, title, artist) => {
   try {
-    return operation();
+    await logEvent(analytics, "bani_open", {
+      bani_id: safeStr(baniID),
+      bani_title: safeStr(title),
+      artist: safeStr(artist, "none"),
+    });
   } catch (error) {
-    logError(new Error(`Safe analytics operation failed - ${error?.message || "Unknown error"}`));
-    return null;
+    logError(new Error(`bani_open tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+// Fires when a listening session ends (artist changed, paused, or screen exit).
+// trackLengthSec is the full track duration; durationSec is the actual time listened.
+const trackBaniListen = async (baniID, baniTitle, artist, durationSec, trackLengthSec) => {
+  try {
+    const sec = safeInt(durationSec);
+    const min = sec > 0 ? parseFloat((sec / 60).toFixed(1)) : 0;
+    await logEvent(analytics, "bani_listen", {
+      bani_id: safeStr(baniID),
+      bani_title: safeStr(baniTitle),
+      artist: safeStr(artist, "none"),
+      duration_sec: sec,
+      duration_min: min,
+      track_length_sec: safeInt(trackLengthSec),
+    });
+  } catch (error) {
+    logError(new Error(`bani_listen tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+// Fires when playback session ends (navigation away / unmount) with position context.
+// Enables % completion and half-listened segmentation in Firebase Explore.
+const trackBaniListenCompletion = async (baniID, title, artist, positionSec, trackLengthSec) => {
+  try {
+    const position = safeInt(positionSec);
+    const length = safeInt(trackLengthSec);
+    const pct = length > 0 ? Math.min(100, Math.round((position / length) * 100)) : 0;
+    const tier = pct >= 90 ? "completed" : pct >= 40 ? "half" : "partial";
+    await logEvent(analytics, "bani_listen_completion", {
+      bani_id: safeStr(baniID),
+      bani_title: safeStr(title),
+      artist: safeStr(artist, "none"),
+      position_sec: position,
+      track_length_sec: length,
+      percent_complete: pct,
+      completion_tier: tier,
+    });
+  } catch (error) {
+    logError(
+      new Error(`bani_listen_completion tracking failed - ${error?.message || "Unknown error"}`)
+    );
+  }
+};
+
+const trackBaniArtistDefault = async (baniID, artist) => {
+  try {
+    await logEvent(analytics, "bani_artist_default", {
+      bani_id: safeStr(baniID),
+      artist: safeStr(artist, "none"),
+    });
+  } catch (error) {
+    logError(
+      new Error(`bani_artist_default tracking failed - ${error?.message || "Unknown error"}`)
+    );
+  }
+};
+
+const trackTrackDownload = async (baniID, artist) => {
+  try {
+    await logEvent(analytics, "track_download", {
+      bani_id: safeStr(baniID),
+      artist: safeStr(artist, "none"),
+    });
+  } catch (error) {
+    logError(new Error(`track_download tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+// Fires when user taps "Request audio" for a bani that has no recorded tracks.
+const trackAudioLinkRequest = async (baniTitle, baniID, baniLength) => {
+  try {
+    await logEvent(analytics, "audio_link_request", {
+      bani_title: safeStr(baniTitle),
+      bani_id: safeStr(baniID),
+      bani_length: safeStr(baniLength),
+    });
+  } catch (error) {
+    logError(
+      new Error(`audio_link_request tracking failed - ${error?.message || "Unknown error"}`)
+    );
+  }
+};
+
+// Fires once when user leaves the ReaderScreen.
+// sync_scroll "on"/"off" lets Firebase segment users who used audio sync scroll.
+const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollEnabled) => {
+  try {
+    const pct = Math.min(100, Math.max(0, safeInt(scrollPercent)));
+    const tier = pct >= 90 ? "complete" : pct >= 40 ? "half" : "partial";
+    await logEvent(analytics, "scroll_progress", {
+      bani_id: safeStr(baniID),
+      bani_title: safeStr(baniTitle),
+      scroll_percent: pct,
+      scroll_tier: tier,
+      sync_scroll: syncScrollEnabled ? "on" : "off",
+    });
+  } catch (error) {
+    logError(new Error(`scroll_progress tracking failed - ${error?.message || "Unknown error"}`));
   }
 };
 
@@ -150,8 +227,12 @@ export {
   trackReminderEvent,
   trackScreenView,
   trackAudioEvent,
-  trackArtistListeningDuration,
-  trackArtist,
+  // Dedicated per-action events (replace the old single "audio" umbrella event)
   trackBaniOpen,
+  trackBaniListen,
+  trackBaniListenCompletion,
+  trackBaniArtistDefault,
   trackTrackDownload,
+  trackAudioLinkRequest,
+  trackScrollProgress,
 };

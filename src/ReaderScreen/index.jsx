@@ -16,6 +16,7 @@ import {
   useBackHandler,
   showInfoToast,
   STRINGS,
+  trackScrollProgress,
 } from "@common";
 import { Header, AutoScrollComponent, AudioPlayer } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
@@ -43,6 +44,7 @@ const Reader = ({ navigation, route }) => {
   const isVishraam = useSelector((state) => state.isVishraam);
   const vishraamOption = useSelector((state) => state.vishraamOption);
   const savePosition = useSelector((state) => state.savePosition);
+  const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
 
   const webViewRef = useRef(null);
   const { webView } = styles;
@@ -74,6 +76,8 @@ const Reader = ({ navigation, route }) => {
 
   // Animated progress value — driven by ref to avoid re-renders on every scroll tick
   const scrollProgressAnim = useRef(new Animated.Value(0)).current;
+  // Latest scroll % (0-100) for analytics — updated on every WebView scroll message
+  const scrollPercentRef = useRef(0);
 
   // iPad scroll guard: blocks spurious WebView scroll events during and shortly
   // after screen transitions (Bookmarks → Reader). WKWebView can fire scroll-to-0
@@ -121,6 +125,7 @@ const Reader = ({ navigation, route }) => {
   useEffect(() => {
     const unsubscribeBlur = navigation.addListener("blur", () => {
       pauseAudioPlayback();
+      trackScrollProgress(id, titleUni || title, scrollPercentRef.current, isAudioSyncScroll);
       // iPad: Activate scroll guard when leaving the screen. WKWebView can
       // trigger a layout recalculation that resets scrollY to 0 while the
       // Reader is backgrounded, then again during the return transition.
@@ -130,7 +135,7 @@ const Reader = ({ navigation, route }) => {
     });
 
     return unsubscribeBlur;
-  }, [navigation, pauseAudioPlayback]);
+  }, [navigation, pauseAudioPlayback, id, titleUni, title, isAudioSyncScroll]);
 
   // iPad: Restore WebView scroll position when returning from Bookmarks.
   // The scroll guard stays active for a grace period after focus so that
@@ -295,6 +300,7 @@ const Reader = ({ navigation, route }) => {
         const pct = parseFloat(data.split("scroll-progress-")[1]);
         if (Number.isFinite(pct)) {
           scrollProgressAnim.setValue(pct);
+          scrollPercentRef.current = Math.round(pct * 100);
         }
       }
     },

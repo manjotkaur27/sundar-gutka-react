@@ -279,17 +279,17 @@ describe("BottomNavigation", () => {
     expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
   });
 
-  test("hides Music tab when audio feature setting is disabled", () => {
+  test("shows Music tab even when audio feature is disabled (recovery shortcut)", () => {
     setMockState({ isAudio: false, isAudioFeatureEnabled: false, isAutoScroll: false });
     mockNavigation = createNavigation({ currentRoute: "Reader" });
     mockUseNavigation.mockReturnValue(mockNavigation);
 
-    const { queryByLabelText, getByLabelText } = render(<BottomNavigation activeKey="Read" />);
+    const { getByLabelText } = render(<BottomNavigation activeKey="Read" />);
 
     expect(getByLabelText("bottomnav-Home")).toBeTruthy();
     expect(getByLabelText("bottomnav-Read")).toBeTruthy();
     expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
-    expect(queryByLabelText("bottomnav-Music")).toBeNull();
+    expect(getByLabelText("bottomnav-Music")).toBeTruthy(); // always visible as recovery shortcut
   });
 
   test("shows Music tab even when audio feature is disabled IF auto-scroll is running", () => {

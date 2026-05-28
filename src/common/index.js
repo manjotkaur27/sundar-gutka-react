@@ -21,10 +21,13 @@ import {
   trackSettingEvent,
   trackReminderEvent,
   trackAudioEvent,
-  trackArtistListeningDuration,
-  trackArtist,
   trackBaniOpen,
+  trackBaniListen,
+  trackBaniListenCompletion,
+  trackBaniArtistDefault,
   trackTrackDownload,
+  trackAudioLinkRequest,
+  trackScrollProgress,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
 import {
@@ -114,9 +117,12 @@ export {
   useThemedStyles,
   ListItemTitle,
   useBackHandler,
-  trackArtistListeningDuration,
-  trackArtist,
   trackBaniOpen,
+  trackBaniListen,
+  trackBaniListenCompletion,
+  trackBaniArtistDefault,
   trackTrackDownload,
+  trackAudioLinkRequest,
+  trackScrollProgress,
   ThemedSwitch,
 };

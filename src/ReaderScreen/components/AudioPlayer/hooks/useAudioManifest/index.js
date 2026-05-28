@@ -9,6 +9,14 @@ const ALLOWED_ARTIST_IDS = [4, 8, 9];
 const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan", "gurdev"];
 const ALLOWED_ARTIST_URL_KEYWORDS = ["bhaijarnailsingh", "indermohankauruk", "gianigurdevsingh"];
 
+// Single source of truth for display names — prevents API variants like
+// "Indermohan Kaur UK" appearing alongside the canonical "Bibi Indermohan Kaur".
+const CANONICAL_ARTIST_NAMES = {
+  4: "Bhai Jarnail Singh",
+  8: "Bibi Indermohan Kaur",
+  9: "Giani Gurdev Singh",
+};
+
 // Base URL for all Azure Blob audio assets
 const _BLOB = "https://banidb.blob.core.windows.net/audios";
 
@@ -239,7 +247,7 @@ const useAudioManifest = (baniID) => {
           artistID: item.artist_id,
           audioUrl: item.track_url,
           remoteUrl: item.track_url,
-          displayName: item.artist_name,
+          displayName: CANONICAL_ARTIST_NAMES[item.artist_id] || item.artist_name,
           trackLengthSec: item.track_length_seconds,
           trackSizeMB: item.track_size_mb,
           lyricsUrl,

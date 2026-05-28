@@ -524,6 +524,7 @@ describe("AudioControlBar", () => {
     TrackPlayer.getActiveTrack.mockResolvedValueOnce({
       id: "track-1",
       url: "file:///track-1.m4a",
+      remoteUrl: "https://example.com/track-1.m4a",
     });
 
     const props = createProps({
@@ -545,6 +546,7 @@ describe("AudioControlBar", () => {
     TrackPlayer.getActiveTrack.mockResolvedValueOnce({
       id: "track-1",
       url: "file:///track-1.m4a",
+      remoteUrl: "https://example.com/track-1.m4a",
     });
 
     const props = createProps({

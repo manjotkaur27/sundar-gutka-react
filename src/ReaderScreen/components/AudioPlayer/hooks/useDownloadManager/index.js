@@ -90,7 +90,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
       }
       setIsDownloaded(true);
       addTrackToManifest(currentPlaying, result.audioRelativePath, result.jsonRelativePath);
-      trackTrackDownload(baniID, currentPlaying.displayName);
+      trackTrackDownload(baniID, currentPlaying?.displayName);
     } catch (error) {
       logError("Download error:", error);
       // Mark as failed so the watchdog-cleared guard prevents retry this session.

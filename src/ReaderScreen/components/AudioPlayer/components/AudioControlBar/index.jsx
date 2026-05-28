@@ -101,7 +101,7 @@ const AudioControlBar = ({
     baniID
   );
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
-  useArtistListeningDuration(baniID, isPlaying, currentPlaying);
+  useArtistListeningDuration(baniID, title, isPlaying, currentPlaying);
   const navigation = useNavigation();
   const isFocused = useIsFocused();
 
