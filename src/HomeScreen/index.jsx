@@ -38,6 +38,12 @@ const HomeScreen = React.memo(({ navigation }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: baniLengthSelector ? { display: "none" } : undefined,
+    });
+  }, [baniLengthSelector, navigation]);
+
+  useEffect(() => {
     (async () => {
       await allowTracking(isStatistics);
     })();

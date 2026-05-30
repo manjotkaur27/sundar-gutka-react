@@ -29,9 +29,13 @@ const Tab = createBottomTabNavigator();
 
 // Custom tab bar that uses the refactored context-aware BottomNavigation component
 const CustomTabBar = (props) => {
-  const { state, navigation } = props;
+  const { state, navigation, descriptors } = props;
   const currentRoute = state.routes[state.index];
   const activeKey = currentRoute.name;
+  const currentOptions = descriptors[currentRoute.key]?.options;
+  const isHidden = currentOptions?.tabBarStyle?.display === "none";
+
+  if (isHidden) return null;
 
   return (
     <BottomNavigation
@@ -143,6 +147,11 @@ const Navigation = () => {
         <Stack.Screen name="Bookmarks" component={Bookmarks} />
         <Stack.Screen name="ReminderOptions" component={ReminderOptions} />
         <Stack.Screen name="DatabaseUpdate" component={DatabaseUpdateScreen} />
+        <Stack.Screen
+          name="Settings"
+          component={Settings}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

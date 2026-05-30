@@ -10,6 +10,8 @@ import {
   SafeArea,
   CustomText,
   useBackHandler,
+  BottomNavigation,
+  constant,
 } from "@common";
 import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
@@ -35,7 +37,8 @@ import VishraamComponent from "./components/vishraam";
 import useHeader from "./hooks/useHeader";
 import createStyles from "./styles";
 
-const Settings = ({ navigation }) => {
+const Settings = ({ navigation, route }) => {
+  const fromReader = route?.params?.fromReader === true;
   const appBar = useHeader(navigation);
   useBackHandler();
   const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvailable);
@@ -95,12 +98,20 @@ const Settings = ({ navigation }) => {
         />
         <CustomText style={end} />
       </ScrollView>
+      {fromReader && (
+        <BottomNavigation
+          activeKey={constant.SETTINGS}
+          context="reader"
+          visible={true}
+        />
+      )}
     </SafeArea>
   );
 };
 
 Settings.propTypes = {
   navigation: PropTypes.shape({ navigate: PropTypes.func, setOptions: PropTypes.func }).isRequired,
+  route: PropTypes.shape({ params: PropTypes.shape({ fromReader: PropTypes.bool }) }),
 };
 
 export default Settings;

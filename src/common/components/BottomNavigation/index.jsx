@@ -38,8 +38,6 @@ const BottomNavigation = ({
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
 
-  const [isSettings, setIsSettings] = useState(false);
-  const [previousRouteName, setPreviousRouteName] = useState(null);
   const [showSevaDot, setShowSevaDot] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -93,48 +91,6 @@ const BottomNavigation = ({
       clearTimeout(timeoutId);
     }
   }, []);
-
-  useEffect(() => {
-    const updateIsSettings = () => {
-      const state = navigation.getState?.();
-      if (!state) return;
-
-      const topRoute = state.routes[state.index];
-      let currentRouteName = topRoute?.name;
-
-      if (topRoute?.state && typeof topRoute.state.index === "number") {
-        const nestedRoute = topRoute.state.routes[topRoute.state.index];
-        currentRouteName = nestedRoute?.name ?? currentRouteName;
-      }
-
-      if (currentRouteName === constant.SETTINGS) {
-        if (state.index > 0) {
-          const prevRoute = state.routes[state.index - 1];
-          let prevRouteName = prevRoute?.name;
-          if (prevRoute?.state && typeof prevRoute.state.index === "number") {
-            const nestedRoute = prevRoute.state.routes[prevRoute.state.index];
-            prevRouteName = nestedRoute?.name ?? prevRouteName;
-          }
-          setPreviousRouteName(prevRouteName);
-        }
-      } else {
-        setPreviousRouteName(currentRouteName);
-      }
-
-      setIsSettings(currentRouteName === constant.SETTINGS);
-    };
-
-    updateIsSettings();
-
-    const unsubscribe =
-      navigation.addListener?.("state", () => {
-        updateIsSettings();
-      }) || undefined;
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [navigation]);
 
   // Internet connectivity watchdog logic (strictly preserved)
   useEffect(() => {
@@ -286,7 +242,7 @@ const BottomNavigation = ({
         if (isAudio) {
           await pauseTrack();
         }
-        navigation.navigate("MainTabs", { screen: constant.SETTINGS });
+        navigation.navigate(constant.SETTINGS, { fromReader: true });
       },
       text: STRINGS.SETTINGS,
     },
@@ -294,15 +250,6 @@ const BottomNavigation = ({
 
   const navigationItems =
     context === "reader" ? readerNavigationItems : homeNavigationItems;
-
-  const shouldHideReadAndMusic =
-    context === "reader" && isSettings && previousRouteName !== constant.READER;
-
-  const filteredNavigationItems = shouldHideReadAndMusic
-    ? navigationItems.filter(
-        (item) => item.key !== "Read" && item.key !== "Music"
-      )
-    : navigationItems;
 
   return (
     <Animated.View
@@ -322,7 +269,7 @@ const BottomNavigation = ({
           ]}
         >
           <View style={styles.navigationBar}>
-            {filteredNavigationItems.map((item) => {
+            {navigationItems.map((item) => {
               const IconComponent = item.icon;
 
               return (
