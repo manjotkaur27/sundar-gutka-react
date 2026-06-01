@@ -466,9 +466,8 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // init completes re-captures the closures with the correct, ready state.
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
-      const lengthLabel = BANI_LENGTH_LABEL[baniLength] || baniLength;
       const titleString = isAudioUnavailableForCurrentLengthOnly
-        ? `${STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR} the ${lengthLabel} version of`
+        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH
         : STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR;
 
       return (

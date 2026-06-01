@@ -2,7 +2,7 @@ const createStyles = (theme) => ({
   container: {
     width: "100%",
     backgroundColor: theme.colors.primary,
-    height: theme.components.bottomNavigation.height,
+    minHeight: theme.components.bottomNavigation.height,
     justifyContent: "center",
   },
   navigationBar: {
@@ -15,10 +15,11 @@ const createStyles = (theme) => ({
   },
   iconContainer: {
     flex: 1,
-    height: 50,
+    minHeight: 50,
     alignItems: "center",
     justifyContent: "center",
     maxWidth: 80,
+    paddingVertical: 4,
   },
   activeIconContainer: {
     backgroundColor: theme.staticColors.WHITE_COLOR,
@@ -33,6 +34,8 @@ const createStyles = (theme) => ({
     color: theme.staticColors.WHITE_COLOR,
     fontFamily: theme.typography.fonts.balooPaaji,
     marginTop: 2,
+    textAlign: "center",
+    width: "100%",
   },
 });
 

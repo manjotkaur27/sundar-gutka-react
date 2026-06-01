@@ -1,5 +1,6 @@
 import React from "react";
 import { StatusBar, ScrollView } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -52,7 +53,13 @@ const Settings = ({ navigation }) => {
     <SafeArea backgroundColor={theme.colors.surface} edges={["left", "right"]}>
       <StatusBarComponent backgroundColor={theme.colors.surface} />
       {appBar}
-
+      <LinearGradient
+        colors={["rgba(17,57,121,0)", "rgba(17,57,121,1)", "rgba(17,57,121,1)", "rgba(17,57,121,0)"]}
+        locations={[0, 0.48, 0.52, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ width: "100%", height: 1.2 }}
+      />
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <ScrollView>
         <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
