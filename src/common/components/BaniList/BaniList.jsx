@@ -9,7 +9,7 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { convertToUnicode, baseFontSize, ListItemTitle } from "@common";
 
-const BaniList = React.memo(({ data, onPress }) => {
+const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const fontSize = useSelector((state) => state.fontSize);
@@ -53,10 +53,12 @@ const BaniList = React.memo(({ data, onPress }) => {
 
       return (
         <ListItem
-          bottomDivider={theme.mode === "light"}
+          bottomDivider={false}
           containerStyle={{
-            backgroundColor: isDarkMode ? "#041126" : theme.colors.surface,
-            paddingVertical: 16,
+            backgroundColor: isDarkMode
+              ? isFolderScreen ? theme.colors.surface : "#041126"
+              : theme.colors.surface,
+            paddingVertical: 8,
           }}
           onPress={() => onPress(row)}
         >
@@ -72,9 +74,8 @@ const BaniList = React.memo(({ data, onPress }) => {
               style={[
                 { color: itemTextColor },
                 {
-                  fontSize: baseFontSize(fontSize, isTransliteration) + 1,
+                  fontSize: baseFontSize(fontSize, isTransliteration),
                   fontFamily: displayFont,
-                  ...(!displayFont && { fontWeight: "700" }),
                 },
               ]}
             />
@@ -84,7 +85,7 @@ const BaniList = React.memo(({ data, onPress }) => {
                 style={[
                   { color: isDarkMode ? theme.colors.textDisabled : theme.colors.primaryText },
                   { fontFamily: displayFont },
-                  { fontSize: 17, ...(!displayFont && { fontWeight: "600" }) },
+                  { fontSize: 17 },
                 ]}
               />
             )}
@@ -116,6 +117,7 @@ BaniList.propTypes = {
     })
   ).isRequired,
   onPress: PropTypes.func.isRequired,
+  isFolderScreen: PropTypes.bool,
 };
 
 export default BaniList;

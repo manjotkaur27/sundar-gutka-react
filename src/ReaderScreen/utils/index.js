@@ -7,7 +7,8 @@ export const fontColorForReader = (header, theme, text) => {
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
   const getGurmukhiColor = () => {
-    return isDarkMode ? "#FAF9F6" : "#113979";
+    if (isDarkMode) return "#FAF9F6";
+    return header !== 0 ? "#113979" : "#121212";
   };
 
   const getTranslationColor = () => {

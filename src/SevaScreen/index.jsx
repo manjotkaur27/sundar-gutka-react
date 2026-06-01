@@ -25,7 +25,7 @@ import {
 import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import LinearGradient from "react-native-linear-gradient";
 import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
-import { SevaIcon } from "../common/icons";
+import { DonateIcon } from "../common/icons";
 import createStyles from "./styles";
 
 // Custom event tracker placeholder to match original branch structure
@@ -48,8 +48,7 @@ const SevaScreen = () => {
   const vPad = Math.round(screenHeight * 0.07);
   const dispatch = useDispatch();
 
-  const donor = useSelector((state) => state.donor);
-  const donorType = useSelector((state) => state.donorType);
+  const language = useSelector((state) => state.language);
 
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
@@ -91,7 +90,7 @@ const SevaScreen = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [language]);
 
   const handleAmountSelect = (amount, isOther = false) => {
     setIsOtherSelected(isOther);
@@ -202,16 +201,6 @@ const SevaScreen = () => {
 
     await openBrowserForUrl(url);
 
-    // Optimistically set donor state on return
-    dispatch(
-      actions.setDonorState({
-        donor: true,
-        donorType: effectiveDonationType === "recurring" ? "recurring" : "one_time",
-        lastDonationAt: new Date().toISOString(),
-        donorSource: "qgiv",
-      })
-    );
-
     trackSevaEvent("payment_success", {
       provider: "qgiv",
       donation_type: effectiveDonationType,
@@ -229,32 +218,6 @@ const SevaScreen = () => {
   const handleOpenSource = () => {
     openBrowserForUrl("https://github.com/KhalisFoundation/sundar-gutka-react");
   };
-
-  // ─── Recurring donor: thank-you screen ────────────────────────────────────
-  if (!loading && donor && donorType === "recurring") {
-    return (
-      <SafeArea backgroundColor={isDarkMode ? "#041126" : theme.colors.surface} edges={["left", "right"]}>
-        <StatusBarComponent />
-        <View
-          style={[
-            styles.centered,
-            { flex: 1, backgroundColor: isDarkMode ? "#041126" : "#FFF8E7", paddingTop: 48, paddingHorizontal: 24 },
-          ]}
-        >
-          <CustomText style={styles.title}>ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ</CustomText>
-          <CustomText style={[styles.description, { textAlign: "center" }]}>
-            Your monthly seva is making a difference. Thank you for your continued support.
-          </CustomText>
-          <Pressable
-            style={[styles.donateButton, { marginTop: 32 }]}
-            onPress={() => dispatch(actions.clearDonorState())}
-          >
-            <CustomText style={styles.donateButtonText}>Donate Again</CustomText>
-          </Pressable>
-        </View>
-      </SafeArea>
-    );
-  }
 
   const content = config?.content ?? {};
   const hPad = Math.max(16, Math.min(28, screenWidth * 0.064));
@@ -292,16 +255,14 @@ const SevaScreen = () => {
       </Text>
     );
   };
-  const getFrequencyLabel = () => {
-    switch (frequency) {
-      case "Monthly":
-        return "month";
-      case "Annually":
-        return "year";
-      default:
-        return "one-time";
-    }
+  const FREQUENCY_LABELS = {
+    Monthly: STRINGS.SEVA_MONTHLY,
+    Annually: STRINGS.SEVA_ANNUALLY,
+    "One Time": STRINGS.SEVA_ONE_TIME,
   };
+
+  const getFrequencyLabel = () =>
+    frequency === "Annually" ? STRINGS.SEVA_PER_YEAR : STRINGS.SEVA_PER_MONTH;
 
   // When Other is selected but user hasn't typed yet, show the last preset in the card
   const displayAmount =
@@ -328,11 +289,11 @@ const SevaScreen = () => {
         <StatusBarComponent />
         <View style={styles.centered}>
           <CustomText style={styles.description}>
-            Unable to load Seva. Please check your connection.
+            {STRINGS.SEVA_LOAD_ERROR}
           </CustomText>
           <Pressable onPress={() => Linking.openURL("https://khalisfoundation.org/donate")}>
             <CustomText style={[styles.description, { color: theme.colors.primary }]}>
-              Donate directly →
+              {STRINGS.SEVA_DONATE_DIRECTLY}
             </CustomText>
           </Pressable>
         </View>
@@ -387,20 +348,22 @@ const SevaScreen = () => {
           {/* Amount card — static display OR inline input when Other is selected */}
           <View style={styles.amountCard}>
             <View style={styles.amountContainer}>
-              <CustomText style={styles.currency}>$</CustomText>
-              {isOtherSelected ? (
-                <TextInput
-                  style={styles.amountDisplay}
-                  value={customAmount}
-                  onChangeText={handleCustomAmountChange}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor="#C0CADB"
-                  autoFocus
-                />
-              ) : (
-                <CustomText style={styles.amountDisplay}>{displayAmount}</CustomText>
-              )}
+              <View style={styles.amountRow}>
+                <CustomText style={styles.currency}>$</CustomText>
+                {isOtherSelected ? (
+                  <TextInput
+                    style={styles.amountDisplay}
+                    value={customAmount}
+                    onChangeText={handleCustomAmountChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#C0CADB"
+                    autoFocus
+                  />
+                ) : (
+                  <CustomText style={styles.amountDisplay}>{displayAmount}</CustomText>
+                )}
+              </View>
               {frequency !== "One Time" && (
                 <CustomText style={styles.perMonth}>/{getFrequencyLabel()}</CustomText>
               )}
@@ -440,7 +403,7 @@ const SevaScreen = () => {
                   isOtherSelected && styles.amountButtonTextSelected,
                 ]}
               >
-                Other
+                {STRINGS.SEVA_OTHER}
               </CustomText>
             </Pressable>
           </View>
@@ -456,7 +419,7 @@ const SevaScreen = () => {
                 <View style={styles.radioButton}>
                   {frequency === freq && <View style={styles.radioButtonSelected} />}
                 </View>
-                <CustomText style={styles.frequencyText}>{freq}</CustomText>
+                <CustomText style={styles.frequencyText}>{FREQUENCY_LABELS[freq]}</CustomText>
               </Pressable>
             ))}
           </View>
@@ -477,10 +440,8 @@ const SevaScreen = () => {
                 paddingVertical: 14,
               }}
             >
-              <View style={styles.donateIconCircle}>
-                <SevaIcon size={18} color={isDarkMode ? theme.colors.primary : "#2C5282"} />
-              </View>
-              <CustomText style={styles.donateButtonText}>Donate</CustomText>
+              <DonateIcon size={30} color="#FFFFFF" />
+              <CustomText style={styles.donateButtonText}>{STRINGS.donate}</CustomText>
             </LinearGradient>
           </Pressable>
 

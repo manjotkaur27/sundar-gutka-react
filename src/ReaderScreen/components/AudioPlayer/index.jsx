@@ -439,9 +439,8 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // Memoize audio track dialog to prevent unnecessary re-renders
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
-      const lengthLabel = BANI_LENGTH_LABEL[baniLength] || baniLength;
       const titleString = isAudioUnavailableForCurrentLengthOnly
-        ? `${STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR} the ${lengthLabel} version of`
+        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH
         : STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR;
 
       return (

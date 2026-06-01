@@ -1,3 +1,5 @@
+import STRINGS from "../common/localization";
+
 /**
  * Seva configuration service.
  *
@@ -66,7 +68,14 @@ const FILLER_CONFIG = {
  */
 export const getSevaConfig = async () => {
   // TODO: replace with fetch from STTM API + AsyncStorage cache
-  return FILLER_CONFIG;
+  return {
+    ...FILLER_CONFIG,
+    content: {
+      ...FILLER_CONFIG.content,
+      description: STRINGS.SEVA_DESCRIPTION,
+      footerText: STRINGS.SEVA_FOOTER_TEXT,
+    },
+  };
 };
 
 /**

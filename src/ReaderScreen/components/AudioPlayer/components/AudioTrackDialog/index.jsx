@@ -453,7 +453,7 @@ const AudioTrackDialog = ({
               {STRINGS.please_choose_a_track} <CustomText style={{ fontFamily: fontFace }}>{title}</CustomText>
             </CustomText>
             <CustomText style={styles.previewHintText}>
-              Tap an artist to hear a 30s preview, then press Next.
+              {STRINGS.AUDIO_PREVIEW_HINT}
             </CustomText>
           </View>
         )}
@@ -493,7 +493,7 @@ const AudioTrackDialog = ({
               </View>
             )}
             <CustomText style={styles.playButtonText}>
-              {isNextLoading ? "Opening Player..." : nextButtonLabel}
+              {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
             </CustomText>
             <ArrowRightIcon size={24} color={theme.staticColors.WHITE_COLOR} />
           </Pressable>

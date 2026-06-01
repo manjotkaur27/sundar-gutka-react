@@ -70,7 +70,9 @@ const createStyles = (theme) => {
     amountCard: {
       backgroundColor: isDarkMode ? theme.colors.activeView : "#FAF0D8",
       borderRadius: 16,
-      padding: 20,
+      paddingTop: 10,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
       width: "100%",
       alignItems: "center",
       shadowColor: "#000",
@@ -80,6 +82,11 @@ const createStyles = (theme) => {
       elevation: 2,
     },
     amountContainer: {
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    amountRow: {
       flexDirection: "row",
       alignItems: "flex-end",
       justifyContent: "center",
@@ -104,9 +111,8 @@ const createStyles = (theme) => {
       fontWeight: "400",
       fontFamily: theme.typography.fonts.balooPaaji,
       color: isDarkMode ? "#A0AEC0" : "#718096",
-      alignSelf: "flex-end",
-      paddingBottom: 8,
-      marginLeft: 4,
+      textAlign: "center",
+      marginTop: 2,
     },
     amountButtons: {
       flexDirection: "row",
@@ -140,7 +146,9 @@ const createStyles = (theme) => {
     frequencyContainer: {
       flexDirection: "row",
       justifyContent: "center",
+      flexWrap: "wrap",
       gap: 24,
+      rowGap: 12,
       width: "100%",
     },
     frequencyOption: {
@@ -149,9 +157,9 @@ const createStyles = (theme) => {
       gap: 8,
     },
     radioButton: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
+      width: 22,
+      height: 22,
+      borderRadius: 7,
       borderWidth: 2,
       borderColor: isDarkMode ? "#4299E1" : "#2C5282",
       alignItems: "center",
@@ -159,9 +167,9 @@ const createStyles = (theme) => {
       backgroundColor: "transparent",
     },
     radioButtonSelected: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
       backgroundColor: isDarkMode ? "#4299E1" : "#2C5282",
     },
     frequencyText: {
@@ -170,7 +178,7 @@ const createStyles = (theme) => {
     },
     donateButton: {
       borderRadius: 100,
-      width: "60%",
+      alignSelf: "center",
       overflow: "hidden",
     },
     donateIconCircle: {
@@ -187,8 +195,8 @@ const createStyles = (theme) => {
     },
     donateButtonText: {
       fontSize: 22,
-      fontWeight: "700",
       color: "#FFFFFF",
+      fontFamily: theme.typography.fonts.balooPaaji,
     },
     footerText: {
       fontSize: 13,

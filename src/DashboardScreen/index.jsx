@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Pressable } from "react-native";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import {
   SafeArea,
@@ -15,6 +16,7 @@ import createStyles from "./styles";
 const DashboardScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  useSelector((state) => state.language);
 
   const handleBackPress = () => {
     navigation.navigate("Home");
@@ -38,7 +40,7 @@ const DashboardScreen = ({ navigation }) => {
         style={[{ backgroundColor: theme.colors.surface }, styles.container]}
       >
         <CustomText style={styles.title}>{STRINGS.DASHBOARD}</CustomText>
-        <CustomText style={styles.subtitle}>Coming Soon</CustomText>
+        <CustomText style={styles.subtitle}>{STRINGS.COMING_SOON}</CustomText>
       </View>
     </SafeArea>
   );

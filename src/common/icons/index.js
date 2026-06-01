@@ -20,3 +20,4 @@ export { default as RefreshIcon } from "./RefreshIcon";
 export { default as ChevronDownIcon } from "./ChevronDownIcon";
 export { default as DashboardIcon } from "./DashboardIcon";
 export { default as SevaIcon } from "./SevaIcon";
+export { default as DonateIcon } from "./DonateIcon";
