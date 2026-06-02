@@ -221,6 +221,48 @@ const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollE
   }
 };
 
+// Seva donation funnel. Each action maps to its own event name and every param
+// is sanitized so nothing reaches Firebase as null/empty/wrong-type (which would
+// surface as "(not set)"). Booleans → "true"/"false", numbers → safe ints,
+// strings trimmed; null/undefined/empty values are dropped entirely.
+// NOTE: payment completion happens on Qgiv — these measure in-app intent only.
+const SEVA_EVENT_NAMES = {
+  opened: "seva_opened",
+  amount_selected: "seva_amount_selected",
+  frequency_changed: "seva_frequency_changed",
+  donate_tapped: "seva_donate_tapped",
+  screen_exited_without_donate: "seva_screen_exited_without_donate",
+  payment_success: "seva_payment_success",
+};
+
+const trackSevaEvent = async (action, params = {}) => {
+  try {
+    const eventName = SEVA_EVENT_NAMES[action] || sanitize(`seva_${action}`, "seva_event");
+    const safeParams = {};
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value == null) {
+        return; // drop null/undefined — never emit an empty param
+      }
+      const paramName = sanitize(key, "param");
+      if (typeof value === "boolean") {
+        safeParams[paramName] = value ? "true" : "false";
+      } else if (typeof value === "number") {
+        if (Number.isFinite(value)) {
+          safeParams[paramName] = safeInt(value);
+        }
+      } else {
+        const str = String(value).trim();
+        if (str !== "") {
+          safeParams[paramName] = str.slice(0, MAX_VALUE_LENGTH);
+        }
+      }
+    });
+    await logEvent(analytics, eventName, safeParams);
+  } catch (error) {
+    logError(new Error(`Seva analytics failed for ${action} - ${error?.message || "Unknown error"}`));
+  }
+};
+
 export {
   allowTracking,
   trackReaderEvent,
@@ -228,6 +270,7 @@ export {
   trackReminderEvent,
   trackScreenView,
   trackAudioEvent,
+  trackSevaEvent,
   // Dedicated per-action events (replace the old single "audio" umbrella event)
   trackBaniOpen,
   trackBaniListen,

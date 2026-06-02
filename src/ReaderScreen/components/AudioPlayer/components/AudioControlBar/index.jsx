@@ -17,6 +17,7 @@ import {
   PlayIcon,
   PauseIcon,
   ChevronDownIcon,
+  ExpandCollapseIcon,
 } from "@common/icons";
 import { STRINGS, CustomText, logError } from "@common";
 import {
@@ -34,6 +35,7 @@ import {
 import ActionComponents from "../ActionComponent";
 import AudioSettingsModal from "../AudioSettingsModal";
 import DownloadBadge from "../DownloadBadge";
+import MinimizePlayer from "../MinimizePlayer";
 import ScrollViewComponent from "../ScrollViewComponent";
 
 const AudioControlBar = ({
@@ -68,6 +70,7 @@ const AudioControlBar = ({
   const styles = useThemedStyles(audioControlBarStyles);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
   const [isLyricsChecking, setIsLyricsChecking] = useState(true);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
@@ -555,8 +558,17 @@ const AudioControlBar = ({
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {isDownloading && !isDownloaded && <DownloadBadge />}
-      {/* Full Player with Animation */}
+      {isDownloading && !isDownloaded && !isMinimized && <DownloadBadge />}
+      {isMinimized ? (
+        <MinimizePlayer
+          setIsMinimized={setIsMinimized}
+          handlePlayPause={handlePlayPause}
+          isPlaying={isPlaying}
+          progress={formatTime(safePosition)}
+          duration={sliderMax > 0 ? formatTime(sliderMax) : "0:00"}
+          displayName={currentPlaying?.displayName || ""}
+        />
+      ) : (
       <View style={[styles.mainContainer, Platform.OS === "ios" && styles.mainContainerIOS]}>
         {Platform.OS === "ios" && (
           <BlurView
@@ -581,6 +593,14 @@ const AudioControlBar = ({
           </View>
 
           <View style={styles.rightControls}>
+            {!isMoreTracksModalOpen && !isSettingsModalOpen && currentPlaying && (
+              <Pressable
+                style={styles.controlIcon}
+                onPress={() => setIsMinimized(true)}
+              >
+                <ExpandCollapseIcon size={26} color={theme.colors.audioTitleText} />
+              </Pressable>
+            )}
             {actionItems.map((item) => (
               <Pressable key={item.id} style={styles.controlIcon} onPress={item.onPress}>
                 <item.Icon size={30} color={theme.colors.audioTitleText} />
@@ -621,6 +641,9 @@ const AudioControlBar = ({
                 <CustomText style={styles.trackName}>{currentPlaying.displayName}</CustomText>
               )}
             </View>
+            <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
+              {formatTime(safePosition)}
+            </CustomText>
           </View>
 
           <View style={styles.playbackControls}>
@@ -650,14 +673,6 @@ const AudioControlBar = ({
                     <ActivityIndicator size="small" color={theme.colors.primary} />
                   </View>
                 )}
-                <View style={styles.timeRow}>
-                  <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
-                    {formatTime(safePosition)}
-                  </CustomText>
-                  <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
-                    {sliderMax > 0 ? formatTime(sliderMax) : "0:00"}
-                  </CustomText>
-                </View>
                 <Slider
                   value={safePosition}
                   minimumValue={0}
@@ -680,6 +695,7 @@ const AudioControlBar = ({
           </View>
         </View>
       </View>
+      )}
     </View>
   );
 };

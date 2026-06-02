@@ -1,7 +1,6 @@
 import React from "react";
 import { View } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
-import { STRINGS, CustomText, useTheme, useThemedStyles, SafeArea } from "@common";
+import { STRINGS, CustomText, useTheme, useThemedStyles, SafeArea, GradientDivider } from "@common";
 import createStyles from "../styles";
 
 const BaniHeader = () => {
@@ -16,16 +15,7 @@ const BaniHeader = () => {
         <CustomText style={styles.newHeaderTitleText}>
           {STRINGS.sg_title}
         </CustomText>
-        <LinearGradient
-          colors={
-            theme.mode === "dark"
-              ? ["#051C41", "#63B3ED", "#051C41"]
-              : ["#113979", "#90CDF4", "#113979"]
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.newHeaderGradientDivider}
-        />
+        <GradientDivider style={styles.newHeaderGradientDivider} />
       </View>
     </SafeArea>
   );

@@ -5,7 +5,7 @@ import useThemedStyles from "@common/hooks/useThemedStyles";
 import { STRINGS } from "@common";
 import createStyles from "../styles";
 
-const useHeader = (navigation) => {
+const useHeader = (navigation, onBackPress = null) => {
   const { theme } = useTheme();
   const { headerTitleStyle, headerStyle } = useThemedStyles(createStyles);
 
@@ -20,7 +20,7 @@ const useHeader = (navigation) => {
       titleColor={headerTitleStyle?.color}
       titleStyle={{ fontFamily: headerTitleStyle?.fontFamily }}
       leftComponent={
-        <BackIconComponent size={30} color={theme.colors.primaryText} />
+        <BackIconComponent size={30} color={theme.colors.primaryText} onPress={onBackPress} />
       }
     />
   );

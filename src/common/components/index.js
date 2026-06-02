@@ -5,6 +5,8 @@ import BaniList from "./BaniList/BaniList";
 import BottomNavigation from "./BottomNavigation";
 import CustomText from "./CustomText";
 import FallBack from "./FallbackComponent";
+import GradientDivider from "./GradientDivider";
+import { useCustomScrollbar } from "./ScrollIndicator";
 import ListItemTitle from "./ListItemTitle";
 import SafeArea from "./SafeArea";
 import SettingsIconComponent from "./SettingsIconComponent";
@@ -14,6 +16,8 @@ import ThemedSwitch from "./ThemedSwitch";
 export {
   AppBar,
   FallBack,
+  GradientDivider,
+  useCustomScrollbar,
   BaniList,
   BaniLengthSelector,
   BottomNavigation,

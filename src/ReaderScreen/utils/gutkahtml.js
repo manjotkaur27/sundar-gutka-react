@@ -27,7 +27,7 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-      background: ${theme.colors.primary};
+      background: rgba(122, 153, 201, 0.5);
       border-radius: 4px;
     }
     ::-webkit-scrollbar-track {

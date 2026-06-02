@@ -21,13 +21,13 @@ const TransliterationComponent = () => {
   const isTransliteration = useSelector((state) => state.isTransliteration);
   const OFF_KEY = "OFF";
   const TRANSLITERATION_LANGUAGES = [
-    { key: OFF_KEY, title: "Off" },
+    { key: OFF_KEY, title: STRINGS.off },
     ...getTransliteration(STRINGS),
   ];
   const dispatch = useDispatch();
   const selectedKey = isTransliteration ? transliterationLanguage : OFF_KEY;
   const selectedTitle =
-    TRANSLITERATION_LANGUAGES.find((item) => item.key === selectedKey)?.title || "Off";
+    TRANSLITERATION_LANGUAGES.find((item) => item.key === selectedKey)?.title || STRINGS.off;
 
   // Orientation-aware width — mirrors BottomSheetComponent logic
   const { width, height } = Dimensions.get("window");

@@ -1,6 +1,5 @@
 import React from "react";
-import { StatusBar, ScrollView } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
+import { StatusBar, Animated, View } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -10,6 +9,8 @@ import {
   StatusBarComponent,
   SafeArea,
   CustomText,
+  GradientDivider,
+  useCustomScrollbar,
   useBackHandler,
   BottomNavigation,
   constant,
@@ -40,12 +41,24 @@ import createStyles from "./styles";
 
 const Settings = ({ navigation, route }) => {
   const fromReader = route?.params?.fromReader === true;
-  const appBar = useHeader(navigation);
-  useBackHandler();
+  // Settings is reachable two ways: pushed as a stack screen from the Reader
+  // (goBack pops to Reader) OR as a bottom tab from Home (the tab navigator has
+  // no back stack, so goBack is a no-op — switch to the Home tab instead).
+  const handleBackPress = React.useCallback(() => {
+    if (fromReader) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("Home");
+    }
+    return true;
+  }, [fromReader, navigation]);
+  const appBar = useHeader(navigation, handleBackPress);
+  useBackHandler(handleBackPress);
   const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvailable);
 
   const { navigate } = navigation;
   const { theme } = useTheme();
+  const { scrollViewProps, Indicator } = useCustomScrollbar();
   const styles = useThemedStyles(createStyles);
   const { displayOptionsText, end } = styles;
   const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO } = STRINGS;
@@ -56,15 +69,10 @@ const Settings = ({ navigation, route }) => {
     <SafeArea backgroundColor={theme.colors.surface} edges={["left", "right"]}>
       <StatusBarComponent backgroundColor={theme.colors.surface} />
       {appBar}
-      <LinearGradient
-        colors={["rgba(17,57,121,0)", "rgba(17,57,121,1)", "rgba(17,57,121,1)", "rgba(17,57,121,0)"]}
-        locations={[0, 0.48, 0.52, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={{ width: "100%", height: 1.2 }}
-      />
+      <GradientDivider />
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
-      <ScrollView>
+      <View style={{ flex: 1 }}>
+      <Animated.ScrollView {...scrollViewProps}>
         <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
         <FontSizeComponent />
         <FontFaceComponent />
@@ -104,7 +112,9 @@ const Settings = ({ navigation, route }) => {
           navigationTarget="DatabaseUpdate"
         />
         <CustomText style={end} />
-      </ScrollView>
+      </Animated.ScrollView>
+      {Indicator}
+      </View>
       {fromReader && (
         <BottomNavigation
           activeKey={constant.SETTINGS}

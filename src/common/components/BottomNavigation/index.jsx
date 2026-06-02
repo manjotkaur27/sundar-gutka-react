@@ -36,6 +36,7 @@ const BottomNavigation = ({
   const isAudio = useSelector((state) => state.isAudio);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
+  useSelector((state) => state.language); // re-render on language change so STRINGS labels update
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
 
   const [showSevaDot, setShowSevaDot] = useState(false);

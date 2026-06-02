@@ -15,6 +15,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) =>
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
+  useSelector((state) => state.language); // re-render on language change so STRINGS labels update
   const dispatch = useDispatch();
 
   const handleSpeedChange = async (value) => {

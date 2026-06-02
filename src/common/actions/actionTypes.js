@@ -48,6 +48,10 @@ export const SET_AUDIO_MANIFEST = "SET_AUDIO_MANIFEST";
 export const SET_AUDIO_PROGRESS = "SET_AUDIO_PROGRESS";
 export const CLEAR_AUDIO_PROGRESS = "CLEAR_AUDIO_PROGRESS";
 
+// Reader tap signal — incremented on each tap in the bani WebView so the
+// floating mini player can toggle its expanded/collapsed state.
+export const BUMP_READER_TAP = "BUMP_READER_TAP";
+
 // Seva Donor actions
 export const SET_DONOR_STATE = "SET_DONOR_STATE";
 export const CLEAR_DONOR_STATE = "CLEAR_DONOR_STATE";

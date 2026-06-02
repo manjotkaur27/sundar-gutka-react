@@ -261,6 +261,10 @@ const currentBani = createReducer(null, {
   [actionTypes.SET_CURRENT_BANI]: (state, action) => action.value,
 });
 
+const readerTapTick = createReducer(0, {
+  [actionTypes.BUMP_READER_TAP]: (state) => state + 1,
+});
+
 const donor = createReducer(false, {
   [actionTypes.SET_DONOR_STATE]: (state, action) => action.value.donor,
   [actionTypes.CLEAR_DONOR_STATE]: () => false,
@@ -317,5 +321,6 @@ const rootReducer = combineReducers({
   audioManifest,
   audioProgress,
   currentBani,
+  readerTapTick,
 });
 export default rootReducer;

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Dimensions, Platform } from "react-native";
+import { FlatList, Animated, View, Dimensions, Platform } from "react-native";
 import { useSelector } from "react-redux";
 import { ListItem, Avatar } from "@rneui/themed";
 import createStyles from "@settings/styles";
@@ -7,11 +7,14 @@ import PropTypes from "prop-types";
 import constant from "@common/constant";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { convertToUnicode, baseFontSize, ListItemTitle } from "@common";
+import { convertToUnicode, baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
+
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const { scrollViewProps, Indicator } = useCustomScrollbar();
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
   const isTransliteration = useSelector((state) => state.isTransliteration);
@@ -97,12 +100,16 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
   );
 
   return (
-    <FlatList
-      style={!isPotrait && Platform.OS === "ios" && { marginLeft: 30 }}
-      data={data}
-      renderItem={renderBanis}
-      keyExtractor={(item) => item.gurmukhi}
-    />
+    <View style={{ flex: 1 }}>
+      <AnimatedFlatList
+        style={!isPotrait && Platform.OS === "ios" && { marginLeft: 30 }}
+        data={data}
+        renderItem={renderBanis}
+        keyExtractor={(item) => item.gurmukhi}
+        {...scrollViewProps}
+      />
+      {Indicator}
+    </View>
   );
 });
 

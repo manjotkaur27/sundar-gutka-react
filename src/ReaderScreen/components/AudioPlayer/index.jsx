@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Linking } from "react-native";
-import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import TrackPlayer from "react-native-track-player";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSelector, useDispatch } from "react-redux";
@@ -13,23 +12,17 @@ import {
 import { showErrorToast } from "@common/toast";
 import {
   STRINGS,
+  constant,
   logError,
   trackBaniOpen,
   trackBaniListenCompletion,
   trackAudioLinkRequest,
-  constant,
+  trackAudioEvent,
+  openInAppBrowser,
 } from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
-
-// Maps each Redux baniLength constant to its human-readable display label.
-const BANI_LENGTH_LABEL = {
-  [constant.SHORT]:      STRINGS.short,
-  ["MEDIUM"]:            STRINGS.medium,
-  [constant.LONG]:       STRINGS.long,
-  [constant.EXTRA_LONG]: STRINGS.extra_long,
-};
 
 const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const dispatch = useDispatch();
@@ -47,6 +40,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
   const baniLength = useSelector((state) => state.baniLength);
+  const language = useSelector((state) => state.language);
   const [hasAutoRestoredView, setHasAutoRestoredView] = useState(false);
   const {
     isPlaying,
@@ -439,8 +433,15 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // Memoize audio track dialog to prevent unnecessary re-renders
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
+      const LENGTH_LABELS = {
+        [constant.SHORT]: STRINGS.short,
+        MEDIUM: STRINGS.medium,
+        [constant.LONG]: STRINGS.long,
+        [constant.EXTRA_LONG]: STRINGS.extra_long,
+      };
+      const lengthLabel = LENGTH_LABELS[baniLength] || baniLength;
       const titleString = isAudioUnavailableForCurrentLengthOnly
-        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH
+        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH.replace("{length}", lengthLabel)
         : STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR;
 
       return (
@@ -452,27 +453,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
             await trackAudioEvent("requestAudioLink", title || "unknown");
             try {
               await trackAudioLinkRequest(title, baniID, baniLength);
-              if (await InAppBrowser.isAvailable()) {
-                await InAppBrowser.open(formUrl, {
-                  dismissButtonStyle: "cancel",
-                  preferredBarTintColor: "#113979",
-                  preferredControlTintColor: "#FAF9F6",
-                  readerMode: false,
-                  animated: true,
-                  modalPresentationStyle: "fullScreen",
-                  modalTransitionStyle: "coverVertical",
-                  modalEnabled: true,
-                  showTitle: true,
-                  toolbarColor: "#113979",
-                  secondaryToolbarColor: "#FAF9F6",
-                  navigationBarColor: "#113979",
-                  enableUrlBarHiding: true,
-                  enableDefaultShare: false,
-                  forceCloseOnRedirection: false,
-                });
-              } else {
-                await Linking.openURL(formUrl);
-              }
+              await openInAppBrowser(formUrl);
             } catch (_) {
               Linking.openURL(formUrl).catch(() => {});
             }
@@ -496,7 +477,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isPlaying={isPlaying}
       />
     );
-  }, [tracks, title, baniID, isPlaying, isAudioUnavailableForCurrentLengthOnly]);
+  }, [tracks, title, baniID, isPlaying, isAudioUnavailableForCurrentLengthOnly, language, baniLength]);
 
   // Don't render if TrackPlayer is not initialized
   if (!isInitialized && !isInitializing) {

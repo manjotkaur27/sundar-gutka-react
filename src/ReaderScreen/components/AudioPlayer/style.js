@@ -3,16 +3,16 @@ import { constant } from "@common";
 
 const SHADOW = {
   light: {
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
   medium: {
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 4,
   },
 };
 
@@ -100,6 +100,10 @@ export const audioControlBarStyles = (theme) => ({
   leftControls: {
     flexDirection: "row",
     gap: theme.spacing.sm,
+    // Allow the action-button group to shrink so longer localized labels
+    // (e.g. "Impostazioni audio") never push the right-hand controls off-screen.
+    flexShrink: 1,
+    minWidth: 0,
   },
   rightControls: {
     flexDirection: "row",
@@ -109,16 +113,25 @@ export const audioControlBarStyles = (theme) => ({
   },
   actionButton: {
     borderRadius: theme.borderRadius.xl,
+    flexShrink: 1,
+    minWidth: 0,
   },
   actionButtonText: {
     fontSize: theme.typography.sizes.lg,
     fontFamily: theme.typography.fonts.balooPaaji,
+    // Shrinks within the pill; combined with adjustsFontSizeToFit the label
+    // scales down to fit instead of wrapping or clipping.
+    flexShrink: 1,
+    minWidth: 0,
   },
   actionButtonContent: {
     flexDirection: "row",
     gap: 4,
     paddingHorizontal: theme.spacing.md,
     height: "100%",
+    alignItems: "center",
+    flexShrink: 1,
+    minWidth: 0,
   },
   actionButtonIconContainer: {
     height: "100%",
@@ -136,6 +149,7 @@ export const audioControlBarStyles = (theme) => ({
   trackInfo: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     width: "90%",
     marginLeft: "auto",
     marginRight: "auto",
@@ -146,7 +160,7 @@ export const audioControlBarStyles = (theme) => ({
     gap: theme.spacing.md,
   },
   trackName: {
-    fontSize: theme.typography.sizes.xxl,
+    fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
     color: theme.colors.audioTitleText,
   },
@@ -217,8 +231,8 @@ export const audioTrackDialogStyles = (theme) => ({
     borderRadius: theme.borderRadius.md,
   },
   container: {
-    padding: theme.spacing.xl,
-    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.staticColors.TRACK_COLOR,
@@ -273,12 +287,12 @@ export const audioTrackDialogStyles = (theme) => ({
     justifyContent: "space-between",
     alignItems: "center",
     borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.md_12,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl_20,
-    marginBottom: theme.spacing.md_12,
+    marginBottom: theme.spacing.md,
     // borderWidth: 2,
     borderColor: "transparent",
-    minHeight: 40, // Consistent height for Android
+    minHeight: 36, // Consistent height for Android
   },
   selectedTrackItem: {
     backgroundColor: theme.colors.primary,
@@ -375,21 +389,22 @@ export const minimizePlayerStyles = (theme) => ({
     position: "absolute",
     bottom: 10,
     right: theme.spacing.xl_20,
-    width: "50%",
-    maxHeight: 60,
+    maxWidth: "80%",
     borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl_20,
+    // Tight padding that hugs the content — the pill sizes to whatever is shown
+    // (just the circle when collapsed, circle + text when expanded).
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.md_12,
     backgroundColor: theme.colors.surface,
-    shadowColor: theme.colors.surfaceGrey,
+    shadowColor: "#000",
     ...SHADOW.medium,
   },
   progressContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.borderRadius.lg,
+    width: 28,
+    height: 28,
+    borderRadius: theme.borderRadius.md,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -400,18 +415,23 @@ export const minimizePlayerStyles = (theme) => ({
   svgContainer: {
     position: "absolute",
   },
+  textWrap: {
+    overflow: "hidden",
+    flexShrink: 1,
+  },
   textContainer: {
-    flex: 1,
+    justifyContent: "center",
+    paddingLeft: theme.spacing.md_12,
   },
   timestamp: {
     fontFamily: theme.typography.fonts.balooPaaji,
-    fontSize: theme.typography.sizes.lg,
-    justifyContent: "center",
+    fontSize: theme.typography.sizes.sm,
     color: theme.colors.audioTitleText,
+    opacity: 0.7,
   },
   artistName: {
     fontFamily: theme.typography.fonts.balooPaaji,
-    fontSize: theme.typography.sizes.lg,
+    fontSize: theme.typography.sizes.md,
     color: theme.colors.audioTitleText,
   },
 });
@@ -449,7 +469,10 @@ export const audioSettingModalStyles = (theme) => ({
   modalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    margin: theme.spacing.md,
+    alignItems: "center",
+    // Vertical-only spacing — the container already pads the horizontal edges,
+    // so the previous all-sides margin was doubling the side padding.
+    marginVertical: theme.spacing.sm,
   },
   divider: {
     height: 1,

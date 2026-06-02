@@ -88,23 +88,48 @@ const createStyles = (theme) => {
     },
     amountRow: {
       flexDirection: "row",
-      alignItems: "flex-end",
+      alignItems: "center",
       justifyContent: "center",
     },
     currency: {
       fontSize: 72,
+      // Identical lineHeight + includeFontPadding:false on both the "$" and the
+      // input gives them the same line box and baseline, so centering aligns the
+      // glyphs (not just the boxes). Without this the TextInput's taller box made
+      // the digits float above the "$".
+      lineHeight: 86,
       fontWeight: "400",
       fontFamily: theme.typography.fonts.balooPaaji,
       color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282",
+      includeFontPadding: false,
+      textAlignVertical: "center",
     },
     amountDisplay: {
       fontSize: 72,
+      lineHeight: 86,
       fontWeight: "400",
       fontFamily: theme.typography.fonts.balooPaaji,
       color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282",
       minWidth: 60,
       textAlign: "center",
+      textAlignVertical: "center",
+      includeFontPadding: false,
       padding: 0,
+    },
+    amountInputWrap: {
+      position: "relative",
+      justifyContent: "center",
+    },
+    // Custom "0" placeholder overlay — Android renders the native hint at a
+    // different vertical offset than typed text, so we draw it as a real Text
+    // (which aligns with the "$" exactly like typed digits do).
+    amountPlaceholder: {
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      color: "#C0CADB",
     },
     perMonth: {
       fontSize: 18,

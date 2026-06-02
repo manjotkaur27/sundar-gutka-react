@@ -28,7 +28,7 @@ const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isDarkMode = theme.mode === "dark";
-  const readerBgColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#F0F4F8";
+  const readerBgColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#FFFFFF";
   const bookmarkPosition = useSelector((state) => state.bookmarkPosition);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudio = useSelector((state) => state.isAudio);
@@ -406,6 +406,8 @@ const Reader = ({ navigation, route }) => {
         onTouchStart={() => {
           // Toggle header when WebView is touched (not overlaid elements)
           toggleHeader((prev) => !prev);
+          // Signal the floating mini player to toggle its expanded state.
+          dispatch(actions.bumpReaderTap());
         }}
       />
       {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}

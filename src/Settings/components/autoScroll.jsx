@@ -17,7 +17,7 @@ const AutoScroll = () => {
   const dispatch = useDispatch();
   const { AUTO_SCROLL } = STRINGS;
   return (
-    <ListItem bottomDivider containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}>
+    <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
       <View style={styles.iconContainerStyle}>
         <Icon color={theme.colors.primaryText} name="auto-fix-high" type="material" size={26} />
       </View>

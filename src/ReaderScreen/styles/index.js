@@ -120,7 +120,7 @@ const createStyles = (theme) => ({
     fontSize: theme.typography.sizes.lg,
   },
   headerStyle: {
-    backgroundColor: theme.mode === "dark" ? "rgba(18, 18, 18, 1)" : "#F0F4F8",
+    backgroundColor: theme.mode === "dark" ? "rgba(18, 18, 18, 1)" : "#FFFFFF",
   },
   animatedView: {
     position: "absolute",
@@ -143,16 +143,15 @@ const createStyles = (theme) => ({
     height: 5,
     width: "100%",
     overflow: "hidden",
-    backgroundColor: theme.mode === "dark"
-      ? "rgba(255, 255, 255, 0.12)"
-      : "rgba(0, 0, 0, 0.08)",
+    backgroundColor: "rgba(37, 105, 214, 0.2)",
   },
   scrollProgressFill: {
     position: "absolute",
     left: "-100%",
     width: "200%",
     height: "100%",
-    backgroundColor: theme.colors.primary,
+    borderRadius: 2.5,
+    backgroundColor: "#7A99C980",
   },
 });
 export default createStyles;

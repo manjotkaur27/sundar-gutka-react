@@ -45,7 +45,7 @@ const createStyles = (theme) => ({
   },
   newHeaderContainer: {
     backgroundColor: theme.mode === "dark" ? "#041126" : theme.colors.surface,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
     alignItems: "center",
     justifyContent: "center",
@@ -65,8 +65,6 @@ const createStyles = (theme) => ({
     marginTop: 2,
   },
   newHeaderGradientDivider: {
-    height: 2.5,
-    width: "80%",
     marginTop: theme.spacing.sm,
   },
 });

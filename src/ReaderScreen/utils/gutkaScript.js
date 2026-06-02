@@ -17,12 +17,48 @@ let hasReachedEnd = false;
 let accumulatedScroll = 0;
 let lastFrameTime = 0;
 
+// The active (sync-scroll) line is rendered slightly larger than the rest of
+// the bani. We scale each line's font-size — not a CSS transform — so the text
+// re-wraps naturally within its container and never clips. This works
+// identically for gurmukhi, transliteration, translations, paragraph mode,
+// larivaar and vishraam spans. Each child's original size is snapshotted in a
+// data attribute and restored on every un-highlight path.
+const HIGHLIGHT_SCALE = 1.12;
+
+const enlargeElement = (element) => {
+  if (!element) return;
+  const items = element.querySelectorAll('.content-item');
+  for (let i = 0; i < items.length; i++) {
+    const el = items[i];
+    if (el.dataset.origFontSize === undefined) {
+      const cur = parseFloat(window.getComputedStyle(el).fontSize);
+      if (cur > 0) {
+        el.dataset.origFontSize = cur;
+        el.style.fontSize = (cur * HIGHLIGHT_SCALE) + 'px';
+      }
+    }
+  }
+};
+
+const restoreElementSize = (element) => {
+  if (!element) return;
+  const items = element.querySelectorAll('.content-item');
+  for (let i = 0; i < items.length; i++) {
+    const el = items[i];
+    if (el.dataset.origFontSize !== undefined) {
+      el.style.fontSize = el.dataset.origFontSize + 'px';
+      delete el.dataset.origFontSize;
+    }
+  }
+};
+
 const clearAllHighlights = () => {
   if (highlightTimeout != null) {
     clearTimeout(highlightTimeout);
     highlightTimeout = null;
   }
   if (lastHighlightedElement) {
+    restoreElementSize(lastHighlightedElement);
     lastHighlightedElement.style.backgroundColor = lastHighlightedElement.dataset.origBg || '';
     lastHighlightedElement.style.width = lastHighlightedElement.dataset.origWidth || '';
     lastHighlightedElement.style.margin = lastHighlightedElement.dataset.origMargin || '';
@@ -391,6 +427,7 @@ ${listener}.addEventListener(
         
         // Remove highlight from previous element if different
         if (lastHighlightedElement && !isSameElement) {
+          restoreElementSize(lastHighlightedElement);
           lastHighlightedElement.style.backgroundColor = lastHighlightedElement.dataset.origBg || '';
           lastHighlightedElement.style.width = lastHighlightedElement.dataset.origWidth || '';
           lastHighlightedElement.style.margin = lastHighlightedElement.dataset.origMargin || '';
@@ -433,16 +470,20 @@ ${listener}.addEventListener(
           element.style.marginRight = "0";
         }
 
+        // Enlarge the active line (idempotent for the same element / paragraph)
+        enlargeElement(element);
+
         // Store current element
         lastHighlightedElement = element;
 
         // Remove highlight after timeout
         highlightTimeout = setTimeout(()=> {
+          restoreElementSize(element);
           element.style.backgroundColor = originalBackgroundColor;
           element.style.width = originalWidth;
           element.style.margin = originalMargin;
           highlightTimeout = null;
-        }, timeOut);        
+        }, timeOut);
       }
     }
   },

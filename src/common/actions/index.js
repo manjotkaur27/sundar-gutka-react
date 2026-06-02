@@ -45,6 +45,10 @@ export const toggleAudio = (value) => {
   return { type: actionTypes.TOGGLE_AUDIO, value };
 };
 
+export const bumpReaderTap = () => {
+  return { type: actionTypes.BUMP_READER_TAP };
+};
+
 export const toggleAudioFeatureEnabled = (value) => {
   trackSettingEvent(constant.AUDIO, value);
   return { type: actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED, value };

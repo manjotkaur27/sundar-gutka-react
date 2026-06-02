@@ -78,7 +78,7 @@ export const loadHTML = (
 ) => {
   try {
     const isDarkMode = theme.mode === "dark";
-    const backColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#F0F4F8";
+    const backColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#FFFFFF";
     const content = shabad
       .map((item) => {
         const textAlignMap = {

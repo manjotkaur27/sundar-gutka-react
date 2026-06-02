@@ -37,7 +37,9 @@ const createStyles = (theme) => ({
   },
   titleInfoStyle: {
     fontSize: theme.typography.sizes.sm,
-    color: theme.colors.textDisabled,
+    // Match the left-hand setting name (white in dark, near-black in light)
+    // instead of the muted bluish-grey textDisabled.
+    color: theme.colors.primaryText,
   },
   end: {
     padding: theme.spacing.xxl + theme.spacing.md,
@@ -95,6 +97,13 @@ const createStyles = (theme) => ({
     fontSize: theme.typography.sizes.lg,
     lineHeight: theme.typography.sizes.lg * theme.typography.lineHeights.normal,
   },
-  containerNightStyles: { backgroundColor: theme.colors.surfaceGrey },
+  containerNightStyles: {
+    backgroundColor: theme.colors.surfaceGrey,
+    // Override RNEUI's `bottomDivider` hairline (1px ÷ pixelRatio ≈ 0.38dp),
+    // which rounds to 0 on every other row on non-integer-density screens,
+    // making alternating dividers vanish. A solid 1dp line never collapses.
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.separator,
+  },
 });
 export default createStyles;

@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import { View, Animated, Pressable } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { BackArrowIcon, BookmarkIcon } from "@common/icons";
-import { CustomText, useTheme, useThemedStyles } from "@common";
+import { CustomText, useTheme, useThemedStyles, GradientDivider } from "@common";
 import createStyles from "../styles";
 
 const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
@@ -12,9 +11,6 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
   const styles = useThemedStyles(createStyles);
   const fontFace = useSelector((state) => state.fontFace);
   const animationPosition = useRef(new Animated.Value(0)).current;
-
-  const MID = "rgba(17,57,121,1)"; // #113979
-  const EDGE = "rgba(17,57,121,0)";
 
   const headerLeft = () => (
     <Pressable
@@ -93,17 +89,7 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
           <View style={styles.headerRight}>{headerRight()}</View>
         </View>
       </View>
-      <LinearGradient
-        colors={[EDGE, MID, MID, EDGE]}
-        locations={[0, 0.48, 0.52, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={{
-          width: "100%",
-          height: 1.2,
-          pointerEvents: "none",
-        }}
-      />
+      <GradientDivider />
     </Animated.View>
   );
 };

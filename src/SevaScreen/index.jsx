@@ -19,25 +19,16 @@ import {
   CustomText,
   useTheme,
   useThemedStyles,
-  actions,
   STRINGS,
+  openInAppBrowser,
+  trackSevaEvent,
 } from "@common";
-import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import LinearGradient from "react-native-linear-gradient";
 import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
 import { DonateIcon } from "../common/icons";
 import createStyles from "./styles";
 
 // Custom event tracker placeholder to match original branch structure
-const trackSevaEvent = (action, metadata = {}) => {
-  try {
-    const { trackAudioEvent } = require("@common");
-    trackAudioEvent(`seva_${action}`, metadata);
-  } catch (_) {
-    // Fail-safe
-  }
-};
-
 const SevaScreen = () => {
   const { theme } = useTheme();
   const isDarkMode = theme.mode === "dark";
@@ -68,6 +59,14 @@ const SevaScreen = () => {
   // Prevents concurrent open() calls (guards iOS where open() may not resolve on background)
   const isBrowserOpenRef = useRef(false);
 
+  // ─── Analytics funnel (intent only) ────────────────────────────────────────
+  // These measure in-app funnel behaviour. Actual payment truth lives on Qgiv —
+  // we cannot observe completion from here, so "donate_tapped"/"payment_success"
+  // represent intent, not confirmed donations.
+  const hasDonatedRef = useRef(false);
+  const hasInteractedRef = useRef(false);
+  const lastFrequencyRef = useRef(frequency);
+
   // Load config on mount
   useEffect(() => {
     let active = true;
@@ -92,12 +91,31 @@ const SevaScreen = () => {
     };
   }, [language]);
 
+  // Exposure on mount; abandonment on exit if the user never tapped donate.
+  useEffect(() => {
+    trackSevaEvent("opened");
+    return () => {
+      if (!hasDonatedRef.current) {
+        trackSevaEvent("screen_exited_without_donate", {
+          interacted: hasInteractedRef.current,
+          frequency_selected: lastFrequencyRef.current,
+        });
+      }
+    };
+  }, []);
+
   const handleAmountSelect = (amount, isOther = false) => {
     setIsOtherSelected(isOther);
     if (!isOther) {
       setSelectedAmount(amount);
       setCustomAmount("");
     }
+    hasInteractedRef.current = true;
+    trackSevaEvent("amount_selected", {
+      amount: isOther ? null : amount,
+      is_custom: isOther,
+      donation_type: frequency === "One Time" ? "one_time" : "recurring",
+    });
   };
 
   const handleCustomAmountChange = (val) => {
@@ -108,6 +126,12 @@ const SevaScreen = () => {
 
   const handleFrequencyChange = (freq) => {
     setFrequency(freq);
+    lastFrequencyRef.current = freq;
+    hasInteractedRef.current = true;
+    trackSevaEvent("frequency_changed", {
+      frequency: freq,
+      donation_type: freq === "One Time" ? "one_time" : "recurring",
+    });
   };
 
   const effectiveDonationType = frequency === "One Time" ? "one_time" : "recurring";
@@ -124,29 +148,7 @@ const SevaScreen = () => {
     appInBackgroundRef.current = false;
 
     try {
-      if (await InAppBrowser.isAvailable()) {
-        await InAppBrowser.open(url, {
-          dismissButtonStyle: "cancel",
-          preferredBarTintColor: barColor,
-          preferredControlTintColor: controlColor,
-          readerMode: false,
-          animated: true,
-          modalPresentationStyle: "fullScreen",
-          modalTransitionStyle: "coverVertical",
-          modalEnabled: true,
-          showTitle: true,
-          toolbarColor: barColor,
-          secondaryToolbarColor: controlColor,
-          navigationBarColor: barColor,
-          enableUrlBarHiding: true,
-          enableDefaultShare: false,
-          forceCloseOnRedirection: false,
-        });
-      } else {
-        await Linking.openURL(url);
-      }
-    } catch (_) {
-      Linking.openURL(url).catch(() => {});
+      await openInAppBrowser(url, { barColor, controlColor });
     } finally {
       isBrowserOpenRef.current = false;
       // Only clear the pending URL if the browser closed because the user dismissed it,
@@ -192,6 +194,13 @@ const SevaScreen = () => {
       finalAmount = 10; // Fallback
     }
 
+    hasDonatedRef.current = true;
+    trackSevaEvent("donate_tapped", {
+      amount: finalAmount,
+      is_custom: isOtherSelected,
+      donation_type: effectiveDonationType,
+    });
+
     const url = buildQgivUrl({
       amount: finalAmount,
       isCustomAmount: isOtherSelected,
@@ -201,6 +210,8 @@ const SevaScreen = () => {
 
     await openBrowserForUrl(url);
 
+    // NOTE: not a real success signal — Qgiv holds payment truth. Fired on
+    // browser-open at the client's request to approximate conversion intent.
     trackSevaEvent("payment_success", {
       provider: "qgiv",
       donation_type: effectiveDonationType,
@@ -351,15 +362,25 @@ const SevaScreen = () => {
               <View style={styles.amountRow}>
                 <CustomText style={styles.currency}>$</CustomText>
                 {isOtherSelected ? (
-                  <TextInput
-                    style={styles.amountDisplay}
-                    value={customAmount}
-                    onChangeText={handleCustomAmountChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#C0CADB"
-                    autoFocus
-                  />
+                  <View style={styles.amountInputWrap}>
+                    <TextInput
+                      style={styles.amountDisplay}
+                      value={customAmount}
+                      onChangeText={handleCustomAmountChange}
+                      keyboardType="numeric"
+                      cursorColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
+                      selectionColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
+                      autoFocus
+                    />
+                    {customAmount === "" && (
+                      <CustomText
+                        style={[styles.amountDisplay, styles.amountPlaceholder]}
+                        pointerEvents="none"
+                      >
+                        0
+                      </CustomText>
+                    )}
+                  </View>
                 ) : (
                   <CustomText style={styles.amountDisplay}>{displayAmount}</CustomText>
                 )}

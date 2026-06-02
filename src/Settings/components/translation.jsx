@@ -63,7 +63,7 @@ const TranslationComponent = () => {
   const isAllOff = selectedCount === 0;
 
   const selectedSummary =
-    isAllOff ? "None" : `${selectedCount} selected (multiple allowed)`;
+    isAllOff ? STRINGS.none : `${selectedCount} selected (multiple allowed)`;
 
   const handleTurnAllOff = () => {
     if (isEnglishTranslation) dispatch(toggleEnglishTranslation(false));
@@ -135,7 +135,7 @@ const TranslationComponent = () => {
                 onPress={handleTurnAllOff}
               >
                 <ListItem.Content>
-                  <ListItemTitle title={STRINGS.off || "Off"} style={styles.listItemTitle} />
+                  <ListItemTitle title={STRINGS.off} style={styles.listItemTitle} />
                 </ListItem.Content>
                 {isAllOff && <Icon color={theme.colors.primaryText} name="check" />}
               </ListItem>
