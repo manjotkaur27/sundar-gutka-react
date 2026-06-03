@@ -47,6 +47,7 @@ const Reader = ({ navigation, route }) => {
   const vishraamOption = useSelector((state) => state.vishraamOption);
   const savePosition = useSelector((state) => state.savePosition);
   const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
+  const isPlayerDragging = useSelector((state) => state.isPlayerDragging);
 
   const webViewRef = useRef(null);
   const { webView } = styles;
@@ -258,6 +259,9 @@ const Reader = ({ navigation, route }) => {
 
   const handleMessage = useCallback(
     (message) => {
+      if (isPlayerDragging) {
+        return;
+      }
       // Update last activity timestamp
       const { data } = message.nativeEvent;
 
@@ -310,7 +314,7 @@ const Reader = ({ navigation, route }) => {
         }
       }
     },
-    [dispatch, id, navigation, shouldNavigateBack]
+    [dispatch, id, navigation, shouldNavigateBack, isPlayerDragging]
   );
 
   const handleLoadStart = useCallback(() => {
@@ -388,7 +392,7 @@ const Reader = ({ navigation, route }) => {
         onError={handleError}
         onHttpError={handleHttpError}
         decelerationRate={0.998}
-        scrollEnabled
+        scrollEnabled={!isPlayerDragging}
         bounces={false}
         overScrollMode="never"
         nestedScrollEnabled

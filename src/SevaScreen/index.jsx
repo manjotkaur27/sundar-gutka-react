@@ -10,6 +10,7 @@ import {
   Text,
   useWindowDimensions,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from "react-native-svg";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
@@ -92,8 +93,26 @@ const SevaScreen = () => {
   }, [language]);
 
   // Exposure on mount; abandonment on exit if the user never tapped donate.
+  // Also tracks whether this is the user's first time opening the Seva screen
+  // (persisted via AsyncStorage) and the initial donation type selection.
   useEffect(() => {
-    trackSevaEvent("opened");
+    const STORAGE_KEY = "@seva_screen_opened";
+    (async () => {
+      let isFirstOpen = false;
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored === null) {
+          isFirstOpen = true;
+          await AsyncStorage.setItem(STORAGE_KEY, "1");
+        }
+      } catch (_) {
+        // Non-critical — analytics fires without the flag if storage fails.
+      }
+      trackSevaEvent("opened", {
+        is_first_open: isFirstOpen,
+        donation_type: frequency === "One Time" ? "one_time" : "recurring",
+      });
+    })();
     return () => {
       if (!hasDonatedRef.current) {
         trackSevaEvent("screen_exited_without_donate", {
@@ -102,6 +121,7 @@ const SevaScreen = () => {
         });
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAmountSelect = (amount, isOther = false) => {
@@ -431,7 +451,7 @@ const SevaScreen = () => {
 
           {/* Frequency / donation type */}
           <View style={styles.frequencyContainer}>
-            {["Monthly", "Annually", "One Time"].map((freq) => (
+            {["Monthly", "One Time"].map((freq) => (
               <Pressable
                 key={freq}
                 style={styles.frequencyOption}

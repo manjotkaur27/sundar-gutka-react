@@ -360,15 +360,19 @@ export const downloadBadgeStyles = (theme) => ({
     borderTopRightRadius: theme.borderRadius.xl,
     marginRight: theme.spacing.xl_20,
     backgroundColor: theme.colors.separator,
-    width: "35%",
+    // Size to the content (icon + label) instead of a fixed 35%, so longer
+    // localized strings ("Téléchargement en cours", etc.) don't overflow.
+    // maxWidth keeps it from spanning the whole player on small screens.
+    maxWidth: "90%",
     alignSelf: "flex-end",
   },
   downloadButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: theme.spacing.md,
-    padding: 2,
+    gap: theme.spacing.sm,
+    paddingVertical: 3,
+    paddingHorizontal: theme.spacing.md_12,
   },
   downloadedContainer: {
     flexDirection: "row",
@@ -381,6 +385,8 @@ export const downloadBadgeStyles = (theme) => ({
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.light,
     color: theme.colors.primaryHeaderVariant,
+    flexShrink: 1,
+    minWidth: 0,
   },
 });
 
@@ -389,17 +395,29 @@ export const minimizePlayerStyles = (theme) => ({
     position: "absolute",
     bottom: 10,
     right: theme.spacing.xl_20,
+    // Fixed height prevents the pill from elongating if text wraps or font
+    // metrics vary across devices/locales. Circle (28px) + paddingVertical*2 (8px) = 36px;
+    // 44px gives a comfortable touch target with a small visual top/bottom margin.
+    height: 44,
     maxWidth: "80%",
     borderRadius: theme.borderRadius.xl,
-    // Tight padding that hugs the content — the pill sizes to whatever is shown
-    // (just the circle when collapsed, circle + text when expanded).
-    paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: theme.colors.surface,
-    shadowColor: "#000",
     ...SHADOW.medium,
+    // Dark mode: a black shadow is invisible on the dark bani, so use a soft
+    // light glow on iOS, plus a faint light border for separation on Android
+    // (where elevation shadows are always black and don't show on dark).
+    ...(theme.mode === "dark"
+      ? {
+          shadowColor: theme.staticColors.WHITE_COLOR,
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          borderWidth: 1,
+          borderColor: "rgba(255, 255, 255, 0.14)",
+        }
+      : { shadowColor: "#000" }),
   },
   progressContainer: {
     width: 28,

@@ -185,6 +185,13 @@ jest.mock("@common", () => ({
       type: "SET_BOOKMARK_SEQUENCE_STRING",
       value: seq,
     })),
+    bumpReaderTap: jest.fn(() => ({
+      type: "BUMP_READER_TAP",
+    })),
+    setPlayerDragging: jest.fn((val) => ({
+      type: "SET_PLAYER_DRAGGING",
+      value: val,
+    })),
   },
   useScreenAnalytics: jest.fn(),
   logMessage: jest.fn(),
@@ -291,6 +298,7 @@ describe("Reader", () => {
       transliterationLanguage: "english",
       vishraamSource: "sttm",
       padched: false,
+      isPlayerDragging: false,
     };
     mockUseFetchShabad.shabad = [
       {

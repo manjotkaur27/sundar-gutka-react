@@ -55,3 +55,6 @@ export const BUMP_READER_TAP = "BUMP_READER_TAP";
 // Seva Donor actions
 export const SET_DONOR_STATE = "SET_DONOR_STATE";
 export const CLEAR_DONOR_STATE = "CLEAR_DONOR_STATE";
+
+// Floating mini-player drag state — used to disable WebView scroll while dragging
+export const SET_PLAYER_DRAGGING = "SET_PLAYER_DRAGGING";

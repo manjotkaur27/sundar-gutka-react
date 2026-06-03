@@ -228,3 +228,7 @@ export const setDonorState = (value) => {
 export const clearDonorState = () => {
   return { type: actionTypes.CLEAR_DONOR_STATE };
 };
+
+export const setPlayerDragging = (value) => {
+  return { type: actionTypes.SET_PLAYER_DRAGGING, value };
+};

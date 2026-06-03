@@ -123,9 +123,15 @@ const mockToggleAudioSyncScroll = jest.fn((value) => ({
   payload: value,
 }));
 
+const mockSetPlayerDragging = jest.fn((value) => ({
+  type: "SET_PLAYER_DRAGGING",
+  payload: value,
+}));
+
 jest.mock("@common/actions", () => ({
   setAudioProgress: (...args) => mockSetAudioProgress(...args),
   toggleAudioSyncScroll: (...args) => mockToggleAudioSyncScroll(...args),
+  setPlayerDragging: (...args) => mockSetPlayerDragging(...args),
 }));
 
 // Mock icons (just simple text)
@@ -138,6 +144,7 @@ jest.mock("@common/icons", () => {
     PlayIcon: (props) => <Text testID="play-icon" {...props} />,
     PauseIcon: (props) => <Text testID="pause-icon" {...props} />,
     ChevronDownIcon: (props) => <Text testID="chevron-down-icon" {...props} />,
+    ExpandCollapseIcon: (props) => <Text testID="expand-collapse-icon" {...props} />,
   };
 });
 
@@ -280,6 +287,7 @@ describe("AudioControlBar", () => {
       isAudioSyncScroll: true,
       isAudioAutoPlay: false,
       audioProgress: {},
+      isPlayerDragging: false,
     };
   });
 

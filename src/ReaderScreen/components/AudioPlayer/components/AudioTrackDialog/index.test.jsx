@@ -73,6 +73,7 @@ jest.mock("@common", () => {
       NEXT: "Next",
       welcome_to_sundar_gutka: "Welcome to Sundar Gutka",
       please_choose_a_track: "Please choose a track for",
+      OPENING_PLAYER: "Opening Player...",
     },
     CustomText: ({ children, ...props }) => (
       <Text accessibilityRole="text" {...props}>

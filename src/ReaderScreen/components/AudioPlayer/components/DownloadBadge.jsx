@@ -14,7 +14,9 @@ const DownloadBadge = () => {
     <View style={styles.container}>
       <View style={styles.downloadButton}>
         <DownloadIcon size={20} color={theme.colors.primaryHeaderVariant} />
-        <CustomText style={styles.downloadButtonText}>{STRINGS.DOWNLOADING}</CustomText>
+        <CustomText style={styles.downloadButtonText} numberOfLines={1}>
+          {STRINGS.DOWNLOADING}
+        </CustomText>
       </View>
     </View>
   );
