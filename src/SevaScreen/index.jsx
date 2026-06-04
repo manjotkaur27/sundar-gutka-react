@@ -7,9 +7,12 @@ import {
   ActivityIndicator,
   AppState,
   Linking,
+  Platform,
   Text,
   useWindowDimensions,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from "react-native-svg";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
@@ -19,25 +22,16 @@ import {
   CustomText,
   useTheme,
   useThemedStyles,
-  actions,
   STRINGS,
+  openInAppBrowser,
+  trackSevaEvent,
 } from "@common";
-import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import LinearGradient from "react-native-linear-gradient";
 import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
 import { DonateIcon } from "../common/icons";
 import createStyles from "./styles";
 
 // Custom event tracker placeholder to match original branch structure
-const trackSevaEvent = (action, metadata = {}) => {
-  try {
-    const { trackAudioEvent } = require("@common");
-    trackAudioEvent(`seva_${action}`, metadata);
-  } catch (_) {
-    // Fail-safe
-  }
-};
-
 const SevaScreen = () => {
   const { theme } = useTheme();
   const isDarkMode = theme.mode === "dark";
@@ -47,6 +41,7 @@ const SevaScreen = () => {
   const headlineFontSize = Math.round(Math.min(72, Math.max(52, screenWidth * 0.16)));
   const vPad = Math.round(screenHeight * 0.07);
   const dispatch = useDispatch();
+  const navigation = useNavigation();
 
   const language = useSelector((state) => state.language);
 
@@ -67,6 +62,14 @@ const SevaScreen = () => {
   const openBrowserForUrlRef = useRef(null);
   // Prevents concurrent open() calls (guards iOS where open() may not resolve on background)
   const isBrowserOpenRef = useRef(false);
+
+  // ─── Analytics funnel (intent only) ────────────────────────────────────────
+  // These measure in-app funnel behaviour. Actual payment truth lives on Qgiv —
+  // we cannot observe completion from here, so "donate_tapped"/"payment_success"
+  // represent intent, not confirmed donations.
+  const hasDonatedRef = useRef(false);
+  const hasInteractedRef = useRef(false);
+  const lastFrequencyRef = useRef(frequency);
 
   // Load config on mount
   useEffect(() => {
@@ -92,12 +95,50 @@ const SevaScreen = () => {
     };
   }, [language]);
 
+  // Exposure on mount; abandonment on exit if the user never tapped donate.
+  // Also tracks whether this is the user's first time opening the Seva screen
+  // (persisted via AsyncStorage) and the initial donation type selection.
+  useEffect(() => {
+    const STORAGE_KEY = "@seva_screen_opened";
+    (async () => {
+      let isFirstOpen = false;
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored === null) {
+          isFirstOpen = true;
+          await AsyncStorage.setItem(STORAGE_KEY, "1");
+        }
+      } catch (_) {
+        // Non-critical — analytics fires without the flag if storage fails.
+      }
+      trackSevaEvent("opened", {
+        is_first_open: isFirstOpen,
+        donation_type: frequency === "One Time" ? "one_time" : "recurring",
+      });
+    })();
+    return () => {
+      if (!hasDonatedRef.current) {
+        trackSevaEvent("screen_exited_without_donate", {
+          interacted: hasInteractedRef.current,
+          frequency_selected: lastFrequencyRef.current,
+        });
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleAmountSelect = (amount, isOther = false) => {
     setIsOtherSelected(isOther);
     if (!isOther) {
       setSelectedAmount(amount);
       setCustomAmount("");
     }
+    hasInteractedRef.current = true;
+    trackSevaEvent("amount_selected", {
+      amount: isOther ? null : amount,
+      is_custom: isOther,
+      donation_type: frequency === "One Time" ? "one_time" : "recurring",
+    });
   };
 
   const handleCustomAmountChange = (val) => {
@@ -108,6 +149,12 @@ const SevaScreen = () => {
 
   const handleFrequencyChange = (freq) => {
     setFrequency(freq);
+    lastFrequencyRef.current = freq;
+    hasInteractedRef.current = true;
+    trackSevaEvent("frequency_changed", {
+      frequency: freq,
+      donation_type: freq === "One Time" ? "one_time" : "recurring",
+    });
   };
 
   const effectiveDonationType = frequency === "One Time" ? "one_time" : "recurring";
@@ -124,29 +171,7 @@ const SevaScreen = () => {
     appInBackgroundRef.current = false;
 
     try {
-      if (await InAppBrowser.isAvailable()) {
-        await InAppBrowser.open(url, {
-          dismissButtonStyle: "cancel",
-          preferredBarTintColor: barColor,
-          preferredControlTintColor: controlColor,
-          readerMode: false,
-          animated: true,
-          modalPresentationStyle: "fullScreen",
-          modalTransitionStyle: "coverVertical",
-          modalEnabled: true,
-          showTitle: true,
-          toolbarColor: barColor,
-          secondaryToolbarColor: controlColor,
-          navigationBarColor: barColor,
-          enableUrlBarHiding: true,
-          enableDefaultShare: false,
-          forceCloseOnRedirection: false,
-        });
-      } else {
-        await Linking.openURL(url);
-      }
-    } catch (_) {
-      Linking.openURL(url).catch(() => {});
+      await openInAppBrowser(url, { barColor, controlColor });
     } finally {
       isBrowserOpenRef.current = false;
       // Only clear the pending URL if the browser closed because the user dismissed it,
@@ -192,6 +217,13 @@ const SevaScreen = () => {
       finalAmount = 10; // Fallback
     }
 
+    hasDonatedRef.current = true;
+    trackSevaEvent("donate_tapped", {
+      amount: finalAmount,
+      is_custom: isOtherSelected,
+      donation_type: effectiveDonationType,
+    });
+
     const url = buildQgivUrl({
       amount: finalAmount,
       isCustomAmount: isOtherSelected,
@@ -199,8 +231,22 @@ const SevaScreen = () => {
       frequency,
     });
 
-    await openBrowserForUrl(url);
+    // Platform split for the PAYMENT surface (see DonationWebView.jsx):
+    // - Android: in-process WebView screen so the page survives backgrounding
+    //   (Android kills the RN process when a Chrome Custom Tab runs on top).
+    // - iOS: InAppBrowser/SFSafariViewController — no backgrounding kill there,
+    //   and it preserves the web-handoff surface Apple review expects.
+    // Both branches launch synchronously (no await) so payment_success fires at
+    // the same point — on browser-open — on both platforms. openBrowserForUrl
+    // manages its own async lifecycle (and the resume re-open) internally.
+    if (Platform.OS === "android") {
+      navigation.navigate("DonationWebView", { url });
+    } else {
+      openBrowserForUrl(url);
+    }
 
+    // NOTE: not a real success signal — Qgiv holds payment truth. Fired on
+    // browser-open at the client's request to approximate conversion intent.
     trackSevaEvent("payment_success", {
       provider: "qgiv",
       donation_type: effectiveDonationType,
@@ -212,6 +258,7 @@ const SevaScreen = () => {
     effectiveDonationType,
     frequency,
     dispatch,
+    navigation,
     openBrowserForUrl,
   ]);
 
@@ -351,15 +398,25 @@ const SevaScreen = () => {
               <View style={styles.amountRow}>
                 <CustomText style={styles.currency}>$</CustomText>
                 {isOtherSelected ? (
-                  <TextInput
-                    style={styles.amountDisplay}
-                    value={customAmount}
-                    onChangeText={handleCustomAmountChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#C0CADB"
-                    autoFocus
-                  />
+                  <View style={styles.amountInputWrap}>
+                    <TextInput
+                      style={styles.amountDisplay}
+                      value={customAmount}
+                      onChangeText={handleCustomAmountChange}
+                      keyboardType="numeric"
+                      cursorColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
+                      selectionColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
+                      autoFocus
+                    />
+                    {customAmount === "" && (
+                      <CustomText
+                        style={[styles.amountDisplay, styles.amountPlaceholder]}
+                        pointerEvents="none"
+                      >
+                        0
+                      </CustomText>
+                    )}
+                  </View>
                 ) : (
                   <CustomText style={styles.amountDisplay}>{displayAmount}</CustomText>
                 )}
@@ -410,7 +467,7 @@ const SevaScreen = () => {
 
           {/* Frequency / donation type */}
           <View style={styles.frequencyContainer}>
-            {["Monthly", "Annually", "One Time"].map((freq) => (
+            {["Monthly", "One Time"].map((freq) => (
               <Pressable
                 key={freq}
                 style={styles.frequencyOption}

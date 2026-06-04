@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Linking } from "react-native";
-import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import TrackPlayer from "react-native-track-player";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSelector, useDispatch } from "react-redux";
@@ -466,8 +465,9 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   // init completes re-captures the closures with the correct, ready state.
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
+      const lengthLabel = BANI_LENGTH_LABEL[baniLength] || baniLength;
       const titleString = isAudioUnavailableForCurrentLengthOnly
-        ? STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR_THIS_LENGTH
+        ? `${STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR} the ${lengthLabel} version of`
         : STRINGS.WE_DO_NOT_HAVE_AUDIOS_FOR;
 
       return (
@@ -475,33 +475,17 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
           title={titleString}
           baniTitle={title}
           buttonPress={async () => {
-            const formUrl = "https://forms.gle/N4YBdzfYGLAFsDMW7";
-            await trackAudioEvent("requestAudioLink", title || "unknown");
             try {
               await trackAudioLinkRequest(title, baniID, baniLength);
-              if (await InAppBrowser.isAvailable()) {
-                await InAppBrowser.open(formUrl, {
-                  dismissButtonStyle: "cancel",
-                  preferredBarTintColor: "#113979",
-                  preferredControlTintColor: "#FAF9F6",
-                  readerMode: false,
-                  animated: true,
-                  modalPresentationStyle: "fullScreen",
-                  modalTransitionStyle: "coverVertical",
-                  modalEnabled: true,
-                  showTitle: true,
-                  toolbarColor: "#113979",
-                  secondaryToolbarColor: "#FAF9F6",
-                  navigationBarColor: "#113979",
-                  enableUrlBarHiding: true,
-                  enableDefaultShare: false,
-                  forceCloseOnRedirection: false,
-                });
-              } else {
-                await Linking.openURL(formUrl);
+              await Linking.openURL("https://forms.gle/N4YBdzfYGLAFsDMW7");
+            } catch (error) {
+              // Fallback: try opening the URL again if first attempt fails
+              try {
+                await Linking.openURL("https://forms.gle/N4YBdzfYGLAFsDMW7");
+              } catch (fallbackError) {
+                // Silently handle error - user may have no browser/app to handle URL
+                console.warn("Failed to open URL:", fallbackError);
               }
-            } catch (_) {
-              Linking.openURL(formUrl).catch(() => {});
             }
           }}
           buttonText={STRINGS.REQUEST_AUDIO_FOR_THIS_PAATH}
