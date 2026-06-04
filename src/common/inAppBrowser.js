@@ -36,6 +36,12 @@ export const openInAppBrowser = async (url, options = {}) => {
       enableUrlBarHiding: true,
       enableDefaultShare: false,
       forceCloseOnRedirection: false,
+      // Android: without this, the library adds FLAG_ACTIVITY_NO_HISTORY to the
+      // Chrome Custom Tab, which destroys the tab the instant the app is
+      // backgrounded (Home / app-switch) — losing the donation/payment page.
+      // Keeping it in recents lets the tab survive backgrounding so the user
+      // can switch away and return with full context, like Gmail/Instagram.
+      showInRecents: true,
     });
   } catch (_) {
     Linking.openURL(url).catch(() => {});

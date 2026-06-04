@@ -34,24 +34,24 @@ const MinimizePlayer = ({
   const tapTick = useSelector((state) => state.readerTapTick);
   const [isExpanded, setIsExpanded] = useState(true);
   const [textWidth, setTextWidth] = useState(null);
-  const expandAnim = useRef(new Animated.Value(1)).current;
   const collapseTimer = useRef(null);
   const tickInitRef = useRef(true);
   // Ref so the PanResponder closure (created once) always sees the latest
   // measured text width without needing to be recreated.
   const textWidthRef = useRef(null);
+  // Mirror of isExpanded for the drag-release clamp (closure is created once).
+  const isExpandedRef = useRef(true);
 
   const armCollapse = useCallback(() => {
     if (collapseTimer.current) clearTimeout(collapseTimer.current);
     collapseTimer.current = setTimeout(() => setIsExpanded(false), COLLAPSE_DELAY_MS);
   }, []);
 
+  // No expand/collapse animation — the pill snaps instantly between mini
+  // (circle only) and compact (circle + text). This effect only keeps
+  // isExpandedRef in sync and (re)arms the auto-collapse timer.
   useEffect(() => {
-    Animated.timing(expandAnim, {
-      toValue: isExpanded ? 1 : 0,
-      duration: 220,
-      useNativeDriver: false,
-    }).start();
+    isExpandedRef.current = isExpanded;
     if (isExpanded) {
       armCollapse();
     } else if (collapseTimer.current) {
@@ -61,7 +61,7 @@ const MinimizePlayer = ({
     return () => {
       if (collapseTimer.current) clearTimeout(collapseTimer.current);
     };
-  }, [isExpanded, expandAnim, armCollapse]);
+  }, [isExpanded, armCollapse]);
 
   // A tap anywhere in the bani WebView toggles expansion.
   useEffect(() => {
@@ -143,15 +143,20 @@ const MinimizePlayer = ({
 
           const newIsOnLeft = x + w / 2 < sw / 2;
 
-          // When on the right, reserve textWidth on the left so the expanded
-          // pill can never flow past the left edge (smart clamp from handoff).
-          // When on the left, the container grows rightward — no reserve needed.
-          const textReserve = newIsOnLeft ? 0 : (textWidthRef.current ?? 140);
+          // Clamp using the EXPANDED footprint so the pill can never leave the
+          // viewport on ANY edge once the user taps to expand it — even when it
+          // is currently collapsed. The text adds `delta` px on the growth side:
+          // right-anchored pills grow LEFT, left-anchored pills grow RIGHT, so
+          // the resting box [minEdge, maxEdge] must fit within [SIDE, sw-SIDE].
+          const delta = textWidthRef.current ?? 140;
+          const expandedW = isExpandedRef.current ? w : w + delta;
+          const minEdge = newIsOnLeft ? x : x + w - expandedW;
+          const maxEdge = newIsOnLeft ? x + expandedW : x + w;
 
           let dx = 0;
           let dy = 0;
-          if (x - textReserve < SIDE) dx = SIDE + textReserve - x;
-          else if (x + w > sw - SIDE) dx = sw - SIDE - (x + w);
+          if (minEdge < SIDE) dx = SIDE - minEdge;
+          else if (maxEdge > sw - SIDE) dx = sw - SIDE - maxEdge;
           if (y < TOP) dy = TOP - y;
           else if (y + h > sh - BOTTOM) dy = sh - BOTTOM - (y + h);
 
@@ -272,17 +277,15 @@ const MinimizePlayer = ({
         </View>
       </Pressable>
 
-      <Animated.View
+      <View
         pointerEvents={isExpanded ? "auto" : "none"}
         style={[
           styles.textWrap,
-          { opacity: expandAnim },
-          textWidth != null && {
-            width: expandAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, textWidth],
-            }),
-          },
+          { opacity: isExpanded ? 1 : 0 },
+          // Collapse to width 0 instantly when not expanded. Before the text is
+          // measured (textWidth == null) we leave width unset so it lays out at
+          // its natural size for the one-time onLayout measurement.
+          textWidth != null && { width: isExpanded ? textWidth : 0 },
         ]}
       >
         <Pressable
@@ -301,7 +304,7 @@ const MinimizePlayer = ({
             {displayName}
           </CustomText>
         </Pressable>
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 };

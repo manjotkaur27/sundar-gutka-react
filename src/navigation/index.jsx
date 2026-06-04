@@ -21,6 +21,7 @@ import HomeScreen from "../HomeScreen";
 import ReaderScreen from "../ReaderScreen";
 import Settings from "../Settings";
 import SevaScreen from "../SevaScreen";
+import DonationWebView from "../SevaScreen/DonationWebView";
 import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
 import BottomNavigation from "../common/components/BottomNavigation";
 
@@ -145,6 +146,11 @@ const Navigation = () => {
           component={EditBaniOrder}
         />
         <Stack.Screen name="Bookmarks" component={Bookmarks} />
+        <Stack.Screen
+          name="DonationWebView"
+          component={DonationWebView}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="ReminderOptions" component={ReminderOptions} />
         <Stack.Screen name="DatabaseUpdate" component={DatabaseUpdateScreen} />
         <Stack.Screen
