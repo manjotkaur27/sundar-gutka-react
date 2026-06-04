@@ -12,6 +12,7 @@ import {
 } from "@common";
 import AboutScreen from "../AboutScreen";
 import Bookmarks from "../Bookmarks";
+import ManageDownloads from "../ManageDownloads";
 import { trackScreenView } from "../common/firebase/analytics";
 import DatabaseUpdateScreen from "../DatabaseUpdate";
 import DashboardScreen from "../DashboardScreen";
@@ -147,6 +148,11 @@ const Navigation = () => {
         <Stack.Screen name="Bookmarks" component={Bookmarks} />
         <Stack.Screen name="ReminderOptions" component={ReminderOptions} />
         <Stack.Screen name="DatabaseUpdate" component={DatabaseUpdateScreen} />
+        <Stack.Screen
+          name="ManageDownloads"
+          component={ManageDownloads}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Settings"
           component={Settings}

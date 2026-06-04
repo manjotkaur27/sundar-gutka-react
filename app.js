@@ -21,6 +21,8 @@ import {
 import ThemeProvider from "./src/common/context/ThemeProvider";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
 import Navigation from "./src/navigation";
+import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
+import useStorageMigration from "./src/common/hooks/useStorageMigration";
 
 const { store, persistor } = createStore();
 
@@ -35,6 +37,13 @@ const handleBeforeLift = () => {
   if (language) {
     STRINGS.setLanguage(language);
   }
+};
+
+// Mounts Redux-dependent background services inside the Provider tree.
+const GlobalServices = () => {
+  useGlobalDownloadManager();
+  useStorageMigration();
+  return null;
 };
 
 const App = () => {
@@ -86,6 +95,7 @@ const App = () => {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor} onBeforeLift={handleBeforeLift}>
+        <GlobalServices />
         <ThemeProvider>
           <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
             <SafeAreaProvider>

@@ -58,3 +58,21 @@ export const CLEAR_DONOR_STATE = "CLEAR_DONOR_STATE";
 
 // Floating mini-player drag state — used to disable WebView scroll while dragging
 export const SET_PLAYER_DRAGGING = "SET_PLAYER_DRAGGING";
+
+// Download queue
+export const ENQUEUE_DOWNLOAD            = 'ENQUEUE_DOWNLOAD';
+export const UPDATE_DOWNLOAD_STATUS      = 'UPDATE_DOWNLOAD_STATUS';
+export const UPDATE_DOWNLOAD_PROGRESS    = 'UPDATE_DOWNLOAD_PROGRESS';
+export const REMOVE_DOWNLOAD_QUEUE_ENTRY = 'REMOVE_DOWNLOAD_QUEUE_ENTRY';
+export const RETRY_DOWNLOAD              = 'RETRY_DOWNLOAD';
+export const REQUEUE_PAUSED_DOWNLOADS    = 'REQUEUE_PAUSED_DOWNLOADS';
+
+// Download registry
+export const ADD_DOWNLOAD_ENTRY      = 'ADD_DOWNLOAD_ENTRY';
+export const REMOVE_DOWNLOAD_ENTRIES = 'REMOVE_DOWNLOAD_ENTRIES';
+export const SET_DOWNLOAD_REGISTRY   = 'SET_DOWNLOAD_REGISTRY';
+export const CLEAR_DOWNLOAD_REGISTRY = 'CLEAR_DOWNLOAD_REGISTRY';
+
+// Download settings
+export const TOGGLE_DOWNLOAD_WIFI_ONLY        = 'TOGGLE_DOWNLOAD_WIFI_ONLY';
+export const TOGGLE_DOWNLOAD_WARN_MOBILE_DATA = 'TOGGLE_DOWNLOAD_WARN_MOBILE_DATA';

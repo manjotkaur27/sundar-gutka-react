@@ -1,11 +1,14 @@
 import React from "react";
 import { View, Pressable, ActivityIndicator } from "react-native";
 import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
+import { Icon } from "@rneui/themed";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText } from "@common";
 import { audioTrackDialogStyles } from "../style";
+import { getLocalTrackPath } from "../utils/audioDownloader";
 
 const ScrollViewComponent = ({
   tracks,
@@ -17,6 +20,8 @@ const ScrollViewComponent = ({
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(audioTrackDialogStyles);
+  const downloadQueue    = useSelector((s) => s.downloadQueue);
+  const downloadRegistry = useSelector((s) => s.downloadRegistry);
   return (
     <View style={styles.trackList}>
       {tracks.map((track) => (
@@ -45,6 +50,40 @@ const ScrollViewComponent = ({
           >
             {track.displayName}
           </CustomText>
+
+          {/* Passive download status indicators */}
+          {track.audioUrl && (() => {
+            const tk = getLocalTrackPath(track.audioUrl);
+            if (downloadRegistry[tk]) {
+              return (
+                <Icon
+                  name="offline-pin"
+                  type="material"
+                  size={16}
+                  color={
+                    selectedTrack && selectedTrack.id === track.id
+                      ? theme.staticColors.WHITE_COLOR
+                      : theme.colors.primary
+                  }
+                  style={{ marginRight: 4 }}
+                />
+              );
+            }
+            if (downloadQueue[tk]?.status === 'downloading' || downloadQueue[tk]?.status === 'queued') {
+              return (
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    selectedTrack && selectedTrack.id === track.id
+                      ? theme.staticColors.WHITE_COLOR
+                      : theme.colors.primary
+                  }
+                  style={{ marginRight: 4 }}
+                />
+              );
+            }
+            return null;
+          })()}
 
           {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
             <ActivityIndicator

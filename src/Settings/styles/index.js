@@ -97,6 +97,12 @@ const createStyles = (theme) => ({
     fontSize: theme.typography.sizes.lg,
     lineHeight: theme.typography.sizes.lg * theme.typography.lineHeights.normal,
   },
+  listItemSubtitle: {
+    color: theme.colors.textDisabled,
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    marginTop: 2,
+  },
   containerNightStyles: {
     backgroundColor: theme.colors.surfaceGrey,
     // Override RNEUI's `bottomDivider` hairline (1px ÷ pixelRatio ≈ 0.38dp),

@@ -157,6 +157,8 @@ jest.mock("../../hooks", () => ({
   useDownloadManager: jest.fn(() => ({
     isDownloading: false,
     isDownloaded: false,
+    progress: 0,
+    handleDownload: jest.fn(),
   })),
   useBookmarks: jest.fn(),
   useArtistListeningDuration: jest.fn(),
@@ -200,14 +202,14 @@ jest.mock("../AudioSettingsModal", () => {
   return AudioSettingsModal;
 });
 
-jest.mock("../DownloadBadge", () => {
+jest.mock("../DownloadButton", () => {
   const { View, Text } = require("react-native");
-  const DownloadBadge = () => (
-    <View testID="download-badge">
-      <Text>Downloading…</Text>
+  const DownloadButton = () => (
+    <View testID="download-button">
+      <Text>Download</Text>
     </View>
   );
-  return DownloadBadge;
+  return DownloadButton;
 });
 
 jest.mock("../ScrollViewComponent", () => {
@@ -297,14 +299,15 @@ describe("AudioControlBar", () => {
     expect(getByText("Test Track")).toBeTruthy();
   });
 
-  it("shows DownloadBadge when track is downloading", async () => {
+  it("shows DownloadButton for current track", async () => {
     useDownloadManager.mockImplementation(() => ({
-      isDownloading: true,
+      isDownloading: false,
       isDownloaded: false,
+      handleDownload: jest.fn(),
     }));
     const props = createProps();
     const { getByTestId } = await renderComponent(props);
-    expect(getByTestId("download-badge")).toBeTruthy();
+    expect(getByTestId("download-button")).toBeTruthy();
   });
 
   it("calls handlePlayPause when play button is pressed", async () => {

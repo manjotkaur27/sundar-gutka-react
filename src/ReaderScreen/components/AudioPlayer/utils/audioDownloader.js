@@ -3,6 +3,7 @@ import {
   exists,
   stat,
   DocumentDirectoryPath,
+  ExternalDirectoryPath,
   unlink,
   mkdir,
   readDir,
@@ -13,15 +14,13 @@ import { logError, logMessage } from "@common";
 import { checkIsJsonRemoteExists } from "./checkHelper";
 import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
 
-/**
- * Audio Downloader Utility
- *
- * Handles downloading audio tracks with progress tracking and file management
- */
-
-// Audio files directory
-const AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio`;
+// Downloads go to external storage on Android (survives "Clear Storage").
+// ExternalDirectoryPath is null on iOS — falls back to DocumentDirectoryPath.
+const BASE_STORAGE_DIR = ExternalDirectoryPath ?? DocumentDirectoryPath;
+const AUDIO_DIRECTORY = `${BASE_STORAGE_DIR}/audio`;
+// Prefetch is ephemeral LRU cache — kept internal so "Clear Data" wipes it.
 const PREFETCH_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_prefetch`;
+export const AUDIO_DIRECTORY_PATH = AUDIO_DIRECTORY;
 const PREFETCH_INDEX_PATH = `${PREFETCH_AUDIO_DIRECTORY}/.prefetch-index.json`;
 
 /**
@@ -40,7 +39,7 @@ const generateFilename = (url) => {
   }
 };
 
-const ensureArtistDirectory = async (artistName, baseDirectory = AUDIO_DIRECTORY) => {
+export const ensureArtistDirectory = async (artistName, baseDirectory = AUDIO_DIRECTORY) => {
   const audioDirectoryExists = await exists(baseDirectory);
 
   if (!audioDirectoryExists) {

@@ -34,7 +34,7 @@ import {
 } from "../../utils/getSequenceFromPosition";
 import ActionComponents from "../ActionComponent";
 import AudioSettingsModal from "../AudioSettingsModal";
-import DownloadBadge from "../DownloadBadge";
+import DownloadButton from "../DownloadButton";
 import MinimizePlayer from "../MinimizePlayer";
 import ScrollViewComponent from "../ScrollViewComponent";
 
@@ -598,7 +598,7 @@ const AudioControlBar = ({
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {isDownloading && !isDownloaded && !isMinimized && <DownloadBadge />}
+      {/* DownloadBadge replaced by DownloadButton in the trackInfo row */}
       {renderMini && (
         <MinimizePlayer
           setIsMinimized={setIsMinimized}
@@ -684,14 +684,27 @@ const AudioControlBar = ({
         {/* Main Playback Section */}
         <View style={[styles.mainSection]}>
           <View style={styles.trackInfo}>
-            <View style={styles.trackInfoLeft}>
+            {/* Artist name — flex:1 so it shrinks before pushing the right group */}
+            <View style={[styles.trackInfoLeft, { flex: 1, minWidth: 0 }]}>
               {currentPlaying && currentPlaying.displayName && (
-                <CustomText style={styles.trackName}>{currentPlaying.displayName}</CustomText>
+                <CustomText style={styles.trackName} numberOfLines={1} ellipsizeMode="tail">
+                  {currentPlaying.displayName}
+                </CustomText>
               )}
             </View>
-            <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
-              {formatTime(safePosition)}
-            </CustomText>
+            {/* Download indicator + timestamp — stay right-aligned as a unit */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {currentPlaying && (
+                <DownloadButton
+                  track={currentPlaying}
+                  baniTitle={title}
+                  baniId={baniID}
+                />
+              )}
+              <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
+                {formatTime(safePosition)}
+              </CustomText>
+            </View>
           </View>
 
           <View style={styles.playbackControls}>

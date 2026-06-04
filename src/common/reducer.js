@@ -279,6 +279,113 @@ const donorType = createReducer(null, {
   [actionTypes.CLEAR_DONOR_STATE]: () => null,
 });
 
+// Download queue — entries stuck in 'downloading' at rehydrate had their native
+// job killed; reset them to 'queued' so the engine resumes from partialBytes.
+const downloadQueue = (state = {}, action) => {
+  switch (action.type) {
+    case 'persist/REHYDRATE': {
+      const persisted = action.payload?.downloadQueue ?? {};
+      const healed = {};
+      Object.entries(persisted).forEach(([k, t]) => {
+        healed[k] = t.status === 'downloading'
+          ? { ...t, status: 'queued', progress: 0, jobId: null }
+          : t;
+      });
+      return healed;
+    }
+    case actionTypes.ENQUEUE_DOWNLOAD:
+      if (state[action.payload.trackKey]) return state;
+      return {
+        ...state,
+        [action.payload.trackKey]: {
+          ...action.payload,
+          status: 'queued',
+          progress: 0,
+          partialBytes: 0,
+          retryCount: 0,
+          errorMessage: null,
+          jobId: null,
+        },
+      };
+    case actionTypes.UPDATE_DOWNLOAD_STATUS:
+      if (!state[action.payload.trackKey]) return state;
+      return {
+        ...state,
+        [action.payload.trackKey]: {
+          ...state[action.payload.trackKey],
+          ...action.payload,
+        },
+      };
+    case actionTypes.UPDATE_DOWNLOAD_PROGRESS:
+      if (!state[action.payload.trackKey]) return state;
+      return {
+        ...state,
+        [action.payload.trackKey]: {
+          ...state[action.payload.trackKey],
+          progress: action.payload.progress,
+          writtenBytes: action.payload.writtenBytes,
+          ...(action.payload.partialBytes != null && { partialBytes: action.payload.partialBytes }),
+        },
+      };
+    case actionTypes.REMOVE_DOWNLOAD_QUEUE_ENTRY: {
+      const next = { ...state };
+      delete next[action.payload.trackKey];
+      return next;
+    }
+    case actionTypes.RETRY_DOWNLOAD:
+      if (!state[action.payload.trackKey]) return state;
+      return {
+        ...state,
+        [action.payload.trackKey]: {
+          ...state[action.payload.trackKey],
+          status: 'queued',
+          progress: 0,
+          retryCount: 0,
+          errorMessage: null,
+        },
+      };
+    case actionTypes.REQUEUE_PAUSED_DOWNLOADS: {
+      const next = { ...state };
+      action.payload.statuses.forEach((pausedStatus) => {
+        Object.keys(next).forEach((k) => {
+          if (next[k].status === pausedStatus) {
+            next[k] = { ...next[k], status: 'queued' };
+          }
+        });
+      });
+      return next;
+    }
+    default:
+      return state;
+  }
+};
+
+const downloadRegistry = (state = {}, action) => {
+  switch (action.type) {
+    case actionTypes.ADD_DOWNLOAD_ENTRY:
+      return { ...state, [action.payload.relativePath]: action.payload };
+    case actionTypes.REMOVE_DOWNLOAD_ENTRIES: {
+      const next = { ...state };
+      action.payload.forEach((k) => delete next[k]);
+      return next;
+    }
+    case actionTypes.SET_DOWNLOAD_REGISTRY:
+      return action.payload;
+    case actionTypes.CLEAR_DOWNLOAD_REGISTRY:
+      return {};
+    default:
+      return state;
+  }
+};
+
+const downloadWifiOnly = createReducer(true, {
+  [actionTypes.TOGGLE_DOWNLOAD_WIFI_ONLY]: (state, action) => action.value,
+});
+
+const downloadWarnMobileData = createReducer(true, {
+  [actionTypes.TOGGLE_DOWNLOAD_WARN_MOBILE_DATA]: (state, action) => action.value,
+});
+
 const rootReducer = combineReducers({
   donor,
   donorType,
@@ -327,5 +434,9 @@ const rootReducer = combineReducers({
   currentBani,
   readerTapTick,
   isPlayerDragging,
+  downloadQueue,
+  downloadRegistry,
+  downloadWifiOnly,
+  downloadWarnMobileData,
 });
 export default rootReducer;

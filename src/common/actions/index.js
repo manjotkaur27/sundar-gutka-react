@@ -232,3 +232,65 @@ export const clearDonorState = () => {
 export const setPlayerDragging = (value) => {
   return { type: actionTypes.SET_PLAYER_DRAGGING, value };
 };
+
+// Download queue action creators
+export const enqueueDownload = (payload) => ({
+  type: actionTypes.ENQUEUE_DOWNLOAD,
+  payload,
+});
+
+export const updateDownloadStatus = (trackKey, status, extra = {}) => ({
+  type: actionTypes.UPDATE_DOWNLOAD_STATUS,
+  payload: { trackKey, status, ...extra },
+});
+
+export const updateDownloadProgress = (trackKey, progress, writtenBytes, partialBytes) => ({
+  type: actionTypes.UPDATE_DOWNLOAD_PROGRESS,
+  payload: { trackKey, progress, writtenBytes, partialBytes },
+});
+
+export const removeDownloadQueueEntry = (trackKey) => ({
+  type: actionTypes.REMOVE_DOWNLOAD_QUEUE_ENTRY,
+  payload: { trackKey },
+});
+
+export const retryDownload = (trackKey) => ({
+  type: actionTypes.RETRY_DOWNLOAD,
+  payload: { trackKey },
+});
+
+export const requeuePausedDownloads = (statuses) => ({
+  type: actionTypes.REQUEUE_PAUSED_DOWNLOADS,
+  payload: { statuses },
+});
+
+// Download registry action creators
+export const addDownloadEntry = (entry) => ({
+  type: actionTypes.ADD_DOWNLOAD_ENTRY,
+  payload: entry,
+});
+
+export const removeDownloadEntries = (keys) => ({
+  type: actionTypes.REMOVE_DOWNLOAD_ENTRIES,
+  payload: keys,
+});
+
+export const setDownloadRegistry = (registry) => ({
+  type: actionTypes.SET_DOWNLOAD_REGISTRY,
+  payload: registry,
+});
+
+export const clearDownloadRegistry = () => ({
+  type: actionTypes.CLEAR_DOWNLOAD_REGISTRY,
+});
+
+// Download settings action creators
+export const toggleDownloadWifiOnly = (value) => ({
+  type: actionTypes.TOGGLE_DOWNLOAD_WIFI_ONLY,
+  value,
+});
+
+export const toggleDownloadWarnMobileData = (value) => ({
+  type: actionTypes.TOGGLE_DOWNLOAD_WARN_MOBILE_DATA,
+  value,
+});
