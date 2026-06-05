@@ -70,46 +70,9 @@ const AudioControlBar = ({
   const styles = useThemedStyles(audioControlBarStyles);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);
+  // Instant swap between the full player and the mini pill — no crossfade
+  // animation (it caused flicker). Only one of the two is mounted at a time.
   const [isMinimized, setIsMinimized] = useState(false);
-  // Crossfade between the full player and the mini pill. transitionAnim:
-  // 0 = full visible, 1 = mini visible. Both are kept mounted for the duration
-  // of the fade (so there's no gap), then the off-screen one is unmounted so the
-  // WebView can reclaim the space. Driven on the native thread -> smooth on all
-  // devices.
-  const transitionAnim = useRef(new Animated.Value(0)).current;
-  const [renderFull, setRenderFull] = useState(true);
-  const [renderMini, setRenderMini] = useState(false);
-
-  useEffect(() => {
-    if (isMinimized) {
-      setRenderMini(true);
-      Animated.timing(transitionAnim, {
-        toValue: 1,
-        duration: 240,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setRenderFull(false);
-      });
-    } else {
-      setRenderFull(true);
-      Animated.timing(transitionAnim, {
-        toValue: 0,
-        duration: 240,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setRenderMini(false);
-      });
-    }
-  }, [isMinimized, transitionAnim]);
-
-  const fullOpacity = transitionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-  const fullScale = transitionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.97],
-  });
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
   const [isLyricsChecking, setIsLyricsChecking] = useState(true);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
@@ -599,7 +562,7 @@ const AudioControlBar = ({
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* DownloadBadge replaced by DownloadButton in the trackInfo row */}
-      {renderMini && (
+      {isMinimized && (
         <MinimizePlayer
           setIsMinimized={setIsMinimized}
           handlePlayPause={handlePlayPause}
@@ -608,16 +571,10 @@ const AudioControlBar = ({
           duration={sliderMax > 0 ? formatTime(sliderMax) : "0:00"}
           displayName={currentPlaying?.displayName || ""}
           isDragging={isPlayerDragging}
-          pointerEvents={isMinimized ? "auto" : "none"}
-          opacityStyle={{ opacity: transitionAnim }}
         />
       )}
-      {renderFull && (
-        <Animated.View
-          style={{ opacity: fullOpacity, transform: [{ scale: fullScale }] }}
-          pointerEvents={isMinimized ? "none" : "auto"}
-        >
-      <View style={[styles.mainContainer, Platform.OS === "ios" && styles.mainContainerIOS]}>
+      {!isMinimized && (
+        <View style={[styles.mainContainer, Platform.OS === "ios" && styles.mainContainerIOS]}>
         {Platform.OS === "ios" && (
           <BlurView
             style={styles.blurOverlay}
@@ -755,8 +712,7 @@ const AudioControlBar = ({
             </View>
           </View>
         </View>
-      </View>
-        </Animated.View>
+        </View>
       )}
     </View>
   );

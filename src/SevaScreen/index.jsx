@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   AppState,
   Linking,
+  Platform,
   Text,
   useWindowDimensions,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from "react-native-svg";
 import { useDispatch, useSelector } from "react-redux";
@@ -39,6 +41,7 @@ const SevaScreen = () => {
   const headlineFontSize = Math.round(Math.min(72, Math.max(52, screenWidth * 0.16)));
   const vPad = Math.round(screenHeight * 0.07);
   const dispatch = useDispatch();
+  const navigation = useNavigation();
 
   const language = useSelector((state) => state.language);
 
@@ -228,7 +231,19 @@ const SevaScreen = () => {
       frequency,
     });
 
-    await openBrowserForUrl(url);
+    // Platform split for the PAYMENT surface (see DonationWebView.jsx):
+    // - Android: in-process WebView screen so the page survives backgrounding
+    //   (Android kills the RN process when a Chrome Custom Tab runs on top).
+    // - iOS: InAppBrowser/SFSafariViewController — no backgrounding kill there,
+    //   and it preserves the web-handoff surface Apple review expects.
+    // Both branches launch synchronously (no await) so payment_success fires at
+    // the same point — on browser-open — on both platforms. openBrowserForUrl
+    // manages its own async lifecycle (and the resume re-open) internally.
+    if (Platform.OS === "android") {
+      navigation.navigate("DonationWebView", { url });
+    } else {
+      openBrowserForUrl(url);
+    }
 
     // NOTE: not a real success signal — Qgiv holds payment truth. Fired on
     // browser-open at the client's request to approximate conversion intent.
@@ -243,6 +258,7 @@ const SevaScreen = () => {
     effectiveDonationType,
     frequency,
     dispatch,
+    navigation,
     openBrowserForUrl,
   ]);
 
