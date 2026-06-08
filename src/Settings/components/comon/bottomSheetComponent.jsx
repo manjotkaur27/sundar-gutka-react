@@ -27,13 +27,10 @@ const BottomSheetComponent = ({
 
   const [orientation, setOrientation] = useState(width < height ? "PORTRAIT" : "LANDSCAPE");
   useEffect(() => {
-    Dimensions.addEventListener("change", ({ window: { widthDimension, heightDimenstion } }) => {
-      if (widthDimension < heightDimenstion) {
-        setOrientation(constant.PORTRAIT);
-      } else {
-        setOrientation(constant.LANDSCAPE);
-      }
+    const sub = Dimensions.addEventListener("change", ({ window: { width: w, height: h } }) => {
+      setOrientation(w < h ? constant.PORTRAIT : constant.LANDSCAPE);
     });
+    return () => sub?.remove?.();
   }, []);
   const bottomStyle = [];
   if (Platform.OS === "ios") {

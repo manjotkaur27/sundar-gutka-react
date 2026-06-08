@@ -322,7 +322,7 @@ const useTrackPlayer = () => {
     return prefetchPromise;
   }, []);
 
-  const play = async () => {
+  const play = useCallback(async () => {
     if (!isInitialized || !isAudio || !isAudioFeatureOn) {
       logMessage("Audio is not initialized or disabled in settings");
       return;
@@ -340,9 +340,9 @@ const useTrackPlayer = () => {
     } catch (error) {
       logError("Error playing track:", error);
     }
-  };
+  }, [isInitialized, isAudio, isAudioFeatureOn]);
 
-  const pause = async () => {
+  const pause = useCallback(async () => {
     // Explicit user intent — don't let a pending reconnect retry fight it.
     cancelRecovery();
     try {
@@ -350,9 +350,9 @@ const useTrackPlayer = () => {
     } catch (error) {
       logError("Error pausing track:", error);
     }
-  };
+  }, []);
 
-  const stop = async () => {
+  const stop = useCallback(async () => {
     if (!isInitialized) return;
     cancelRecovery();
     try {
@@ -360,9 +360,9 @@ const useTrackPlayer = () => {
     } catch (error) {
       logError("Error stopping track:", error);
     }
-  };
+  }, [isInitialized]);
 
-  const reset = async () => {
+  const reset = useCallback(async () => {
     if (!isInitialized) return;
     cancelRecovery();
     try {
@@ -370,9 +370,9 @@ const useTrackPlayer = () => {
     } catch (error) {
       logError("Error resetting player:", error);
     }
-  };
+  }, [isInitialized]);
 
-  const seekTo = async (position) => {
+  const seekTo = useCallback(async (position) => {
     if (!isInitialized || !isAudio || !isAudioFeatureOn) {
       logMessage("Audio is not initialized or disabled in settings");
       return;
@@ -523,9 +523,10 @@ const useTrackPlayer = () => {
     } finally {
       seekInFlightRef.current = false;
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized, isAudio, isAudioFeatureOn]);
 
-  const addAndPlayTrack = async (
+  const addAndPlayTrack = useCallback(async (
     id,
     url,
     title,
@@ -638,9 +639,10 @@ const useTrackPlayer = () => {
     } catch (error) {
       logError("Error adding and playing track:", error);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized, isAudio, isAudioFeatureOn, reset, play, prefetchForSeek]);
 
-  const setRate = async (rate) => {
+  const setRate = useCallback(async (rate) => {
     if (!isInitialized) {
       logMessage("Audio is not initialized");
       return;
@@ -650,7 +652,7 @@ const useTrackPlayer = () => {
     } catch (error) {
       logError("Error setting playback rate:", error);
     }
-  };
+  }, [isInitialized]);
 
   return {
     isPlaying,

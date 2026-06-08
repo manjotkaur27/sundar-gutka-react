@@ -20,6 +20,7 @@ import {
 } from "@common";
 import { Header, AutoScrollComponent, AudioPlayer } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
+import useReadingSession from "@common/hooks/useReadingSession";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
 import { pauseTrack } from "@common/TrackPlayerUtils";
@@ -226,6 +227,7 @@ const Reader = ({ navigation, route }) => {
   ]);
 
   useBookmarks(webViewRef, shabad, bookmarkPosition);
+  useReadingSession({ baniId: id, baniTitle: titleUni || title, navigation });
 
   // Handle app state changes
   useEffect(() => {
@@ -263,12 +265,9 @@ const Reader = ({ navigation, route }) => {
   }, [savePosition, id]);
 
   const handleBackPress = useCallback(() => {
-    // Save position before navigating back
     saveScrollPosition();
     pauseAudioPlayback();
-    if (webViewRef?.current) {
-      navigation.goBack();
-    }
+    navigation.goBack();
     return true;
   }, [saveScrollPosition, navigation, pauseAudioPlayback]);
 
@@ -314,14 +313,14 @@ const Reader = ({ navigation, route }) => {
       } else if (data === "hide") {
         if (!recentManualToggle) toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {
-        // Capture element ID (and optional sequence) from WebView scroll events
+        // Capture element ID (and optional sequence) from WebView scroll events.
+        // Only update refs here — do NOT dispatch to Redux on every scroll tick.
+        // saveScrollPosition() reads these refs and dispatches once on blur/unmount.
         const payload = data.split("scroll-elementId-")[1];
         const [elementId, seqPart] = payload.split("|seq-");
         const sequence = seqPart || null;
         currentElementIdRef.current = elementId;
         currentSequenceRef.current = sequence;
-        // Save immediately when element ID changes
-        dispatch(actions.setPosition(elementId, id, sequence));
         if (shouldNavigateBack) {
           navigation.goBack();
           setShouldNavigateBack(false);

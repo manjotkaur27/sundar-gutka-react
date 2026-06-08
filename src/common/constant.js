@@ -122,4 +122,9 @@ export default {
     titleUni: "ਗੁਰ ਮੰਤ੍ਰ",
   },
   ICON_SIZE_SMALL: 18,
+  ANALYTICS_DB_NAME: "analytics_v01.db",
+  MIN_READ_SESSION_SECONDS: 240,
+  MIN_LISTEN_SESSION_SECONDS: 240,
+  KHALIS_APPS_API_URL: "",
+  ANALYTICS_SYNC_API_URL: "",
 };

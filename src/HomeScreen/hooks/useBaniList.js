@@ -9,24 +9,27 @@ const useBaniList = () => {
   const [baniListData, setBaniListData] = useState([]);
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const prevLanguageRef = useRef(transliterationLanguage);
+  // Ref so fetchBaniList can read latest baniList without being in its deps (prevents re-trigger loop)
+  const baniListRef = useRef(baniList);
+  useEffect(() => { baniListRef.current = baniList; }, [baniList]);
   const dispatch = useDispatch();
 
   const fetchBaniList = useCallback(async () => {
     logMessage("Fetching bani list");
     try {
-      if (prevLanguageRef.current !== transliterationLanguage || baniList.length === 0) {
+      if (prevLanguageRef.current !== transliterationLanguage || baniListRef.current.length === 0) {
         const transliteratedList = await getBaniList(transliterationLanguage);
         const orderedData = orderedBani(transliteratedList, baniOrder, transliterationLanguage);
         dispatch(actions.setBaniList(orderedData));
         setBaniListData(orderedData);
       } else {
-        setBaniListData(baniList);
+        setBaniListData(baniListRef.current);
       }
     } catch (error) {
       logError(error);
       FallBack();
     }
-  }, [transliterationLanguage, baniOrder, baniList]);
+  }, [transliterationLanguage, baniOrder]);
 
   useEffect(() => {
     fetchBaniList();

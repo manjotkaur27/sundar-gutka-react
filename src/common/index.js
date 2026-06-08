@@ -35,6 +35,11 @@ import {
   trackAudioLinkRequest,
   trackScrollProgress,
   trackTourEvent,
+  trackJourneyView,
+  trackKhalisAppClicked,
+  trackBaniCompleted,
+  trackAudioStarted,
+  trackAudioCompleted,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
 import baseFontSize, { validateBaniOrder } from "./helpers";
@@ -133,5 +138,10 @@ export {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackJourneyView,
+  trackKhalisAppClicked,
+  trackBaniCompleted,
+  trackAudioStarted,
+  trackAudioCompleted,
   ThemedSwitch,
 };

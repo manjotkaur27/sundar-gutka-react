@@ -68,14 +68,14 @@ const Navigation = () => {
     const previousRouteName = routeNameRef.current;
     const currentRouteName = navigationRef.current.getCurrentRoute().name;
     const currentRoute = navigationRef.current.getCurrentRoute();
+    routeNameRef.current = currentRouteName;
     if (previousRouteName !== currentRouteName) {
-      await trackScreenView(
+      trackScreenView(
         currentRouteName,
         currentRoute?.params?.key,
         currentRoute?.params?.params?.title
-      );
+      ).catch(() => {});
     }
-    routeNameRef.current = currentRouteName;
   };
 
   return (
