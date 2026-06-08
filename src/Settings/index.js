@@ -19,6 +19,7 @@ import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
 import BaniLengthComponent from "./components/baniLength";
 import CollectStatistics from "./components/collectStatistics";
+import ClearJourneyData from "./components/clearJourneyData";
 import ListItemWithIcon from "./components/comon/ListitemWithIcon";
 import DatabaseUpdateBanner from "./components/databaseUpdate";
 import Donate from "./components/donate";
@@ -98,6 +99,7 @@ const Settings = ({ navigation, route }) => {
         <RemindersComponent navigation={navigation} />
         <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
         <CollectStatistics />
+        <ClearJourneyData />
         <Donate />
         <ListItemWithIcon
           iconName="info"

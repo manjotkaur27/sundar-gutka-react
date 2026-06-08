@@ -92,19 +92,20 @@ const Navigation = () => {
     }
   };
 
-  const handleStateChange = async (state) => {
-    await handlingStateChange(state);
+  const handleStateChange = (state) => {
+    // Fire-and-forget — never await Firebase on the navigation state change path
+    handlingStateChange(state).catch(() => {});
     const previousRouteName = routeNameRef.current;
     const currentRouteName = navigationRef.current.getCurrentRoute().name;
     const currentRoute = navigationRef.current.getCurrentRoute();
+    routeNameRef.current = currentRouteName;
     if (previousRouteName !== currentRouteName) {
-      await trackScreenView(
+      trackScreenView(
         currentRouteName,
         currentRoute?.params?.key,
         currentRoute?.params?.params?.title
-      );
+      ).catch(() => {});
     }
-    routeNameRef.current = currentRouteName;
   };
 
   return (
@@ -113,9 +114,7 @@ const Navigation = () => {
       onReady={() => {
         routeNameRef.current = navigationRef.current.getCurrentRoute().name;
       }}
-      onStateChange={async (state) => {
-        await handleStateChange(state);
-      }}
+      onStateChange={handleStateChange}
     >
       <Stack.Navigator
         screenOptions={{

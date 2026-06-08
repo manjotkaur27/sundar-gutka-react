@@ -263,6 +263,66 @@ const trackSevaEvent = async (action, params = {}) => {
   }
 };
 
+// ─── Journey dashboard events ─────────────────────────────────────────────────
+
+const trackJourneyView = async (currentStreak, totalActiveDays) => {
+  try {
+    await logEvent(analytics, "journey_viewed", {
+      current_streak: safeInt(currentStreak),
+      total_active_days: safeInt(totalActiveDays),
+    });
+  } catch (error) {
+    logError(new Error(`journey_viewed tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+const trackKhalisAppClicked = async (appName) => {
+  try {
+    await logEvent(analytics, "khalis_app_clicked", {
+      app_name: safeStr(appName),
+    });
+  } catch (error) {
+    logError(new Error(`khalis_app_clicked tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+// ─── Session lifecycle events ─────────────────────────────────────────────────
+
+const trackBaniCompleted = async (baniId, baniTitle, durationSeconds) => {
+  try {
+    await logEvent(analytics, "bani_completed", {
+      bani_id: safeStr(baniId),
+      bani_title: safeStr(baniTitle),
+      duration_seconds: safeInt(durationSeconds),
+    });
+  } catch (error) {
+    logError(new Error(`bani_completed tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+const trackAudioStarted = async (audioId, baniName, artistName) => {
+  try {
+    await logEvent(analytics, "audio_started", {
+      audio_id: safeStr(audioId),
+      bani_name: safeStr(baniName),
+      artist_name: safeStr(artistName),
+    });
+  } catch (error) {
+    logError(new Error(`audio_started tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
+const trackAudioCompleted = async (durationSeconds, artistId) => {
+  try {
+    await logEvent(analytics, "audio_completed", {
+      duration_seconds: safeInt(durationSeconds),
+      artist_id: safeStr(artistId),
+    });
+  } catch (error) {
+    logError(new Error(`audio_completed tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
 export {
   allowTracking,
   trackReaderEvent,
@@ -279,4 +339,10 @@ export {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  // Journey + session lifecycle events
+  trackJourneyView,
+  trackKhalisAppClicked,
+  trackBaniCompleted,
+  trackAudioStarted,
+  trackAudioCompleted,
 };

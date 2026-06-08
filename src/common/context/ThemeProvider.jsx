@@ -10,6 +10,7 @@ import ThemeContext from "./ThemeContext";
 const ThemeProvider = ({ children }) => {
   const dispatch = useDispatch();
   const themeMode = useSelector((state) => state.theme);
+  const fontFace = useSelector((state) => state.fontFace);
   const [systemColorScheme, setSystemColorScheme] = useState(Appearance.getColorScheme());
 
   useEffect(() => {
@@ -31,8 +32,8 @@ const ThemeProvider = ({ children }) => {
   }, [themeMode, systemColorScheme]);
 
   const value = useMemo(
-    () => ({ theme, setThemeMode: (mode) => dispatch(setTheme(mode)) }),
-    [theme, dispatch]
+    () => ({ theme, fontFace, setThemeMode: (mode) => dispatch(setTheme(mode)) }),
+    [theme, fontFace, dispatch]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

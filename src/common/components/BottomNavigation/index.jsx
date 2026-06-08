@@ -93,8 +93,12 @@ const BottomNavigation = ({
     }
   }, []);
 
-  // Internet connectivity watchdog logic (strictly preserved)
+  // Internet connectivity watchdog — only run in the home tab bar instance.
+  // The Reader mounts its own BottomNavigation simultaneously, and the home
+  // instance is always present in the stack below Reader, so one watchdog suffices.
   useEffect(() => {
+    if (context === "reader") return;
+
     let isMounted = true;
 
     const syncConnectivity = async () => {
@@ -127,7 +131,7 @@ const BottomNavigation = ({
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [checkInternetConnection, dispatch, isAudio]);
+  }, [context, checkInternetConnection, dispatch]);
 
   // Standard home screen navigator items
   const homeNavigationItems = [

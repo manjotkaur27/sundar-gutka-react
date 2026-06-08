@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import ErrorBoundary from "react-native-error-boundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
@@ -13,6 +14,7 @@ import {
   STRINGS,
   logError,
   initializeCrashlytics,
+  setCustomKey,
   FallBack,
   resetBadgeCount,
   navigateTo,
@@ -42,6 +44,28 @@ const App = () => {
     // Code to run on component mount
     SplashScreen.hide(); // Hide the splash screen once everything is loaded
   }, []); // The empty array causes this effect to only run on mount
+
+  useEffect(() => {
+    const setUserProperties = async () => {
+      try {
+        let userId = await AsyncStorage.getItem("analytics_user_id");
+        if (!userId) {
+          userId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          await AsyncStorage.setItem("analytics_user_id", userId);
+        }
+        const { language } = store.getState();
+        setCustomKey({
+          user_id: userId,
+          app_language: language || "en-US",
+          platform: Platform.OS,
+          device_type: Platform.isPad === true ? "tablet" : "phone",
+        });
+      } catch (err) {
+        logError(err);
+      }
+    };
+    setUserProperties();
+  }, []);
 
   useEffect(() => {
     const runSetup = async () => {

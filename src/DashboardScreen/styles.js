@@ -2,21 +2,31 @@ import { StyleSheet } from "react-native";
 
 const createStyles = (theme) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 20,
+    scrollContent: {
+      flexGrow: 1,
+      backgroundColor: theme.mode === "dark" ? theme.colors.inactiveView : "#ffffff",
     },
-    title: {
-      fontSize: 28,
-      fontWeight: "bold",
-      color: theme.colors.primaryText,
-      marginBottom: 10,
+    divider: {
+      height: 1,
+      backgroundColor: theme.colors.separator,
+      marginHorizontal: 20,
     },
-    subtitle: {
-      fontSize: 18,
-      color: theme.colors.textDisabled,
+    sectionSpacer: {
+      height: 8,
+      backgroundColor: theme.mode === "dark" ? theme.colors.inactiveView : "#ffffff",
+    },
+    floatingHeader: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+    },
+    floatingStrip: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      zIndex: 9,
     },
   });
 

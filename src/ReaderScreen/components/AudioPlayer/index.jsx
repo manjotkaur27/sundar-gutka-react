@@ -22,6 +22,7 @@ import {
 } from "@common";
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
+import useListeningSession from "@common/hooks/useListeningSession";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 
 const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
@@ -80,13 +81,23 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     showTrackModal ? null : currentPlaying?.lyricsUrl,
     seekSyncRequest
   );
+  useListeningSession({
+    baniId: baniID,
+    baniTitle: title,
+    isPlaying,
+    currentPlayingId: currentPlaying?.id ?? null,
+    artistId: currentPlaying?.artistID ?? null,
+    artistName: currentPlaying?.displayName ?? null,
+  });
 
   useEffect(() => {
     trackBaniOpen(baniID, title, defaultAudio[baniID]?.displayName);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tracks the latest playback position and track metadata in a ref so the
-  // completion event handler always reads current values without stale closures.
+  // Ref so handleTrackSelect can read current position without triggering effect re-runs every 100ms
+  const progressRef = useRef(progress);
+  useEffect(() => { progressRef.current = progress; }, [progress]);
+
   const completionDataRef = useRef({ positionSec: 0, trackLengthSec: 0, artist: null });
   const completionFiredRef = useRef(false);
 
@@ -192,18 +203,8 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
 
       try {
         setIsPlayerActionLoading(true);
+        // handleTrackSelect internally calls addAndPlayTrack — do not call it again here
         await handleTrackSelect(firstPlayableTrack);
-        await addAndPlayTrack(
-          firstPlayableTrack.id,
-          firstPlayableTrack.audioUrl,
-          notificationTitle || title,
-          firstPlayableTrack.displayName,
-          firstPlayableTrack.lyricsUrl,
-          firstPlayableTrack.trackLengthSec,
-          firstPlayableTrack.trackSizeMB,
-          true,
-          firstPlayableTrack.remoteUrl || firstPlayableTrack.audioUrl
-        );
       } catch (error) {
         logError("Error auto-starting first track:", error);
       } finally {
@@ -223,7 +224,6 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     defaultAudio,
     baniID,
     handleTrackSelect,
-    addAndPlayTrack,
   ]);
 
   useEffect(() => {
@@ -356,7 +356,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isSelectingTrackRef.current = true;
 
         const previousTrack = currentPlaying;
-        const previousPosition = progress?.position;
+        const previousPosition = progressRef.current?.position;
 
         // Stop current playback and reset queue so same-track reopening
         // doesn't retain old timeline/state (critical for preview -> full play transition)
@@ -414,7 +414,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isSelectingTrackRef.current = false;
       }
     },
-    [baniID, isAudioEnabled, isAudioAutoPlay, isFocused, currentPlaying, progress?.position]
+    [baniID, isAudioEnabled, isAudioAutoPlay, isFocused, currentPlaying]
   );
 
   // Memoize error fallback renderer to prevent recreation

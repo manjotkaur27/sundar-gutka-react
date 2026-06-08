@@ -1,5 +1,5 @@
 import React from "react";
-import { Text } from "react-native";
+import { Text, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 
@@ -13,9 +13,17 @@ const CustomText = ({
   minimumFontScale,
 }) => {
   const { theme } = useTheme();
+  // Flatten to inspect fontWeight; pick real SemiBold variant for bold weights
+  // so we get the designed glyph instead of synthetic bold on Regular.
+  const flatStyle = StyleSheet.flatten(Array.isArray(style) ? style : [style]) ?? {};
+  const w = flatStyle.fontWeight;
+  const isBold = w === "700" || w === "bold" || w === "600" || w === "semibold";
+  const resolvedFont = flatStyle.fontFamily ?? (
+    isBold ? theme.typography.fonts.balooPaajiSemiBold : theme.typography.fonts.balooPaaji
+  );
   const textStyle = Array.isArray(style)
-    ? [{ fontFamily: theme.typography.fonts.balooPaaji }, ...style]
-    : [{ fontFamily: theme.typography.fonts.balooPaaji }, style];
+    ? [{ fontFamily: resolvedFont }, ...style]
+    : [{ fontFamily: resolvedFont }, style];
 
   return (
     <Text

@@ -31,6 +31,11 @@ import {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackJourneyView,
+  trackKhalisAppClicked,
+  trackBaniCompleted,
+  trackAudioStarted,
+  trackAudioCompleted,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
 import {
@@ -132,5 +137,10 @@ export {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackJourneyView,
+  trackKhalisAppClicked,
+  trackBaniCompleted,
+  trackAudioStarted,
+  trackAudioCompleted,
   ThemedSwitch,
 };
