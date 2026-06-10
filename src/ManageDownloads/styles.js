@@ -46,20 +46,23 @@ const createStyles = (theme) => ({
   },
 
   // ── Checkbox ────────────────────────────────────────────────────────────────
+  // In dark mode theme.colors.primary (#113979) is very dark on dark backgrounds.
+  // Use the lighter highlight blue (highlightTuk) so the checkbox is clearly
+  // visible and matches the lighter accent already used for tuk highlights.
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: theme.colors.primary,
+    borderColor: theme.mode === 'dark' ? theme.colors.highlightTuk : theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: theme.spacing.md_12,
     flexShrink: 0,
   },
   checkboxChecked: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.mode === 'dark' ? theme.colors.highlightTuk : theme.colors.primary,
+    borderColor: theme.mode === 'dark' ? theme.colors.highlightTuk : theme.colors.primary,
   },
 
   // ── Track text ──────────────────────────────────────────────────────────────

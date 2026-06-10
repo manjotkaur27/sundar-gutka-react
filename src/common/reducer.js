@@ -286,8 +286,12 @@ const downloadQueue = (state = {}, action) => {
     case 'persist/REHYDRATE': {
       const persisted = action.payload?.downloadQueue ?? {};
       const healed = {};
+      // 'downloading' = native task is re-attached on launch (or restarted if
+      // truly lost); 'paused_retry' = a backoff timer that didn't survive the
+      // restart. Both resolve to 'queued' so the engine reconciles them.
+      const reset = new Set(['downloading', 'paused_retry']);
       Object.entries(persisted).forEach(([k, t]) => {
-        healed[k] = t.status === 'downloading'
+        healed[k] = reset.has(t.status)
           ? { ...t, status: 'queued', progress: 0, jobId: null }
           : t;
       });
@@ -386,6 +390,11 @@ const downloadWarnMobileData = createReducer(true, {
   [actionTypes.TOGGLE_DOWNLOAD_WARN_MOBILE_DATA]: (state, action) => action.value,
 });
 
+// When true, streaming a bani automatically enqueues its download in the background.
+const autoDownloadOnStream = createReducer(false, {
+  [actionTypes.TOGGLE_AUTO_DOWNLOAD]: (state, action) => action.value,
+});
+
 const rootReducer = combineReducers({
   donor,
   donorType,
@@ -438,5 +447,6 @@ const rootReducer = combineReducers({
   downloadRegistry,
   downloadWifiOnly,
   downloadWarnMobileData,
+  autoDownloadOnStream,
 });
 export default rootReducer;

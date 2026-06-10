@@ -163,6 +163,18 @@ export const updateReminders = async (remindersOn, sound, remindersList) => {
   }
 };
 
+// Explicitly prompt for notification permission (Android 13+ POST_NOTIFICATIONS /
+// iOS alert). Used before the first download so the foreground-service download
+// notification is actually visible instead of silently denied.
+export const requestNotificationPermission = async () => {
+  try {
+    const settings = await notifee.requestPermission();
+    return settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
+  } catch (_) {
+    return false;
+  }
+};
+
 export const checkPermissions = async () => {
   // Check if broadcast permission is available (for older Android versions)
   const hasBroadcastPermission = await checkBroadcastPermission();

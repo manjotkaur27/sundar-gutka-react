@@ -3,6 +3,7 @@ import BackIconComponent from "./BackIconComponent";
 import BaniLengthSelector from "./BaniLengthSelector";
 import BaniList from "./BaniList/BaniList";
 import BottomNavigation from "./BottomNavigation";
+import ConfirmDialogHost, { showConfirm } from "./ConfirmDialog";
 import CustomText from "./CustomText";
 import FallBack from "./FallbackComponent";
 import GradientDivider from "./GradientDivider";
@@ -28,4 +29,6 @@ export {
   BackIconComponent,
   SettingsIconComponent,
   ThemedSwitch,
+  ConfirmDialogHost,
+  showConfirm,
 };

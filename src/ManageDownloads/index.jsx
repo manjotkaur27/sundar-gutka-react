@@ -3,7 +3,6 @@ import {
   View,
   SectionList,
   Pressable,
-  Alert,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
@@ -18,6 +17,7 @@ import {
   useBackHandler,
   STRINGS,
   CustomText,
+  showConfirm,
 } from '@common';
 import { BackIconComponent } from '@common/components';
 import useTheme from '@common/context';
@@ -130,43 +130,38 @@ const ManageDownloads = ({ navigation }) => {
     const keys = [...selected];
     const deletedMB = keys.reduce((s, k) => s + (downloadRegistry[k]?.sizeMB ?? 0), 0);
     const sizeStr = deletedMB > 0 ? ` (${formatMB(deletedMB)} MB)` : '';
-    Alert.alert(
-      STRINGS.DELETE_CONFIRM_TITLE,
-      STRINGS.DELETE_CONFIRM_MESSAGE.replace('{count}', String(keys.length)) + sizeStr,
-      [
-        { text: STRINGS.cancel, style: 'cancel' },
-        {
-          text: STRINGS.delete,
-          style: 'destructive',
-          onPress: async () => {
-            for (const key of keys) {
-              const base = `${AUDIO_DIRECTORY_PATH}/${key}`;
-              // eslint-disable-next-line no-await-in-loop
-              await unlink(base).catch(() => {});
-              // eslint-disable-next-line no-await-in-loop
-              await unlink(base.replace(/\.m4a$/, '.json')).catch(() => {});
-            }
-            dispatch(removeDownloadEntries(keys));
-            setSelected(new Set());
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: STRINGS.DELETE_CONFIRM_TITLE,
+      message: STRINGS.DELETE_CONFIRM_MESSAGE.replace('{count}', String(keys.length)) + sizeStr,
+      cancelText: STRINGS.cancel,
+      confirmText: STRINGS.delete,
+      destructive: true,
+      onConfirm: async () => {
+        await Promise.all(keys.map(async (key) => {
+          const base = `${AUDIO_DIRECTORY_PATH}/${key}`;
+          await unlink(base).catch(() => {});
+          await unlink(base.replace(/\.m4a$/, '.json')).catch(() => {});
+        }));
+        dispatch(removeDownloadEntries(keys));
+        setSelected(new Set());
+      },
+    });
   }, [selected, downloadRegistry, dispatch]);
 
   const cancelQueueEntry = useCallback((trackKey, displayName) => {
-    Alert.alert(
-      STRINGS.CANCEL_DOWNLOAD_TITLE,
-      STRINGS.CANCEL_DOWNLOAD_BODY.replace('{title}', displayName ?? ''),
-      [
-        { text: STRINGS.cancel, onPress: () => dispatch(removeDownloadQueueEntry(trackKey)) },
-        { text: STRINGS.ok, style: 'cancel' },
-      ]
-    );
+    showConfirm({
+      title: STRINGS.CANCEL_DOWNLOAD_TITLE,
+      message: STRINGS.CANCEL_DOWNLOAD_BODY.replace('{title}', displayName ?? ''),
+      cancelText: STRINGS.CANCEL_DOWNLOAD_KEEP,
+      confirmText: STRINGS.CANCEL_DOWNLOAD_CONFIRM,
+      destructive: true,
+      onConfirm: () => dispatch(removeDownloadQueueEntry(trackKey)),
+    });
   }, [dispatch]);
 
   const queueStatusLabel = (queueStatus, progress) => {
     if (queueStatus === 'downloading') return `${progress ?? 0}%`;
+    if (queueStatus === 'paused_user') return STRINGS.DOWNLOAD_PAUSED;
     if (queueStatus === 'paused_wifi_only') return STRINGS.DOWNLOAD_PAUSED_WIFI;
     if (queueStatus === 'paused_no_network') return STRINGS.DOWNLOAD_WAITING_NETWORK;
     if (queueStatus === 'failed') return STRINGS.DOWNLOAD_FAILED_RETRY;
@@ -240,23 +235,15 @@ const ManageDownloads = ({ navigation }) => {
         ]}
       >
         <View style={headerStyles.row}>
-          {/* Back button — matches AppBar's left side width */}
+          {/* Back button */}
           <View style={headerStyles.leftSlot}>
             <BackIconComponent size={30} color={theme.colors.primaryText} onPress={handleBack} />
           </View>
 
-          {/* Title — left-aligned with flex:1 so it never collides with actions */}
-          <CustomText
-            style={[
-              headerStyles.title,
-              { color: theme.colors.primaryText, fontFamily: theme.typography.fonts.balooPaajiSemiBold },
-            ]}
-            numberOfLines={1}
-          >
-            {STRINGS.MANAGE_DOWNLOADS}
-          </CustomText>
+          {/* Spacer — pushes actions to the right */}
+          <View style={{ flex: 1 }} />
 
-          {/* Action buttons — shrink as needed, never overflow */}
+          {/* Action buttons */}
           <View style={headerStyles.actions}>
             {selectableKeys.length > 0 && (
               <Pressable
@@ -278,6 +265,19 @@ const ManageDownloads = ({ navigation }) => {
                 </CustomText>
               </Pressable>
             )}
+          </View>
+
+          {/* Title — absolutely centered across the full bar width, z-above spacer */}
+          <View style={headerStyles.titleWrap} pointerEvents="none">
+            <CustomText
+              style={[
+                headerStyles.title,
+                { color: theme.colors.primaryText, fontFamily: theme.typography.fonts.balooPaajiSemiBold },
+              ]}
+              numberOfLines={1}
+            >
+              {STRINGS.MANAGE_DOWNLOADS}
+            </CustomText>
           </View>
         </View>
       </View>
@@ -335,11 +335,17 @@ const headerStyles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
+  titleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
-    flex: 1,
     fontSize: 17,
     fontWeight: '600',
-    marginRight: 8,
+    textAlign: 'center',
   },
   actions: {
     flexDirection: 'row',

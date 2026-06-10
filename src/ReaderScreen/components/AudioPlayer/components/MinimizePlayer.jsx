@@ -247,14 +247,18 @@ const MinimizePlayer = ({
     >
       <Pressable style={styles.progressContainer} onPress={onPlayPausePress}>
         <Svg width={size} height={size} style={styles.svgContainer}>
+          {/* Track ring: matches bani-reads progress bar background.
+              In dark mode the white-grey sits cleanly on the dark pill;
+              in light mode the existing TERTIARY_COLOR (#EEE) is correct. */}
           <Circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={theme.staticColors.TERTIARY_COLOR}
+            stroke={theme.mode === "dark" ? "rgba(255,255,255,0.22)" : theme.staticColors.TERTIARY_COLOR}
             strokeWidth={strokeWidth}
             fill="transparent"
           />
+          {/* Fill ring: primary (same as bani-reads fill) */}
           <Circle
             cx={size / 2}
             cy={size / 2}
@@ -268,11 +272,13 @@ const MinimizePlayer = ({
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
         </Svg>
+        {/* Icon color matches the full player's play/pause in both modes:
+            audioTitleText = white-ish (#BED2F2) in dark, brand blue in light. */}
         <View style={styles.playPauseButton}>
           {isPlaying ? (
-            <PauseIcon size={18} color={theme.colors.primary} />
+            <PauseIcon size={18} color={theme.colors.audioTitleText} />
           ) : (
-            <PlayIcon size={18} color={theme.colors.primary} />
+            <PlayIcon size={18} color={theme.colors.audioTitleText} />
           )}
         </View>
       </Pressable>

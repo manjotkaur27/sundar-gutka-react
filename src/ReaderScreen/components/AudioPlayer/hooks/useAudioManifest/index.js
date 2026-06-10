@@ -510,6 +510,33 @@ const useAudioManifest = (baniID) => {
       }
     } catch (error) {
       logError("Error fetching manifest:", error);
+
+      // Network unavailable — try to reconstruct from downloaded tracks that are
+      // already on disk. Merge with the emergency manifest (which supplies track
+      // IDs and remote URLs for all supported banis) so the player can load the
+      // local file immediately without any network request.
+      const offlineTracks = audioManifest?.[baniID];
+      if (offlineTracks && offlineTracks.length > 0) {
+        try {
+          const emergencyData = getEmergencyManifest();
+          const baseTracks = mapApiDataToTracks(emergencyData); // null for unsupported banis
+          const isExplicitlyEmpty =
+            BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID)) &&
+            (!baseTracks || baseTracks.length === 0);
+
+          if (!isExplicitlyEmpty) {
+            const merged = await mergeDownloadedTracks(baseTracks || [], offlineTracks);
+            if (merged.length > 0) {
+              setTracks(merged);
+              setDefaultTrack(merged);
+              return; // Loaded from local disk — don't surface a network error
+            }
+          }
+        } catch (mergeErr) {
+          logError("Offline merge failed:", mergeErr);
+        }
+      }
+
       setManifestError(error?.message || STRINGS.NETWORK_ERROR || STRINGS.PLEASE_TRY_AGAIN);
     } finally {
       setIsLoading(false);

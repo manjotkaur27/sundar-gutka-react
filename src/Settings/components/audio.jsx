@@ -3,7 +3,12 @@ import { View, LayoutAnimation, Platform } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import { ListItem, Icon } from "@rneui/themed";
-import { toggleAudioAutoPlay, toggleDownloadWifiOnly, toggleDownloadWarnMobileData } from "@common/actions";
+import {
+  toggleAudioAutoPlay,
+  toggleAutoDownload,
+  toggleDownloadWifiOnly,
+  toggleDownloadWarnMobileData,
+} from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { STRINGS, ListItemTitle, ThemedSwitch, CustomText } from "@common";
@@ -16,12 +21,15 @@ const Audio = () => {
   const navigation = useNavigation();
 
   const isAudioAutoPlay        = useSelector((state) => state.isAudioAutoPlay);
+  const autoDownloadOnStream   = useSelector((state) => state.autoDownloadOnStream);
   const downloadWifiOnly       = useSelector((state) => state.downloadWifiOnly);
   const downloadWarnMobileData = useSelector((state) => state.downloadWarnMobileData);
 
   const {
     AUDIO_AUTO_PLAY,
     MANAGE_DOWNLOADS,
+    AUTO_DOWNLOAD_ON_STREAM,
+    AUTO_DOWNLOAD_ON_STREAM_DESC,
     DOWNLOAD_WIFI_ONLY,
     DOWNLOAD_WIFI_ONLY_DESC,
     DOWNLOAD_WARN_MOBILE,
@@ -54,6 +62,24 @@ const Audio = () => {
         />
       </ListItem>
 
+      {/* Auto-download while streaming */}
+      <ListItem
+        bottomDivider
+        containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
+      >
+        <View style={styles.iconContainerStyle}>
+          <Icon color={theme.colors.primaryText} name="save-alt" type="material" size={26} />
+        </View>
+        <ListItem.Content>
+          <ListItemTitle title={AUTO_DOWNLOAD_ON_STREAM} style={styles.listItemTitle} />
+          <CustomText style={styles.listItemSubtitle}>{AUTO_DOWNLOAD_ON_STREAM_DESC}</CustomText>
+        </ListItem.Content>
+        <ThemedSwitch
+          value={autoDownloadOnStream}
+          onValueChange={(value) => dispatch(toggleAutoDownload(value))}
+        />
+      </ListItem>
+
       {/* Manage Downloads → */}
       <ListItem
         bottomDivider
@@ -61,7 +87,7 @@ const Audio = () => {
         onPress={() => navigation.navigate('ManageDownloads')}
       >
         <View style={styles.iconContainerStyle}>
-          <Icon color={theme.colors.primaryText} name="download-for-offline" type="material" size={26} />
+          <Icon color={theme.colors.primaryText} name="file-download" type="material" size={26} />
         </View>
         <ListItem.Content>
           <ListItemTitle title={MANAGE_DOWNLOADS} style={styles.listItemTitle} />

@@ -12,6 +12,8 @@ import {
   SafeArea,
   StatusBarComponent,
   ThemedSwitch,
+  ConfirmDialogHost,
+  showConfirm,
 } from "./components";
 import orderedBani from "./components/BaniList/baniOrderHelper";
 import constant from "./constant";
@@ -49,6 +51,7 @@ import {
   updateReminders,
   cancelAllReminders,
   checkPermissions,
+  requestNotificationPermission,
   resetBadgeCount,
 } from "./notifications";
 import {
@@ -82,6 +85,7 @@ export {
   trackSettingEvent,
   updateReminders,
   checkPermissions,
+  requestNotificationPermission,
   cancelAllReminders,
   FallBack,
   BaniLengthSelector,
@@ -89,6 +93,8 @@ export {
   BaniList,
   CustomText,
   GradientDivider,
+  ConfirmDialogHost,
+  showConfirm,
   useCustomScrollbar,
   baseFontSize,
   resetBadgeCount,

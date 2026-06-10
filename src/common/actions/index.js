@@ -294,3 +294,8 @@ export const toggleDownloadWarnMobileData = (value) => ({
   type: actionTypes.TOGGLE_DOWNLOAD_WARN_MOBILE_DATA,
   value,
 });
+
+export const toggleAutoDownload = (value) => ({
+  type: actionTypes.TOGGLE_AUTO_DOWNLOAD,
+  value,
+});

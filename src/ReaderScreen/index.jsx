@@ -77,6 +77,20 @@ const Reader = ({ navigation, route }) => {
   const { shabad, isLoading } = useFetchShabad(id);
   const { bottom: insetBottom } = useSafeAreaInsets();
 
+  // Animated height for the BottomNavigation wrapper — collapses the layout
+  // space when the nav hides so no blank gap is left behind
+  const navTotalHeight = theme.components.bottomNavigation.height +
+    (Platform.OS === 'ios' ? insetBottom : 0);
+  const navHeightAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(navHeightAnim, {
+      toValue: isHeader ? navTotalHeight : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isHeader, navTotalHeight]);
+
   // Animated progress value — driven by ref to avoid re-renders on every scroll tick
   const scrollProgressAnim = useRef(new Animated.Value(0)).current;
   // Latest scroll % (0-100) for analytics — updated on every WebView scroll message
@@ -432,11 +446,13 @@ const Reader = ({ navigation, route }) => {
         />
       </View>
 
-      <BottomNavigation
-        activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
-        context="reader"
-        visible={true}
-      />
+      <Animated.View style={{ height: navHeightAnim, overflow: 'hidden' }}>
+        <BottomNavigation
+          activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
+          context="reader"
+          visible={isHeader}
+        />
+      </Animated.View>
     </SafeArea>
   );
 };

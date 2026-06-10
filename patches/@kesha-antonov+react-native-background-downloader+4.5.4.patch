@@ -1,0 +1,51 @@
+diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt
+--- a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt
++++ b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt
+@@ -24,7 +24,7 @@
+     // ========== Download Buffer ==========
+ 
+     /** Size of buffer for reading download data (bytes) */
+-    const val BUFFER_SIZE = 8192  // 8KB
++    const val BUFFER_SIZE = 262144  // 256KB (patched; 8KB throttled throughput ~32x)
+ 
+     // ========== Progress Reporting ==========
+ 
+diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
+--- a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
++++ b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
+@@ -123,7 +123,7 @@
+                 .build()
+         }
+ 
+-        val title = if (config.groupingEnabled && groupName.isNotEmpty()) {
++        val title = if (groupName.isNotEmpty()) {
+             groupName
+         } else {
+             config.getText("downloadTitle")
+@@ -173,7 +173,7 @@
+ 
+         val progress = ProgressUtils.calculateProgress(bytesDownloaded, bytesTotal)
+ 
+-        val title = if (config.groupingEnabled && jobState.groupName.isNotEmpty()) {
++        val title = if (jobState.groupName.isNotEmpty()) {
+             jobState.groupName
+         } else {
+             config.getText("downloadTitle")
+@@ -212,7 +212,7 @@
+         progress: Int,
+         groupName: String
+     ) {
+-        val title = if (config.groupingEnabled && groupName.isNotEmpty()) {
++        val title = if (groupName.isNotEmpty()) {
+             groupName
+         } else {
+             config.getText("downloadTitle")
+@@ -249,7 +249,7 @@
+         // Update tracking state so next onProgress knows current state
+         jobState.lastNotifiedProgress = progress
+ 
+-        val title = if (config.groupingEnabled && jobState.groupName.isNotEmpty()) {
++        val title = if (jobState.groupName.isNotEmpty()) {
+             jobState.groupName
+         } else {
+             config.getText("downloadTitle")

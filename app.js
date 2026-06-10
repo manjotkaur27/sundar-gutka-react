@@ -17,6 +17,7 @@ import {
   resetBadgeCount,
   navigateTo,
   initializePerformanceMonitoring,
+  ConfirmDialogHost,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
@@ -101,6 +102,7 @@ const App = () => {
             <SafeAreaProvider>
               <Navigation />
               <Toast config={toastConfig} />
+              <ConfirmDialogHost />
             </SafeAreaProvider>
           </ErrorBoundary>
         </ThemeProvider>

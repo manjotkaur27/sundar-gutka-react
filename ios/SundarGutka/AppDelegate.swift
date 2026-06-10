@@ -2,6 +2,10 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+// Background download support (@kesha-antonov/react-native-background-downloader).
+// If this import fails to resolve after `pod install`, expose the header via a
+// bridging header instead: #import <RNBackgroundDownloader/RNBackgroundDownloader.h>
+import RNBackgroundDownloader
  
 @main
 class AppDelegate: RCTAppDelegate {
@@ -16,6 +20,16 @@ class AppDelegate: RCTAppDelegate {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
  
+  // Reconnect the background URLSession so downloads that completed while the
+  // app was suspended/terminated can finish flushing to disk on next launch.
+  func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) {
+    RNBackgroundDownloader.setCompletionHandlerWithIdentifier(identifier, completionHandler: completionHandler)
+  }
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
   }

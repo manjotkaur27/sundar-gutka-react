@@ -83,6 +83,19 @@ export const audioControlBarStyles = (theme) => ({
     marginTop: theme.spacing.lg,
     zIndex: 20,
   },
+  downloadAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  downloadAllText: {
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.semibold,
+  },
 
   timestampWithColor: {
     color: theme.colors.audioPlayer,

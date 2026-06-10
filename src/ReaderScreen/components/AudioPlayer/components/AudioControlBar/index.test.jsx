@@ -87,6 +87,15 @@ jest.mock("@miblanchard/react-native-slider", () => {
   return { Slider };
 });
 
+// Mock NetInfo
+jest.mock("@react-native-community/netinfo", () => ({
+  __esModule: true,
+  default: {
+    fetch: jest.fn(() => Promise.resolve({ isConnected: true, type: 'wifi' })),
+    addEventListener: jest.fn(() => jest.fn()),
+  },
+}));
+
 // Mock BlurView
 jest.mock("@react-native-community/blur", () => {
   const { View } = require("react-native");
@@ -97,7 +106,9 @@ jest.mock("@react-native-community/blur", () => {
 // Mock @common
 export const STRINGS = {
   MORE_TRACKS: "More Tracks",
+  TRACKS: "Tracks",
   AUDIO_SETTINGS: "Audio Settings",
+  OPTIONS: "Options",
 };
 
 jest.mock("@common", () => {
@@ -105,10 +116,21 @@ jest.mock("@common", () => {
   return {
     STRINGS: {
       MORE_TRACKS: "More Tracks",
+      TRACKS: "Tracks",
       AUDIO_SETTINGS: "Audio Settings",
+      OPTIONS: "Options",
+      WIFI_ONLY_ALERT_TITLE: "Wi-Fi Only",
+      WIFI_ONLY_ALERT_BODY: "Downloads are set to Wi-Fi only.",
+      WIFI_ONLY_GO_SETTINGS: "Open Settings",
+      MOBILE_DATA_ALERT_TITLE: "Using Mobile Data",
+      MOBILE_DATA_ALERT_BODY: "You're about to download {title} ({size}) over mobile data.",
+      MOBILE_DATA_DOWNLOAD_ANYWAY: "Download Anyway",
+      ok: "OK",
+      cancel: "Cancel",
     },
     CustomText: (props) => <Text {...props} />,
     logError: jest.fn(),
+    showConfirm: jest.fn(),
   };
 });
 
@@ -132,6 +154,7 @@ jest.mock("@common/actions", () => ({
   setAudioProgress: (...args) => mockSetAudioProgress(...args),
   toggleAudioSyncScroll: (...args) => mockToggleAudioSyncScroll(...args),
   setPlayerDragging: (...args) => mockSetPlayerDragging(...args),
+  enqueueDownload: jest.fn((payload) => ({ type: "ENQUEUE_DOWNLOAD", payload })),
 }));
 
 // Mock icons (just simple text)
@@ -327,7 +350,7 @@ describe("AudioControlBar", () => {
     const props = createProps();
     const { getByTestId } = await renderComponent(props);
 
-    fireEvent.press(getByTestId("action-More Tracks"));
+    fireEvent.press(getByTestId("action-Tracks"));
 
     expect(props.onReopenPreviewModal).toHaveBeenCalled();
   });
@@ -594,11 +617,11 @@ describe("AudioControlBar", () => {
     const props = createProps();
     const { getByTestId, queryByTestId } = await renderComponent(props);
 
-    fireEvent.press(getByTestId("action-More Tracks"));
+    fireEvent.press(getByTestId("action-Tracks"));
     expect(props.onReopenPreviewModal).toHaveBeenCalled();
     expect(queryByTestId("tracks-list")).toBeNull();
 
-    fireEvent.press(getByTestId("action-Audio Settings"));
+    fireEvent.press(getByTestId("action-Options"));
 
     await waitFor(() => {
       expect(getByTestId("audio-settings-modal")).toBeTruthy();
@@ -639,7 +662,7 @@ describe("AudioControlBar", () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      fireEvent.press(getByTestId("action-More Tracks"));
+      fireEvent.press(getByTestId("action-Tracks"));
 
       await waitFor(() => {
         expect(props.onReopenPreviewModal).toHaveBeenCalled();
@@ -654,7 +677,7 @@ describe("AudioControlBar", () => {
 
       // Open Audio Settings modal
       await waitFor(() => {
-        fireEvent.press(getByTestId("action-Audio Settings"));
+        fireEvent.press(getByTestId("action-Options"));
       });
 
       await waitFor(() => {
@@ -667,7 +690,7 @@ describe("AudioControlBar", () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      fireEvent.press(getByTestId("action-Audio Settings"));
+      fireEvent.press(getByTestId("action-Options"));
 
       await waitFor(() => {
         expect(getByTestId("audio-settings-modal")).toBeTruthy();

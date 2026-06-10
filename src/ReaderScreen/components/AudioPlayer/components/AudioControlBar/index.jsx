@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
+import NetInfo from "@react-native-community/netinfo";
 import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
 
 import PropTypes from "prop-types";
-import { setAudioProgress } from "@common/actions";
+import { setAudioProgress, enqueueDownload } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
@@ -18,8 +19,9 @@ import {
   PauseIcon,
   ChevronDownIcon,
   ExpandCollapseIcon,
+  DownloadIcon,
 } from "@common/icons";
-import { STRINGS, CustomText, logError } from "@common";
+import { STRINGS, CustomText, logError, showConfirm } from "@common";
 import {
   useAnimation,
   useDownloadManager,
@@ -32,6 +34,7 @@ import {
   getSequenceFromPosition,
   getPositionFromSequence,
 } from "../../utils/getSequenceFromPosition";
+import { getLocalTrackPath } from "../../utils/audioDownloader";
 import ActionComponents from "../ActionComponent";
 import AudioSettingsModal from "../AudioSettingsModal";
 import DownloadButton from "../DownloadButton";
@@ -100,17 +103,77 @@ const AudioControlBar = ({
   // Snapshot of saved progress captured once on mount — see useEffect below.
   const initialProgressRef = useRef(null);
   const { modalHeight, modalOpacity } = useAnimation(isSettingsModalOpen, isMoreTracksModalOpen);
-  const { isDownloading, isDownloaded } = useDownloadManager(
+  // Called for its side effects (auto-enqueue current track + stamp manifest);
+  // per-track download UI now lives in DownloadButton, so no return value is used.
+  useDownloadManager(
     currentPlaying,
     addTrackToManifest,
     isTrackDownloaded,
     baniID,
-    title
+    title,
+    notificationTitle || title
   );
   useBookmarks(seekTo, currentPlaying?.lyricsUrl);
   useArtistListeningDuration(baniID, title, isPlaying, currentPlaying);
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+
+  // ── Bulk "Download all" (this bani's track versions) ───────────────────────
+  const downloadRegistry = useSelector((s) => s.downloadRegistry);
+  const downloadQueue = useSelector((s) => s.downloadQueue);
+  const downloadWifiOnly = useSelector((s) => s.downloadWifiOnly);
+  const downloadWarnMobileData = useSelector((s) => s.downloadWarnMobileData);
+  const tracksToDownload = useMemo(
+    () => (tracks || []).filter((t) => {
+      if (!t?.audioUrl) return false;
+      const tk = getLocalTrackPath(t.audioUrl);
+      return !downloadRegistry[tk] && !downloadQueue[tk];
+    }),
+    [tracks, downloadRegistry, downloadQueue]
+  );
+  const enqueueAll = useCallback(() => {
+    tracksToDownload.forEach((t) => {
+      dispatch(enqueueDownload({
+        trackKey: getLocalTrackPath(t.audioUrl),
+        audioUrl: t.remoteUrl || t.audioUrl,
+        displayName: t.displayName,
+        baniTitle: title,
+        baniNameUni: notificationTitle || title,
+        baniId: baniID,
+        sizeMB: t.trackSizeMB,
+      }));
+    });
+  }, [tracksToDownload, title, notificationTitle, baniID, dispatch]);
+
+  const handleDownloadAll = useCallback(async () => {
+    if (tracksToDownload.length === 0) return;
+    const net = await NetInfo.fetch();
+    if (downloadWifiOnly && net.type !== 'wifi') {
+      showConfirm({
+        title: STRINGS.WIFI_ONLY_ALERT_TITLE,
+        message: STRINGS.WIFI_ONLY_ALERT_BODY,
+        cancelText: STRINGS.ok,
+        confirmText: STRINGS.WIFI_ONLY_GO_SETTINGS,
+        onConfirm: () => navigation.navigate('Settings'),
+      });
+      return;
+    }
+    if (!downloadWifiOnly && downloadWarnMobileData && net.type === 'cellular') {
+      const totalMB = tracksToDownload.reduce((sum, t) => sum + (t.trackSizeMB || 0), 0);
+      const sizeStr = totalMB > 0 ? `~${Math.round(totalMB)} MB` : '';
+      showConfirm({
+        title: STRINGS.MOBILE_DATA_ALERT_TITLE,
+        message: STRINGS.MOBILE_DATA_ALERT_BODY
+          .replace('{title}', title)
+          .replace('{size}', sizeStr),
+        cancelText: STRINGS.cancel,
+        confirmText: STRINGS.MOBILE_DATA_DOWNLOAD_ANYWAY,
+        onConfirm: enqueueAll,
+      });
+      return;
+    }
+    enqueueAll();
+  }, [tracksToDownload, downloadWifiOnly, downloadWarnMobileData, title, enqueueAll, navigation]);
 
   // Auto-resume on screen focus: when the user navigates back to the audio
   // screen (via device back button, back arrow, or tab re-tap from Settings/
@@ -344,13 +407,13 @@ const AudioControlBar = ({
       selector: false,
       toggle: onReopenPreviewModal,
       Icon: MusicNoteIcon,
-      text: STRINGS.MORE_TRACKS,
+      text: STRINGS.TRACKS,
     },
     {
       selector: isSettingsModalOpen,
       toggle: setIsSettingsModalOpen,
       Icon: SettingsIcon,
-      text: STRINGS.AUDIO_SETTINGS,
+      text: STRINGS.OPTIONS,
     },
   ];
 
@@ -629,6 +692,18 @@ const AudioControlBar = ({
 
           {isMoreTracksModalOpen && (
             <View style={styles.moreTracksModalContainer}>
+              {tracksToDownload.length > 0 && (
+                <Pressable
+                  style={styles.downloadAllButton}
+                  onPress={handleDownloadAll}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <DownloadIcon size={18} color={theme.colors.primary} />
+                  <CustomText style={[styles.downloadAllText, { color: theme.colors.primary }]}>
+                    {STRINGS.DOWNLOAD_ALL} ({tracksToDownload.length})
+                  </CustomText>
+                </Pressable>
+              )}
               <ScrollViewComponent
                 tracks={tracks}
                 selectedTrack={currentPlaying}
@@ -655,6 +730,7 @@ const AudioControlBar = ({
                 <DownloadButton
                   track={currentPlaying}
                   baniTitle={title}
+                  baniNameUni={notificationTitle || title}
                   baniId={baniID}
                 />
               )}
