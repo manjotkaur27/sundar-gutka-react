@@ -1,43 +1,109 @@
 import React from "react";
-import { View, ScrollView, Pressable, Linking, StyleSheet } from "react-native";
+import { View, ScrollView, Pressable, Linking, StyleSheet, Image, Platform } from "react-native";
 import { CustomText, useTheme, logError, trackKhalisAppClicked } from "@common";
 
 const APPS = [
   {
-    id: "gurbani-media",
-    name: "Gurbani Media",
-    tagline: "Audio Library",
-    emoji: "🎬",
-    iconBgDark: "#1c1c2e",
-    iconBgLight: "#ffffff",
-    url: "https://khalisfoundation.org",
+    id: "sahej-path",
+    name: "Sahej Path",
+    pkg: "antisoft.livesehajpath",
+    image: require("../../assets/images/sahej_path.png"),
+    iconBgDark: "#0a1628",
+    iconBgLight: "#eef2ff",
+    url: "https://play.google.com/store/apps/details?id=antisoft.livesehajpath&hl=en_IN",
   },
   {
     id: "sttm",
     name: "Sikhi To The Max",
-    tagline: "Search Engine",
-    emoji: "🔍",
+    pkg: "com.nest.sttm",
+    image: require("../../assets/images/sikhi2max.webp"),
     iconBgDark: "#0f2044",
     iconBgLight: "#ffffff",
-    url: "https://www.sikhitothemax.org",
+    url: "https://play.google.com/store/apps/details?id=com.nest.sttm&hl=en_IN",
   },
   {
-    id: "learn-larivaar",
-    name: "Learn Larivaar",
-    tagline: "Reading Practice",
-    emoji: "✍️",
-    iconBgDark: "#0d2414",
+    id: "shabadavali",
+    name: "Shabadavali",
+    image: require("../../assets/images/shabadavali.png"),
+    iconBgDark: "#0d1c10",
     iconBgLight: "#ffffff",
-    url: "https://learnlarivaar.com",
+    url: "https://shabadavali.com/en/login",
   },
 ];
 
-const openUrl = (url, name) => {
+const openUrl = (url, name, pkg) => {
   trackKhalisAppClicked(name).catch(() => {});
+  // On Android, market:// opens the Play Store app directly (not the browser).
+  // If the target app is already installed, Play Store shows an "Open" button.
+  // Fall back to the https Play Store URL if market:// is unavailable (no Play Store).
+  if (Platform.OS === "android" && pkg) {
+    Linking.openURL(`market://details?id=${pkg}`).catch(() => {
+      Linking.openURL(url).catch((err) =>
+        logError(new Error(`ExploreCarousel openURL failed: ${err?.message || err}`))
+      );
+    });
+    return;
+  }
   Linking.openURL(url).catch((err) =>
     logError(new Error(`ExploreCarousel openURL failed: ${err?.message || err}`))
   );
 };
+
+const ICON_SIZE = 88;
+const ICON_INNER = 68;
+const CARD_WIDTH = 120;
+
+const styles = StyleSheet.create({
+  container: {
+    paddingTop: 20,
+    paddingBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  appItem: {
+    width: CARD_WIDTH,
+    alignItems: "center",
+  },
+  iconBox: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    borderRadius: 20,
+    marginBottom: 10,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBoxLight: {
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.08)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  iconImage: {
+    width: ICON_INNER,
+    height: ICON_INNER,
+  },
+  iconEmoji: {
+    fontSize: 44,
+  },
+  appName: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+    textAlign: "center",
+  },
+});
 
 const KhalisAppsCarousel = () => {
   const { theme } = useTheme();
@@ -58,30 +124,27 @@ const KhalisAppsCarousel = () => {
           return (
             <Pressable
               key={app.id}
-              onPress={() => openUrl(app.url, app.name)}
+              onPress={() => openUrl(app.url, app.name, app.pkg)}
               style={({ pressed }) => [styles.appItem, { opacity: pressed ? 0.75 : 1 }]}
             >
-              {/* iOS-style rounded-square app icon */}
               <View
                 style={[
                   styles.iconBox,
                   { backgroundColor: iconBg },
-                  !isDark && styles.iconBoxLight,
+                  !isDark && !app.image && styles.iconBoxLight,
                 ]}
               >
-                <CustomText style={styles.iconEmoji}>{app.emoji}</CustomText>
+                {app.image ? (
+                  <Image source={app.image} style={styles.iconImage} resizeMode="contain" />
+                ) : (
+                  <CustomText style={styles.iconEmoji}>{app.emoji}</CustomText>
+                )}
               </View>
               <CustomText
                 style={[styles.appName, { color: theme.colors.primaryText }]}
                 numberOfLines={2}
               >
                 {app.name}
-              </CustomText>
-              <CustomText
-                style={[styles.appTagline, { color: theme.colors.textDisabled }]}
-                numberOfLines={1}
-              >
-                {app.tagline}
               </CustomText>
             </Pressable>
           );
@@ -90,59 +153,5 @@ const KhalisAppsCarousel = () => {
     </View>
   );
 };
-
-const ICON_SIZE = 100;
-const CARD_WIDTH = 130;
-
-const styles = StyleSheet.create({
-  container: {
-    paddingTop: 20,
-    paddingBottom: 28,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    gap: 16,
-  },
-  appItem: {
-    width: CARD_WIDTH,
-    alignItems: "flex-start",
-  },
-  iconBox: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  iconBoxLight: {
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  iconEmoji: {
-    fontSize: 44,
-  },
-  appName: {
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 3,
-    lineHeight: 18,
-  },
-  appTagline: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-});
 
 export default KhalisAppsCarousel;

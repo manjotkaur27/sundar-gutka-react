@@ -52,6 +52,17 @@ export const getTopReadBanis = async (limit = 5) => {
   return rowsToArray(result);
 };
 
+export const getRecentReadBanis = async (limit = 5) => {
+  const result = await runQuery(
+    `SELECT bani_id, bani_title, start_time as last_time, duration_seconds as total_seconds
+     FROM bani_read_history
+     ORDER BY start_time DESC
+     LIMIT ?`,
+    [limit]
+  );
+  return rowsToArray(result);
+};
+
 // ─── Audio sessions ───────────────────────────────────────────────────────────
 
 export const insertAudioSession = async ({ audio_id, bani_id, bani_title, artist_id, artist_name, duration_played, completed }) => {
@@ -79,6 +90,17 @@ export const getTopListenedBanis = async (limit = 5) => {
      FROM audio_history
      GROUP BY bani_id
      ORDER BY total_seconds DESC
+     LIMIT ?`,
+    [limit]
+  );
+  return rowsToArray(result);
+};
+
+export const getRecentListenedBanis = async (limit = 5) => {
+  const result = await runQuery(
+    `SELECT bani_id, bani_title, artist_name, created_at as last_time, duration_played as total_seconds
+     FROM audio_history
+     ORDER BY created_at DESC
      LIMIT ?`,
     [limit]
   );
