@@ -35,7 +35,6 @@ const MostListenedSection = ({ refreshKey }) => {
   const isDark = theme.mode === "dark";
   const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
   const bg = isDark ? theme.colors.inactiveView : "#ffffff";
-  const cardBg = theme.colors.actionButton;
   const playBtnBg = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
 
   const [banis, setBanis] = useState([]);
@@ -53,7 +52,7 @@ const MostListenedSection = ({ refreshKey }) => {
           </CustomText>
           <HeadphoneIcon size={22} color={accentBlue} />
         </View>
-        <View style={[styles.emptyCard, { backgroundColor: cardBg }]}>
+        <View style={styles.emptyCard}>
           <CustomText style={[styles.emptyText, { color: theme.colors.textDisabled }]}>
             Listen to a track to see your top listens here
           </CustomText>
@@ -73,7 +72,7 @@ const MostListenedSection = ({ refreshKey }) => {
       {banis.map((b, i) => {
         const artistName = b.artist_name;
         return (
-          <View key={b.bani_id ?? i} style={[styles.card, { backgroundColor: cardBg }]}>
+          <View key={b.bani_id ?? i} style={styles.card}>
             <View style={[styles.playBtn, { backgroundColor: playBtnBg }]}>
               <PlayIcon size={22} color={theme.colors.primaryText} />
             </View>
@@ -131,7 +130,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   card: {
     flexDirection: "row",

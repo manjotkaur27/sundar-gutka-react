@@ -127,23 +127,17 @@ const ActivityCalendar = ({ refreshKey }) => {
   const navColor = theme.colors.primaryText;
   const disabledColor = theme.colors.textDisabled;
   const bg = isDark ? theme.colors.inactiveView : "#ffffff";
-  const badgeBg = theme.colors.actionButton;
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       {/* Header: month+year left, nav arrows right */}
       <View style={styles.header}>
-        <View>
-          <View style={styles.monthYearRow}>
-            <CustomText style={[styles.monthText, { color: theme.colors.primaryText }]}>
-              {monthName}
-            </CustomText>
-            <CustomText style={[styles.yearText, { color: accentBlue }]}>
-              {" "}{year}
-            </CustomText>
-          </View>
-          <CustomText style={[styles.connLabel, { color: theme.colors.textDisabled }]}>
-            YOUR CONNECTION
+        <View style={styles.monthYearRow}>
+          <CustomText style={[styles.monthText, { color: theme.colors.primaryText }]}>
+            {monthName}
+          </CustomText>
+          <CustomText style={[styles.yearText, { color: accentBlue }]}>
+            {" "}{year}
           </CustomText>
         </View>
         <View style={styles.navRow}>
@@ -204,8 +198,8 @@ const ActivityCalendar = ({ refreshKey }) => {
         </View>
       ))}
 
-      {/* Active badge — card style */}
-      <View style={[styles.activeBadge, { backgroundColor: badgeBg }]}>
+      {/* Active badge — no card background */}
+      <View style={styles.activeBadge}>
         <View style={[styles.flameCircle, { backgroundColor: isDark ? "rgba(245,166,35,0.15)" : "#FFF3E0" }]}>
           <FlameIcon size={16} color="#F5A623" />
         </View>
@@ -261,12 +255,6 @@ const styles = StyleSheet.create({
   yearText: {
     fontSize: 26,
     fontWeight: "600",
-  },
-  connLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 1.4,
-    marginTop: 2,
   },
   navRow: {
     flexDirection: "row",

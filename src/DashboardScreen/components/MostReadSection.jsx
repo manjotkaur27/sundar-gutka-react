@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   row: {
     flexDirection: "row",

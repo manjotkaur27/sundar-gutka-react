@@ -1,10 +1,6 @@
 import { logError, constant } from "@common";
 import { getDayActivity, getOrCreateSummary, updateSummary } from "../database/analytics";
 
-// Prevents redundant DB reads when the app is foregrounded multiple times in a session.
-// Reset to null each new calendar day so the streak always re-checks after midnight.
-let _lastCheckedDate = null;
-
 // Returns YYYY-MM-DD in the device's local timezone
 const getLocalDate = () => {
   const now = new Date();
@@ -32,16 +28,12 @@ const dayQualifies = (row) => {
 export const computeStreaks = async () => {
   try {
     const today = getLocalDate();
-    // Already ran today in this session — skip the DB read entirely
-    if (_lastCheckedDate === today) return;
-    _lastCheckedDate = today;
-
     const summary = await getOrCreateSummary();
     if (!summary) return;
 
     const { current_streak, longest_streak, total_days_active, last_active_date } = summary;
 
-    // Already processed today — nothing to do
+    // Already processed today and today already qualifies — nothing to recalculate
     if (last_active_date === today) return;
 
     const dayGap = diffDays(today, last_active_date);

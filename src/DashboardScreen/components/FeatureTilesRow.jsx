@@ -1,86 +1,244 @@
-import React from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
-import { CustomText, useTheme } from "@common";
+import React, { useEffect, useState } from "react";
+import { View, ScrollView, Pressable, StyleSheet, Image } from "react-native";
+import Svg, { Path } from "react-native-svg";
+import { useNavigation } from "@react-navigation/native";
+import PropTypes from "prop-types";
+import { CustomText, useTheme, STRINGS, openInAppBrowser, logError, constant } from "@common";
+import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
+// eslint-disable-next-line import/order
+const KHALIS_LOGO = require("../../assets/images/khalis.png");
+// eslint-disable-next-line import/order
+const STTM_LOGO = require("../../assets/images/sikhi2max.webp");
 
-const PLACEHOLDER_TILES = [
-  { id: "1", icon: "✨", label: "Coming Soon" },
-  { id: "2", icon: "📊", label: "Coming Soon" },
-  { id: "3", icon: "🎯", label: "Coming Soon" },
+const HUKAMNAMA_URL = "https://www.sikhitothemax.org/hukamnama";
+const KHALIS_AI_URL = "https://www.sikhitothemax.org/";
+const STTM_SEARCH = "https://www.sikhitothemax.org";
+
+const fmtDuration = (secs) => {
+  if (!secs || secs < 60) return "";
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+};
+
+const HeadphonesIcon = ({ size, color }) => (
+  <Svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <Path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+    <Path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+    <Path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+  </Svg>
+);
+HeadphonesIcon.propTypes = {
+  size: PropTypes.number.isRequired,
+  color: PropTypes.string.isRequired,
+};
+
+const BookOpenIcon = ({ size, color }) => (
+  <Svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <Path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <Path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </Svg>
+);
+BookOpenIcon.propTypes = {
+  size: PropTypes.number.isRequired,
+  color: PropTypes.string.isRequired,
+};
+
+const APP_TILES = [
+  { id: "hukamnama", labelKey: "LISTEN_HUKAMNAMA", image: STTM_LOGO, url: HUKAMNAMA_URL },
+  { id: "khalis-ai", labelKey: "KHALIS_AI", image: KHALIS_LOGO, url: KHALIS_AI_URL },
+  { id: "search-gurbani", labelKey: "SEARCH_GURBANI", image: STTM_LOGO, url: STTM_SEARCH },
 ];
 
+const styles = StyleSheet.create({
+  wrapper: {
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "500",
+    paddingHorizontal: 24,
+    marginBottom: 14,
+  },
+  row: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  tile: {
+    width: 148,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  tileIconWrap: {
+    marginBottom: 10,
+  },
+  tileIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tileIconInner: {
+    width: 34,
+    height: 34,
+  },
+  tileLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  tileMeta: {
+    fontSize: 12,
+    fontWeight: "400",
+    marginTop: 4,
+  },
+});
+
 const FeatureTilesRow = () => {
+  const navigation = useNavigation();
   const { theme } = useTheme();
   const isDark = theme.mode === "dark";
+
   const cardBg = isDark ? theme.colors.inactiveView : "#ffffff";
-  const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
+  const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+  const accentColor = isDark ? theme.colors.enabledText : theme.colors.primary;
+  const textPrimary = theme.colors.primaryText;
+  const textSecondary = theme.colors.textDisabled;
+  const iconBg = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)";
+
+  const [lastRead, setLastRead] = useState(null);
+  const [lastListened, setLastListened] = useState(null);
+
+  useEffect(() => {
+    getRecentReadBanis(1)
+      .then((rows) => setLastRead(rows[0] ?? null))
+      .catch(logError);
+    getRecentListenedBanis(1)
+      .then((rows) => setLastListened(rows[0] ?? null))
+      .catch(logError);
+  }, []);
+
+  const goToReader = (item) => {
+    navigation.navigate(constant.READER, {
+      key: `Reader-${item.bani_id}`,
+      params: {
+        id: item.bani_id,
+        title: item.bani_title ?? "",
+        titleUni: item.bani_title ?? "",
+      },
+    });
+  };
 
   return (
     <View style={styles.wrapper}>
-      <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
-        Insights
+      <CustomText style={[styles.sectionTitle, { color: textPrimary }]}>
+        {STRINGS.ACTIVITY}
       </CustomText>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
-        {PLACEHOLDER_TILES.map((tile) => (
-          <View
-            key={tile.id}
-            style={[styles.tile, { backgroundColor: cardBg, borderColor }]}
+        {/* Last read — tappable, continues bani in Reader */}
+        {lastRead && (
+          <Pressable
+            onPress={() => goToReader(lastRead)}
+            style={({ pressed }) => [
+              styles.tile,
+              { backgroundColor: cardBg, borderColor },
+              pressed && { opacity: 0.7 },
+            ]}
+            accessibilityRole="button"
           >
-            <CustomText style={styles.tileIcon}>{tile.icon}</CustomText>
-            <CustomText style={[styles.tileName, { color: accentBlue }]}>
-              {tile.label}
+            <View style={styles.tileIconWrap}>
+              <BookOpenIcon size={20} color={accentColor} />
+            </View>
+            <CustomText style={[styles.tileLabel, { color: textPrimary }]} numberOfLines={2}>
+              {lastRead.bani_title ?? `Bani ${lastRead.bani_id}`}
             </CustomText>
-            <CustomText style={[styles.tileDesc, { color: theme.colors.textDisabled }]}>
-              Feature will be added soon
+            {fmtDuration(lastRead.total_seconds) !== "" && (
+              <CustomText style={[styles.tileMeta, { color: textSecondary }]}>
+                {fmtDuration(lastRead.total_seconds)}
+              </CustomText>
+            )}
+          </Pressable>
+        )}
+
+        {/* Last listened — tappable, opens bani in Reader */}
+        {lastListened && (
+          <Pressable
+            onPress={() => goToReader(lastListened)}
+            style={({ pressed }) => [
+              styles.tile,
+              { backgroundColor: cardBg, borderColor },
+              pressed && { opacity: 0.7 },
+            ]}
+            accessibilityRole="button"
+          >
+            <View style={styles.tileIconWrap}>
+              <HeadphonesIcon size={20} color={accentColor} />
+            </View>
+            <CustomText style={[styles.tileLabel, { color: textPrimary }]} numberOfLines={2}>
+              {lastListened.bani_title ?? `Bani ${lastListened.bani_id}`}
             </CustomText>
-          </View>
+            {fmtDuration(lastListened.total_seconds) !== "" && (
+              <CustomText style={[styles.tileMeta, { color: textSecondary }]}>
+                {fmtDuration(lastListened.total_seconds)}
+              </CustomText>
+            )}
+          </Pressable>
+        )}
+
+        {/* App link tiles */}
+        {APP_TILES.map(({ id, labelKey, label, image, url }) => (
+          <Pressable
+            key={id}
+            onPress={() => openInAppBrowser(url)}
+            style={({ pressed }) => [
+              styles.tile,
+              { backgroundColor: cardBg, borderColor },
+              pressed && { opacity: 0.7 },
+            ]}
+            accessibilityRole="link"
+            accessibilityLabel={labelKey ? STRINGS[labelKey] : label}
+          >
+            <View style={styles.tileIconWrap}>
+              <View style={[styles.tileIcon, { backgroundColor: iconBg }]}>
+                <Image source={image} style={styles.tileIconInner} resizeMode="contain" />
+              </View>
+            </View>
+            <CustomText style={[styles.tileLabel, { color: textPrimary }]}>
+              {labelKey ? STRINGS[labelKey] : label}
+            </CustomText>
+          </Pressable>
         ))}
       </ScrollView>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  wrapper: {
-    paddingTop: 20,
-    paddingBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    paddingHorizontal: 24,
-    marginBottom: 12,
-  },
-  row: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  tile: {
-    width: 150,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: "center",
-    gap: 8,
-  },
-  tileIcon: {
-    fontSize: 28,
-  },
-  tileName: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  tileDesc: {
-    fontSize: 11,
-    textAlign: "center",
-    lineHeight: 15,
-  },
-});
 
 export default FeatureTilesRow;
