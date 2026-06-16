@@ -238,7 +238,10 @@ export const touchPrefetchTrack = async (url) => {
   }
 };
 
-export const prunePrefetchCache = async (maxTracks = 5) => {
+// maxTracks defaults to Infinity → no cap on the number of cached tracks. The
+// pass still prunes index entries whose files no longer exist and removes empty
+// artist directories; it just never evicts live cache files by count.
+export const prunePrefetchCache = async (maxTracks = Infinity) => {
   try {
     const directoryExists = await exists(PREFETCH_AUDIO_DIRECTORY);
     if (!directoryExists) {

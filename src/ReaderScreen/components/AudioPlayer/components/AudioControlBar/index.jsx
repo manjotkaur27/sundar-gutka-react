@@ -8,7 +8,7 @@ import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
 
 import PropTypes from "prop-types";
-import { setAudioProgress, enqueueDownload } from "@common/actions";
+import { setAudioProgress, enqueueDownload, toggleDownloadWifiOnly } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
@@ -21,7 +21,7 @@ import {
   ExpandCollapseIcon,
   DownloadIcon,
 } from "@common/icons";
-import { STRINGS, CustomText, logError, showConfirm } from "@common";
+import { STRINGS, CustomText, logError, showConfirm, showInfoToast } from "@common";
 import {
   useAnimation,
   useDownloadManager,
@@ -132,6 +132,7 @@ const AudioControlBar = ({
     [tracks, downloadRegistry, downloadQueue]
   );
   const enqueueAll = useCallback(() => {
+    if (tracksToDownload.length === 0) return;
     tracksToDownload.forEach((t) => {
       dispatch(enqueueDownload({
         trackKey: getLocalTrackPath(t.audioUrl),
@@ -143,18 +144,27 @@ const AudioControlBar = ({
         sizeMB: t.trackSizeMB,
       }));
     });
+    // One toast for the whole batch — the engine shows a single "complete" toast
+    // when they all finish.
+    showInfoToast(STRINGS.DOWNLOAD_STARTED);
   }, [tracksToDownload, title, notificationTitle, baniID, dispatch]);
 
   const handleDownloadAll = useCallback(async () => {
     if (tracksToDownload.length === 0) return;
     const net = await NetInfo.fetch();
-    if (downloadWifiOnly && net.type !== 'wifi') {
+    // Wi-Fi-only is ON and we're on cellular — offer to use mobile data, which
+    // turns the setting off and proceeds. Positive `=== 'cellular'` test avoids
+    // misfiring on VPN/ethernet/unknown.
+    if (downloadWifiOnly && net.type === 'cellular') {
       showConfirm({
         title: STRINGS.WIFI_ONLY_ALERT_TITLE,
         message: STRINGS.WIFI_ONLY_ALERT_BODY,
-        cancelText: STRINGS.ok,
-        confirmText: STRINGS.WIFI_ONLY_GO_SETTINGS,
-        onConfirm: () => navigation.navigate('Settings'),
+        cancelText: STRINGS.cancel,
+        confirmText: STRINGS.WIFI_ONLY_USE_MOBILE_DATA,
+        onConfirm: () => {
+          dispatch(toggleDownloadWifiOnly(false));
+          enqueueAll();
+        },
       });
       return;
     }
@@ -173,7 +183,7 @@ const AudioControlBar = ({
       return;
     }
     enqueueAll();
-  }, [tracksToDownload, downloadWifiOnly, downloadWarnMobileData, title, enqueueAll, navigation]);
+  }, [tracksToDownload, downloadWifiOnly, downloadWarnMobileData, title, enqueueAll, dispatch]);
 
   // Auto-resume on screen focus: when the user navigates back to the audio
   // screen (via device back button, back arrow, or tab re-tap from Settings/

@@ -9,20 +9,38 @@ import { CustomText } from "@common";
 import { audioTrackDialogStyles } from "../style";
 import { getLocalTrackPath } from "../utils/audioDownloader";
 
+// A track is playable offline when it has a local copy. The authoritative source
+// is the download registry (the same store the download button uses), keyed by
+// the artist-relative path from the remote URL. The manifest's isLocallyDownloaded
+// flag and an already-local audioUrl are accepted as fallbacks.
+export const isOfflineAvailable = (track, downloadRegistry) => {
+  const url = track?.remoteUrl || track?.audioUrl || "";
+  const key = url ? getLocalTrackPath(url) : null;
+  return Boolean(
+    (key && downloadRegistry?.[key]) ||
+      track?.isLocallyDownloaded ||
+      (track?.audioUrl && !/^https?:\/\//i.test(track.audioUrl))
+  );
+};
+
 const ScrollViewComponent = ({
   tracks,
   selectedTrack = null,
   playingTrack = null,
   isPlaying = false,
   previewLoadingTrackId = null,
+  isOffline = false,
   handleSelectTrack,
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(audioTrackDialogStyles);
-  const downloadQueue = useSelector((s) => s.downloadQueue);
+  const downloadRegistry = useSelector((s) => s.downloadRegistry);
   return (
     <View style={styles.trackList}>
-      {tracks.map((track) => (
+      {tracks.map((track) => {
+        // Offline + not downloaded → greyed out and non-interactive.
+        const unavailableOffline = isOffline && !isOfflineAvailable(track, downloadRegistry);
+        return (
         <Pressable
           key={track.id}
           style={[
@@ -33,8 +51,12 @@ const ScrollViewComponent = ({
               borderWidth: 1,
             },
             selectedTrack && track.id === selectedTrack?.id && styles.selectedTrackItem,
+            unavailableOffline && styles.trackItemDisabled,
           ]}
-          onPress={() => handleSelectTrack(track)}
+          onPress={() => {
+            if (!unavailableOffline) handleSelectTrack(track);
+          }}
+          disabled={unavailableOffline}
           activeOpacity={0.7}
         >
           <CustomText
@@ -48,25 +70,6 @@ const ScrollViewComponent = ({
           >
             {track.displayName}
           </CustomText>
-
-          {/* Show spinner while actively downloading/queued */}
-          {track.audioUrl && (() => {
-            const tk = getLocalTrackPath(track.audioUrl);
-            if (downloadQueue[tk]?.status === 'downloading' || downloadQueue[tk]?.status === 'queued') {
-              return (
-                <ActivityIndicator
-                  size="small"
-                  color={
-                    selectedTrack && selectedTrack.id === track.id
-                      ? theme.staticColors.WHITE_COLOR
-                      : theme.colors.primary
-                  }
-                  style={{ marginRight: 4 }}
-                />
-              );
-            }
-            return null;
-          })()}
 
           {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
             <ActivityIndicator
@@ -97,7 +100,8 @@ const ScrollViewComponent = ({
             />
           )}
         </Pressable>
-      ))}
+        );
+      })}
     </View>
   );
 };
@@ -107,6 +111,7 @@ ScrollViewComponent.defaultProps = {
   playingTrack: null,
   isPlaying: false,
   previewLoadingTrackId: null,
+  isOffline: false,
 };
 
 ScrollViewComponent.propTypes = {
@@ -126,6 +131,7 @@ ScrollViewComponent.propTypes = {
   }),
   isPlaying: PropTypes.bool,
   previewLoadingTrackId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  isOffline: PropTypes.bool,
   handleSelectTrack: PropTypes.func.isRequired,
 };
 

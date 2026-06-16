@@ -29,6 +29,7 @@ jest.mock("@common/context", () => ({
       },
     },
   }),
+  useNetwork: () => ({ isOffline: false, isOnline: true }),
 }));
 
 const mockStyles = {
@@ -74,6 +75,7 @@ jest.mock("@common", () => {
       welcome_to_sundar_gutka: "Welcome to Sundar Gutka",
       please_choose_a_track: "Please choose a track for",
       OPENING_PLAYER: "Opening Player...",
+      OFFLINE_TRACKS_NOTICE: "You're offline.",
     },
     CustomText: ({ children, ...props }) => (
       <Text accessibilityRole="text" {...props}>
@@ -90,9 +92,13 @@ jest.mock("@react-native-community/blur", () => {
   };
 });
 
+jest.mock("@react-native-community/netinfo", () => ({
+  useNetInfo: () => ({ isConnected: true, type: "wifi" }),
+}));
+
 jest.mock("../ScrollViewComponent", () => {
   const { View, Pressable, Text } = require("react-native");
-  return ({ tracks, handleSelectTrack, previewLoadingTrackId }) => (
+  const Comp = ({ tracks, handleSelectTrack, previewLoadingTrackId }) => (
     <View testID="tracks-list">
       <Text testID="preview-loading-id">{previewLoadingTrackId || ""}</Text>
       {tracks.map((track) => (
@@ -106,6 +112,7 @@ jest.mock("../ScrollViewComponent", () => {
       ))}
     </View>
   );
+  return { __esModule: true, default: Comp, isOfflineAvailable: () => true };
 });
 
 // -------------------- HELPERS --------------------

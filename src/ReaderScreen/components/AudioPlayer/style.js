@@ -291,6 +291,23 @@ export const audioTrackDialogStyles = (theme) => ({
     color: theme.colors.audioTitleText,
     opacity: 0.85,
   },
+  offlineBanner: {
+    alignSelf: "stretch",
+    backgroundColor:
+      theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    zIndex: 1,
+  },
+  offlineBannerText: {
+    fontFamily: constant.BALOO_PAAJI,
+    fontSize: theme.typography.sizes.md,
+    textAlign: "center",
+    color: theme.colors.audioTitleText,
+    opacity: 0.9,
+  },
   trackList: {
     maxHeight: 200,
     zIndex: 1,
@@ -320,6 +337,10 @@ export const audioTrackDialogStyles = (theme) => ({
   },
   selectedTrackName: {
     color: theme.staticColors.WHITE_COLOR,
+  },
+  // Offline + not downloaded: greyed and non-interactive.
+  trackItemDisabled: {
+    opacity: 0.4,
   },
   playButton: {
     backgroundColor: theme.colors.primary,

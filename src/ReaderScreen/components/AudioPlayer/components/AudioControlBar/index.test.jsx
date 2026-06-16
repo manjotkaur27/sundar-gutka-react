@@ -122,15 +122,18 @@ jest.mock("@common", () => {
       WIFI_ONLY_ALERT_TITLE: "Wi-Fi Only",
       WIFI_ONLY_ALERT_BODY: "Downloads are set to Wi-Fi only.",
       WIFI_ONLY_GO_SETTINGS: "Open Settings",
+      WIFI_ONLY_USE_MOBILE_DATA: "Use mobile data",
       MOBILE_DATA_ALERT_TITLE: "Using Mobile Data",
       MOBILE_DATA_ALERT_BODY: "You're about to download {title} ({size}) over mobile data.",
       MOBILE_DATA_DOWNLOAD_ANYWAY: "Download Anyway",
+      DOWNLOAD_STARTED: "Download started",
       ok: "OK",
       cancel: "Cancel",
     },
     CustomText: (props) => <Text {...props} />,
     logError: jest.fn(),
     showConfirm: jest.fn(),
+    showInfoToast: jest.fn(),
   };
 });
 
@@ -155,6 +158,7 @@ jest.mock("@common/actions", () => ({
   toggleAudioSyncScroll: (...args) => mockToggleAudioSyncScroll(...args),
   setPlayerDragging: (...args) => mockSetPlayerDragging(...args),
   enqueueDownload: jest.fn((payload) => ({ type: "ENQUEUE_DOWNLOAD", payload })),
+  toggleDownloadWifiOnly: jest.fn((value) => ({ type: "TOGGLE_DOWNLOAD_WIFI_ONLY", value })),
 }));
 
 // Mock icons (just simple text)

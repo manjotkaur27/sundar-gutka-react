@@ -22,7 +22,7 @@ import {
 import { BackIconComponent } from '@common/components';
 import useTheme from '@common/context';
 import useThemedStyles from '@common/hooks/useThemedStyles';
-import { removeDownloadEntries, removeDownloadQueueEntry } from '@common/actions';
+import { removeDownloadEntries, removeDownloadQueueEntry, retryDownload } from '@common/actions';
 import { AUDIO_DIRECTORY_PATH } from '../ReaderScreen/components/AudioPlayer/utils/audioDownloader';
 import createStyles from './styles';
 
@@ -92,6 +92,7 @@ const ManageDownloads = ({ navigation }) => {
           isQueued: true,
           queueStatus: task.status,
           progress: task.progress ?? 0,
+          errorMessage: task.errorMessage ?? null,
         });
       }
     });
@@ -159,9 +160,22 @@ const ManageDownloads = ({ navigation }) => {
     });
   }, [dispatch]);
 
-  const queueStatusLabel = (queueStatus, progress) => {
-    if (queueStatus === 'downloading') return `${progress ?? 0}%`;
-    if (queueStatus === 'paused_user') return STRINGS.DOWNLOAD_PAUSED;
+  // Tapping a failed row retries it (matching the player's DownloadButton). A
+  // storage failure can't be retried away, so we explain that instead.
+  const retryQueueEntry = useCallback((item) => {
+    if (item.errorMessage === 'NOT_ENOUGH_STORAGE') {
+      showConfirm({
+        title: STRINGS.NOT_ENOUGH_STORAGE_TITLE,
+        message: STRINGS.NOT_ENOUGH_STORAGE_BODY,
+        confirmText: STRINGS.ok,
+      });
+      return;
+    }
+    dispatch(retryDownload(item.relativePath));
+  }, [dispatch]);
+
+  const queueStatusLabel = (queueStatus) => {
+    if (queueStatus === 'downloading') return STRINGS.DOWNLOADING;
     if (queueStatus === 'paused_wifi_only') return STRINGS.DOWNLOAD_PAUSED_WIFI;
     if (queueStatus === 'paused_no_network') return STRINGS.DOWNLOAD_WAITING_NETWORK;
     if (queueStatus === 'failed') return STRINGS.DOWNLOAD_FAILED_RETRY;
@@ -174,18 +188,27 @@ const ManageDownloads = ({ navigation }) => {
 
   const renderItem = useCallback(({ item }) => {
     if (item.isQueued) {
+      const isFailed = item.queueStatus === 'failed';
       return (
         <Pressable
           style={[styles.trackRow, styles.inProgressRow]}
-          onPress={() => cancelQueueEntry(item.relativePath, item.artistDisplayName)}
+          onPress={() =>
+            isFailed
+              ? retryQueueEntry(item)
+              : cancelQueueEntry(item.relativePath, item.artistDisplayName)
+          }
         >
           <View style={styles.trackInfo}>
             <CustomText style={styles.trackName}>{item.baniTitle}</CustomText>
             <CustomText style={styles.trackMeta}>
-              {queueStatusLabel(item.queueStatus, item.progress)}
+              {queueStatusLabel(item.queueStatus)}
             </CustomText>
           </View>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          {isFailed ? (
+            <Icon name="error-outline" type="material" size={22} color="#D32F2F" />
+          ) : (
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          )}
         </Pressable>
       );
     }

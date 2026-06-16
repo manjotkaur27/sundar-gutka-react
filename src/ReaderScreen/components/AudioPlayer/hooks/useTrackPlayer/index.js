@@ -32,6 +32,10 @@ const useTrackPlayer = () => {
   const isAudio = useSelector((state) => state.isAudio);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
+  // When auto-download-on-stream is ON, the global engine saves a permanent copy
+  // of whatever we stream — so the ephemeral prefetch below would download the
+  // same file a second time. Skip it in that case.
+  const autoDownloadOnStream = useSelector((state) => state.autoDownloadOnStream);
   const progressRef = useRef(progress);
   const currentTrackIdRef = useRef(null);
   const prefetchInFlightRef = useRef(new Map());
@@ -178,9 +182,9 @@ const useTrackPlayer = () => {
         const ready = await exists(fullLocalPath);
         if (!ready) return null;
 
-        // Keep last 5 prefetched tracks for quick seek without re-download churn.
+        // Cache the prefetched track for quick seek without re-download churn.
         await touchPrefetchTrack(track.url);
-        await prunePrefetchCache(5);
+        await prunePrefetchCache();
 
         return fullLocalPath;
       } catch (error) {
@@ -448,7 +452,7 @@ const useTrackPlayer = () => {
         if (hasCachedCopy) {
           playbackUrl = prefetchPath;
           await touchPrefetchTrack(url).catch(() => {});
-          await prunePrefetchCache(5).catch(() => {});
+          await prunePrefetchCache().catch(() => {});
         }
       }
 
@@ -490,7 +494,9 @@ const useTrackPlayer = () => {
       // With faststart M4A, streaming and downloading use separate HTTP
       // connections — no bandwidth starvation because the stream only needs
       // a tiny initial burst to fill the 1s playback buffer, then trickles.
-      if (!isLocalFile(playbackUrl)) {
+      // Skipped when auto-download-on-stream is ON (a permanent copy is already
+      // being saved by the global engine — no need to also prefetch).
+      if (!isLocalFile(playbackUrl) && !autoDownloadOnStream) {
         prefetchForSeek({
           id,
           url: playbackUrl,

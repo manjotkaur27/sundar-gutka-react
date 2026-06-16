@@ -107,6 +107,5 @@ export default {
     title: "gur mMqR",
     titleUni: "ਗੁਰ ਮੰਤ੍ਰ",
   },
-  INTERNET_CHECK_URL: "https://www.gstatic.com/generate_204",
   ICON_SIZE_SMALL: 18,
 };

@@ -280,13 +280,13 @@ const donorType = createReducer(null, {
 });
 
 // Download queue — entries stuck in 'downloading' at rehydrate had their native
-// job killed; reset them to 'queued' so the engine resumes from partialBytes.
+// job killed; reset them to 'queued' so the engine restarts them from scratch.
 const downloadQueue = (state = {}, action) => {
   switch (action.type) {
     case 'persist/REHYDRATE': {
       const persisted = action.payload?.downloadQueue ?? {};
       const healed = {};
-      // 'downloading' = native task is re-attached on launch (or restarted if
+      // 'downloading' = native task is re-adopted on launch (or restarted if
       // truly lost); 'paused_retry' = a backoff timer that didn't survive the
       // restart. Both resolve to 'queued' so the engine reconciles them.
       const reset = new Set(['downloading', 'paused_retry']);
@@ -305,7 +305,6 @@ const downloadQueue = (state = {}, action) => {
           ...action.payload,
           status: 'queued',
           progress: 0,
-          partialBytes: 0,
           retryCount: 0,
           errorMessage: null,
           jobId: null,
@@ -327,8 +326,6 @@ const downloadQueue = (state = {}, action) => {
         [action.payload.trackKey]: {
           ...state[action.payload.trackKey],
           progress: action.payload.progress,
-          writtenBytes: action.payload.writtenBytes,
-          ...(action.payload.partialBytes != null && { partialBytes: action.payload.partialBytes }),
         },
       };
     case actionTypes.REMOVE_DOWNLOAD_QUEUE_ENTRY: {
@@ -352,9 +349,12 @@ const downloadQueue = (state = {}, action) => {
       const next = { ...state };
       action.payload.statuses.forEach((pausedStatus) => {
         Object.keys(next).forEach((k) => {
-          if (next[k].status === pausedStatus) {
-            next[k] = { ...next[k], status: 'queued' };
-          }
+          if (next[k].status !== pausedStatus) return;
+          // A storage failure won't be fixed by retrying — leave it for the user.
+          if (next[k].errorMessage === 'NOT_ENOUGH_STORAGE') return;
+          // Reset the retry budget so a previously-failed entry gets a clean
+          // restart (otherwise it would immediately re-fail on its first error).
+          next[k] = { ...next[k], status: 'queued', progress: 0, retryCount: 0, errorMessage: null };
         });
       });
       return next;
@@ -391,7 +391,9 @@ const downloadWarnMobileData = createReducer(true, {
 });
 
 // When true, streaming a bani automatically enqueues its download in the background.
-const autoDownloadOnStream = createReducer(false, {
+// Shipped ON by default — fresh installs auto-save what they stream (the global
+// engine still gates on the WiFi-only setting before any bytes flow).
+const autoDownloadOnStream = createReducer(true, {
   [actionTypes.TOGGLE_AUTO_DOWNLOAD]: (state, action) => action.value,
 });
 

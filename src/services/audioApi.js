@@ -459,7 +459,9 @@ const makeApiRequest = async (endpoint, options = {}) => {
     const responseData = await response.json();
     return responseData;
   } catch (error) {
-    showErrorToast(STRINGS.NETWORK_ERROR);
+    // Swallow silently: callers handle failure gracefully (offline fallback to
+    // the emergency manifest + already-downloaded tracks), so a network error
+    // here is not user-facing. fetchArtists still surfaces its own specific toast.
     return null;
   } finally {
     clearTimeout(timeoutId);

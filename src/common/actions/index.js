@@ -244,9 +244,9 @@ export const updateDownloadStatus = (trackKey, status, extra = {}) => ({
   payload: { trackKey, status, ...extra },
 });
 
-export const updateDownloadProgress = (trackKey, progress, writtenBytes, partialBytes) => ({
+export const updateDownloadProgress = (trackKey, progress) => ({
   type: actionTypes.UPDATE_DOWNLOAD_PROGRESS,
-  payload: { trackKey, progress, writtenBytes, partialBytes },
+  payload: { trackKey, progress },
 });
 
 export const removeDownloadQueueEntry = (trackKey) => ({

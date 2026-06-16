@@ -6,7 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { pauseTrack, stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
+import { pauseTrack } from "@common/TrackPlayerUtils";
 import {
   HomeIcon,
   SettingsIcon,
@@ -15,11 +15,9 @@ import {
   DashboardIcon,
   SevaIcon,
 } from "@common/icons";
-import { CustomText, actions, constant, STRINGS, showErrorToast, SafeArea } from "@common";
+import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
 import { getSevaConfig } from "../../../services/sevaConfig";
 import createStyles from "./style";
-
-const { INTERNET_CHECK_URL } = constant;
 
 const BottomNavigation = ({
   activeKey,
@@ -42,8 +40,6 @@ const BottomNavigation = ({
   const [showSevaDot, setShowSevaDot] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
 
-  const previousConnectivityRef = useRef(null);
-  const consecutiveFailuresRef = useRef(0);
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "ios" ? Math.min(insets.bottom, 8) : 0;
 
@@ -75,59 +71,10 @@ const BottomNavigation = ({
     };
   }, []);
 
-  const checkInternetConnection = useCallback(async () => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    try {
-      const response = await fetch(INTERNET_CHECK_URL, {
-        method: "HEAD",
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      return response?.ok ?? false;
-    } catch (_) {
-      return false;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }, []);
-
-  // Internet connectivity watchdog logic (strictly preserved)
-  useEffect(() => {
-    let isMounted = true;
-
-    const syncConnectivity = async () => {
-      const isConnected = await checkInternetConnection();
-      if (!isMounted) return;
-
-      if (isConnected) {
-        consecutiveFailuresRef.current = 0;
-      } else {
-        consecutiveFailuresRef.current += 1;
-      }
-
-      const wasConnected = previousConnectivityRef.current;
-      previousConnectivityRef.current = isConnected;
-
-      if (wasConnected == null) return;
-
-      if (wasConnected && !isConnected && consecutiveFailuresRef.current >= 2) {
-        await stopTrack();
-        await resetPlayer();
-        dispatch(actions.toggleAudio(false));
-        showErrorToast(STRINGS.NETWORK_ERROR);
-      }
-    };
-
-    syncConnectivity();
-    const intervalId = setInterval(syncConnectivity, 5000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [checkInternetConnection, dispatch, isAudio]);
+  // Connectivity is handled globally and event-driven now: NetworkProvider is
+  // the single source of truth, and useOfflinePlaybackGuard (mounted once in
+  // GlobalServices) stops streaming playback when real internet is lost. The
+  // old per-instance polling watchdog that lived here has been removed.
 
   // Standard home screen navigator items
   const homeNavigationItems = [
@@ -207,15 +154,6 @@ const BottomNavigation = ({
         if (isAutoScroll) {
           dispatch(actions.toggleAutoScroll(false));
           dispatch(actions.toggleAudioFeatureEnabled(true));
-        }
-
-        const isConnected = await checkInternetConnection();
-        if (!isConnected) {
-          await stopTrack();
-          await resetPlayer();
-          dispatch(actions.toggleAudio(false));
-          showErrorToast(STRINGS.NETWORK_ERROR);
-          return;
         }
 
         const currentNavRoute = getCurrentRouteName();

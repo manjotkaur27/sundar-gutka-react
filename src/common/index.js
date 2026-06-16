@@ -17,7 +17,7 @@ import {
 } from "./components";
 import orderedBani from "./components/BaniList/baniOrderHelper";
 import constant from "./constant";
-import useTheme from "./context";
+import useTheme, { useNetwork } from "./context";
 import defaultBaniOrder from "./defaultBaniOrder";
 import {
   allowTracking,
@@ -127,6 +127,7 @@ export {
   convertToUnicode,
   BottomNavigation,
   useTheme,
+  useNetwork,
   useThemedStyles,
   ListItemTitle,
   useBackHandler,

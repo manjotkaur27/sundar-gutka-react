@@ -20,10 +20,12 @@ import {
   ConfirmDialogHost,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
+import NetworkProvider from "./src/common/context/NetworkProvider";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
 import Navigation from "./src/navigation";
 import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
 import useStorageMigration from "./src/common/hooks/useStorageMigration";
+import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
 
 const { store, persistor } = createStore();
 
@@ -44,6 +46,7 @@ const handleBeforeLift = () => {
 const GlobalServices = () => {
   useGlobalDownloadManager();
   useStorageMigration();
+  useOfflinePlaybackGuard();
   return null;
 };
 
@@ -96,16 +99,18 @@ const App = () => {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor} onBeforeLift={handleBeforeLift}>
-        <GlobalServices />
-        <ThemeProvider>
-          <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
-            <SafeAreaProvider>
-              <Navigation />
-              <Toast config={toastConfig} />
-              <ConfirmDialogHost />
-            </SafeAreaProvider>
-          </ErrorBoundary>
-        </ThemeProvider>
+        <NetworkProvider>
+          <GlobalServices />
+          <ThemeProvider>
+            <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
+              <SafeAreaProvider>
+                <Navigation />
+                <Toast config={toastConfig} />
+                <ConfirmDialogHost />
+              </SafeAreaProvider>
+            </ErrorBoundary>
+          </ThemeProvider>
+        </NetworkProvider>
       </PersistGate>
     </Provider>
   );

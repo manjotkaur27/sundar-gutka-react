@@ -16,6 +16,12 @@ let highlightTimeout = null;
 let hasReachedEnd = false;
 let accumulatedScroll = 0;
 let lastFrameTime = 0;
+// Timestamp until which programmatic (audio sync) scrolls suppress the show/hide
+// header messages. Without this, an audio-driven scrollIntoView fires the scroll
+// handler, which mistakes it for a user scroll-down and collapses the nav bar —
+// repeatedly and fast on banis with 1–2 word lines — even after the user tapped
+// to keep it visible.
+let syncScrollUntil = 0;
 
 // The active (sync-scroll) line is rendered slightly larger than the rest of
 // the bani. We scale each line's font-size — not a CSS transform — so the text
@@ -135,7 +141,7 @@ const scrollFunc=(e)=> {
   if (typeof scrollFunc.y == "undefined") {
     scrollFunc.y = window.pageYOffset;
   }
-  if (autoScrollSpeed == 0) {
+  if (autoScrollSpeed == 0 && Date.now() > syncScrollUntil) {
     let diffY = scrollFunc.y - window.pageYOffset;
     if (diffY < 0) {
       // Scroll down
@@ -383,6 +389,8 @@ ${listener}.addEventListener(
         }
       }
       if (element) {
+        // Programmatic position-restore — suppress the show/hide nav toggle.
+        syncScrollUntil = Date.now() + 700;
         element.scrollIntoView({
           behavior: "auto",
           block: "start",
@@ -436,6 +444,9 @@ ${listener}.addEventListener(
         
         // Only scroll if it's a different element
         if (!isSameElement) {
+          // Programmatic sync-scroll — suppress scrollFunc's show/hide so the
+          // nav bar the user chose to keep visible isn't collapsed by it.
+          syncScrollUntil = Date.now() + 700;
           const behavior = message.behavior === "smooth" ? "smooth" : "auto";
           gurmukhiDiv.scrollIntoView({
             behavior: behavior,

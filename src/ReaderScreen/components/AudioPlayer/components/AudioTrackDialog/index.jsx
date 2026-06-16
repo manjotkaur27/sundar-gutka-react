@@ -4,12 +4,12 @@ import { useSelector } from "react-redux";
 import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
+import useTheme, { useNetwork } from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
-import ScrollViewComponent from "../ScrollViewComponent";
+import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 
 const PREVIEW_DURATION_MS = 30000;
 const ACTIVE_TRACK_POLL_MS = 150;
@@ -33,8 +33,16 @@ const AudioTrackDialog = ({
 }) => {
   const styles = useThemedStyles(audioTrackDialogStyles);
   const fontFace = useSelector((state) => state.fontFace);
+  const downloadRegistry = useSelector((state) => state.downloadRegistry);
   const { theme } = useTheme();
   const { height: windowHeight } = useWindowDimensions();
+  // Single source of truth (NetworkProvider): real-time and captive-portal
+  // aware. `isOffline` stays false during the unknown startup window, so tracks
+  // are never falsely greyed.
+  const { isOffline } = useNetwork();
+  // Banner shows only when offline AND at least one track can't be played offline.
+  const hasUnplayableOffline =
+    isOffline && tracks.some((t) => !isOfflineAvailable(t, downloadRegistry));
   const [selectedTrack, setSelectedTrack] = useState(null);
   const selectedTrackRef = useRef(null);
   const [playingTrack, setPlayingTrack] = useState(null);
@@ -458,12 +466,21 @@ const AudioTrackDialog = ({
           </View>
         )}
 
+        {hasUnplayableOffline && (
+          <View style={styles.offlineBanner}>
+            <CustomText style={styles.offlineBannerText}>
+              {STRINGS.OFFLINE_TRACKS_NOTICE}
+            </CustomText>
+          </View>
+        )}
+
         <ScrollViewComponent
           tracks={tracks}
           selectedTrack={selectedTrack}
           playingTrack={playingTrack}
           isPlaying={isPlaying}
           previewLoadingTrackId={previewLoadingTrackId}
+          isOffline={isOffline}
           handleSelectTrack={handleSelectTrack}
         />
 

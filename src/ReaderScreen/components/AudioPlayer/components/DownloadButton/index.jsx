@@ -1,51 +1,45 @@
 /**
  * DownloadButton — compact circular download indicator for the player row.
  *
+ * No pause/resume: files are small + CDN-served, so a download is ~instant.
+ * No progress %: an active download just shows an indeterminate spinner.
+ *
  * States:
  *  • idle           — cloud-download icon; tap starts download
- *  • queued         — pulsing cloud icon; waiting for slot
- *  • downloading    — animated ring + "XX%" label; tap pauses; long-press cancels
- *  • paused_user    — frozen ring + ▶ centered; tap resumes; long-press cancels
- *  • paused_retry   — pulsing cloud icon (backoff)
- *  • paused_wifi    — wifi icon; tap → settings
- *  • paused_no_net  — cloud-off icon
+ *  • queued         — pulsing cloud icon; waiting for a slot
+ *  • downloading    — indeterminate spinner; tap cancels
+ *  • paused_retry   — pulsing cloud icon (automatic retry backoff)
+ *  • paused_wifi    — wifi icon; tap → "use mobile data"
+ *  • paused_no_net  — cloud-off icon (waiting for connection)
  *  • failed         — error icon; tap retries (or shows storage dialog)
  *  • completed      — offline-pin icon; tap → remove confirm
  */
 import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Pressable, Animated, Vibration, StyleSheet, Text } from 'react-native';
-import { Svg, Circle } from 'react-native-svg';
+import { View, Pressable, Animated, Vibration, StyleSheet, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import NetInfo from '@react-native-community/netinfo';
 import { Icon } from '@rneui/themed';
 import { DownloadIcon } from '@common/icons';
 import PropTypes from 'prop-types';
-import { exists, unlink } from 'react-native-fs';
-import { useNavigation } from '@react-navigation/native';
+import { unlink } from 'react-native-fs';
 import useTheme from '@common/context';
-import { STRINGS, showConfirm } from '@common';
+import { STRINGS, showConfirm, showInfoToast } from '@common';
 import {
   enqueueDownload,
   retryDownload,
   removeDownloadQueueEntry,
   removeDownloadEntries,
+  toggleDownloadWifiOnly,
 } from '@common/actions';
 import { downloadControls } from '@common/services/globalDownloadManager';
 import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from '../../utils/audioDownloader';
 
-// Ring geometry — 40×40 canvas, large enough to read the % label clearly.
-const SIZE    = 40;
-const CX      = SIZE / 2;
-const RADIUS  = 16;
-const STROKE  = 2.5;
-const CIRC    = 2 * Math.PI * RADIUS;
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// Canvas size for the icon slot (keeps every state visually aligned in the row).
+const SIZE = 40;
 
 const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   const { theme }    = useTheme();
   const dispatch     = useDispatch();
-  const navigation   = useNavigation();
 
   const downloadQueue           = useSelector((s) => s.downloadQueue);
   const downloadRegistry        = useSelector((s) => s.downloadRegistry);
@@ -56,32 +50,12 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   const queueEntry = trackKey ? downloadQueue[trackKey] : null;
   const inRegistry = Boolean(trackKey && downloadRegistry[trackKey]);
 
-  const status   = queueEntry?.status ?? (inRegistry ? 'completed' : 'idle');
-  const progress = queueEntry?.progress ?? 0;
+  const status = queueEntry?.status ?? (inRegistry ? 'completed' : 'idle');
 
-  // ── Animation state ────────────────────────────────────────────────────────
-  const progressAnim  = useRef(new Animated.Value(0)).current;
-  const animatedToRef = useRef(0);
+  // ── Animation state (pulse for queued/retry only) ──────────────────────────
   const prevStatusRef = useRef(status);
   const pulseAnim     = useRef(new Animated.Value(1)).current;
   const pulseLoopRef  = useRef(null);
-
-  useEffect(() => {
-    if (status === 'downloading' || status === 'completed' || status === 'paused_user') {
-      const target = status === 'completed' ? 100 : progress;
-      if (target === animatedToRef.current) return;
-      const gap = target - animatedToRef.current;
-      animatedToRef.current = target;
-      Animated.timing(progressAnim, {
-        toValue: target,
-        duration: Math.min(900, Math.max(200, gap * 10)),
-        useNativeDriver: false,
-      }).start();
-    } else {
-      progressAnim.setValue(0);
-      animatedToRef.current = 0;
-    }
-  }, [progress, status, progressAnim]);
 
   // Haptic on download completion.
   useEffect(() => {
@@ -107,22 +81,36 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
     }
   }, [status, pulseAnim]);
 
-  const strokeDashoffset = progressAnim.interpolate({
-    inputRange:  [0,    100],
-    outputRange: [CIRC, 0],
-  });
-
   // ── Tap handlers ───────────────────────────────────────────────────────────
   const onTapIdle = useCallback(async () => {
     if (!track?.audioUrl || !trackKey) return;
+    const enqueue = () => {
+      dispatch(enqueueDownload({
+        trackKey,
+        audioUrl: track.remoteUrl || track.audioUrl,
+        displayName: track.displayName,
+        baniTitle,
+        baniNameUni: baniNameUni || baniTitle,
+        baniId,
+        sizeMB: track.trackSizeMB,
+      }));
+      showInfoToast(STRINGS.DOWNLOAD_STARTED);
+    };
+
     const net = await NetInfo.fetch();
-    if (downloadWifiOnly && net.type !== 'wifi') {
+    // Wi-Fi-only is ON and we're on cellular — offer to use mobile data, which
+    // turns the setting off and proceeds. (Positive `=== 'cellular'` test: never
+    // misfire on VPN/ethernet/unknown, which `!== 'wifi'` wrongly flags.)
+    if (downloadWifiOnly && net.type === 'cellular') {
       showConfirm({
         title: STRINGS.WIFI_ONLY_ALERT_TITLE,
         message: STRINGS.WIFI_ONLY_ALERT_BODY,
-        cancelText: STRINGS.ok,
-        confirmText: STRINGS.WIFI_ONLY_GO_SETTINGS,
-        onConfirm: () => navigation.navigate('Settings'),
+        cancelText: STRINGS.cancel,
+        confirmText: STRINGS.WIFI_ONLY_USE_MOBILE_DATA,
+        onConfirm: () => {
+          dispatch(toggleDownloadWifiOnly(false));
+          enqueue();
+        },
       });
       return;
     }
@@ -136,30 +124,14 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
           .replace('{size}', sizeStr),
         cancelText: STRINGS.cancel,
         confirmText: STRINGS.MOBILE_DATA_DOWNLOAD_ANYWAY,
-        onConfirm: () => dispatch(enqueueDownload({
-          trackKey,
-          audioUrl: track.remoteUrl || track.audioUrl,
-          displayName: track.displayName,
-          baniTitle,
-          baniNameUni: baniNameUni || baniTitle,
-          baniId,
-          sizeMB: track.trackSizeMB,
-        })),
+        onConfirm: enqueue,
       });
       return;
     }
-    dispatch(enqueueDownload({
-      trackKey,
-      audioUrl: track.remoteUrl || track.audioUrl,
-      displayName: track.displayName,
-      baniTitle,
-      baniNameUni: baniNameUni || baniTitle,
-      baniId,
-      sizeMB: track.trackSizeMB,
-    }));
-  }, [track, trackKey, downloadWifiOnly, downloadWarnMobileData, baniTitle, baniNameUni, baniId, dispatch, navigation]);
+    enqueue();
+  }, [track, trackKey, downloadWifiOnly, downloadWarnMobileData, baniTitle, baniNameUni, baniId, dispatch]);
 
-  const onLongPressActive = useCallback(() => {
+  const onCancel = useCallback(() => {
     if (!trackKey) return;
     showConfirm({
       title: STRINGS.CANCEL_DOWNLOAD_TITLE,
@@ -167,16 +139,10 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
       cancelText: STRINGS.CANCEL_DOWNLOAD_KEEP,
       confirmText: STRINGS.CANCEL_DOWNLOAD_CONFIRM,
       destructive: true,
-      onConfirm: async () => {
-        dispatch(removeDownloadQueueEntry(trackKey));
-        const parts = (track?.audioUrl ?? '').split('/');
-        const artistName = parts[parts.length - 2];
-        const fileName = parts[parts.length - 1];
-        const tempPath = `${AUDIO_DIRECTORY_PATH}/${artistName}/.tmp_${fileName}`;
-        if (await exists(tempPath).catch(() => false)) await unlink(tempPath).catch(() => {});
-      },
+      // The manager stops the live native task and clears the queue entry.
+      onConfirm: () => downloadControls.cancel(trackKey),
     });
-  }, [track, trackKey, dispatch]);
+  }, [track, trackKey]);
 
   const onTapCompleted = useCallback(() => {
     if (!trackKey) return;
@@ -200,43 +166,19 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
     showConfirm({
       title: STRINGS.WIFI_ONLY_ALERT_TITLE,
       message: STRINGS.WIFI_ONLY_ALERT_BODY,
-      cancelText: STRINGS.ok,
-      confirmText: STRINGS.WIFI_ONLY_GO_SETTINGS,
-      onConfirm: () => navigation.navigate('Settings'),
+      cancelText: STRINGS.cancel,
+      confirmText: STRINGS.WIFI_ONLY_USE_MOBILE_DATA,
+      // Turning Wi-Fi-only off triggers the manager's requeue effect, which
+      // resumes any paused_wifi_only downloads.
+      onConfirm: () => dispatch(toggleDownloadWifiOnly(false)),
     });
-  }, [navigation]);
+  }, [dispatch]);
 
   if (!track?.audioUrl) return null;
 
   const primary   = theme.colors.primary;
-  const trackRing = theme.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)';
   const mutedIcon = theme.colors.audioTitleText;
   const HIT       = { top: 8, bottom: 8, left: 8, right: 8 };
-
-  // Shared SVG ring (downloading + paused_user).
-  const renderRing = () => (
-    <Svg
-      width={SIZE}
-      height={SIZE}
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
-      style={StyleSheet.absoluteFill}
-    >
-      {/* track */}
-      <Circle cx={CX} cy={CX} r={RADIUS} stroke={trackRing} strokeWidth={STROKE} fill="none" />
-      {/* fill */}
-      <AnimatedCircle
-        cx={CX} cy={CX} r={RADIUS}
-        stroke={primary}
-        strokeWidth={STROKE}
-        fill="none"
-        strokeDasharray={`${CIRC} ${CIRC}`}
-        strokeDashoffset={strokeDashoffset}
-        strokeLinecap="round"
-        rotation="-90"
-        origin={`${CX}, ${CX}`}
-      />
-    </Svg>
-  );
 
   // ── COMPLETED ──────────────────────────────────────────────────────────────
   if (status === 'completed') {
@@ -248,43 +190,20 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   }
 
   // ── DOWNLOADING ────────────────────────────────────────────────────────────
+  // Indeterminate spinner with a centered stop-square — the standard
+  // "downloading, tap to cancel" affordance. Visually distinct from the idle
+  // download icon (no percentage shown).
   if (status === 'downloading') {
-    const pct = Math.round(Math.min(100, Math.max(0, progress)));
     return (
       <Pressable
         style={s.wrap}
-        onPress={() => trackKey && downloadControls.pause(trackKey)}
-        onLongPress={onLongPressActive}
+        onPress={onCancel}
         hitSlop={HIT}
-        delayLongPress={400}
+        accessibilityRole="button"
+        accessibilityLabel="download-in-progress"
       >
-        {renderRing()}
-        {/* % label inside the ring */}
-        <Text style={[s.pct, { color: primary }]}>{`${pct}%`}</Text>
-        {/* ‖ pause hint — tiny lines at bottom-right, unambiguous affordance */}
-        <View style={s.pauseHint}>
-          <View style={[s.pauseBar, { backgroundColor: primary }]} />
-          <View style={[s.pauseBar, { backgroundColor: primary }]} />
-        </View>
-      </Pressable>
-    );
-  }
-
-  // ── PAUSED BY USER ─────────────────────────────────────────────────────────
-  if (status === 'paused_user') {
-    return (
-      <Pressable
-        style={s.wrap}
-        onPress={() => trackKey && downloadControls.resume(trackKey)}
-        onLongPress={onLongPressActive}
-        hitSlop={HIT}
-        delayLongPress={400}
-      >
-        {renderRing()}
-        {/* Solid ▶ centered in the ring — unmistakably "tap to resume" */}
-        <View style={s.resumeIcon}>
-          <Icon name="play-arrow" type="material" size={18} color={primary} />
-        </View>
+        <ActivityIndicator size="small" color={primary} />
+        <View style={[s.stopSquare, { backgroundColor: primary }]} />
       </Pressable>
     );
   }
@@ -357,37 +276,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pct: {
-    fontSize: 10,
-    fontWeight: '700',
-    includeFontPadding: false,
-    textAlign: 'center',
-    // Nudge up slightly so it sits in the visual centre of the ring.
-    marginTop: -2,
-  },
-  // Two small vertical bars (‖) at bottom-right of the ring, conveying "tap = pause".
-  pauseHint: {
+  // Small square centered inside the spinner — the "stop / tap to cancel" cue.
+  stopSquare: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    flexDirection: 'row',
-    gap: 2,
-  },
-  pauseBar: {
-    width: 2,
-    height: 6,
-    borderRadius: 1,
-  },
-  // Absolutely centred ▶ glyph — guarantees pixel-perfect centre independent of
-  // how the Icon component measures itself (which varies by platform).
-  resumeIcon: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: (SIZE - 8) / 2,
+    left: (SIZE - 8) / 2,
+    width: 8,
+    height: 8,
+    borderRadius: 1.5,
   },
 });
 
