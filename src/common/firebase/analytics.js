@@ -176,12 +176,15 @@ const trackBaniArtistDefault = async (baniID, artist) => {
   }
 };
 
-const trackTrackDownload = async (baniID, artist, baniTitle) => {
+const trackTrackDownload = async (baniID, artist, baniTitle, networkType) => {
   try {
     await logEvent(analytics, "track_download", {
       bani_id: safeStr(baniID),
       artist: safeStr(artist, "none"),
       bani_title: safeStr(baniTitle),
+      // Connection used for the download — always "wifi" | "mobile_data" |
+      // "unknown", never blank/null, so this Firebase dimension has no (not set).
+      network_type: safeStr(networkType, "unknown"),
     });
   } catch (error) {
     logError(new Error(`track_download tracking failed - ${error?.message || "Unknown error"}`));
@@ -221,18 +224,28 @@ const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollE
   }
 };
 
-// Seva donation funnel. Each action maps to its own event name and every param
-// is sanitized so nothing reaches Firebase as null/empty/wrong-type (which would
-// surface as "(not set)"). Booleans → "true"/"false", numbers → safe ints,
-// strings trimmed; null/undefined/empty values are dropped entirely.
-// NOTE: payment completion happens on Qgiv — these measure in-app intent only.
+// Seva donation funnel — IN-APP, OBSERVABLE steps only. Funnel:
+//   opened (landing) → frequency_changed (donation type) → amount_selected
+//   → payment_started (Donate tapped) → payment_success (Qgiv handoff opened).
+// On exit before the handoff we emit checkout_abandoned with the furthest step
+// reached.
+// NOTE on payment_success: real payment confirmation lives on Qgiv (external
+// WebView), which the app cannot observe. Per product decision, OPENING the Qgiv
+// handoff is counted as a successful donation, so payment_success fires on
+// browser-open — it is a conversion proxy, not a Qgiv-confirmed payment. Donor
+// details, payment failures and locality remain unobservable and are not emitted.
+// Every param is sanitized so nothing reaches Firebase as null/empty/wrong-type
+// (which would surface as "(not set)"): booleans → "true"/"false", numbers →
+// safe ints, strings trimmed; null/undefined/empty values are dropped entirely.
+// Call sites always pass real values for the required dimensions (donation_type,
+// amount_bucket, last_step_reached).
 const SEVA_EVENT_NAMES = {
   opened: "seva_opened",
-  amount_selected: "seva_amount_selected",
   frequency_changed: "seva_frequency_changed",
-  donate_tapped: "seva_donate_tapped",
-  screen_exited_without_donate: "seva_screen_exited_without_donate",
+  amount_selected: "seva_amount_selected",
+  payment_started: "seva_payment_started",
   payment_success: "seva_payment_success",
+  checkout_abandoned: "seva_checkout_abandoned",
 };
 
 const trackSevaEvent = async (action, params = {}) => {

@@ -266,26 +266,35 @@ const ManageDownloads = ({ navigation }) => {
           {/* Spacer — pushes actions to the right */}
           <View style={{ flex: 1 }} />
 
-          {/* Action buttons */}
+          {/* Action buttons — compact icon buttons (not text labels) so their
+              footprint stays small and fixed, leaving the absolutely-centered
+              title room to breathe regardless of how many actions are shown. */}
           <View style={headerStyles.actions}>
             {selectableKeys.length > 0 && (
               <Pressable
                 onPress={toggleSelectAll}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={allSelected ? STRINGS.DESELECT_ALL : STRINGS.SELECT_ALL}
               >
-                <CustomText style={[headerStyles.actionText, { color: theme.colors.primary }]} numberOfLines={1}>
-                  {allSelected ? STRINGS.DESELECT_ALL : STRINGS.SELECT_ALL}
-                </CustomText>
+                <Icon
+                  name={allSelected ? 'checkbox-multiple-marked' : 'checkbox-multiple-blank-outline'}
+                  type="material-community"
+                  size={24}
+                  color={theme.colors.primary}
+                />
               </Pressable>
             )}
             {selected.size > 0 && (
               <Pressable
                 onPress={confirmDelete}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={`${STRINGS.delete} (${selected.size})`}
+                style={headerStyles.deleteButton}
               >
-                <CustomText style={[headerStyles.actionText, { color: '#D32F2F' }]} numberOfLines={1}>
-                  {STRINGS.DELETE_SELECTED} ({selected.size})
-                </CustomText>
+                <Icon name="delete-outline" type="material-community" size={24} color="#D32F2F" />
+                <View style={headerStyles.deleteBadge}>
+                  <CustomText style={headerStyles.deleteBadgeText}>{selected.size}</CustomText>
+                </View>
               </Pressable>
             )}
           </View>
@@ -373,14 +382,29 @@ const headerStyles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    flexShrink: 1,
-    minWidth: 0,
+    gap: 8,
+    flexShrink: 0,
     paddingRight: 4,
   },
-  actionText: {
-    fontSize: 13,
-    fontWeight: '500',
+  deleteButton: {
+    position: 'relative',
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#D32F2F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  deleteBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
 });
 

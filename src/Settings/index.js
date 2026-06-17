@@ -17,6 +17,7 @@ import {
 } from "@common";
 import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
+import BaniFontFaceComponent from "./components/baniFontFace";
 import BaniLengthComponent from "./components/baniLength";
 import CollectStatistics from "./components/collectStatistics";
 import ListItemWithIcon from "./components/comon/ListitemWithIcon";
@@ -41,17 +42,20 @@ import createStyles from "./styles";
 
 const Settings = ({ navigation, route }) => {
   const fromReader = route?.params?.fromReader === true;
-  // Settings is reachable two ways: pushed as a stack screen from the Reader
-  // (goBack pops to Reader) OR as a bottom tab from Home (the tab navigator has
-  // no back stack, so goBack is a no-op — switch to the Home tab instead).
+  // Settings is reachable several ways: pushed onto the root stack (from the
+  // Reader OR a Folder) where goBack() pops correctly, OR as a bottom tab from
+  // Home where there is no back stack. canGoBack() distinguishes them reliably
+  // for every entry path — only the tab case (no stack to pop) falls back to the
+  // Home tab. (The old fromReader-only check left the Folder→Settings push stuck,
+  // since navigate("Home") can't resolve the tab from the root stack.)
   const handleBackPress = React.useCallback(() => {
-    if (fromReader) {
+    if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
       navigation.navigate("Home");
     }
     return true;
-  }, [fromReader, navigation]);
+  }, [navigation]);
   const appBar = useHeader(navigation, handleBackPress);
   useBackHandler(handleBackPress);
   const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvailable);
@@ -90,6 +94,7 @@ const Settings = ({ navigation, route }) => {
         {/* Bani Options */}
         <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
         <EditBaniOrder navigate={navigate} />
+        <BaniFontFaceComponent />
         <BaniLengthComponent />
         <LarivaarComponent />
         <ParagraphMode />

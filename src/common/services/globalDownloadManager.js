@@ -222,7 +222,7 @@ const useGlobalDownloadManager = () => {
   // Runs when a download completes — from the live `done` event, OR on the next
   // app start for downloads that finished while the app was terminated.
   const finalizeDownload = async (meta) => {
-    const { trackKey, audioUrl, displayName, baniTitle, baniId, sizeMB, relativePath, finalPath } = meta;
+    const { trackKey, audioUrl, displayName, baniTitle, baniId, sizeMB, relativePath, finalPath, downloadNetwork } = meta;
     clearStallTimer(trackKey);
     try {
       if (registryRef.current[relativePath]) {
@@ -247,10 +247,13 @@ const useGlobalDownloadManager = () => {
         baniTitle,
         baniId,
         sizeMB: sizeMB ?? 0,
+        // Exact on-disk byte count — used for deterministic integrity checks
+        // (a file that isn't exactly this size is truncated/corrupt).
+        sizeBytes: Number(size) || 0,
         hasLyrics: false,
         downloadedAt: Date.now(),
       }));
-      trackTrackDownload(baniId, displayName, baniTitle);
+      trackTrackDownload(baniId, displayName, baniTitle, downloadNetwork);
       dispatchRef.current(updateDownloadStatus(trackKey, 'completed'));
       logMessage(`Download complete: ${relativePath}`);
 
@@ -316,6 +319,13 @@ const useGlobalDownloadManager = () => {
       sizeMB: entry.sizeMB ?? 0,
       relativePath,
       finalPath,
+      // Connection the download starts on — recorded so the completion analytics
+      // reports what the user actually used (always a concrete value, never null).
+      downloadNetwork: networkRef.current.isWifi
+        ? 'wifi'
+        : networkRef.current.isConnected
+        ? 'mobile_data'
+        : 'unknown',
       // Bani name (Punjabi) + artist (English) — used as the notification title.
       groupName: [entry.baniNameUni || entry.baniTitle, entry.displayName]
         .filter(Boolean)

@@ -49,13 +49,21 @@ const BottomNavigation = ({
     return navState?.routes[navState?.index]?.name;
   }, [navigation]);
 
-  // Animate visibility (slide down when hidden)
+  // Animate visibility (slide down when hidden). Stop the animation on unmount
+  // so a mid-flight native-driver animation can't try to connect to a view that
+  // was already torn down (the "Animated node does not exist" native crash —
+  // this component mounts/unmounts a lot across screens).
   useEffect(() => {
-    Animated.timing(translateY, {
+    const anim = Animated.timing(translateY, {
       toValue: visible ? 0 : 100,
       duration: 300,
       useNativeDriver: true,
-    }).start();
+    });
+    anim.start();
+    return () => {
+      anim.stop();
+      translateY.stopAnimation();
+    };
   }, [visible, translateY]);
 
   // Load seva dot state from config

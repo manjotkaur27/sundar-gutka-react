@@ -26,6 +26,12 @@ const transliterationLanguage = createReducer(constant.ENGLISH, {
 const fontFace = createReducer(constant.BALOO_PAAJI, {
   [actionTypes.SET_FONT_FACE]: (state, action) => action.value,
 });
+
+// Font used only for the Bani (scripture) text inside the Reader's WebView —
+// independent of `fontFace`, which drives Gurmukhi titles elsewhere in the app.
+const baniFontFace = createReducer(constant.GURBANI_AKHAR_TRUE, {
+  [actionTypes.SET_BANI_FONT_FACE]: (state, action) => action.value,
+});
 const language = createReducer(constant.Default.toUpperCase(), {
   [actionTypes.SET_LANGUAGE]: (state, action) => action.value,
 });
@@ -386,10 +392,6 @@ const downloadWifiOnly = createReducer(true, {
   [actionTypes.TOGGLE_DOWNLOAD_WIFI_ONLY]: (state, action) => action.value,
 });
 
-const downloadWarnMobileData = createReducer(true, {
-  [actionTypes.TOGGLE_DOWNLOAD_WARN_MOBILE_DATA]: (state, action) => action.value,
-});
-
 // When true, streaming a bani automatically enqueues its download in the background.
 // Shipped ON by default — fresh installs auto-save what they stream (the global
 // engine still gates on the WiFi-only setting before any bytes flow).
@@ -403,6 +405,7 @@ const rootReducer = combineReducers({
   isNightMode,
   fontSize,
   fontFace,
+  baniFontFace,
   language,
   transliterationLanguage,
   isTransliteration,
@@ -448,7 +451,6 @@ const rootReducer = combineReducers({
   downloadQueue,
   downloadRegistry,
   downloadWifiOnly,
-  downloadWarnMobileData,
   autoDownloadOnStream,
 });
 export default rootReducer;

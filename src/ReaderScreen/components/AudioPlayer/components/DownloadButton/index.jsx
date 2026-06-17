@@ -44,7 +44,6 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   const downloadQueue           = useSelector((s) => s.downloadQueue);
   const downloadRegistry        = useSelector((s) => s.downloadRegistry);
   const downloadWifiOnly        = useSelector((s) => s.downloadWifiOnly);
-  const downloadWarnMobileData  = useSelector((s) => s.downloadWarnMobileData);
 
   const trackKey   = track?.audioUrl ? getLocalTrackPath(track.audioUrl) : null;
   const queueEntry = trackKey ? downloadQueue[trackKey] : null;
@@ -114,22 +113,8 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
       });
       return;
     }
-    if (!downloadWifiOnly && downloadWarnMobileData && net.type === 'cellular') {
-      const sizeMB = track.trackSizeMB;
-      const sizeStr = sizeMB != null ? `~${Math.round(sizeMB)} MB` : '';
-      showConfirm({
-        title: STRINGS.MOBILE_DATA_ALERT_TITLE,
-        message: STRINGS.MOBILE_DATA_ALERT_BODY
-          .replace('{title}', track.displayName ?? '')
-          .replace('{size}', sizeStr),
-        cancelText: STRINGS.cancel,
-        confirmText: STRINGS.MOBILE_DATA_DOWNLOAD_ANYWAY,
-        onConfirm: enqueue,
-      });
-      return;
-    }
     enqueue();
-  }, [track, trackKey, downloadWifiOnly, downloadWarnMobileData, baniTitle, baniNameUni, baniId, dispatch]);
+  }, [track, trackKey, downloadWifiOnly, baniTitle, baniNameUni, baniId, dispatch]);
 
   const onCancel = useCallback(() => {
     if (!trackKey) return;

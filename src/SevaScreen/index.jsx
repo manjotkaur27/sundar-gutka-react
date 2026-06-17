@@ -31,7 +31,35 @@ import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
 import { DonateIcon } from "../common/icons";
 import createStyles from "./styles";
 
-// Custom event tracker placeholder to match original branch structure
+// ─── Seva analytics funnel helpers (in-app, observable steps only) ───────────
+// donation_type is required on every Seva event and must never be null/empty.
+const donationTypeOf = (freq) => (freq === "One Time" ? "one_time" : "recurring");
+
+// amount_bucket is always a non-empty categorical string (never null) so Firebase
+// never records "(not set)". The three presets (10/50/100) fall in distinct
+// buckets, and a not-yet-typed custom amount is reported as "custom".
+const bucketAmount = (amount) => {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return "unknown";
+  if (n < 10) return "under_10";
+  if (n < 25) return "10_24";
+  if (n < 50) return "25_49";
+  if (n < 100) return "50_99";
+  if (n < 250) return "100_249";
+  return "250_plus";
+};
+
+// Observable in-app funnel steps. The furthest reached is emitted on exit as
+// checkout_abandoned.last_step_reached when the user leaves before the handoff.
+const SEVA_STEPS = {
+  landing_view: 1,
+  donation_type_selected: 2,
+  amount_selected: 3,
+  payment_started: 4,
+};
+const SEVA_STEP_NAMES = Object.keys(SEVA_STEPS);
+const stepNameOf = (v) => SEVA_STEP_NAMES[v - 1] || "landing_view";
+
 const SevaScreen = () => {
   const { theme } = useTheme();
   const isDarkMode = theme.mode === "dark";
@@ -70,6 +98,13 @@ const SevaScreen = () => {
   const hasDonatedRef = useRef(false);
   const hasInteractedRef = useRef(false);
   const lastFrequencyRef = useRef(frequency);
+  // Furthest funnel step reached — emitted as checkout_abandoned.last_step_reached
+  // on exit. Starts at landing_view (the screen is on screen as of mount).
+  const maxStepRef = useRef(SEVA_STEPS.landing_view);
+  const markStep = useCallback((name) => {
+    const v = SEVA_STEPS[name] || 0;
+    if (v > maxStepRef.current) maxStepRef.current = v;
+  }, []);
 
   // Load config on mount
   useEffect(() => {
@@ -113,14 +148,17 @@ const SevaScreen = () => {
       }
       trackSevaEvent("opened", {
         is_first_open: isFirstOpen,
-        donation_type: frequency === "One Time" ? "one_time" : "recurring",
+        donation_type: donationTypeOf(frequency),
       });
     })();
     return () => {
+      // Abandoned only if the user left before the Qgiv handoff. last_step_reached
+      // and donation_type are always real, non-empty values.
       if (!hasDonatedRef.current) {
-        trackSevaEvent("screen_exited_without_donate", {
+        trackSevaEvent("checkout_abandoned", {
+          last_step_reached: stepNameOf(maxStepRef.current),
           interacted: hasInteractedRef.current,
-          frequency_selected: lastFrequencyRef.current,
+          donation_type: donationTypeOf(lastFrequencyRef.current),
         });
       }
     };
@@ -134,10 +172,11 @@ const SevaScreen = () => {
       setCustomAmount("");
     }
     hasInteractedRef.current = true;
+    markStep("amount_selected");
     trackSevaEvent("amount_selected", {
-      amount: isOther ? null : amount,
       is_custom: isOther,
-      donation_type: frequency === "One Time" ? "one_time" : "recurring",
+      amount_bucket: isOther ? "custom" : bucketAmount(amount),
+      donation_type: donationTypeOf(frequency),
     });
   };
 
@@ -151,13 +190,14 @@ const SevaScreen = () => {
     setFrequency(freq);
     lastFrequencyRef.current = freq;
     hasInteractedRef.current = true;
+    markStep("donation_type_selected");
     trackSevaEvent("frequency_changed", {
       frequency: freq,
-      donation_type: freq === "One Time" ? "one_time" : "recurring",
+      donation_type: donationTypeOf(freq),
     });
   };
 
-  const effectiveDonationType = frequency === "One Time" ? "one_time" : "recurring";
+  const effectiveDonationType = donationTypeOf(frequency);
 
   // ─── Shared browser helper ─────────────────────────────────────────────────
   const openBrowserForUrl = useCallback(async (url) => {
@@ -218,9 +258,14 @@ const SevaScreen = () => {
     }
 
     hasDonatedRef.current = true;
-    trackSevaEvent("donate_tapped", {
-      amount: finalAmount,
+    markStep("payment_started");
+    // Last in-app observable step: the Donate tap hands off to Qgiv. This is
+    // payment INTENT, not a confirmed donation — Qgiv holds payment truth and
+    // the app cannot see it. Every param here is a real, non-empty value.
+    trackSevaEvent("payment_started", {
+      provider: "qgiv",
       is_custom: isOtherSelected,
+      amount_bucket: bucketAmount(finalAmount),
       donation_type: effectiveDonationType,
     });
 
@@ -245,10 +290,12 @@ const SevaScreen = () => {
       openBrowserForUrl(url);
     }
 
-    // NOTE: not a real success signal — Qgiv holds payment truth. Fired on
-    // browser-open at the client's request to approximate conversion intent.
+    // Qgiv handoff opened — counted as a successful donation per product
+    // decision (the app cannot observe Qgiv's real confirmation). Fired at the
+    // same point on both platforms. Params are always real, non-empty values.
     trackSevaEvent("payment_success", {
       provider: "qgiv",
+      amount_bucket: bucketAmount(finalAmount),
       donation_type: effectiveDonationType,
     });
   }, [
@@ -260,6 +307,7 @@ const SevaScreen = () => {
     dispatch,
     navigation,
     openBrowserForUrl,
+    markStep,
   ]);
 
   const handleOpenSource = () => {

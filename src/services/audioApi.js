@@ -1,7 +1,8 @@
 import { constant, showErrorToast, STRINGS } from "@common";
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
-const BLOB_BASE = "https://banidb.blob.core.windows.net/audios";
+// Centralized in constant.AUDIO_BASE_URL so the CDN host is a one-line switch.
+const BLOB_BASE = constant.AUDIO_BASE_URL;
 
 // ─── Artist IDs ──────────────────────────────────────────────────────────────
 const JARNAIL_ARTIST_ID = 4;
@@ -105,12 +106,15 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 21,
       track_id: 1021,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/test.mp4`,
-      track_length_seconds: 1335,
-      track_size_mb: 20.49,
+      // Trimmed variant: first 6s of silent intro removed (sample-accurate
+      // re-encode); lyrics JSON timestamps shifted -6.000s to match. Originals
+      // (RehrasSahib.m4a / Rehras-sahib.json) remain on blob for older clients.
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/RehrasSahib-trimmed.m4a`,
+      track_length_seconds: 1329,
+      track_size_mb: 20.53,
       artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
-      lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib.json`,
+      lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/Rehras-sahib-trimmed.json`,
     },
   ],
   23: [

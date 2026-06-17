@@ -58,9 +58,9 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
         <ListItem
           bottomDivider={false}
           containerStyle={{
-            backgroundColor: isDarkMode
-              ? isFolderScreen ? theme.colors.surface : "#041126"
-              : theme.colors.surface,
+            // Folder rows match the home bani-list exactly (same dark navy in
+            // dark mode), so the folders section feels like part of home.
+            backgroundColor: isDarkMode ? "#041126" : theme.colors.surface,
             paddingVertical: 8,
           }}
           onPress={() => onPress(row)}

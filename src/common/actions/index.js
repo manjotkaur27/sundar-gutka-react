@@ -16,6 +16,10 @@ export const setFontFace = (value) => {
   trackSettingEvent(constant.FONT_FACE, value);
   return { type: actionTypes.SET_FONT_FACE, value };
 };
+export const setBaniFontFace = (value) => {
+  trackSettingEvent(constant.BANI_FONT_FACE, value);
+  return { type: actionTypes.SET_BANI_FONT_FACE, value };
+};
 
 export const setLanguage = (value) => {
   trackSettingEvent(constant.LANGUAGE, value);
@@ -287,11 +291,6 @@ export const clearDownloadRegistry = () => ({
 // Download settings action creators
 export const toggleDownloadWifiOnly = (value) => ({
   type: actionTypes.TOGGLE_DOWNLOAD_WIFI_ONLY,
-  value,
-});
-
-export const toggleDownloadWarnMobileData = (value) => ({
-  type: actionTypes.TOGGLE_DOWNLOAD_WARN_MOBILE_DATA,
   value,
 });
 

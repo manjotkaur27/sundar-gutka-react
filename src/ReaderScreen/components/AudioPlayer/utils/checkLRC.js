@@ -1,6 +1,6 @@
 import { exists } from "react-native-fs";
 import { checkIsRemote, extractFilePath } from "./urlHelper";
-import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
+import { hasBundledLyrics } from "../assets/lyrics/bundledLyrics";
 
 const checkLyricsFileAvailable = async (lyricsUrl = null) => {
   try {
@@ -14,7 +14,7 @@ const checkLyricsFileAvailable = async (lyricsUrl = null) => {
     const isRemote = checkIsRemote(lyricsUrl);
 
     if (isRemote) {
-      if (Object.prototype.hasOwnProperty.call(BUNDLED_LYRICS, lyricsUrl)) {
+      if (hasBundledLyrics(lyricsUrl)) {
         return true;
       }
       

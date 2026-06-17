@@ -1,4 +1,24 @@
+import { AppState } from "react-native";
 import { logError, logMessage } from "./index";
+
+// Resolves once the app is in the foreground. setupPlayer() starts the RNTP
+// MusicService as a foreground service, and Android 12+ throws
+// ForegroundServiceStartNotAllowedException if that happens from the background
+// (e.g. the player mounts while the activity is stopping). Gating setup on this
+// is the single chokepoint that protects every caller.
+const waitForForeground = () =>
+  new Promise((resolve) => {
+    if (AppState.currentState === "active") {
+      resolve();
+      return;
+    }
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        sub.remove();
+        resolve();
+      }
+    });
+  });
 
 // RNTP is required lazily (not at module load time) because its Capability.js
 // initialiser reads NativeModules.TrackPlayerModule at the moment the module
@@ -35,6 +55,10 @@ class TrackPlayerService {
     // Create initialization promise
     this.initPromise = (async () => {
       try {
+        // Never start the player's foreground service from the background —
+        // wait until the app is foreground first (Android 12+ FGS restriction).
+        await waitForForeground();
+
         logMessage("Initializing TrackPlayer service...");
 
         // Resolve RNTP lazily here — by the time initialize() is called the

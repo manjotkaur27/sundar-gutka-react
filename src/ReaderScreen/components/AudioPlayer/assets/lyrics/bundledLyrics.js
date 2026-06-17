@@ -1,107 +1,123 @@
   /**
- * Bundled lyrics — keyed by the full Azure Blob URL that the audio manifest
- * passes as `lyricsUrl`. Metro inlines each JSON at build time, so fetching
+ * Bundled lyrics — keyed by the host-independent "Artist/file.json" path (the
+ * last two segments of the lyrics URL). Keying on the path, not the full URL,
+ * means the bundle keeps working no matter which host serves assets (blob, CDN,
+ * or a future custom domain). Metro inlines each JSON at build time, so fetching
  * lyrics requires zero network requests and zero disk I/O at runtime.
  *
- * To add a new track: download the JSON from Azure, drop it in the matching
- * artist sub-folder here, and add an entry below.
+ * To add a new track: drop the JSON in the matching artist sub-folder here and
+ * add an entry below keyed by "Artist/file.json". Look it up via
+ * getBundledLyrics()/hasBundledLyrics(), never by raw URL.
  */
 
 const BUNDLED_LYRICS = {
   // ── Bhai Jarnail Singh ────────────────────────────────────────────────────
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/japji-sahib.json":
+  "BhaiJarnailSingh/japji-sahib.json":
     require("./BhaiJarnailSingh/japji-sahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/jaap-sahib.json":
+  "BhaiJarnailSingh/jaap-sahib.json":
     require("./BhaiJarnailSingh/jaap-sahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/saviye.json":
+  "BhaiJarnailSingh/saviye.json":
     require("./BhaiJarnailSingh/saviye.json"),
 
   // Chaupai Sahib — XL (Buddha Dal): full recording incl. all closing sections
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/chopai-sahib.json":
+  "BhaiJarnailSingh/chopai-sahib.json":
     require("./BhaiJarnailSingh/chopai-sahib.json"),
 
   // Chaupai Sahib — Short/Medium/Long: trimmed to seq 146 (੪੦੧), timestamps rebased to 0
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/chopai-sahib-short.json":
+  "BhaiJarnailSingh/chopai-sahib-short.json":
     require("./BhaiJarnailSingh/chopai-sahib-short.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/anand-sahib.json":
+  "BhaiJarnailSingh/anand-sahib.json":
     require("./BhaiJarnailSingh/anand-sahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/anand-sahib-6-pauri.json":
+  "BhaiJarnailSingh/anand-sahib-6-pauri.json":
     require("./BhaiJarnailSingh/anand-sahib-6-pauri.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/Rehras-sahib.json":
-    require("./BhaiJarnailSingh/Rehras-sahib.json"),
+  "BhaiJarnailSingh/Rehras-sahib-trimmed.json":
+    require("./BhaiJarnailSingh/Rehras-sahib-trimmed.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/Rehras-sahib-medium.json":
+  "BhaiJarnailSingh/Rehras-sahib-medium.json":
     require("./BhaiJarnailSingh/Rehras-sahib-medium.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/Rehras-sahib-short.json":
+  "BhaiJarnailSingh/Rehras-sahib-short.json":
     require("./BhaiJarnailSingh/Rehras-sahib-short.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/kirtan-sohaila.json":
+  "BhaiJarnailSingh/kirtan-sohaila.json":
     require("./BhaiJarnailSingh/kirtan-sohaila.json"),
 
-  "https://banidb.blob.core.windows.net/audios/BhaiJarnailSingh/kirtan-sohaila-short.json":
+  "BhaiJarnailSingh/kirtan-sohaila-short.json":
     require("./BhaiJarnailSingh/kirtan-sohaila-short.json"),
 
   // ── Indermohan Kaur UK ───────────────────────────────────────────────────
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/JapjiSahib.json":
+  "IndermohanKaurUK/JapjiSahib.json":
     require("./IndermohanKaurUK/JapjiSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/JaapSahib.json":
+  "IndermohanKaurUK/JaapSahib.json":
     require("./IndermohanKaurUK/JaapSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/TavParsadSwayiye.json":
+  "IndermohanKaurUK/TavParsadSwayiye.json":
     require("./IndermohanKaurUK/TavParsadSwayiye.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/ChaupaiSahib.json":
+  "IndermohanKaurUK/ChaupaiSahib.json":
     require("./IndermohanKaurUK/ChaupaiSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/AnandSahib.json":
+  "IndermohanKaurUK/AnandSahib.json":
     require("./IndermohanKaurUK/AnandSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/AnandSahib-6-pauri.json":
+  "IndermohanKaurUK/AnandSahib-6-pauri.json":
     require("./IndermohanKaurUK/AnandSahib-6-pauri.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/RehrasSahib.json":
+  "IndermohanKaurUK/RehrasSahib.json":
     require("./IndermohanKaurUK/RehrasSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/RehrasSahib-medium.json":
+  "IndermohanKaurUK/RehrasSahib-medium.json":
     require("./IndermohanKaurUK/RehrasSahib-medium.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/RehrasSahib-short.json":
+  "IndermohanKaurUK/RehrasSahib-short.json":
     require("./IndermohanKaurUK/RehrasSahib-short.json"),
 
-  "https://banidb.blob.core.windows.net/audios/IndermohanKaurUK/KirtanSohaila.json":
+  "IndermohanKaurUK/KirtanSohaila.json":
     require("./IndermohanKaurUK/KirtanSohaila.json"),
 
   // ── Giani Gurdev Singh ───────────────────────────────────────────────────
   // M4As + JSONs confirmed on Azure Blob. Sync-scroll ready.
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/JapjiSahib.json":
+  "GianiGurdevSingh/JapjiSahib.json":
     require("./GianiGurdevSingh/JapjiSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/JaapSahib.json":
+  "GianiGurdevSingh/JaapSahib.json":
     require("./GianiGurdevSingh/JaapSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/AnandSahib.json":
+  "GianiGurdevSingh/AnandSahib.json":
     require("./GianiGurdevSingh/AnandSahib.json"),
 
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/AnandSahib-6-pauri.json":
+  "GianiGurdevSingh/AnandSahib-6-pauri.json":
     require("./GianiGurdevSingh/AnandSahib-6-pauri.json"),
 
   // Chaupai Sahib — XL (Buddha Dal): full recording incl. all closing sections
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/ChaupaiSahib.json":
+  "GianiGurdevSingh/ChaupaiSahib.json":
     require("./GianiGurdevSingh/ChaupaiSahib.json"),
 
   // Chaupai Sahib — Short/Medium/Long: trimmed to seq 146 (੪੦੧), timestamps rebased to 0
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/ChaupaiSahib-short.json":
+  "GianiGurdevSingh/ChaupaiSahib-short.json":
     require("./GianiGurdevSingh/ChaupaiSahib-short.json"),
 
-  "https://banidb.blob.core.windows.net/audios/GianiGurdevSingh/TavParsadSwayiye.json":
+  "GianiGurdevSingh/TavParsadSwayiye.json":
     require("./GianiGurdevSingh/TavParsadSwayiye.json"),
 };
+
+// Normalize any lyrics reference (full blob/CDN URL or a local file path) to the
+// "Artist/file.json" key the bundle is keyed on — the last two path segments.
+const bundledKey = (url) => {
+  if (!url) return "";
+  const parts = String(url).split("?")[0].split("/");
+  return parts.slice(-2).join("/");
+};
+
+export const getBundledLyrics = (url) => BUNDLED_LYRICS[bundledKey(url)];
+
+export const hasBundledLyrics = (url) =>
+  Object.prototype.hasOwnProperty.call(BUNDLED_LYRICS, bundledKey(url));
 
 export default BUNDLED_LYRICS;

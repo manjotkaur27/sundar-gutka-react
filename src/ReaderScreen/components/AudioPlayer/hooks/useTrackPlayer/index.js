@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 import { exists, stat } from "react-native-fs";
-import TrackPlayer, { usePlaybackState, useProgress, State } from "react-native-track-player";
+import TrackPlayer, { usePlaybackState, useProgress, State, Event } from "react-native-track-player";
 import { useSelector } from "react-redux";
 import {
   addTrack,
@@ -12,7 +12,7 @@ import {
   TrackPlayerSetup,
   getTrackPlayerState,
 } from "@common/TrackPlayerUtils";
-import { logError, logMessage } from "@common";
+import { logError, logMessage, useNetwork } from "@common";
 import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
 import {
   downloadAudioOnly,
@@ -21,6 +21,11 @@ import {
   touchPrefetchTrack,
   prunePrefetchCache,
 } from "../../utils/audioDownloader";
+
+// Backoff schedule (ms) for connection-drop playback recovery — caps out at
+// 30s so a sustained outage doesn't spin forever; the offline guard's pause
+// takes over for that case anyway.
+const RECOVERY_BACKOFF_MS = [1000, 2000, 4000, 8000, 15000, 30000];
 
 const useTrackPlayer = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -50,6 +55,16 @@ const useTrackPlayer = () => {
   // Used by the auto-resume logic to distinguish a mid-play stall from an
   // intentional pause/stop.
   const wasPlayingBeforeBufferRef = useRef(false);
+  // Connection-drop recovery (network handoff mid-stream, transient CDN error,
+  // etc). ExoPlayer's HTTP connection dies for real when the OS swaps network
+  // interfaces — that's a native PlaybackError, not something the NetInfo-based
+  // offline guard can see. { active, track, position, attempt, timer }.
+  const recoveryRef = useRef({ active: false, track: null, position: 0, attempt: 0, timer: null });
+  // Timestamp of the last PlaybackError — lets the Stop/None ref-clearing
+  // effect below tell "error knocked the player over" apart from "user/track
+  // genuinely stopped", so recovery isn't sabotaged by its own side effects.
+  const lastErrorAtRef = useRef(0);
+  const { isOnline } = useNetwork();
 
   const configurePlayer = useCallback(async () => {
     setInitializationError(null);
@@ -103,8 +118,16 @@ const useTrackPlayer = () => {
       playbackState?.state === State.None
     ) {
       // If play() was explicitly called within the last 2000ms, ignore this
-      // stale Stop/None event coming from the pre-play reset() command!
-      if (Date.now() - explicitPlayTriggeredAtRef.current > 2000) {
+      // stale Stop/None event coming from the pre-play reset() command! Same
+      // for a Stop/None that's really a PlaybackError in disguise (ExoPlayer's
+      // connection died mid-stream) — recovery owns getting back to Playing,
+      // so don't let this clear the user's intent out from under it.
+      const recentlyErrored = Date.now() - lastErrorAtRef.current < 4000;
+      if (
+        Date.now() - explicitPlayTriggeredAtRef.current > 2000 &&
+        !recentlyErrored &&
+        !recoveryRef.current.active
+      ) {
         wasPlayingBeforeBufferRef.current = false;
       }
     }
@@ -139,11 +162,111 @@ const useTrackPlayer = () => {
     return () => clearTimeout(timer);
   }, [isInitialized, isAudio, isAudioFeatureOn, playbackState?.state]);
 
+  // ── Connection-drop recovery (Spotify/YT-Music style reconnect) ────────────
+  // A genuine network-interface switch (mobile data <-> WiFi) kills ExoPlayer's
+  // live HTTP connection — that surfaces as Event.PlaybackError, not a buffering
+  // stall, so the Ready/Buffering watchdogs above never see it. We capture
+  // where playback dropped and silently reload + reseek + resume, retrying with
+  // backoff and instantly the moment connectivity is confirmed back.
+  const clearRecoveryTimer = useCallback(() => {
+    if (recoveryRef.current.timer) {
+      clearTimeout(recoveryRef.current.timer);
+      recoveryRef.current.timer = null;
+    }
+  }, []);
+
+  const cancelRecovery = useCallback(() => {
+    clearRecoveryTimer();
+    recoveryRef.current = { active: false, track: null, position: 0, attempt: 0, timer: null };
+  }, [clearRecoveryTimer]);
+
+  const scheduleRecoveryRetry = useCallback(() => {
+    const rec = recoveryRef.current;
+    if (!rec.active) return;
+    clearRecoveryTimer();
+    if (rec.attempt >= RECOVERY_BACKOFF_MS.length) {
+      logError("Playback recovery exhausted retries after connection loss");
+      cancelRecovery();
+      return;
+    }
+    const delay = RECOVERY_BACKOFF_MS[rec.attempt];
+    rec.attempt += 1;
+    // eslint-disable-next-line no-use-before-define
+    rec.timer = setTimeout(() => attemptRecoveryRef.current(), delay);
+  }, [clearRecoveryTimer, cancelRecovery]);
+
+  const attemptRecovery = useCallback(async () => {
+    const rec = recoveryRef.current;
+    if (!rec.active || !rec.track) return;
+    try {
+      await TrackPlayer.reset();
+      await addTrack(rec.track);
+      await TrackPlayer.seekTo(rec.position);
+      await playTrack();
+      logMessage("Playback recovered after connection error");
+      cancelRecovery();
+    } catch (error) {
+      logError("Playback recovery attempt failed:", error);
+      scheduleRecoveryRetry();
+    }
+  }, [cancelRecovery, scheduleRecoveryRetry]);
+
+  // Stable ref so the setTimeout above (created inside scheduleRecoveryRetry)
+  // always calls the latest attemptRecovery without re-creating timers.
+  const attemptRecoveryRef = useRef(attemptRecovery);
+  useEffect(() => { attemptRecoveryRef.current = attemptRecovery; }, [attemptRecovery]);
+
+  useEffect(() => {
+    if (!isInitialized) return undefined;
+
+    const sub = TrackPlayer.addEventListener(Event.PlaybackError, async () => {
+      lastErrorAtRef.current = Date.now();
+      // Not actively playing (or user already paused/stopped on purpose) —
+      // nothing to reconnect.
+      if (!wasPlayingBeforeBufferRef.current) return;
+
+      if (!recoveryRef.current.active) {
+        const [activeTrack, prog] = await Promise.all([
+          TrackPlayer.getActiveTrack().catch(() => null),
+          TrackPlayer.getProgress().catch(() => null),
+        ]);
+        if (!activeTrack?.url) return;
+        recoveryRef.current = {
+          active: true,
+          track: activeTrack,
+          position: prog?.position ?? 0,
+          attempt: 0,
+          timer: null,
+        };
+      }
+      scheduleRecoveryRetry();
+    });
+
+    return () => {
+      sub.remove();
+      clearRecoveryTimer();
+    };
+  }, [isInitialized, scheduleRecoveryRetry, clearRecoveryTimer]);
+
+  // The instant real connectivity is confirmed back, retry immediately instead
+  // of waiting out the current backoff delay — this is what makes the
+  // reconnect feel instant rather than "eventually".
+  const prevIsOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    const cameOnline = isOnline && !prevIsOnlineRef.current;
+    prevIsOnlineRef.current = isOnline;
+    if (cameOnline && recoveryRef.current.active) {
+      clearRecoveryTimer();
+      attemptRecovery();
+    }
+  }, [isOnline, attemptRecovery, clearRecoveryTimer]);
+
   useEffect(() => {
     const teardownWhenFeatureDisabled = async () => {
       if (!isInitialized || isAudioFeatureOn) {
         return;
       }
+      cancelRecovery();
       try {
         await stopTrack();
       } catch (_) {}
@@ -220,6 +343,8 @@ const useTrackPlayer = () => {
   };
 
   const pause = async () => {
+    // Explicit user intent — don't let a pending reconnect retry fight it.
+    cancelRecovery();
     try {
       await pauseTrack();
     } catch (error) {
@@ -229,6 +354,7 @@ const useTrackPlayer = () => {
 
   const stop = async () => {
     if (!isInitialized) return;
+    cancelRecovery();
     try {
       await stopTrack();
     } catch (error) {
@@ -238,6 +364,7 @@ const useTrackPlayer = () => {
 
   const reset = async () => {
     if (!isInitialized) return;
+    cancelRecovery();
     try {
       await resetPlayer();
     } catch (error) {
@@ -413,6 +540,10 @@ const useTrackPlayer = () => {
       logMessage("Audio is not initialized or disabled in settings");
       return;
     }
+
+    // Loading a different track makes any in-flight reconnect for the old one
+    // stale — drop it so recovery never reloads the wrong track underneath us.
+    cancelRecovery();
 
     try {
       let playbackUrl = url;

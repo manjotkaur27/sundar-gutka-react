@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
 import constant from "@common/constant";
 import { fetchManifest } from "@service";
+import { getLocalTrackPath } from "../../utils/audioDownloader";
 
 const ALLOWED_ARTIST_IDS = [4, 8, 9];
 const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan", "gurdev"];
@@ -17,8 +18,8 @@ const CANONICAL_ARTIST_NAMES = {
   9: "Giani Gurdev Singh",
 };
 
-// Base URL for all Azure Blob audio assets
-const _BLOB = "https://banidb.blob.core.windows.net/audios";
+// Base URL for all audio assets — centralized in constant.AUDIO_BASE_URL (CDN).
+const _BLOB = constant.AUDIO_BASE_URL;
 
 /**
  * Emergency manifests cover all supported banis for all 3 artists.
@@ -124,7 +125,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     return {
       status: "success",
       data: [
-        { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib.m4a`, track_length_seconds: 1335, track_size_mb: 20.50, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib.json` },
+        { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib-trimmed.m4a`, track_length_seconds: 1329, track_size_mb: 20.53, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-trimmed.json` },
         { bani_id: 21, track_id: 2021, track_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`, track_length_seconds: 1145, track_size_mb: 17.77, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.json` },
       ],
     };
@@ -212,6 +213,10 @@ const useAudioManifest = (baniID) => {
 
   const dispatch = useDispatch();
   const audioManifest = useSelector((state) => state.audioManifest);
+  // Authoritative download records — carries the exact downloaded byte size,
+  // used for deterministic integrity checks below. Defaulted so a missing slice
+  // (e.g. in tests) never throws.
+  const downloadRegistry = useSelector((state) => state.downloadRegistry) || {};
   // Gate manifest fetch on redux-persist rehydration — prevents re-downloading
   // tracks that are already on disk but whose manifest hasn't been restored yet.
   const isRehydrated = useSelector((state) => state._persist?.rehydrated);
@@ -272,6 +277,7 @@ const useAudioManifest = (baniID) => {
         return [];
       }
       const corruptIds1 = new Set();
+      const corruptKeys1 = new Set();
       const validatedDownloads = await Promise.all(
         downloadedTracks.map(async (track) => {
           if (
@@ -293,12 +299,18 @@ const useAudioManifest = (baniID) => {
           try {
             hasAudio = await exists(fullLocalPath);
             if (hasAudio) {
+              // Prefer an EXACT byte match against the recorded download size;
+              // fall back to the 90%-of-manifest-MB heuristic for legacy
+              // downloads that predate sizeBytes.
+              const exactBytes = Number(downloadRegistry[track.audioUrl]?.sizeBytes) || 0;
               const expectedBytes = (track.trackSizeMB || 0) * 1024 * 1024;
-              if (expectedBytes > 0) {
-                const fileStat = await stat(fullLocalPath);
-                if (Number(fileStat.size) < expectedBytes * 0.9) {
+              if (exactBytes > 0 || expectedBytes > 0) {
+                const size = Number((await stat(fullLocalPath)).size);
+                const corrupt = exactBytes > 0 ? size !== exactBytes : size < expectedBytes * 0.9;
+                if (corrupt) {
                   await unlink(fullLocalPath).catch(() => {});
                   corruptIds1.add(String(track.id));
+                  corruptKeys1.add(track.audioUrl);
                   hasAudio = false;
                 }
               }
@@ -335,6 +347,9 @@ const useAudioManifest = (baniID) => {
 
       if (corruptIds1.size > 0) {
         dispatch(actions.setAudioManifest(baniID, (audioManifest[baniID] || []).filter((t) => !corruptIds1.has(String(t.id)))));
+        // Clear the registry entry too so the track shows as not-downloaded and
+        // the auto-download-on-stream path re-fetches a clean copy.
+        if (corruptKeys1.size > 0) dispatch(actions.removeDownloadEntries([...corruptKeys1]));
       }
       // Filter out any missing/broken downloads
       return validatedDownloads.filter((track) => track !== null);
@@ -342,6 +357,7 @@ const useAudioManifest = (baniID) => {
 
     // Merge downloaded tracks with API tracks, falling back to remote if local file is missing
     const corruptIds2 = new Set();
+    const corruptKeys2 = new Set();
     const mergedTracks = await Promise.all(
       apiTracks.map(async (apiTrack) => {
         const downloadedTrack = downloadedTracks.find(
@@ -352,9 +368,12 @@ const useAudioManifest = (baniID) => {
         // files depending on the selected length. If the cached entry's
         // remoteUrl doesn't match the currently expected URL, the local file
         // belongs to a different length — ignore it and stream the correct one.
+        // Compare by artist/file PATH (not the full URL) so a host change (e.g.
+        // blob → CDN) never invalidates an existing download: only a genuinely
+        // different file (different length variant) fails the match.
         const remoteUrlMatches =
           !downloadedTrack?.remoteUrl ||
-          downloadedTrack.remoteUrl === apiTrack.audioUrl;
+          getLocalTrackPath(downloadedTrack.remoteUrl) === getLocalTrackPath(apiTrack.audioUrl);
         const validDownloadedTrack = downloadedTrack && remoteUrlMatches ? downloadedTrack : null;
 
         const fullLocalPath = validDownloadedTrack
@@ -371,12 +390,15 @@ const useAudioManifest = (baniID) => {
           try {
             hasAudio = await exists(fullLocalPath);
             if (hasAudio) {
+              const exactBytes = Number(downloadRegistry[validDownloadedTrack.audioUrl]?.sizeBytes) || 0;
               const expectedBytes = (validDownloadedTrack.trackSizeMB || apiTrack.trackSizeMB || 0) * 1024 * 1024;
-              if (expectedBytes > 0) {
-                const fileStat = await stat(fullLocalPath);
-                if (Number(fileStat.size) < expectedBytes * 0.9) {
+              if (exactBytes > 0 || expectedBytes > 0) {
+                const size = Number((await stat(fullLocalPath)).size);
+                const corrupt = exactBytes > 0 ? size !== exactBytes : size < expectedBytes * 0.9;
+                if (corrupt) {
                   await unlink(fullLocalPath).catch(() => {});
                   corruptIds2.add(String(apiTrack.id));
+                  corruptKeys2.add(validDownloadedTrack.audioUrl);
                   hasAudio = false;
                 }
               }
@@ -417,6 +439,7 @@ const useAudioManifest = (baniID) => {
 
     if (corruptIds2.size > 0) {
       dispatch(actions.setAudioManifest(baniID, (audioManifest[baniID] || []).filter((t) => !corruptIds2.has(String(t.id)))));
+      if (corruptKeys2.size > 0) dispatch(actions.removeDownloadEntries([...corruptKeys2]));
     }
 
     return mergedTracks;

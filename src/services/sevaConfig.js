@@ -85,6 +85,7 @@ export const getSevaConfig = async () => {
  *   /amount/[value]          – selects a preset suggested amount on the form
  *   /amount/other/[value]    – pre-fills the "other amount" field
  *   /frequency/[letter]      – m=monthly, a=annually, w=weekly, q=quarterly, s=semiannually
+ *   /onetime                 – forces the One Time option
  *
  * @param {Object} params
  * @param {number} params.amount
@@ -103,10 +104,15 @@ export const buildQgivUrl = ({ amount, isCustomAmount = false, donationType, fre
     url += `/amount/other/${formatted}`;
   }
 
-  // Frequency segment - only append for recurring; omitting it defaults to One Time on Qgiv forms
+  // Frequency segment. Qgiv does NOT fall back to One Time when this is omitted —
+  // it uses the form's default (Monthly), which made one-time donations open the
+  // monthly form. So be explicit in both cases:
+  //   recurring → /frequency/[letter]      one-time → /onetime
   if (donationType === "recurring") {
     const freqLetter = frequency === "Annually" ? "a" : "m"; // default monthly
     url += `/frequency/${freqLetter}`;
+  } else {
+    url += "/onetime";
   }
 
   return url;

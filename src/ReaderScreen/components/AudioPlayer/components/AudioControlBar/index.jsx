@@ -122,7 +122,6 @@ const AudioControlBar = ({
   const downloadRegistry = useSelector((s) => s.downloadRegistry);
   const downloadQueue = useSelector((s) => s.downloadQueue);
   const downloadWifiOnly = useSelector((s) => s.downloadWifiOnly);
-  const downloadWarnMobileData = useSelector((s) => s.downloadWarnMobileData);
   const tracksToDownload = useMemo(
     () => (tracks || []).filter((t) => {
       if (!t?.audioUrl) return false;
@@ -168,22 +167,8 @@ const AudioControlBar = ({
       });
       return;
     }
-    if (!downloadWifiOnly && downloadWarnMobileData && net.type === 'cellular') {
-      const totalMB = tracksToDownload.reduce((sum, t) => sum + (t.trackSizeMB || 0), 0);
-      const sizeStr = totalMB > 0 ? `~${Math.round(totalMB)} MB` : '';
-      showConfirm({
-        title: STRINGS.MOBILE_DATA_ALERT_TITLE,
-        message: STRINGS.MOBILE_DATA_ALERT_BODY
-          .replace('{title}', title)
-          .replace('{size}', sizeStr),
-        cancelText: STRINGS.cancel,
-        confirmText: STRINGS.MOBILE_DATA_DOWNLOAD_ANYWAY,
-        onConfirm: enqueueAll,
-      });
-      return;
-    }
     enqueueAll();
-  }, [tracksToDownload, downloadWifiOnly, downloadWarnMobileData, title, enqueueAll, dispatch]);
+  }, [tracksToDownload, downloadWifiOnly, enqueueAll, dispatch]);
 
   // Auto-resume on screen focus: when the user navigates back to the audio
   // screen (via device back button, back arrow, or tab re-tap from Settings/

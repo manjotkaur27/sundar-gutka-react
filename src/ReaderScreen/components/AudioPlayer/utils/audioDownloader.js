@@ -12,7 +12,7 @@ import {
 } from "react-native-fs";
 import { logError, logMessage } from "@common";
 import { checkIsJsonRemoteExists } from "./checkHelper";
-import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
+import { hasBundledLyrics } from "../assets/lyrics/bundledLyrics";
 
 // Downloads go to external storage on Android (survives "Clear Storage").
 // ExternalDirectoryPath is null on iOS — falls back to DocumentDirectoryPath.
@@ -320,7 +320,7 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
 
   // ── 2. Bundle lookup — if bundled, we know it's on Azure; skip HEAD ───────
   // ── 3. HEAD fallback — only for future tracks not yet in the bundle ───────
-  const isBundled = Object.prototype.hasOwnProperty.call(BUNDLED_LYRICS, jsonUrl);
+  const isBundled = hasBundledLyrics(jsonUrl);
   if (!isBundled) {
     const jsonRemoteExists = await checkIsJsonRemoteExists(jsonUrl);
     if (!jsonRemoteExists) {

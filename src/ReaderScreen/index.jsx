@@ -37,6 +37,7 @@ const Reader = ({ navigation, route }) => {
   const isTransliteration = useSelector((state) => state.isTransliteration);
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
+  const baniFontFace = useSelector((state) => state.baniFontFace);
   const isLarivaar = useSelector((state) => state.isLarivaar);
   const isLarivaarAssist = useSelector((state) => state.isLarivaarAssist);
   const isEnglishTranslation = useSelector((state) => state.isEnglishTranslation);
@@ -197,7 +198,7 @@ const Reader = ({ navigation, route }) => {
         shabad,
         isTransliteration,
         fontSize,
-        fontFace,
+        baniFontFace,
         isEnglishTranslation,
         isPunjabiTranslation,
         isSpanishTranslation,
@@ -210,7 +211,7 @@ const Reader = ({ navigation, route }) => {
     shabad,
     isTransliteration,
     fontSize,
-    fontFace,
+    baniFontFace,
     isEnglishTranslation,
     isPunjabiTranslation,
     isSpanishTranslation,

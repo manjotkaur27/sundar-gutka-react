@@ -2,7 +2,7 @@
 
 import { readFile } from "react-native-fs";
 import { checkIsRemote, extractFilePath } from "./urlHelper";
-import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
+import { getBundledLyrics } from "../assets/lyrics/bundledLyrics";
 
 // Module-level cache: avoids re-fetching the same LRC data when switching back
 // to a previously played track in the same session.
@@ -46,10 +46,12 @@ const fetchLRCData = async (jsonUrl) => {
     return _lrcCache.get(jsonUrl);
   }
 
-  // Bundled-first: if this URL is shipped with the app, return it immediately
-  // — zero network requests, zero disk I/O, works fully offline.
-  if (BUNDLED_LYRICS[jsonUrl]) {
-    const data = normalizeLrcRows(BUNDLED_LYRICS[jsonUrl]);
+  // Bundled-first: if this track is shipped with the app, return it immediately
+  // — zero network requests, zero disk I/O, works fully offline. Matched on the
+  // artist/file path, so any host (blob/CDN/local) resolves to the bundle.
+  const bundled = getBundledLyrics(jsonUrl);
+  if (bundled) {
+    const data = normalizeLrcRows(bundled);
     _lrcCache.set(jsonUrl, data);
     return data;
   }

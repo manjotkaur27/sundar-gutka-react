@@ -47,11 +47,11 @@ const Bookmarks = ({ navigation, route }) => {
   });
 
   return (
-    <SafeArea backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface}>
-      <StatusBarComponent backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface} />
+    <SafeArea backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface}>
+      <StatusBarComponent backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface} />
       <AppBar
         title={STRINGS.bookmarks}
-        backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface}
+        backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface}
         titleColor={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK}
         titleStyle={{
           fontFamily: theme.typography.fonts.balooPaajiSemiBold,
@@ -63,7 +63,7 @@ const Bookmarks = ({ navigation, route }) => {
         }
       />
       <GradientDivider />
-      <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
+      <View style={{ flex: 1, backgroundColor: theme.mode === "dark" ? "#041126" : theme.colors.surface }}>
         <BaniList data={formattedData} onPress={onPress} isFolderScreen />
       </View>
     </SafeArea>

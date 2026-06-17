@@ -7,7 +7,6 @@ import {
   toggleAudioAutoPlay,
   toggleAutoDownload,
   toggleDownloadWifiOnly,
-  toggleDownloadWarnMobileData,
 } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
@@ -23,7 +22,6 @@ const Audio = () => {
   const isAudioAutoPlay        = useSelector((state) => state.isAudioAutoPlay);
   const autoDownloadOnStream   = useSelector((state) => state.autoDownloadOnStream);
   const downloadWifiOnly       = useSelector((state) => state.downloadWifiOnly);
-  const downloadWarnMobileData = useSelector((state) => state.downloadWarnMobileData);
 
   const {
     AUDIO_AUTO_PLAY,
@@ -32,8 +30,6 @@ const Audio = () => {
     AUTO_DOWNLOAD_ON_STREAM_DESC,
     DOWNLOAD_WIFI_ONLY,
     DOWNLOAD_WIFI_ONLY_DESC,
-    DOWNLOAD_WARN_MOBILE,
-    DOWNLOAD_WARN_MOBILE_DESC,
   } = STRINGS;
 
   const handleToggleWifiOnly = (value) => {
@@ -48,7 +44,7 @@ const Audio = () => {
       {/* Existing: Audio Auto Play */}
       <ListItem
         bottomDivider
-        containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
+        containerStyle={styles.containerNightStyles}
       >
         <View style={styles.iconContainerStyle}>
           <Icon color={theme.colors.primaryText} name="play-circle-outline" type="material" size={26} />
@@ -65,7 +61,7 @@ const Audio = () => {
       {/* Auto-download while streaming */}
       <ListItem
         bottomDivider
-        containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
+        containerStyle={styles.containerNightStyles}
       >
         <View style={styles.iconContainerStyle}>
           <Icon color={theme.colors.primaryText} name="save-alt" type="material" size={26} />
@@ -83,7 +79,7 @@ const Audio = () => {
       {/* Manage Downloads → */}
       <ListItem
         bottomDivider
-        containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
+        containerStyle={styles.containerNightStyles}
         onPress={() => navigation.navigate('ManageDownloads')}
       >
         <View style={styles.iconContainerStyle}>
@@ -98,7 +94,7 @@ const Audio = () => {
       {/* Download over Wi-Fi only */}
       <ListItem
         bottomDivider
-        containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
+        containerStyle={styles.containerNightStyles}
       >
         <View style={styles.iconContainerStyle}>
           <Icon color={theme.colors.primaryText} name="wifi" type="material" size={26} />
@@ -112,26 +108,6 @@ const Audio = () => {
           onValueChange={handleToggleWifiOnly}
         />
       </ListItem>
-
-      {/* Warn when using mobile data — only shown when Wi-Fi only is OFF */}
-      {!downloadWifiOnly && (
-        <ListItem
-          bottomDivider
-          containerStyle={{ backgroundColor: theme.colors.surfaceGrey }}
-        >
-          <View style={styles.iconContainerStyle}>
-            <Icon color={theme.colors.primaryText} name="data-usage" type="material" size={26} />
-          </View>
-          <ListItem.Content>
-            <ListItemTitle title={DOWNLOAD_WARN_MOBILE} style={styles.listItemTitle} />
-            <CustomText style={styles.listItemSubtitle}>{DOWNLOAD_WARN_MOBILE_DESC}</CustomText>
-          </ListItem.Content>
-          <ThemedSwitch
-            value={downloadWarnMobileData}
-            onValueChange={(v) => dispatch(toggleDownloadWarnMobileData(v))}
-          />
-        </ListItem>
-      )}
     </View>
   );
 };

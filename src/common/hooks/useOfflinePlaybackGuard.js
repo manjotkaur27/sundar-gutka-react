@@ -1,43 +1,53 @@
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
 import TrackPlayer from "react-native-track-player";
-import { stopTrack, resetPlayer } from "../TrackPlayerUtils";
-import * as actions from "../actions";
+import { pauseTrack } from "../TrackPlayerUtils";
 import { useNetwork } from "../context";
+
+// How long the device must stay DISCONNECTED before we pause a stream. A
+// wifi<->cellular handoff briefly reports disconnected/unreachable and recovers
+// well within this window, so a network *switch* never interrupts playback —
+// only a genuine, sustained loss of connectivity does.
+const OFFLINE_PAUSE_DELAY_MS = 4000;
 
 /**
  * Offline-playback guard — the Spotify/YT-style reaction to losing connectivity.
  *
- * When the device loses REAL internet, a track that is STREAMING from the
- * network can no longer continue, so we stop it cleanly and collapse the audio
- * UI. A downloaded track (file://) is untouched and keeps playing.
+ * When the device genuinely loses its connection for a sustained moment, a track
+ * STREAMING from the network can't continue, so we pause it (the player stays
+ * open and the track loaded, so it's resumable). A downloaded (file://) track is
+ * untouched.
  *
- * Event-driven: this effect re-runs only when `isOffline` flips, so it reacts
- * the instant the OS reports the change — no polling, no timers. Mounted once
- * globally (see GlobalServices in app.js) instead of per-screen.
+ * Deliberately uses raw `isConnected` (transport up/down), NOT `isOffline`: the
+ * captive-portal / internet-reachability signal flickers during a network switch
+ * and would falsely pause playback. And it waits OFFLINE_PAUSE_DELAY_MS before
+ * acting, cancelling if connectivity returns — so switching networks mid-stream
+ * never pauses the audio.
+ *
+ * Mounted once globally (see GlobalServices in app.js).
  */
 const useOfflinePlaybackGuard = () => {
-  const { isOffline } = useNetwork();
-  const dispatch = useDispatch();
+  const { isConnected } = useNetwork();
 
   useEffect(() => {
-    if (!isOffline) return undefined;
+    // Only an explicit disconnect arms the timer; `true`/`null` (connected or
+    // the unknown startup window) never pauses.
+    if (isConnected !== false) return undefined;
 
-    let cancelled = false;
-    (async () => {
+    const timer = setTimeout(async () => {
       const activeTrack = await TrackPlayer.getActiveTrack().catch(() => null);
-      if (cancelled) return;
-      // Nothing playing, or a local download is playing → leave it alone.
-      if (!activeTrack || activeTrack.url?.startsWith("file://")) return;
-      await stopTrack();
-      await resetPlayer();
-      dispatch(actions.toggleAudio(false));
-    })();
+      const url = activeTrack?.url || "";
+      // Nothing playing, or a LOCAL download is playing → leave it alone. Local
+      // files are file:// on iOS but a bare absolute path (/…) on Android, so we
+      // must accept both — otherwise downloaded tracks get wrongly paused offline.
+      const isLocal = url.startsWith("file://") || url.startsWith("/");
+      if (!activeTrack || isLocal) return;
+      await pauseTrack().catch(() => {});
+    }, OFFLINE_PAUSE_DELAY_MS);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [isOffline, dispatch]);
+    // Connectivity returned before the delay (it was just a switch/blip) →
+    // cancel; playback is never interrupted.
+    return () => clearTimeout(timer);
+  }, [isConnected]);
 };
 
 export default useOfflinePlaybackGuard;

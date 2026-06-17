@@ -63,6 +63,7 @@ export default {
   BOOKMARKS: "Bookmarks",
   FONT_SIZE: "fontSize",
   FONT_FACE: "fontFace",
+  BANI_FONT_FACE: "baniFontFace",
   LANGUAGE: "appLanguage",
   TRANSLITERATION_LANGUAGE: "transliterationLanguage",
   SPANISH: "spanish",
@@ -97,6 +98,11 @@ export default {
   BASIC_AUTH_PASSWORD: "",
   REMOTE_AUDIO_API_URL:
     "https://sttm-audio-api-v2.salmonriver-80392db4.eastus.azurecontainerapps.io/v1",
+  // Single source of truth for the audio/lyrics asset host. Points at the Azure
+  // Front Door CDN (origin = banidb.blob.core.windows.net/audios). Swapping this
+  // host is safe for existing users: downloaded-track matching and bundled-lyrics
+  // lookups are keyed on the artist/file PATH, not the full URL.
+  AUDIO_BASE_URL: "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios",
   CHOPAYI_SAHIB_ID: 9,
   REHRAAS_SAHIB_ID: 21,
   MAST_SABH_MAST_TUKK: "smwpq msqu suB msqu",
