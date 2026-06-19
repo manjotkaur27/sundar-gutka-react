@@ -595,8 +595,12 @@ describe("Reader", () => {
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
     const webview = getByTestId("webview");
+    // Toggling the header now requires a real tap (touch down + lift, close
+    // together in time/position) rather than firing on touch-down alone —
+    // simulate both ends of a tap.
     act(() => {
-      webview.props.onTouchStart();
+      webview.props.onTouchStart({ nativeEvent: { touches: [{ pageX: 0, pageY: 0 }] } });
+      webview.props.onTouchEnd({ nativeEvent: { changedTouches: [{ pageX: 0, pageY: 0 }] } });
     });
 
     expect(getByTestId("auto-scroll-component")).toBeTruthy();

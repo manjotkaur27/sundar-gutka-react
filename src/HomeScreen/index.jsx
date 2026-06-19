@@ -37,11 +37,11 @@ const HomeScreen = React.memo(({ navigation }) => {
   const { baniLengthSelector } = useBaniLength();
   const dispatch = useDispatch();
 
+  // The bottom nav bar is hidden on Home permanently — Settings is reachable
+  // via the header icon (next to the title) again instead.
   useEffect(() => {
-    navigation.setOptions({
-      tabBarStyle: baniLengthSelector ? { display: "none" } : undefined,
-    });
-  }, [baniLengthSelector, navigation]);
+    navigation.setOptions({ tabBarStyle: { display: "none" } });
+  }, [navigation]);
 
   useEffect(() => {
     (async () => {

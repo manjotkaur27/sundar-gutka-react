@@ -143,12 +143,15 @@ const createStyles = (theme) => ({
     height: 5,
     width: "100%",
     overflow: "hidden",
+    borderRadius: 2.5,
     backgroundColor: "rgba(37, 105, 214, 0.2)",
   },
+  // Width-driven, not transform: scaleX — scaleX stretches/squishes the
+  // already-painted pixels (including borderRadius) non-uniformly along X, so
+  // the rounded cap only looked correct near 100% and flattened into a near-
+  // rectangle at low progress. Animating width directly keeps the radius a
+  // true, undistorted circle at every percentage.
   scrollProgressFill: {
-    position: "absolute",
-    left: "-100%",
-    width: "200%",
     height: "100%",
     borderRadius: 2.5,
     backgroundColor: "#7A99C980",

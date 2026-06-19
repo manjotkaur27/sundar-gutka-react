@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
-import { BackIconComponent } from "@common/components";
-import { CustomText, GradientDivider, useTheme, SafeArea } from "@common";
+import { BackIconComponent, SettingsIconComponent } from "@common/components";
+import { CustomText, GradientDivider, useTheme, SafeArea, constant } from "@common";
 
 /**
  * Folder header — mirrors the home bani-list header (BaniHeader): a centered
@@ -35,6 +35,13 @@ const Header = ({ navigation, title }) => {
         >
           {title}
         </CustomText>
+        <View style={styles.settingsWrap}>
+          <SettingsIconComponent
+            size={26}
+            color={titleColor}
+            handleSettingsPress={() => navigation.navigate(constant.SETTINGS)}
+          />
+        </View>
         <GradientDivider style={styles.divider} />
       </View>
     </SafeArea>
@@ -56,11 +63,19 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
   },
+  settingsWrap: {
+    position: "absolute",
+    right: 8,
+    top: 6,
+    zIndex: 2,
+    height: 40,
+    justifyContent: "center",
+  },
   title: {
     fontSize: 30,
     textAlign: "center",
     marginTop: 2,
-    // Keep long titles clear of the absolutely-positioned back arrow.
+    // Keep long titles clear of the absolutely-positioned back arrow and settings icon.
     paddingHorizontal: 48,
   },
   divider: {

@@ -54,6 +54,12 @@ const Reader = ({ navigation, route }) => {
   const { webView } = styles;
   const { title, id, titleUni } = route.params.params || {};
   const [isHeader, toggleHeader] = useState(false);
+  // Timestamp of the last deliberate tap-to-toggle — see handleMessage's
+  // show/hide guard below.
+  const manualToggleAtRef = useRef(0);
+  // Where/when the current touch on the WebView started — used to tell a
+  // genuine tap apart from the start of a scroll/drag (see onTouchEnd below).
+  const tapStartRef = useRef({ x: 0, y: 0, t: 0 });
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
@@ -296,11 +302,17 @@ const Reader = ({ navigation, route }) => {
         }
       }
 
-      // Handle UI messages (removed toggle since it's handled by onTouchStart)
+      // Handle UI messages (removed toggle since it's handled by onTouchStart).
+      // show/hide specifically are ignored for a short window after a deliberate
+      // tap — gutkaScript's own scroll-direction show/hide can fire from residual
+      // scroll-settle jitter right at the top/bottom boundary (most reproducible
+      // at the very end of a bani), racing the tap's toggle and leaving the
+      // header/nav animation stuck mid-flight as the target keeps getting reset.
+      const recentManualToggle = Date.now() - manualToggleAtRef.current < 400;
       if (data === "show") {
-        toggleHeader(true);
+        if (!recentManualToggle) toggleHeader(true);
       } else if (data === "hide") {
-        toggleHeader(false);
+        if (!recentManualToggle) toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID (and optional sequence) from WebView scroll events
         const payload = data.split("scroll-elementId-")[1];
@@ -320,10 +332,12 @@ const Reader = ({ navigation, route }) => {
       } else if (data.startsWith("scroll-progress-")) {
         const pct = parseFloat(data.split("scroll-progress-")[1]);
         if (Number.isFinite(pct)) {
+          // width isn't transform-drivable, so this can't use the native driver —
+          // fine here since it's an instant (duration: 0) set, not a tween.
           Animated.timing(scrollProgressAnim, {
             toValue: pct,
             duration: 0,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }).start();
           scrollPercentRef.current = Math.round(pct * 100);
         }
@@ -422,8 +436,30 @@ const Reader = ({ navigation, route }) => {
           { backgroundColor: readerBgColor, marginTop: 60 },
         ]}
         onMessage={handleMessage}
-        onTouchStart={() => {
-          // Toggle header when WebView is touched (not overlaid elements)
+        onTouchStart={(e) => {
+          // Record where/when the touch landed — don't toggle yet. Toggling
+          // here fired on the down-stroke of EVERY touch, including the start
+          // of a scroll/drag (nestedScrollEnabled means every scroll begins
+          // with a touch on this WebView), which fought gutkaScript's own
+          // scroll-direction show/hide on practically every scroll and left
+          // the header/nav animation perpetually re-targeted, never settling.
+          const touch = e?.nativeEvent?.touches?.[0] || e?.nativeEvent || {};
+          tapStartRef.current = {
+            x: touch.pageX ?? 0,
+            y: touch.pageY ?? 0,
+            t: Date.now(),
+          };
+        }}
+        onTouchEnd={(e) => {
+          // Only toggle for an actual tap — brief, with negligible movement.
+          // A scroll/drag's matching touchend has large dx/dy and/or a long
+          // duration, so it's correctly excluded here.
+          const touch = e?.nativeEvent?.changedTouches?.[0] || e?.nativeEvent || {};
+          const dx = Math.abs((touch.pageX ?? 0) - tapStartRef.current.x);
+          const dy = Math.abs((touch.pageY ?? 0) - tapStartRef.current.y);
+          const dt = Date.now() - tapStartRef.current.t;
+          if (dt > 400 || dx > 10 || dy > 10) return;
+          manualToggleAtRef.current = Date.now();
           toggleHeader((prev) => !prev);
           // Signal the floating mini player to toggle its expanded state.
           dispatch(actions.bumpReaderTap());
@@ -442,7 +478,7 @@ const Reader = ({ navigation, route }) => {
         <Animated.View
           style={[
             styles.scrollProgressFill,
-            { transform: [{ scaleX: scrollProgressAnim }] },
+            { width: scrollProgressAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) },
           ]}
         />
       </View>
