@@ -205,9 +205,9 @@ const defaultAudio = (state = {}, action) => {
       return { ...state, ...action.value };
     case actionTypes.SET_BANI_LENGTH: {
       const newState = { ...state };
-      delete newState["9"];
-      delete newState["21"];
-      delete newState["23"];
+      constant.BANI_IDS_WITH_LENGTH_VARIANTS.forEach((id) => {
+        delete newState[id];
+      });
       return newState;
     }
     default:
@@ -254,9 +254,9 @@ const audioProgress = (state = {}, action) => {
     }
     case actionTypes.SET_BANI_LENGTH: {
       const newState = { ...state };
-      delete newState["9"];
-      delete newState["21"];
-      delete newState["23"];
+      constant.BANI_IDS_WITH_LENGTH_VARIANTS.forEach((id) => {
+        delete newState[id];
+      });
       return newState;
     }
     default:
