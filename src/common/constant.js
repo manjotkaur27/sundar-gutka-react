@@ -97,6 +97,7 @@ export default {
     "https://sttm-audio-api-v2.salmonriver-80392db4.eastus.azurecontainerapps.io/v1",
   CHOPAYI_SAHIB_ID: 9,
   REHRAAS_SAHIB_ID: 21,
+  BANI_IDS_WITH_LENGTH_VARIANTS: [9, 21, 23],
   MAST_SABH_MAST_TUKK: "smwpq msqu suB msqu",
   MAST_SABH_MAST_TUKK_UNI: "ਸਮਾਪਤ ਮਸਤੁ ਸੁਭ ਮਸਤੁ",
   MINIMUM_BOTTOM_PADDING: 35,

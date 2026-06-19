@@ -194,14 +194,6 @@ export const __resetManifestApiCacheForTests = () => {
   _manifestApiCache.clear();
 };
 
-/**
- * Banis whose track_url / lyrics_url must be resolved client-side based on
- * bani length (because the remote API is unaware of per-length variants).
- * For these banis the emergency manifest is ALWAYS used as the source of
- * truth for URLs, regardless of what the API returns.
- */
-const BANI_IDS_WITH_LENGTH_VARIANTS = new Set([9, 21, 23]);
-
 const useAudioManifest = (baniID) => {
   const [tracks, setTracks] = useState([]);
   const [currentPlaying, setCurrentPlaying] = useState(null);
@@ -478,7 +470,7 @@ const useAudioManifest = (baniID) => {
       let mappedData;
       const emergencyManifest = getEmergencyManifest();
 
-      if (BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID))) {
+      if (constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID))) {
         // For length-variant banis (e.g. Chaupai Sahib), the emergency manifest
         // holds the authoritative, length-correct URLs. Use it directly.
         // We still map API data first (if available) for metadata consistency,
@@ -495,7 +487,7 @@ const useAudioManifest = (baniID) => {
       // Merge downloaded tracks with API tracks if available
       if (downloadedTracks && downloadedTracks.length > 0) {
         const mappedDataLength = mappedData ? mappedData.length : 0;
-        const isExplicitlyEmpty = BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID)) && mappedDataLength === 0;
+        const isExplicitlyEmpty = constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID)) && mappedDataLength === 0;
         if (!isExplicitlyEmpty) {
           mappedData = await mergeDownloadedTracks(mappedData || [], downloadedTracks);
         }
@@ -577,7 +569,7 @@ const useAudioManifest = (baniID) => {
   }, [baniID, isRehydrated, baniLength]);
 
   const isAudioUnavailableForCurrentLengthOnly =
-    BANI_IDS_WITH_LENGTH_VARIANTS.has(Number(baniID)) && tracks.length === 0;
+    constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID)) && tracks.length === 0;
 
   return {
     tracks,

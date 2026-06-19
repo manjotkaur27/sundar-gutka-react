@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { navigationRef, stopTrace, resetTrace, startPerformanceTrace, logError } from "@common";
+import { navigationRef } from "@common";
 import AboutScreen from "../AboutScreen";
 import Bookmarks from "../Bookmarks";
 import { trackScreenView } from "../common/firebase/analytics";
@@ -17,31 +17,8 @@ const Stack = createNativeStackNavigator();
 
 const Navigation = () => {
   const routeNameRef = useRef();
-  const trace = useRef(null);
 
-  const handlingStateChange = async (state) => {
-    try {
-      if (trace.current) {
-        await stopTrace(trace.current);
-        trace.current = resetTrace();
-      }
-      const currentRouteName = state.routes[state.index].name;
-      trace.current = await startPerformanceTrace(currentRouteName);
-    } catch (error) {
-      // Silently fail - performance monitoring should never crash the app
-      logError(
-        new Error(
-          `Performance trace failed for route: ${state.routes[state.index]?.name || "unknown"} - ${
-            error?.message || "Unknown error"
-          }`
-        )
-      );
-      trace.current = resetTrace();
-    }
-  };
-
-  const handleStateChange = async (state) => {
-    await handlingStateChange(state);
+  const handleStateChange = async () => {
     const previousRouteName = routeNameRef.current;
     const currentRouteName = navigationRef.current.getCurrentRoute().name;
     const currentRoute = navigationRef.current.getCurrentRoute();
@@ -61,8 +38,8 @@ const Navigation = () => {
       onReady={() => {
         routeNameRef.current = navigationRef.current.getCurrentRoute().name;
       }}
-      onStateChange={async (state) => {
-        await handleStateChange(state);
+      onStateChange={async () => {
+        await handleStateChange();
       }}
     >
       <Stack.Navigator

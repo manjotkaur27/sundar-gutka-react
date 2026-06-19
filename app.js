@@ -16,7 +16,6 @@ import {
   FallBack,
   resetBadgeCount,
   navigateTo,
-  initializePerformanceMonitoring,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
@@ -45,7 +44,6 @@ const App = () => {
 
   useEffect(() => {
     const runSetup = async () => {
-      await initializePerformanceMonitoring();
       await initializeCrashlytics();
       await TrackPlayerSetup();
     };

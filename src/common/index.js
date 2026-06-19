@@ -30,12 +30,6 @@ import {
   trackScrollProgress,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
-import {
-  initializePerformanceMonitoring,
-  startPerformanceTrace,
-  stopTrace,
-  resetTrace,
-} from "./firebase/performance";
 import baseFontSize, { validateBaniOrder } from "./helpers";
 import useKeepAwake from "./hooks/keepAwake";
 import useBackHandler from "./hooks/useBackHandler";
@@ -93,10 +87,6 @@ export {
   navigationRef,
   defaultBaniOrder,
   validateBaniOrder,
-  initializePerformanceMonitoring,
-  startPerformanceTrace,
-  stopTrace,
-  resetTrace,
   ensureDbExists,
   checkForBaniDBUpdate,
   REMOTE_DB_URL,
