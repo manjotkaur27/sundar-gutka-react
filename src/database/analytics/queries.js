@@ -23,7 +23,14 @@ const rowsToArray = (result) => {
 
 // ─── Read sessions ────────────────────────────────────────────────────────────
 
-export const insertReadSession = async ({ bani_id, bani_title, start_time, end_time, duration_seconds, completed }) => {
+export const insertReadSession = async ({
+  bani_id,
+  bani_title,
+  start_time,
+  end_time,
+  duration_seconds,
+  completed,
+}) => {
   return runQuery(
     `INSERT INTO bani_read_history (bani_id, bani_title, start_time, end_time, duration_seconds, completed)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -32,9 +39,7 @@ export const insertReadSession = async ({ bani_id, bani_title, start_time, end_t
 };
 
 export const getUnsyncedReadSessions = async () => {
-  const result = await runQuery(
-    `SELECT * FROM bani_read_history WHERE sync_status = 0 LIMIT 100`
-  );
+  const result = await runQuery(`SELECT * FROM bani_read_history WHERE sync_status = 0 LIMIT 100`);
   return rowsToArray(result);
 };
 
@@ -65,18 +70,32 @@ export const getRecentReadBanis = async (limit = 5) => {
 
 // ─── Audio sessions ───────────────────────────────────────────────────────────
 
-export const insertAudioSession = async ({ audio_id, bani_id, bani_title, artist_id, artist_name, duration_played, completed }) => {
+export const insertAudioSession = async ({
+  audio_id,
+  bani_id,
+  bani_title,
+  artist_id,
+  artist_name,
+  duration_played,
+  completed,
+}) => {
   return runQuery(
     `INSERT INTO audio_history (audio_id, bani_id, bani_title, artist_id, artist_name, duration_played, completed)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [audio_id ?? null, bani_id, bani_title ?? null, artist_id ?? null, artist_name ?? null, duration_played, completed ? 1 : 0]
+    [
+      audio_id ?? null,
+      bani_id,
+      bani_title ?? null,
+      artist_id ?? null,
+      artist_name ?? null,
+      duration_played,
+      completed ? 1 : 0,
+    ]
   );
 };
 
 export const getUnsyncedAudioSessions = async () => {
-  const result = await runQuery(
-    `SELECT * FROM audio_history WHERE sync_status = 0 LIMIT 100`
-  );
+  const result = await runQuery(`SELECT * FROM audio_history WHERE sync_status = 0 LIMIT 100`);
   return rowsToArray(result);
 };
 
@@ -109,7 +128,11 @@ export const getRecentListenedBanis = async (limit = 5) => {
 
 // ─── Daily activity ───────────────────────────────────────────────────────────
 
-export const upsertDailyActivity = async ({ date, reading_seconds_delta = 0, listening_seconds_delta = 0 }) => {
+export const upsertDailyActivity = async ({
+  date,
+  reading_seconds_delta = 0,
+  listening_seconds_delta = 0,
+}) => {
   return runQuery(
     `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
      VALUES (?, ?, ?, ?, strftime('%s','now'))
@@ -118,15 +141,17 @@ export const upsertDailyActivity = async ({ date, reading_seconds_delta = 0, lis
        listening_seconds = listening_seconds + excluded.listening_seconds,
        total_seconds     = total_seconds     + excluded.reading_seconds + excluded.listening_seconds,
        updated_at        = strftime('%s','now')`,
-    [date, reading_seconds_delta, listening_seconds_delta, reading_seconds_delta + listening_seconds_delta]
+    [
+      date,
+      reading_seconds_delta,
+      listening_seconds_delta,
+      reading_seconds_delta + listening_seconds_delta,
+    ]
   );
 };
 
 export const getDayActivity = async (date) => {
-  const result = await runQuery(
-    `SELECT * FROM daily_activity WHERE date = ? LIMIT 1`,
-    [date]
-  );
+  const result = await runQuery(`SELECT * FROM daily_activity WHERE date = ? LIMIT 1`, [date]);
   const rows = rowsToArray(result);
   return rows[0] ?? null;
 };
@@ -141,9 +166,7 @@ export const getDailyActivity = async (year, month) => {
 };
 
 export const getUnsyncedActivity = async () => {
-  const result = await runQuery(
-    `SELECT * FROM daily_activity WHERE sync_status = 0 LIMIT 100`
-  );
+  const result = await runQuery(`SELECT * FROM daily_activity WHERE sync_status = 0 LIMIT 100`);
   return rowsToArray(result);
 };
 
@@ -258,13 +281,23 @@ export const getAllBaniReadCounts = async () => {
   return rowsToArray(result);
 };
 
+// ─── Completed banis ───────────────────────────────────────────────────────────
+
+// Counts reading sessions that crossed the "completed" threshold (default 4 min).
+// A bani is considered "completed" each time it is read for >= minSeconds.
+export const getCompletedBanisCount = async (minSeconds = 240) => {
+  const result = await runQuery(
+    `SELECT COUNT(*) as cnt FROM bani_read_history WHERE duration_seconds >= ?`,
+    [minSeconds]
+  );
+  const rows = rowsToArray(result);
+  return rows[0]?.cnt ?? 0;
+};
+
 // ─── Sync helpers ─────────────────────────────────────────────────────────────
 
 export const markSynced = async (table, ids) => {
   if (!ids || ids.length === 0) return;
   const placeholders = ids.map(() => "?").join(",");
-  return runQuery(
-    `UPDATE ${table} SET sync_status = 1 WHERE id IN (${placeholders})`,
-    ids
-  );
+  return runQuery(`UPDATE ${table} SET sync_status = 1 WHERE id IN (${placeholders})`, ids);
 };

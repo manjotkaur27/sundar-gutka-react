@@ -22,4 +22,5 @@ export {
   incrementBaniReadCount,
   getBaniReadCount,
   getAllBaniReadCounts,
+  getCompletedBanisCount,
 } from "./queries";

@@ -127,4 +127,35 @@ export default {
   MIN_LISTEN_SESSION_SECONDS: 240,
   KHALIS_APPS_API_URL: "",
   ANALYTICS_SYNC_API_URL: "",
+
+  // ─── Dashboard redesign ───────────────────────────────────────────────────
+  // Section keys for the customizable dashboard layout (order below = default order).
+  DASHBOARD_SECTIONS: {
+    STREAK: "streak",
+    NITNEM: "nitnem",
+    EXPLORE: "explore",
+    PRACTICE: "practice",
+    CALENDAR: "calendar",
+    WEEK_CHART: "weekChart",
+    DISCOVER: "discover",
+    REMINDERS: "reminders",
+    RANDOM_SHABAD: "randomShabad",
+    VAAK: "vaak",
+  },
+  // Minimum number of visible sections the user must keep when customizing layout.
+  DASHBOARD_MIN_VISIBLE: 4,
+  // Default daily Nitnem bani set (classic Sat Bania by Banis.ID).
+  DEFAULT_NITNEM_BANI_IDS: [2, 3, 4, 9, 5, 21, 1],
+
+  // Dashboard backend.
+  // Dev only: the device reaches the Mac's local server via `adb reverse tcp:3500 tcp:3500`.
+  // Release builds use "" → direct sources (Daily Vaak → BaniDB, Word of Day → local).
+  // When the backend is deployed, replace "" with the production HTTPS base/URLs.
+  DASHBOARD_API_BASE_URL: __DEV__ ? "http://localhost:3500" : "",
+  // Random Shabad stays on BaniDB directly (backend proxy was dropped).
+  RANDOM_SHABAD_API_URL: "",
+  DAILY_VAAK_API_URL: __DEV__ ? "http://localhost:3500/dashboard/daily-vaak" : "",
+  WORD_OF_DAY_API_URL: __DEV__ ? "http://localhost:3500/dashboard/word-of-day" : "",
+  UPCOMING_EVENTS_API_URL: "",
+  NANAKSHAHI_API_URL: "",
 };
