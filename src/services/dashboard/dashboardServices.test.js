@@ -1,0 +1,154 @@
+/* eslint-env jest */
+/* eslint-disable no-underscore-dangle */
+/**
+ * Tests for the dashboard network services' fallback + error handling:
+ *  - emergencyShabads.json data integrity (the offline Random Shabad bundle)
+ *  - getRandomShabad: online → API, offline/error → emergency list (never throws)
+ *  - getDailyVaak: offline/API failure → throws (never fabricates a hukamnama)
+ *
+ * @common and @database are mocked so we don't pull the Firebase-laden barrel or
+ * the native SQLite layer into the test.
+ */
+
+import { isOnline } from "./connectivity";
+import { getDailyVaak } from "./dailyVaak";
+import emergency from "./emergencyShabads.json";
+import { getRandomShabad } from "./randomShabad";
+
+// jest.mock calls are hoisted above the imports above by babel-jest.
+jest.mock("@common", () => ({
+  logError: jest.fn(),
+  // Empty URLs → daily vaak uses the BaniDB fallback, word of day uses mock.
+  constant: { DAILY_VAAK_API_URL: "", WORD_OF_DAY_API_URL: "" },
+}));
+jest.mock("@database", () => ({ getRandomTukk: jest.fn().mockResolvedValue(null) }));
+jest.mock("./connectivity", () => {
+  class OfflineError extends Error {
+    constructor() {
+      super("offline");
+      this.name = "OfflineError";
+      this.offline = true;
+    }
+  }
+  return { isOnline: jest.fn(), OfflineError };
+});
+
+const GURMUKHI_RANGE = /[਀-੿]/; // Gurmukhi Unicode block
+
+const apiShabadPayload = {
+  shabadInfo: { shabadId: 999, pageNo: 100, raag: { unicode: "ਰਾਗੁ ਮਾਝ" } },
+  verses: [
+    { verse: { unicode: "ਟੈਸਟ ਲਾਈਨ ੧ ॥" }, translation: { en: { bdb: "Test line one." } } },
+    { verse: { unicode: "ਟੈਸਟ ਲਾਈਨ ੨ ॥" }, translation: { en: { bdb: "Test line two." } } },
+  ],
+};
+
+const mockFetchOnce = (payload, ok = true) => {
+  global.fetch = jest.fn().mockResolvedValue({ ok, json: async () => payload });
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+describe("emergencyShabads.json integrity", () => {
+  const list = emergency.shabads;
+
+  it("bundles a healthy set of shabads with unique ids", () => {
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThanOrEqual(50);
+    const ids = list.map((s) => s.shabadId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("every entry has the fields the card needs", () => {
+    list.forEach((s) => {
+      expect(Array.isArray(s.lines)).toBe(true);
+      expect(s.lines.length).toBeGreaterThanOrEqual(1);
+      expect(s.lines.join(" ")).toMatch(GURMUKHI_RANGE);
+      expect(typeof s.translation).toBe("string");
+      expect(s.translation.trim().length).toBeGreaterThan(0);
+      expect(Number.isInteger(s.ang)).toBe(true);
+      expect(s.ang).toBeGreaterThanOrEqual(1);
+      expect(s.ang).toBeLessThanOrEqual(1430);
+      expect(Number.isInteger(s.shabadId)).toBe(true);
+    });
+  });
+});
+
+describe("getRandomShabad fallback chain", () => {
+  it("returns the API shabad when online", async () => {
+    isOnline.mockResolvedValue(true);
+    mockFetchOnce(apiShabadPayload);
+    const res = await getRandomShabad({ language: "en" });
+    expect(res._source).toBe("api");
+    expect(res.lines).toHaveLength(2);
+    expect(res.shabadId).toBe(999);
+    expect(res.raag).toBe("ਰਾਗੁ ਮਾਝ");
+  });
+
+  it("falls back to the emergency list when offline (with a Read-Shabad id)", async () => {
+    isOnline.mockResolvedValue(false);
+    global.fetch = jest.fn();
+    const res = await getRandomShabad({ language: "en" });
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(res._source).toBe("emergency");
+    expect(res.shabadId).toEqual(expect.any(Number));
+    expect(res.lines.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("falls back to the emergency list when online fetch fails", async () => {
+    isOnline.mockResolvedValue(true);
+    global.fetch = jest.fn().mockRejectedValue(new Error("network"));
+    const res = await getRandomShabad({ language: "en" });
+    expect(res._source).toBe("emergency");
+  });
+
+  it("never rejects", async () => {
+    isOnline.mockRejectedValue(new Error("boom"));
+    await expect(getRandomShabad({ language: "en" })).resolves.toBeDefined();
+  });
+});
+
+describe("getDailyVaak error handling", () => {
+  it("throws OfflineError when offline (never fabricates a vaak)", async () => {
+    isOnline.mockResolvedValue(false);
+    await expect(getDailyVaak({ requireOnline: true })).rejects.toMatchObject({ offline: true });
+  });
+
+  it("returns the hukamnama from a raw BaniDB payload when online", async () => {
+    isOnline.mockResolvedValue(true);
+    mockFetchOnce({ shabads: [apiShabadPayload] });
+    const res = await getDailyVaak({ requireOnline: true });
+    expect(res._source).toBe("api");
+    expect(res.lines).toHaveLength(2);
+    expect(res.source).toBe("Sri Darbar Sahib");
+  });
+
+  it("accepts a clean backend shape ({ lines, translation, ... })", async () => {
+    isOnline.mockResolvedValue(true);
+    mockFetchOnce({
+      lines: ["ਲਾਈਨ ੧", "ਲਾਈਨ ੨"],
+      translation: "Backend translation.",
+      ang: 657,
+      shabadId: 42,
+    });
+    const res = await getDailyVaak({ requireOnline: true });
+    expect(res.lines).toEqual(["ਲਾਈਨ ੧", "ਲਾਈਨ ੨"]);
+    expect(res.translation).toBe("Backend translation.");
+    expect(res.ang).toBe(657);
+    expect(res.shabadId).toBe(42);
+  });
+
+  it("throws (not a mock) when online but the API fails", async () => {
+    isOnline.mockResolvedValue(true);
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
+    await expect(getDailyVaak({ requireOnline: true })).rejects.toThrow();
+  });
+
+  it("throws when the payload has no verses", async () => {
+    isOnline.mockResolvedValue(true);
+    mockFetchOnce({ shabads: [{ shabadInfo: {}, verses: [] }] });
+    await expect(getDailyVaak({ requireOnline: true })).rejects.toThrow();
+  });
+});

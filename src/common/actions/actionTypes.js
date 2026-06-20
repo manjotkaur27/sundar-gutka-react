@@ -58,3 +58,17 @@ export const CLEAR_DONOR_STATE = "CLEAR_DONOR_STATE";
 
 // Floating mini-player drag state — used to disable WebView scroll while dragging
 export const SET_PLAYER_DRAGGING = "SET_PLAYER_DRAGGING";
+
+// ─── Dashboard redesign ─────────────────────────────────────────────────────
+// Local editable user profile (name only until SSO is live)
+export const SET_USER_PROFILE = "SET_USER_PROFILE";
+
+// Customizable dashboard layout — section order + hidden sections
+export const SET_DASHBOARD_LAYOUT = "SET_DASHBOARD_LAYOUT";
+export const RESET_DASHBOARD_LAYOUT = "RESET_DASHBOARD_LAYOUT";
+
+// Today's Nitnem — the user's selected daily bani set + per-day completion map
+export const SET_NITNEM_BANIS = "SET_NITNEM_BANIS";
+export const TOGGLE_NITNEM_DONE = "TOGGLE_NITNEM_DONE";
+// Restore the whole nitnem slice at once (cross-device sync / GET /dashboard/latest)
+export const RESTORE_NITNEM = "RESTORE_NITNEM";

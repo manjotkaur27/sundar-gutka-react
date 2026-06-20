@@ -232,3 +232,32 @@ export const clearDonorState = () => {
 export const setPlayerDragging = (value) => {
   return { type: actionTypes.SET_PLAYER_DRAGGING, value };
 };
+
+// ─── Dashboard redesign ─────────────────────────────────────────────────────
+export const setUserProfile = (value) => {
+  return { type: actionTypes.SET_USER_PROFILE, value };
+};
+
+export const setDashboardLayout = (value) => {
+  // value: { order: string[], hidden: string[] }
+  return { type: actionTypes.SET_DASHBOARD_LAYOUT, value };
+};
+
+export const resetDashboardLayout = () => {
+  return { type: actionTypes.RESET_DASHBOARD_LAYOUT };
+};
+
+export const setNitnemBanis = (value) => {
+  // value: number[] of Banis.ID
+  return { type: actionTypes.SET_NITNEM_BANIS, value };
+};
+
+export const toggleNitnemDone = (date, baniId) => {
+  // Marks/unmarks a bani done for a given YYYY-MM-DD date
+  return { type: actionTypes.TOGGLE_NITNEM_DONE, payload: { date, baniId } };
+};
+
+export const restoreNitnem = (value) => {
+  // value: { selectedBaniIds?: number[], completed?: { [date]: number[] } }
+  return { type: actionTypes.RESTORE_NITNEM, value };
+};

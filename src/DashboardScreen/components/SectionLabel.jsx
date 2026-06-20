@@ -1,0 +1,45 @@
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import PropTypes from "prop-types";
+import { CustomText } from "@common";
+import useDashboardTheme from "./dashboardTheme";
+
+// Small uppercase section heading used above each dashboard section, with an
+// optional right-aligned action (e.g. "Edit banis", "Shuffle").
+const SectionLabel = ({ title, right }) => {
+  const { mutedText } = useDashboardTheme();
+  return (
+    <View style={styles.row}>
+      <CustomText style={[styles.title, { color: mutedText }]}>{title.toUpperCase()}</CustomText>
+      {right ? <View style={styles.right}>{right}</View> : null}
+    </View>
+  );
+};
+
+SectionLabel.propTypes = {
+  title: PropTypes.string.isRequired,
+  right: PropTypes.node,
+};
+
+SectionLabel.defaultProps = { right: null };
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+  },
+  right: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+});
+
+export default SectionLabel;

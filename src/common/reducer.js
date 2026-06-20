@@ -279,6 +279,62 @@ const donorType = createReducer(null, {
   [actionTypes.CLEAR_DONOR_STATE]: () => null,
 });
 
+// ─── Dashboard redesign ───────────────────────────────────────────────────
+// Default top-to-bottom section order from the new design.
+const DEFAULT_DASHBOARD_ORDER = [
+  constant.DASHBOARD_SECTIONS.STREAK,
+  constant.DASHBOARD_SECTIONS.NITNEM,
+  constant.DASHBOARD_SECTIONS.EXPLORE,
+  constant.DASHBOARD_SECTIONS.PRACTICE,
+  constant.DASHBOARD_SECTIONS.CALENDAR,
+  constant.DASHBOARD_SECTIONS.WEEK_CHART,
+  constant.DASHBOARD_SECTIONS.DISCOVER,
+  constant.DASHBOARD_SECTIONS.REMINDERS,
+  constant.DASHBOARD_SECTIONS.RANDOM_SHABAD,
+  constant.DASHBOARD_SECTIONS.VAAK,
+];
+
+const userProfile = createReducer(
+  { name: "" },
+  {
+    [actionTypes.SET_USER_PROFILE]: (state, action) => ({ ...state, ...action.value }),
+  }
+);
+
+const defaultLayout = () => ({ order: [...DEFAULT_DASHBOARD_ORDER], hidden: [] });
+
+const dashboardLayout = createReducer(defaultLayout(), {
+  [actionTypes.SET_DASHBOARD_LAYOUT]: (state, action) => {
+    const next = { ...state, ...action.value };
+    // Self-heal: ensure any newly added sections are appended to a persisted order.
+    const missing = DEFAULT_DASHBOARD_ORDER.filter((k) => !next.order.includes(k));
+    return { order: [...next.order, ...missing], hidden: next.hidden ?? [] };
+  },
+  [actionTypes.RESET_DASHBOARD_LAYOUT]: () => defaultLayout(),
+});
+
+const todaysNitnem = createReducer(
+  { selectedBaniIds: constant.DEFAULT_NITNEM_BANI_IDS, completed: {} },
+  {
+    [actionTypes.SET_NITNEM_BANIS]: (state, action) => ({
+      ...state,
+      selectedBaniIds: action.value,
+    }),
+    [actionTypes.TOGGLE_NITNEM_DONE]: (state, action) => {
+      const { date, baniId } = action.payload;
+      const dayList = state.completed[date] ?? [];
+      const nextDay = dayList.includes(baniId)
+        ? dayList.filter((id) => id !== baniId)
+        : [...dayList, baniId];
+      return { ...state, completed: { ...state.completed, [date]: nextDay } };
+    },
+    [actionTypes.RESTORE_NITNEM]: (state, action) => ({
+      selectedBaniIds: action.value?.selectedBaniIds ?? state.selectedBaniIds,
+      completed: action.value?.completed ?? state.completed,
+    }),
+  }
+);
+
 const rootReducer = combineReducers({
   donor,
   donorType,
@@ -327,5 +383,8 @@ const rootReducer = combineReducers({
   currentBani,
   readerTapTick,
   isPlayerDragging,
+  userProfile,
+  dashboardLayout,
+  todaysNitnem,
 });
 export default rootReducer;
