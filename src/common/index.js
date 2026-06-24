@@ -3,6 +3,17 @@ import colors from "./colors";
 import {
   FallBack,
   BaniLengthSelector,
+  LanguageSelector,
+  Coachmark,
+  HOME_STEPS,
+  PREVIEW_STEPS,
+  PLAYER_STEPS,
+  DOWNLOADS_STEPS,
+  SETTINGS_MANAGE_STEPS,
+  CoachmarkHost,
+  AudioHintCallout,
+  ExplorePromptCallout,
+  DownloadsGuideCallout,
   BaniList,
   CustomText,
   GradientDivider,
@@ -15,6 +26,8 @@ import {
   ConfirmDialogHost,
   showConfirm,
 } from "./components";
+import { COACH } from "./onboarding/coachmarkKeys";
+import useCoachmark from "./onboarding/useCoachmark";
 import orderedBani from "./components/BaniList/baniOrderHelper";
 import constant from "./constant";
 import useTheme, { useNetwork } from "./context";
@@ -33,6 +46,7 @@ import {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackTourEvent,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
 import baseFontSize, { validateBaniOrder } from "./helpers";
@@ -83,12 +97,26 @@ export {
   cancelAllReminders,
   FallBack,
   BaniLengthSelector,
+  LanguageSelector,
+  Coachmark,
+  HOME_STEPS,
+  PREVIEW_STEPS,
+  PLAYER_STEPS,
+  DOWNLOADS_STEPS,
+  SETTINGS_MANAGE_STEPS,
+  CoachmarkHost,
+  AudioHintCallout,
+  ExplorePromptCallout,
+  DownloadsGuideCallout,
+  COACH,
+  useCoachmark,
   useKeepAwake,
   BaniList,
   CustomText,
   GradientDivider,
   ConfirmDialogHost,
   showConfirm,
+  trackTourEvent,
   useCustomScrollbar,
   baseFontSize,
   resetBadgeCount,

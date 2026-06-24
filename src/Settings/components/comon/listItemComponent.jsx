@@ -7,13 +7,18 @@ import useThemedStyles from "@common/hooks/useThemedStyles";
 import { ListItemTitle } from "@common";
 import createStyles from "../../styles";
 
-const ListItemComponent = ({ icon, title, value, isAvatar, actionConstant, onPressAction }) => {
+const ListItemComponent = ({ icon, title, value, isAvatar, tintIcon, actionConstant, onPressAction }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <ListItem bottomDivider containerStyle={styles.containerNightStyles} onPress={onPressAction}>
       <View style={styles.iconContainerStyle}>
-        {isAvatar && <Avatar source={Number(icon)} avatarStyle={styles.avatarStyle} />}
+        {isAvatar && (
+          <Avatar
+            source={Number(icon)}
+            avatarStyle={tintIcon ? styles.avatarStyle : styles.avatarStyleUntinted}
+          />
+        )}
         {!isAvatar && <Icon name={icon} color={theme.colors.primaryText} size={26} />}
       </View>
       <ListItem.Content>
@@ -34,8 +39,13 @@ ListItemComponent.propTypes = {
   title: PropTypes.string.isRequired,
   value: PropTypes.string.isRequired,
   isAvatar: PropTypes.bool.isRequired,
+  tintIcon: PropTypes.bool,
   actionConstant: PropTypes.arrayOf(PropTypes.shape()).isRequired,
   onPressAction: PropTypes.func.isRequired,
+};
+
+ListItemComponent.defaultProps = {
+  tintIcon: true,
 };
 
 export default ListItemComponent;

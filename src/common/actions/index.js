@@ -298,3 +298,34 @@ export const toggleAutoDownload = (value) => ({
   type: actionTypes.TOGGLE_AUTO_DOWNLOAD,
   value,
 });
+
+// Onboarding tour
+export const markCoachmarkSeen = (key, version) => ({
+  type: actionTypes.MARK_COACHMARK_SEEN,
+  payload: { key, version },
+});
+
+export const setHasChosenLanguage = (value) => ({
+  type: actionTypes.SET_HAS_CHOSEN_LANGUAGE,
+  value,
+});
+
+// Transient guide step for the "explore your downloads" walk-through:
+// null | "settings" | "manage".
+export const setGuideStep = (value) => ({
+  type: actionTypes.SET_GUIDE_STEP,
+  value,
+});
+
+// Opt the user out of (or back into) the whole onboarding tour. Any Skip /
+// "Not now" sets this true; a future Settings toggle can set it back to false.
+export const setTourOptedOut = (value) => ({
+  type: actionTypes.SET_TOUR_OPTED_OUT,
+  value,
+});
+
+// Replay the tour: clear all seen coachmarks + opt back in (handled by the
+// coachmarksSeen, tourOptedOut and guideStep reducers).
+export const resetTour = () => ({
+  type: actionTypes.RESET_TOUR,
+});

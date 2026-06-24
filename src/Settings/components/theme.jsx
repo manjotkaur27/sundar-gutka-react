@@ -18,6 +18,7 @@ const ThemeComponent = () => {
         title={STRINGS.theme}
         value={theme}
         isAvatar
+        tintIcon={false}
         actionConstant={THEMES}
         onPressAction={() => toggleVisible(true)}
       />

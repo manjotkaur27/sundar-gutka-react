@@ -276,6 +276,20 @@ const trackSevaEvent = async (action, params = {}) => {
   }
 };
 
+// Onboarding tour funnel — fires when the first-run spotlight tour starts,
+// is skipped (with the step the user bailed at), or is fully completed.
+const trackTourEvent = async (eventName, stepId) => {
+  try {
+    const params = {};
+    if (stepId != null) {
+      params.step_id = safeStr(stepId);
+    }
+    await logEvent(analytics, eventName, params);
+  } catch (error) {
+    logError(new Error(`${eventName} tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
 export {
   allowTracking,
   trackReaderEvent,
@@ -292,4 +306,5 @@ export {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackTourEvent,
 };

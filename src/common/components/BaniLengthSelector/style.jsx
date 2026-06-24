@@ -9,7 +9,9 @@ const createStyles = (theme) => {
   return {
   heading: {
     color: theme.staticColors.WHITE_COLOR,
-    fontFamily: theme.typography.fonts.gurbaniThick,
+    // Baloo Paaji supports both Latin and Gurmukhi, so a single font keeps this
+    // first-run screen consistent (no mix of Gurbani-thick + system fonts).
+    fontFamily: theme.typography.fonts.balooPaaji,
     textAlign: "center",
     fontSize: theme.typography.sizes.massive + theme.spacing.sm,
   },
@@ -24,21 +26,22 @@ const createStyles = (theme) => {
   baniLengthMessage: {
     marginTop: theme.spacing.md,
     color: theme.staticColors.WHITE_COLOR,
+    fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
   },
   textPreferrence: {
     marginTop: theme.spacing.md,
     color: theme.staticColors.WHITE_COLOR,
-    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.xl,
   },
   button: {
     backgroundColor: theme.colors.surface,
     color: theme.colors.primaryText,
+    fontFamily: theme.typography.fonts.balooPaaji,
     padding: theme.spacing.lg,
     marginTop: theme.spacing.md,
     fontSize: theme.typography.sizes.xxl,
-    fontWeight: theme.typography.weights.bold,
     textAlign: "center",
     textTransform: "uppercase",
     borderRadius: theme.components.button.borderRadius,
@@ -46,8 +49,8 @@ const createStyles = (theme) => {
   },
   helpText: {
     color: theme.colors.primaryVariant,
-    fontWeight: theme.typography.weights.bold,
-    fontStyle: "italic",
+    fontFamily: theme.typography.fonts.balooPaaji,
+    // No fontWeight/fontStyle: both make Android fall back off the Baloo asset font.
     fontSize: theme.typography.sizes.sm,
   },
   helpWrapper: {
@@ -92,7 +95,7 @@ const createStyles = (theme) => {
   },
   helpTitle: {
     color: helpTextColor,
-    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.lg,
     marginBottom: theme.spacing.md,
   },
@@ -104,6 +107,7 @@ const createStyles = (theme) => {
   },
   helpLine: {
     color: helpTextColor,
+    fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.sm,
     lineHeight: theme.typography.sizes.sm + theme.spacing.md,
     marginBottom: theme.spacing.sm,
@@ -115,7 +119,7 @@ const createStyles = (theme) => {
   },
   helpCloseText: {
     color: theme.colors.primary,
-    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
   },
   };

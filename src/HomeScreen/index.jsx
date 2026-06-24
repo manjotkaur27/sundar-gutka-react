@@ -7,6 +7,7 @@ import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   actions,
   BaniLengthSelector,
+  LanguageSelector,
   constant,
   useKeepAwake,
   BaniList,
@@ -31,11 +32,20 @@ const HomeScreen = React.memo(({ navigation }) => {
   const baniOrder = useSelector((state) => state.baniOrder);
   const fontFace = useSelector((state) => state.fontFace);
   const isStatistics = useSelector((state) => state.isStatistics);
+  const hasChosenLanguage = useSelector((state) => state.hasChosenLanguage);
   useDatabaseUpdateCheck();
 
   useKeepAwake();
   const { baniLengthSelector } = useBaniLength();
   const dispatch = useDispatch();
+
+  // baniLengthSelector (baniLength === "") is the proven "genuine fresh
+  // install" signal already used to gate BaniLengthSelector — reuse it here
+  // too, rather than a fresh boolean, so the language picker only ever shows
+  // to brand-new installs and never resurfaces for existing users updating
+  // into this release (whose baniLength, and therefore this flag, is already
+  // false).
+  const showLanguageSelector = baniLengthSelector && !hasChosenLanguage;
 
   // The bottom nav bar is hidden on Home permanently — Settings is reachable
   // via the header icon (next to the title) again instead.
@@ -94,7 +104,9 @@ const HomeScreen = React.memo(({ navigation }) => {
     }
   };
 
-  return baniLengthSelector ? (
+  return showLanguageSelector ? (
+    <LanguageSelector />
+  ) : baniLengthSelector ? (
     <BaniLengthSelector />
   ) : (
     <SafeArea backgroundColor={theme.colors.surface} edges={["bottom", "left", "right"]}>

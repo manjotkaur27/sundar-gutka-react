@@ -45,7 +45,22 @@ const createStyles = (theme) => ({
     padding: theme.spacing.xxl + theme.spacing.md,
     backgroundColor: theme.colors.surface,
   },
-  avatarStyle: { width: "100%", height: "100%", resizeMode: "contain" },
+  // tintColor recolors these monochrome PNG setting icons to match the vector
+  // (@rneui) icons — near-black in light, near-white in dark — so none of them
+  // render as low-contrast grey-on-grey.
+  avatarStyle: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
+    tintColor: theme.colors.primaryText,
+  },
+  // Untinted variant for icons whose original colours carry meaning (e.g. the
+  // Theme row's colour-swatch icon), so they aren't flattened to a single colour.
+  avatarStyleUntinted: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
+  },
   iconContainerStyle: {
     width: 40,
     height: 40,

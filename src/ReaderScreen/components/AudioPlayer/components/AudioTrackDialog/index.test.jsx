@@ -10,6 +10,10 @@ import TrackPlayer from "react-native-track-player";
 
 let mockState = { fontFace: "TestFont" };
 
+jest.mock("@react-navigation/native", () => ({
+  useIsFocused: () => true,
+}));
+
 jest.mock("react-redux", () => ({
   useSelector: (selector) => selector(mockState),
 }));
@@ -82,6 +86,9 @@ jest.mock("@common", () => {
         {children}
       </Text>
     ),
+    Coachmark: ({ children }) => children,
+    PREVIEW_STEPS: [],
+    COACH: { HOME: "home", PREVIEW: "preview", PLAYER: "player", DOWNLOADS: "downloads" },
   };
 });
 

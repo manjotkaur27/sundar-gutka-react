@@ -27,6 +27,16 @@ const createStyles = (theme) => ({
     borderBottomColor: theme.colors.separator,
   },
 
+  // Invisible, always-mounted spotlight target used by the downloads coachmark
+  // when there's no completed-downloads summary to point at (empty list or a
+  // download still in progress). Small height keeps the cutout tidy; transparent
+  // so it never changes what the user sees.
+  spotlightAnchor: {
+    height: 36,
+    alignSelf: 'stretch',
+    backgroundColor: 'transparent',
+  },
+
   // ── Track rows ──────────────────────────────────────────────────────────────
   trackRow: {
     flexDirection: 'row',

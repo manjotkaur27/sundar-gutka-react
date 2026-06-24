@@ -44,7 +44,10 @@ const BaniLengthSelector = () => {
     <SafeAreaProvider>
       <SafeAreaView style={styles.wrapper}>
         <View style={styles.viewWrapper}>
-          <CustomText style={styles.heading}>{STRINGS.khalsa_sundar_gutka}</CustomText>
+          {/* Unicode Gurmukhi (not the legacy ASCII-mapped STRINGS.khalsa_sundar_gutka,
+              which only renders under the GurbaniAkhar font) so it displays correctly
+              in Baloo Paaji 2 — the Gurmukhi-capable Baloo variant. */}
+          <CustomText style={styles.heading}>ਖਾਲਸਾ ਸੁੰਦਰ ਗੁਟਕਾ</CustomText>
           <CustomText style={styles.baniLengthMessage}>{STRINGS.bani_length_message_1}</CustomText>
           <CustomText style={styles.baniLengthMessage}>{STRINGS.bani_length_message_2}</CustomText>
           <CustomText style={styles.textPreferrence}>{STRINGS.choose_your_preference}</CustomText>

@@ -1,0 +1,182 @@
+diff --git a/node_modules/react-native-spotlight-tour/dist/helpers/shape.js b/node_modules/react-native-spotlight-tour/dist/helpers/shape.js
+index 6ead757..29ffcb7 100644
+--- a/node_modules/react-native-spotlight-tour/dist/helpers/shape.js
++++ b/node_modules/react-native-spotlight-tour/dist/helpers/shape.js
+@@ -1,68 +1,19 @@
+ import { Animated } from "react-native";
++// Smooth + fast step transition. We deliberately DON'T animate the SVG cutout's
++// position/size (animating SVG props on the JS thread is what caused the ~12fps
++// jank). Instead we quick-fade the cutout out, jump it to the next target while
++// it's invisible, then quick-fade it back in — a clean crossfade with no janky
++// moving rectangle. ~26ms each way keeps it near-instant but not a hard cut.
++const FADE = 26;
+ export function transitionOf(options) {
+-    const { motion, nextOrigin, nextSize, opacity, origin, size, useNativeDriver, } = options;
+-    switch (motion) {
+-        case "bounce":
+-            opacity.setValue(1);
+-            return Animated.parallel([
+-                Animated.spring(origin, {
+-                    damping: 45,
+-                    mass: 4,
+-                    restDisplacementThreshold: 0.0875,
+-                    restSpeedThreshold: 1000,
+-                    stiffness: 350,
+-                    toValue: nextOrigin,
+-                    useNativeDriver,
+-                }),
+-                Animated.spring(size, {
+-                    damping: 45,
+-                    mass: 4,
+-                    restDisplacementThreshold: 0.0875,
+-                    restSpeedThreshold: 1000,
+-                    stiffness: 350,
+-                    toValue: nextSize,
+-                    useNativeDriver,
+-                }),
+-            ]);
+-        case "fade":
+-            return Animated.sequence([
+-                Animated.timing(opacity, {
+-                    duration: 400,
+-                    toValue: 0,
+-                    useNativeDriver,
+-                }),
+-                Animated.parallel([
+-                    Animated.timing(origin, {
+-                        duration: 0,
+-                        toValue: nextOrigin,
+-                        useNativeDriver,
+-                    }),
+-                    Animated.timing(size, {
+-                        duration: 0,
+-                        toValue: nextSize,
+-                        useNativeDriver,
+-                    }),
+-                ]),
+-                Animated.timing(opacity, {
+-                    duration: 400,
+-                    toValue: 1,
+-                    useNativeDriver,
+-                }),
+-            ]);
+-        case "slide":
+-            opacity.setValue(1);
+-            return Animated.parallel([
+-                Animated.timing(origin, {
+-                    duration: 400,
+-                    toValue: nextOrigin,
+-                    useNativeDriver,
+-                }),
+-                Animated.timing(size, {
+-                    duration: 400,
+-                    toValue: nextSize,
+-                    useNativeDriver,
+-                }),
+-            ]);
+-    }
++    const { nextOrigin, nextSize, opacity, origin, size, useNativeDriver } = options;
++    return Animated.sequence([
++        Animated.timing(opacity, { duration: FADE, toValue: 0, useNativeDriver }),
++        Animated.parallel([
++            Animated.timing(origin, { duration: 0, toValue: nextOrigin, useNativeDriver }),
++            Animated.timing(size, { duration: 0, toValue: nextSize, useNativeDriver }),
++        ]),
++        Animated.timing(opacity, { duration: FADE, toValue: 1, useNativeDriver }),
++    ]);
+ }
+ //# sourceMappingURL=shape.js.map
+\ No newline at end of file
+diff --git a/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.component.js b/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.component.js
+index 0fbbd87..c2dd0fb 100644
+--- a/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.component.js
++++ b/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.component.js
+@@ -68,10 +68,14 @@ export const TourOverlay = forwardRef((props, ref) => {
+         const { height, width } = spot;
+         if ([height, width].every(value => value > 0)) {
+             Animated.timing(tooltipOpacity.current, {
+-                delay: 400,
+-                duration: 400,
++                delay: 26,
++                duration: 30,
+                 toValue: 1,
+-                useNativeDriver,
++                // Tooltip opacity is on a plain View, so force the NATIVE driver
++                // (independent of the SVG shape's JS-driven animation). Otherwise a
++                // busy JS thread — e.g. audio events on the play/pause step — stalls
++                // this fade, leaving the dialog translucent for a beat.
++                useNativeDriver: true,
+             })
+                 .start();
+         }
+@@ -81,9 +85,9 @@ export const TourOverlay = forwardRef((props, ref) => {
+             return new Promise(resolve => {
+                 if (current !== undefined) {
+                     Animated.timing(tooltipOpacity.current, {
+-                        duration: 400,
++                        duration: 26,
+                         toValue: 0,
+-                        useNativeDriver,
++                        useNativeDriver: true,
+                     })
+                         .start(resolve);
+                 }
+@@ -93,7 +97,15 @@ export const TourOverlay = forwardRef((props, ref) => {
+             });
+         },
+     }), [current, useNativeDriver]);
+-    return (_jsx(Modal, { animationType: "fade", presentationStyle: "overFullScreen", supportedOrientations: ["portrait", "landscape", "landscape-left", "landscape-right", "portrait-upside-down"], transparent: true, visible: current !== undefined, children: _jsxs(View, { testID: "Overlay View", style: Css.overlayView, children: [_jsxs(Svg, { testID: "Spot Svg", height: vh(100), width: vw(100), viewBox: `0 0 ${vw(100)} ${vh(100)}`, onPress: handleBackdropPress, shouldRasterizeIOS: true, renderToHardwareTextureAndroid: true, children: [_jsx(Defs, { children: _jsxs(Mask, { id: "mask", x: 0, y: 0, height: "100%", width: "100%", children: [_jsx(Rect, { height: vh(100), width: vw(100), fill: "#fff" }), _jsx(ShapeMask, { spot: spot, setReference: refs.setReference, motion: stepMotion, padding: shapeOptions.padding, useNativeDriver: useNativeDriver })] }) }), _jsx(Rect, { height: vh(100), width: vw(100), fill: color, mask: "url(#mask)", opacity: backdropOpacity })] }), current !== undefined && (_jsxs(Animated.View, { ref: refs.setFloating, testID: "Tooltip View", style: { ...floatingStyles, opacity: tooltipOpacity.current }, children: [_jsx(tourStep.render, { current: current, isFirst: current === 0, isLast: current === steps.length - 1, next: next, previous: previous, stop: stop, pause: pause, resume: resume, goTo: goTo }), floating.arrow !== false && (_jsx(View, { style: [
++    // Instead of the library's <Modal> (a separate Android window that loses the
++    // app's immersive hidden bars and sits in a different coordinate space than
++    // measureInWindow), push the overlay into the app-window CoachmarkHost via the
++    // global registry. Same JSX, rendered in-app: no OS-bar strips + pixel-accurate
++    // spotlight alignment. See src/common/components/Coachmark/CoachmarkHost.jsx.
++    const portalId = useRef("coachmark_" + Math.random().toString(36).slice(2)).current;
++    // The overlay renders in CoachmarkHost, whose content layer is pinned to true
++    // window (0,0) — the same basis measureInWindow uses — so the raw spot aligns.
++    const overlayContent = current === undefined ? null : (_jsxs(View, { testID: "Overlay View", style: Css.overlayView, children: [_jsxs(Svg, { testID: "Spot Svg", height: vh(100), width: vw(100), viewBox: `0 0 ${vw(100)} ${vh(100)}`, onPress: handleBackdropPress, shouldRasterizeIOS: true, renderToHardwareTextureAndroid: true, children: [_jsx(Defs, { children: _jsxs(Mask, { id: "mask", x: 0, y: 0, height: "100%", width: "100%", children: [_jsx(Rect, { height: vh(100), width: vw(100), fill: "#fff" }), _jsx(ShapeMask, { spot: spot, setReference: refs.setReference, motion: stepMotion, padding: shapeOptions.padding, useNativeDriver: useNativeDriver })] }) }), _jsx(Rect, { height: vh(100), width: vw(100), fill: color, mask: "url(#mask)", opacity: backdropOpacity })] }), (_jsxs(Animated.View, { ref: refs.setFloating, testID: "Tooltip View", style: { ...floatingStyles, opacity: tooltipOpacity.current }, children: [_jsx(tourStep.render, { current: current, isFirst: current === 0, isLast: current === steps.length - 1, next: next, previous: previous, stop: stop, pause: pause, resume: resume, goTo: goTo }), floating.arrow !== false && (_jsx(View, { style: [
+                                 Css.tooltipArrow,
+                                 arrowCss({
+                                     arrow: typeof floating.arrow !== "boolean"
+@@ -102,7 +114,20 @@ export const TourOverlay = forwardRef((props, ref) => {
+                                     data: middlewareData.arrow,
+                                     placement,
+                                 }),
+-                            ], ref: arrowRef }))] }))] }) }));
++                            ], ref: arrowRef }))] }))] }));
++    useEffect(() => {
++        const portal = globalThis.__coachmarkPortal;
++        if (portal) {
++            portal.set(portalId, overlayContent);
++        }
++    });
++    useEffect(() => () => {
++        const portal = globalThis.__coachmarkPortal;
++        if (portal) {
++            portal.set(portalId, null);
++        }
++    }, [portalId]);
++    return null;
+ });
+ function makeFloatingOptions(arrowRef, props) {
+     const arrowOption = typeof props?.arrow === "boolean"
+diff --git a/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.styles.js b/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.styles.js
+index 53a8709..e83a595 100644
+--- a/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.styles.js
++++ b/node_modules/react-native-spotlight-tour/dist/lib/components/tour-overlay/TourOverlay.styles.js
+@@ -7,8 +7,13 @@ export const DEFAULT_ARROW = {
+ };
+ export const Css = StyleSheet.create({
+     overlayView: {
+-        height: vh(100),
+-        width: vw(100),
++        // Fill the entire modal window (edge-to-edge, under the status/nav bars)
++        // so the dim never leaves an un-covered strip at the top or bottom.
++        bottom: 0,
++        left: 0,
++        position: "absolute",
++        right: 0,
++        top: 0,
+     },
+     tooltipArrow: {
+         backgroundColor: "transparent",

@@ -134,6 +134,10 @@ jest.mock("@common", () => {
     logError: jest.fn(),
     showConfirm: jest.fn(),
     showInfoToast: jest.fn(),
+    Coachmark: ({ children }) => children,
+    ExplorePromptCallout: () => null,
+    PLAYER_STEPS: [],
+    COACH: { HOME: "home", PLAYER: "player", EXPLORE: "explore", DOWNLOADS: "downloads" },
   };
 });
 

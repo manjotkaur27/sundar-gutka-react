@@ -212,6 +212,11 @@ jest.mock("@common", () => ({
       </View>
     );
   },
+  Coachmark: ({ children }) => children,
+  AudioHintCallout: () => null,
+  DownloadsGuideCallout: () => null,
+  PREVIEW_STEPS: [],
+  COACH: { HOME: "home", AUDIO_HINT: "audioHint", PREVIEW: "preview", PLAYER: "player", EXPLORE: "explore", DOWNLOADS: "downloads" },
   useTheme: () => ({ theme: mockTheme }),
   useThemedStyles: (createStyles) => createStyles(mockTheme),
   StatusBarComponent: ({ ...props }) => {

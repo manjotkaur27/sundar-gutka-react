@@ -43,8 +43,10 @@ const ConfirmDialogHost = () => {
     message,
     confirmText = "OK",
     cancelText,
+    neutralText,
     destructive = false,
     onConfirm,
+    onNeutral,
   } = options;
   const isDark = theme.mode === "dark";
   const surface = isDark ? theme.staticColors.NIGHT_BLACK : theme.colors.surface;
@@ -67,6 +69,27 @@ const ConfirmDialogHost = () => {
               <Pressable style={styles.btn} onPress={close} hitSlop={8}>
                 <CustomText style={[styles.btnText, { color: theme.colors.audioTitleText }]}>
                   {cancelText}
+                </CustomText>
+              </Pressable>
+            )}
+            {!!neutralText && (
+              <Pressable
+                style={styles.btn}
+                hitSlop={8}
+                onPress={() => {
+                  close();
+                  onNeutral?.();
+                }}
+              >
+                <CustomText
+                  style={[
+                    styles.btnText,
+                    // Primary (navy) on a dark grey surface is hard to read, so
+                    // use white in dark mode.
+                    { color: isDark ? theme.staticColors.WHITE_COLOR : theme.colors.primary },
+                  ]}
+                >
+                  {neutralText}
                 </CustomText>
               </Pressable>
             )}

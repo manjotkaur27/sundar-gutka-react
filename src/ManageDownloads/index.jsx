@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Icon } from '@rneui/themed';
 import { exists, unlink } from 'react-native-fs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AttachStep } from 'react-native-spotlight-tour';
 import {
   SafeArea,
   StatusBarComponent,
@@ -18,11 +19,14 @@ import {
   STRINGS,
   CustomText,
   showConfirm,
+  Coachmark,
+  DOWNLOADS_STEPS,
+  COACH,
 } from '@common';
 import { BackIconComponent } from '@common/components';
 import useTheme from '@common/context';
 import useThemedStyles from '@common/hooks/useThemedStyles';
-import { removeDownloadEntries, removeDownloadQueueEntry, retryDownload } from '@common/actions';
+import { removeDownloadEntries, removeDownloadQueueEntry, retryDownload, setGuideStep } from '@common/actions';
 import { AUDIO_DIRECTORY_PATH } from '../ReaderScreen/components/AudioPlayer/utils/audioDownloader';
 import createStyles from './styles';
 
@@ -53,6 +57,13 @@ const ManageDownloads = ({ navigation }) => {
   }, [navigation]);
 
   useBackHandler(handleBack);
+
+  // The "explore downloads" guide ends here — clear its step so its callouts
+  // stop showing. This screen's own coachmark (COACH.DOWNLOADS) then explains
+  // the list.
+  useEffect(() => {
+    dispatch(setGuideStep(null));
+  }, [dispatch]);
 
   // On mount: silently remove stale registry entries (file deleted externally).
   useEffect(() => {
@@ -88,6 +99,7 @@ const ManageDownloads = ({ navigation }) => {
           relativePath: trackKey,
           artistDisplayName: artist,
           baniTitle: task.baniTitle || trackKey,
+          baniNameUni: task.baniNameUni,
           sizeMB: task.sizeMB ?? 0,
           isQueued: true,
           queueStatus: task.status,
@@ -199,7 +211,10 @@ const ManageDownloads = ({ navigation }) => {
           }
         >
           <View style={styles.trackInfo}>
-            <CustomText style={styles.trackName}>{item.baniTitle}</CustomText>
+            {/* Prefer the Unicode name so it renders in Baloo regardless of the
+                font selected when it was downloaded (legacy ASCII title would
+                otherwise show as Latin gibberish in this list). */}
+            <CustomText style={styles.trackName}>{item.baniNameUni || item.baniTitle}</CustomText>
             <CustomText style={styles.trackMeta}>
               {queueStatusLabel(item.queueStatus)}
             </CustomText>
@@ -225,7 +240,7 @@ const ManageDownloads = ({ navigation }) => {
           )}
         </View>
         <View style={styles.trackInfo}>
-          <CustomText style={styles.trackName}>{item.baniTitle}</CustomText>
+          <CustomText style={styles.trackName}>{item.baniNameUni || item.baniTitle}</CustomText>
         </View>
         {item.sizeMB > 0 && (
           <CustomText style={styles.trackSize}>{formatMB(item.sizeMB)} MB</CustomText>
@@ -238,6 +253,7 @@ const ManageDownloads = ({ navigation }) => {
   const isEmpty = sections.length === 0 && validated;
 
   return (
+    <Coachmark coachKey={COACH.DOWNLOADS} steps={DOWNLOADS_STEPS} active={validated}>
     <SafeArea backgroundColor={theme.colors.surface} edges={['left', 'right']}>
       <StatusBarComponent backgroundColor={theme.colors.surface} />
 
@@ -277,7 +293,7 @@ const ManageDownloads = ({ navigation }) => {
                 accessibilityLabel={allSelected ? STRINGS.DESELECT_ALL : STRINGS.SELECT_ALL}
               >
                 <Icon
-                  name={allSelected ? 'checkbox-multiple-marked' : 'checkbox-multiple-blank-outline'}
+                  name={allSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
                   type="material-community"
                   size={24}
                   color={theme.colors.primary}
@@ -316,13 +332,27 @@ const ManageDownloads = ({ navigation }) => {
 
       <GradientDivider />
 
-      {totalTracks > 0 && (
-        <CustomText style={styles.summaryText}>
-          {STRINGS.TOTAL_DOWNLOADS_LABEL
-            .replace('{count}', String(totalTracks))
-            .replace('{size}', formatMB(totalMB))}
-        </CustomText>
-      )}
+      {/* Coachmark step 0 target — must be a SINGLE element that stays mounted
+          in EVERY state. Previously it lived on the summary line (only when a
+          download had completed) OR the empty-state title (only when the list
+          was truly empty). In the "download still in progress, nothing
+          completed yet" state totalTracks === 0 AND isEmpty === false (the
+          queued item keeps `sections` non-empty), so neither rendered — the
+          tour overlay had no element to measure and froze the whole screen
+          until the download finished. A single always-mounted target near the
+          top fixes that: it shows the storage summary once downloads exist, and
+          a thin transparent anchor otherwise. */}
+      <AttachStep index={0} fill>
+        {totalTracks > 0 ? (
+          <CustomText style={styles.summaryText}>
+            {STRINGS.TOTAL_DOWNLOADS_LABEL
+              .replace('{count}', String(totalTracks))
+              .replace('{size}', formatMB(totalMB))}
+          </CustomText>
+        ) : (
+          <View style={styles.spotlightAnchor} />
+        )}
+      </AttachStep>
 
       {isEmpty ? (
         <View style={styles.emptyContainer}>
@@ -347,6 +377,7 @@ const ManageDownloads = ({ navigation }) => {
         />
       )}
     </SafeArea>
+    </Coachmark>
   );
 };
 

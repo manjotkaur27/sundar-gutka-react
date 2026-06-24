@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { constant } from "@common";
 
 const SHADOW = {
@@ -15,6 +15,23 @@ const SHADOW = {
     elevation: 4,
   },
 };
+
+// Light, "electric" blue glow for the minimized player in light mode (replaces
+// the black elevation shadow Android was drawing as a square). It must read as a
+// soft halo, not a hard outline: a faint translucent light-blue hairline plus a
+// wide, soft blue shadow on iOS. elevation stays 0 so Android draws no rectangle.
+const ELECTRIC_BLUE = "#5AC8FA";
+
+const LIGHT_GLOW = (radius) => ({
+  // Translucent + hairline so it diffuses into a glow rather than a solid border.
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: "rgba(90, 200, 250, 0.45)",
+  shadowColor: ELECTRIC_BLUE,
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: Platform.OS === "ios" ? 0.9 : 0,
+  shadowRadius: radius,
+  elevation: 0,
+});
 
 const createStyles = (theme) => ({
   mainContainer: {
@@ -55,7 +72,13 @@ export const audioControlBarStyles = (theme) => ({
     borderColor: theme.colors.separator,
     borderWidth: 1,
     ...SHADOW.light,
-    backgroundColor: theme.colors.transparentOverlay,
+    // Android draws the elevation shadow as a RECTANGLE (ignoring borderRadius)
+    // unless the background is fully opaque — the 0.95-alpha transparentOverlay
+    // was leaving a square behind the rounded bar in light mode. Use an opaque
+    // surface on Android; iOS keeps the translucent overlay (its BlurView sits on
+    // top and its shadow already clips to the rounded shape).
+    backgroundColor:
+      Platform.OS === "android" ? theme.colors.surface : theme.colors.transparentOverlay,
   },
 
   minimizePlayerAnimation: {
@@ -329,6 +352,13 @@ export const audioTrackDialogStyles = (theme) => ({
     color: theme.staticColors.WHITE_COLOR,
     borderColor: theme.colors.primary,
   },
+  // Right-hand group of each artist row: optional offline tick + play/stop icon.
+  trackItemRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    flexShrink: 0,
+  },
   trackName: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.lg,
@@ -341,6 +371,31 @@ export const audioTrackDialogStyles = (theme) => ({
   // Offline + not downloaded: greyed and non-interactive.
   trackItemDisabled: {
     opacity: 0.4,
+  },
+  // Footer row holds the "Manage Downloads" link (left) opposite the Next
+  // button (right), so they sit at the two bottom corners of the picker.
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  manageDownloadsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    paddingRight: theme.spacing.sm,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  manageDownloadsText: {
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.semibold,
+    // White in dark mode (navy is low-contrast on the dark picker), brand blue in light.
+    color: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+    flexShrink: 1,
+    minWidth: 0,
   },
   playButton: {
     backgroundColor: theme.colors.primary,
@@ -433,8 +488,13 @@ export const minimizePlayerStyles = (theme) => ({
     // metrics vary across devices/locales. Circle (28px) + paddingVertical*2 (8px) = 36px;
     // 44px gives a comfortable touch target with a small visual top/bottom margin.
     height: 44,
-    maxWidth: "80%",
+    // Wider cap so long artist names show in full (with the text's right padding)
+    // instead of truncating ("Bibi Indermohan K...").
+    maxWidth: "92%",
     borderRadius: theme.borderRadius.xl,
+    // Symmetric horizontal padding only — this keeps the COLLAPSED pill a perfect
+    // 44x44 circle (28 icon + 8+8). The right breathing room after the artist name
+    // lives on textContainer so it doesn't deform the collapsed circle.
     paddingHorizontal: theme.spacing.md,
     flexDirection: "row",
     alignItems: "center",
@@ -443,6 +503,8 @@ export const minimizePlayerStyles = (theme) => ({
     // Dark mode: a black shadow is invisible on the dark bani, so use a soft
     // light glow on iOS, plus a faint light border for separation on Android
     // (where elevation shadows are always black and don't show on dark).
+    // Light mode: the black elevation shadow rendered as a square — replace it
+    // with a soft, light electric-blue glow halo.
     ...(theme.mode === "dark"
       ? {
           shadowColor: theme.staticColors.WHITE_COLOR,
@@ -451,7 +513,7 @@ export const minimizePlayerStyles = (theme) => ({
           borderWidth: 1,
           borderColor: "rgba(255, 255, 255, 0.14)",
         }
-      : { shadowColor: "#000" }),
+      : LIGHT_GLOW(12)),
   },
   progressContainer: {
     width: 28,
@@ -473,7 +535,13 @@ export const minimizePlayerStyles = (theme) => ({
   },
   textContainer: {
     justifyContent: "center",
-    paddingLeft: theme.spacing.md_12,
+    // Gap between the play/pause circle and the artist/duration text. Reduced
+    // ~40% from md_12 (12) to tighten the pill without changing its size.
+    paddingLeft: 7,
+    // Right breathing room after the artist name (only present when expanded, so
+    // the collapsed circle stays a circle). With the container's md right pad this
+    // gives the same ~12px gap, just without widening the collapsed pill.
+    paddingRight: theme.spacing.sm,
   },
   timestamp: {
     fontFamily: theme.typography.fonts.balooPaaji,
@@ -485,6 +553,9 @@ export const minimizePlayerStyles = (theme) => ({
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
     color: theme.colors.audioTitleText,
+    // Pull the artist name up ~2px to halve the vertical gap to the timestamp
+    // above it (the gap is just the ~4px line-box leading between the two lines).
+    marginTop: -2,
   },
 });
 

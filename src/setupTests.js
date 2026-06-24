@@ -26,6 +26,18 @@ jest.mock("@common/icons", () => {
   return createIconsMock();
 });
 
+// Mock @rneui/themed (ships ESM that Jest doesn't transform) — only the Icon
+// component is used in app code; render it as a no-op leaf in tests.
+jest.mock("@rneui/themed", () => {
+  const React = require("react");
+  const RN = require("react-native");
+  return {
+    __esModule: true,
+    Icon: ({ name, ...rest }) =>
+      React.createElement(RN.View, { accessibilityLabel: name, ...rest }),
+  };
+});
+
 // Mock @common exports
 jest.mock("@common", () => {
   const { createCommonMock } = require("@common/test-utils/mocks/common");
@@ -103,6 +115,27 @@ jest.mock("react-native-track-player", () => ({
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock")
 );
+
+// Mock the spotlight-tour library: render children passthrough and stub the
+// imperative controls so components that wrap subtrees in AttachStep/provider
+// render normally in tests without the SVG/Modal overlay machinery.
+jest.mock("react-native-spotlight-tour", () => {
+  const React = require("react");
+  return {
+    SpotlightTourProvider: React.forwardRef(({ children }, _ref) =>
+      typeof children === "function" ? null : children ?? null
+    ),
+    AttachStep: ({ children }) => children ?? null,
+    useSpotlightTour: () => ({
+      start: jest.fn(),
+      next: jest.fn(),
+      previous: jest.fn(),
+      stop: jest.fn(),
+      goTo: jest.fn(),
+    }),
+    TourBox: ({ children }) => children ?? null,
+  };
+});
 
 // Mock react-native-safe-area-context
 jest.mock("react-native-safe-area-context", () => {

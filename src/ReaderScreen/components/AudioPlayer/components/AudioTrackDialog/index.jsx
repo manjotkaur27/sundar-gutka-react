@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
+import { useIsFocused } from "@react-navigation/native";
 import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import useTheme, { useNetwork } from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
+import { AttachStep } from "react-native-spotlight-tour";
+import { Icon } from "@rneui/themed";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
-import { STRINGS, CustomText } from "@common";
+import { STRINGS, CustomText, Coachmark, PREVIEW_STEPS, COACH, navigate } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 
@@ -40,6 +43,11 @@ const AudioTrackDialog = ({
   // aware. `isOffline` stays false during the unknown startup window, so tracks
   // are never falsely greyed.
   const { isOffline } = useNetwork();
+  // Only the focused Reader runs the preview coachmark. A backgrounded Reader
+  // (e.g. the previous one still in the stack after "Revisit Tutorial" pushes a
+  // new Reader) shares the global isAudio flag and would otherwise fire a second
+  // PREVIEW spotlight whose unmeasured target lands at (0,0).
+  const isFocused = useIsFocused();
   // Banner shows only when offline AND at least one track can't be played offline.
   const hasUnplayableOffline =
     isOffline && tracks.some((t) => !isOfflineAvailable(t, downloadRegistry));
@@ -319,8 +327,16 @@ const AudioTrackDialog = ({
     }
 
     try {
+      // ── Guaranteed clean slate before every preview ──────────────────────
+      // A previously aborted preview (e.g. tapping Play then instantly Next)
+      // can leave stale in-flight native stop/reset/add calls and preview
+      // state behind, which then wedges the next preview of the same
+      // (downloaded) track. Deterministically clear every piece of preview
+      // state and hard-reset the player so each preview starts from zero.
       setPreviewLoadingTrackId(track.id);
+      setPreviewActiveTrackId(null);
       setPlayingTrack(null);
+      resetPreviewProgress();
       clearPreviewTimeout();
       clearPreviewStartTimeout();
       clearPreviewInterval();
@@ -335,6 +351,13 @@ const AudioTrackDialog = ({
         await reset();
       } catch (_) {
         // Best effort reset before starting a new preview.
+      }
+
+      // If a newer action (another tap, or Next) superseded this one during
+      // the stop/reset awaits, bail before touching playback further.
+      if (previewSessionRef.current !== sessionId) {
+        setPreviewLoadingTrackId(null);
+        return;
       }
 
       // Strip all notification-bar controls so the user cannot interact
@@ -358,6 +381,9 @@ const AudioTrackDialog = ({
       );
 
       if (previewSessionRef.current !== sessionId) {
+        // Superseded mid-load — clear the loading flag so the same track can
+        // be previewed again later (otherwise the guard above blocks it).
+        setPreviewLoadingTrackId(null);
         return;
       }
 
@@ -417,6 +443,16 @@ const AudioTrackDialog = ({
     }
   };
 
+  // Open the Manage Downloads screen from the picker. Stop any running preview
+  // first so its audio doesn't keep playing on the other screen, then close the
+  // picker so we don't return to a stale modal.
+  const handleManageDownloads = () => {
+    stopPreview();
+    setSelectedTrack(null);
+    onCloseTrackModal();
+    navigate("ManageDownloads");
+  };
+
   const isPreviewRunning = Boolean(
     selectedTrack && previewActiveTrackId && previewActiveTrackId === selectedTrack?.id
   );
@@ -425,6 +461,12 @@ const AudioTrackDialog = ({
     : STRINGS.NEXT;
 
   return (
+    <Coachmark
+      coachKey={COACH.PREVIEW}
+      steps={PREVIEW_STEPS}
+      active={isHeader && isFooter && tracks.length > 0 && isFocused}
+      placement="top"
+    >
     <View style={styles.modalWrapper}>
       <View
         style={[
@@ -474,49 +516,75 @@ const AudioTrackDialog = ({
           </View>
         )}
 
-        <ScrollViewComponent
-          tracks={tracks}
-          selectedTrack={selectedTrack}
-          playingTrack={playingTrack}
-          isPlaying={isPlaying}
-          previewLoadingTrackId={previewLoadingTrackId}
-          isOffline={isOffline}
-          handleSelectTrack={handleSelectTrack}
-        />
+        {/* Coachmark step 0: choose an artist (highlights the artist list). */}
+        <AttachStep index={0} fill>
+          <ScrollViewComponent
+            tracks={tracks}
+            selectedTrack={selectedTrack}
+            playingTrack={playingTrack}
+            isPlaying={isPlaying}
+            previewLoadingTrackId={previewLoadingTrackId}
+            isOffline={isOffline}
+            handleSelectTrack={handleSelectTrack}
+          />
+        </AttachStep>
 
         {isFooter && tracks.length > 0 && (
-          <Pressable
-            testID="play-button"
-            style={[styles.playButton, !selectedTrack && styles.playButtonDisabled]}
-            onPress={handlePlay}
-            disabled={isNextLoading}
-            activeOpacity={0.8}
-          >
-            {isNextLoading && (
-              <ActivityIndicator
-                size="small"
-                color={theme.staticColors.WHITE_COLOR}
-                style={styles.nextLoadingSpinner}
+          <View style={styles.footerRow}>
+            {/* Bottom-left: jump to the Manage Downloads screen (opposite Next). */}
+            <Pressable
+              testID="manage-downloads-button"
+              style={styles.manageDownloadsButton}
+              onPress={handleManageDownloads}
+              hitSlop={8}
+            >
+              <Icon
+                name="folder"
+                type="material"
+                size={18}
+                color={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
               />
-            )}
-            {isPreviewRunning && (
-              <View style={styles.previewProgressTrack}>
-                <View
-                  style={[
-                    styles.previewProgressFill,
-                    { width: `${Math.round(previewProgress * 100)}%` },
-                  ]}
-                />
-              </View>
-            )}
-            <CustomText style={styles.playButtonText}>
-              {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
-            </CustomText>
-            <ArrowRightIcon size={24} color={theme.staticColors.WHITE_COLOR} />
-          </Pressable>
+              <CustomText style={styles.manageDownloadsText} numberOfLines={1}>
+                {STRINGS.MANAGE_DOWNLOADS}
+              </CustomText>
+            </Pressable>
+            {/* Coachmark step 1: press Next (highlights the Next button). */}
+            <AttachStep index={1} fill>
+              <Pressable
+                testID="play-button"
+                style={[styles.playButton, !selectedTrack && styles.playButtonDisabled]}
+                onPress={handlePlay}
+                disabled={isNextLoading}
+                activeOpacity={0.8}
+              >
+                {isNextLoading && (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.staticColors.WHITE_COLOR}
+                    style={styles.nextLoadingSpinner}
+                  />
+                )}
+                {isPreviewRunning && (
+                  <View style={styles.previewProgressTrack}>
+                    <View
+                      style={[
+                        styles.previewProgressFill,
+                        { width: `${Math.round(previewProgress * 100)}%` },
+                      ]}
+                    />
+                  </View>
+                )}
+                <CustomText style={styles.playButtonText}>
+                  {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
+                </CustomText>
+                <ArrowRightIcon size={24} color={theme.staticColors.WHITE_COLOR} />
+              </Pressable>
+            </AttachStep>
+          </View>
         )}
       </View>
     </View>
+    </Coachmark>
   );
 };
 

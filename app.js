@@ -18,6 +18,7 @@ import {
   navigateTo,
   initializePerformanceMonitoring,
   ConfirmDialogHost,
+  CoachmarkHost,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
 import NetworkProvider from "./src/common/context/NetworkProvider";
@@ -26,6 +27,7 @@ import Navigation from "./src/navigation";
 import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
 import useStorageMigration from "./src/common/hooks/useStorageMigration";
 import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
+import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 
 const { store, persistor } = createStore();
 
@@ -47,6 +49,7 @@ const GlobalServices = () => {
   useGlobalDownloadManager();
   useStorageMigration();
   useOfflinePlaybackGuard();
+  usePauseAudioOnExit();
   return null;
 };
 
@@ -106,6 +109,10 @@ const App = () => {
                 <Navigation />
                 <Toast config={toastConfig} />
                 <ConfirmDialogHost />
+                {/* Mounted last so the spotlight-tour overlay (rendered here, in
+                    the app's own immersive window instead of a Modal) stacks
+                    above every screen. */}
+                <CoachmarkHost />
               </SafeAreaProvider>
             </ErrorBoundary>
           </ThemeProvider>

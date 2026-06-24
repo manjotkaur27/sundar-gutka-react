@@ -54,7 +54,7 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
       const itemTextColor = isDarkMode ? theme.staticColors.WHITE_COLOR : theme.colors.primary;
       const displayFont = !isTransliteration ? fontFace : null;
 
-      return (
+      const listItem = (
         <ListItem
           bottomDivider={false}
           containerStyle={{
@@ -95,6 +95,8 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
           </ListItem.Content>
         </ListItem>
       );
+
+      return listItem;
     },
     [theme, fontSize, fontFace, isTransliteration]
   );
@@ -125,6 +127,10 @@ BaniList.propTypes = {
   ).isRequired,
   onPress: PropTypes.func.isRequired,
   isFolderScreen: PropTypes.bool,
+};
+
+BaniList.defaultProps = {
+  isFolderScreen: false,
 };
 
 export default BaniList;

@@ -10,6 +10,7 @@ import {
   logError,
   SafeArea,
   BottomNavigation,
+  AudioHintCallout,
   useTheme,
   useThemedStyles,
   StatusBarComponent,
@@ -482,6 +483,10 @@ const Reader = ({ navigation, route }) => {
           ]}
         />
       </View>
+
+      {/* One-time hint pointing at the audio button on first Bani open.
+          Crash-safe (plain View, no spotlight/measurement). */}
+      <AudioHintCallout visible={isHeader && !isAudio} />
 
       <Animated.View style={{ height: navHeightAnim, overflow: 'hidden' }}>
         <BottomNavigation

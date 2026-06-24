@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
+import { Icon } from "@rneui/themed";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText } from "@common";
 import { audioTrackDialogStyles } from "../style";
@@ -38,8 +39,13 @@ const ScrollViewComponent = ({
   return (
     <View style={styles.trackList}>
       {tracks.map((track) => {
+        const downloaded = isOfflineAvailable(track, downloadRegistry);
         // Offline + not downloaded → greyed out and non-interactive.
-        const unavailableOffline = isOffline && !isOfflineAvailable(track, downloadRegistry);
+        const unavailableOffline = isOffline && !downloaded;
+        const isSelected = selectedTrack && track.id === selectedTrack.id;
+        const rightIconColor = isSelected
+          ? theme.staticColors.WHITE_COLOR
+          : theme.colors.audioPlayer;
         return (
         <Pressable
           key={track.id}
@@ -71,34 +77,25 @@ const ScrollViewComponent = ({
             {track.displayName}
           </CustomText>
 
-          {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
-            <ActivityIndicator
-              size="small"
-              color={
-                selectedTrack && selectedTrack.id === track.id
-                  ? theme.staticColors.WHITE_COLOR
-                  : theme.colors.audioPlayer
-              }
-            />
-          ) : playingTrack && playingTrack.id === track.id && isPlaying ? (
-            <StopIcon
-              size={30}
-              color={
-                selectedTrack && selectedTrack.id === track.id
-                  ? theme.staticColors.WHITE_COLOR
-                  : theme.colors.audioPlayer
-              }
-            />
-          ) : (
-            <PlayIcon
-              size={30}
-              color={
-                selectedTrack && selectedTrack.id === track.id
-                  ? theme.staticColors.WHITE_COLOR
-                  : theme.colors.audioPlayer
-              }
-            />
-          )}
+          <View style={styles.trackItemRight}>
+            {/* Offline tick: shown for already-downloaded tracks, sitting between
+                the artist name and the play control. */}
+            {downloaded && (
+              <Icon
+                name="offline-pin"
+                type="material"
+                size={20}
+                color={isSelected ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
+              />
+            )}
+            {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
+              <ActivityIndicator size="small" color={rightIconColor} />
+            ) : playingTrack && playingTrack.id === track.id && isPlaying ? (
+              <StopIcon size={30} color={rightIconColor} />
+            ) : (
+              <PlayIcon size={30} color={rightIconColor} />
+            )}
+          </View>
         </Pressable>
         );
       })}

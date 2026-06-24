@@ -23,7 +23,7 @@ import { DownloadIcon } from '@common/icons';
 import PropTypes from 'prop-types';
 import { unlink } from 'react-native-fs';
 import useTheme from '@common/context';
-import { STRINGS, showConfirm, showInfoToast } from '@common';
+import { STRINGS, showConfirm, showInfoToast, navigate } from '@common';
 import {
   enqueueDownload,
   retryDownload,
@@ -135,8 +135,10 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
       title: STRINGS.REMOVE_DOWNLOAD_TITLE,
       message: STRINGS.REMOVE_DOWNLOAD_BODY.replace('{title}', track?.displayName ?? ''),
       cancelText: STRINGS.cancel,
+      neutralText: STRINGS.REMOVE_DOWNLOAD_MANAGE,
       confirmText: STRINGS.REMOVE_DOWNLOAD_CONFIRM,
       destructive: true,
+      onNeutral: () => navigate('ManageDownloads'),
       onConfirm: async () => {
         const base = `${AUDIO_DIRECTORY_PATH}/${trackKey}`;
         await unlink(base).catch(() => {});

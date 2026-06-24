@@ -77,3 +77,14 @@ export const CLEAR_DOWNLOAD_REGISTRY = 'CLEAR_DOWNLOAD_REGISTRY';
 // Download settings
 export const TOGGLE_DOWNLOAD_WIFI_ONLY        = 'TOGGLE_DOWNLOAD_WIFI_ONLY';
 export const TOGGLE_AUTO_DOWNLOAD             = 'TOGGLE_AUTO_DOWNLOAD';
+
+// Onboarding tour
+export const MARK_COACHMARK_SEEN = 'MARK_COACHMARK_SEEN';
+export const SET_HAS_CHOSEN_LANGUAGE = 'SET_HAS_CHOSEN_LANGUAGE';
+// Transient cross-screen "explore your downloads" guide step (not persisted).
+export const SET_GUIDE_STEP = 'SET_GUIDE_STEP';
+// User opted out of the whole tour (any Skip / "Not now"); persisted.
+export const SET_TOUR_OPTED_OUT = 'SET_TOUR_OPTED_OUT';
+// Replay the whole onboarding tour from Settings: clears every "seen" flag and
+// opts the user back in so each contextual coachmark shows again.
+export const RESET_TOUR = 'RESET_TOUR';
