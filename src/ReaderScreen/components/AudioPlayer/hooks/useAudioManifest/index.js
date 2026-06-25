@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { DocumentDirectoryPath, exists, stat, unlink } from "react-native-fs";
+import { exists, stat, unlink } from "react-native-fs";
 import { useSelector, useDispatch } from "react-redux";
 import { actions, logError, STRINGS } from "@common";
 import constant from "@common/constant";
 import { fetchManifest } from "@service";
-import { getLocalTrackPath } from "../../utils/audioDownloader";
+import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownloader";
 
 const ALLOWED_ARTIST_IDS = [4, 8, 9];
 const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan", "gurdev"];
@@ -282,9 +282,9 @@ const useAudioManifest = (baniID) => {
             return null;
           }
 
-          const fullLocalPath = `${DocumentDirectoryPath}/audio/${track.audioUrl}`;
+          const fullLocalPath = `${AUDIO_DIRECTORY_PATH}/${track.audioUrl}`;
           const lyricsUrlPath = track.lyricsUrl
-            ? `${DocumentDirectoryPath}/audio/${track.lyricsUrl}`
+            ? `${AUDIO_DIRECTORY_PATH}/${track.lyricsUrl}`
             : null;
           let hasAudio = false;
           let hasLyrics = true;
@@ -369,11 +369,11 @@ const useAudioManifest = (baniID) => {
         const validDownloadedTrack = downloadedTrack && remoteUrlMatches ? downloadedTrack : null;
 
         const fullLocalPath = validDownloadedTrack
-          ? `${DocumentDirectoryPath}/audio/${validDownloadedTrack.audioUrl}`
+          ? `${AUDIO_DIRECTORY_PATH}/${validDownloadedTrack.audioUrl}`
           : null;
         const lyricsUrlPath =
           validDownloadedTrack && validDownloadedTrack.lyricsUrl
-            ? `${DocumentDirectoryPath}/audio/${validDownloadedTrack.lyricsUrl}`
+            ? `${AUDIO_DIRECTORY_PATH}/${validDownloadedTrack.lyricsUrl}`
             : null;
 
         let hasAudio = false;

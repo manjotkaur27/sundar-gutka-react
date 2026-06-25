@@ -3,7 +3,6 @@ import {
   exists,
   stat,
   DocumentDirectoryPath,
-  ExternalDirectoryPath,
   unlink,
   mkdir,
   readDir,
@@ -14,11 +13,19 @@ import { logError, logMessage } from "@common";
 import { checkIsJsonRemoteExists } from "./checkHelper";
 import { hasBundledLyrics } from "../assets/lyrics/bundledLyrics";
 
-// Downloads go to external storage on Android (survives "Clear Storage").
-// ExternalDirectoryPath is null on iOS — falls back to DocumentDirectoryPath.
-const BASE_STORAGE_DIR = ExternalDirectoryPath ?? DocumentDirectoryPath;
-const AUDIO_DIRECTORY = `${BASE_STORAGE_DIR}/audio`;
-// Prefetch is ephemeral LRU cache — kept internal so "Clear Data" wipes it.
+// Downloads live in app-internal storage (DocumentDirectoryPath) — the single
+// canonical location. It's always available at app-init, so the resolved path
+// is deterministic across launches on every OEM.
+//
+// External app-specific storage (ExternalDirectoryPath) was tried but reverted:
+// getExternalFilesDir() isn't reliably mounted at JS-init on some OEMs
+// (Vivo/Realme/Oppo), so `ExternalDirectoryPath ?? DocumentDirectoryPath`
+// resolved differently from launch to launch, flipping the base dir and
+// silently orphaning every download (empty "Manage downloads", re-download on
+// replay). It also gets wiped by "Clear Storage" anyway, so it bought no
+// durability — internal is strictly better here.
+const AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio`;
+// Prefetch is an ephemeral LRU cache — separate dir so "Clear Data" wipes it.
 const PREFETCH_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_prefetch`;
 export const AUDIO_DIRECTORY_PATH = AUDIO_DIRECTORY;
 const PREFETCH_INDEX_PATH = `${PREFETCH_AUDIO_DIRECTORY}/.prefetch-index.json`;
