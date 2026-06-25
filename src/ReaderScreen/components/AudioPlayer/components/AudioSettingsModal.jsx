@@ -86,7 +86,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) =>
             >
               <MinusIcon size={24} color={theme.colors.audioSettingsModalText} />
             </Pressable>
-            <CustomText style={styles.settingItemTitle}>
+            <CustomText style={styles.settingValueText}>
               {audioPlaybackSpeed.toFixed(1)}x
             </CustomText>
             <Pressable

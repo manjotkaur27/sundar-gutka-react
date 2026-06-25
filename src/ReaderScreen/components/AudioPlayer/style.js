@@ -568,6 +568,13 @@ export const audioSettingModalStyles = (theme) => ({
     padding: theme.spacing.md,
   },
   settingItemTitle: {
+    flex: 1,
+    marginRight: theme.spacing.md,
+    fontSize: theme.typography.sizes.xl,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    color: theme.colors.audioSettingsModalText,
+  },
+  settingValueText: {
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
     color: theme.colors.audioSettingsModalText,

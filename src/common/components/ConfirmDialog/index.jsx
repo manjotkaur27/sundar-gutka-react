@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Modal, View, Pressable, StyleSheet } from "react-native";
 import useTheme from "@common/context";
 import CustomText from "../CustomText";
@@ -36,6 +36,53 @@ const ConfirmDialogHost = () => {
 
   const close = useCallback(() => setOptions(null), []);
 
+  // Lay the action buttons in a row when they fit; switch to a full-width
+  // vertical stack when they don't. The decision is driven by the *measured*
+  // widths of the actual rendered buttons vs. the available row width, so it
+  // adapts to any system font scale, locale (German/Punjabi labels run long),
+  // or screen size — instead of a hardcoded row that clips "Cancel" off the
+  // card on narrow/large-font devices.
+  const [stacked, setStacked] = useState(false);
+  const rowWidthRef = useRef(0);
+  const btnWidthsRef = useRef({});
+
+  // Re-measure from scratch whenever a new dialog opens (its buttons differ).
+  useEffect(() => {
+    setStacked(false);
+    rowWidthRef.current = 0;
+    btnWidthsRef.current = {};
+  }, [options]);
+
+  const ACTION_GAP = 8;
+  const evaluateLayout = useCallback(() => {
+    if (stacked) return;
+    const widths = Object.values(btnWidthsRef.current);
+    if (!rowWidthRef.current || widths.length === 0) return;
+    const total =
+      widths.reduce((sum, w) => sum + w, 0) + ACTION_GAP * (widths.length - 1);
+    // 1px slack avoids a spurious stack from sub-pixel rounding.
+    if (total > rowWidthRef.current + 1) setStacked(true);
+  }, [stacked]);
+
+  const onRowLayout = useCallback(
+    (e) => {
+      rowWidthRef.current = e.nativeEvent.layout.width;
+      evaluateLayout();
+    },
+    [evaluateLayout]
+  );
+
+  const onBtnLayout = useCallback(
+    (key) => (e) => {
+      // In row mode each button reports its natural (content) width.
+      if (!stacked) {
+        btnWidthsRef.current[key] = e.nativeEvent.layout.width;
+        evaluateLayout();
+      }
+    },
+    [stacked, evaluateLayout]
+  );
+
   if (!options) return null;
 
   const {
@@ -64,9 +111,17 @@ const ConfirmDialogHost = () => {
           {!!message && (
             <CustomText style={[styles.message, { color: textColor }]}>{message}</CustomText>
           )}
-          <View style={styles.actions}>
+          <View
+            style={[styles.actions, stacked && styles.actionsStacked]}
+            onLayout={onRowLayout}
+          >
             {!!cancelText && (
-              <Pressable style={styles.btn} onPress={close} hitSlop={8}>
+              <Pressable
+                style={[styles.btn, stacked && styles.btnStacked]}
+                onPress={close}
+                hitSlop={8}
+                onLayout={onBtnLayout("cancel")}
+              >
                 <CustomText style={[styles.btnText, { color: theme.colors.audioTitleText }]}>
                   {cancelText}
                 </CustomText>
@@ -74,8 +129,9 @@ const ConfirmDialogHost = () => {
             )}
             {!!neutralText && (
               <Pressable
-                style={styles.btn}
+                style={[styles.btn, stacked && styles.btnStacked]}
                 hitSlop={8}
+                onLayout={onBtnLayout("neutral")}
                 onPress={() => {
                   close();
                   onNeutral?.();
@@ -94,8 +150,9 @@ const ConfirmDialogHost = () => {
               </Pressable>
             )}
             <Pressable
-              style={styles.btn}
+              style={[styles.btn, stacked && styles.btnStacked]}
               hitSlop={8}
+              onLayout={onBtnLayout("confirm")}
               onPress={() => {
                 close();
                 onConfirm?.();
@@ -144,14 +201,30 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
+    // Wrap is the guaranteed no-clip fallback if measurement ever misses: a
+    // button that can't fit moves to the next line instead of off the card.
+    flexWrap: "wrap",
     justifyContent: "flex-end",
     alignItems: "center",
     marginTop: 12,
+    columnGap: 8,
+    rowGap: 4,
+  },
+  // When the buttons don't fit on one row, stack them full-width with their
+  // labels right-aligned (standard Material adaptive-dialog behaviour). Each
+  // button gets the full card width, so a long label can never be clipped.
+  actionsStacked: {
+    flexDirection: "column",
+    alignItems: "stretch",
   },
   btn: {
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginLeft: 8,
+    paddingHorizontal: 12,
+  },
+  btnStacked: {
+    width: "100%",
+    paddingHorizontal: 0,
+    alignItems: "flex-end",
   },
   btnText: {
     fontSize: 15,
