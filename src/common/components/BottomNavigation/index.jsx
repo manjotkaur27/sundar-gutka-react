@@ -7,8 +7,16 @@ import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { pauseTrack } from "@common/TrackPlayerUtils";
-import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
+import {
+  HomeIcon,
+  SettingsIcon,
+  MusicIcon,
+  ReadIcon,
+  DashboardIcon,
+  SevaIcon,
+} from "@common/icons";
 import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
+import { getSevaConfig } from "../../../services/sevaConfig";
 import createStyles from "./style";
 
 const BottomNavigation = ({
@@ -29,6 +37,7 @@ const BottomNavigation = ({
   useSelector((state) => state.language); // re-render on language change so STRINGS labels update
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
 
+  const [showSevaDot, setShowSevaDot] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
 
   const insets = useSafeAreaInsets();
@@ -57,6 +66,19 @@ const BottomNavigation = ({
     };
   }, [visible, translateY]);
 
+  // Load seva dot state from config
+  useEffect(() => {
+    let cancelled = false;
+    getSevaConfig()
+      .then((cfg) => {
+        if (!cancelled) setShowSevaDot(!!cfg?.showSevaDot);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Connectivity is handled globally and event-driven now: NetworkProvider is
   // the single source of truth, and useOfflinePlaybackGuard (mounted once in
   // GlobalServices) stops streaming playback when real internet is lost. The
@@ -72,9 +94,23 @@ const BottomNavigation = ({
       },
       text: STRINGS.HOME,
     },
-    // Dashboard and Seva tabs/screens still exist and are still registered in
-    // the navigator (see src/navigation/index.jsx) — they're intentionally
-    // just not exposed via this nav bar right now.
+    {
+      key: "Dashboard",
+      icon: DashboardIcon,
+      handlePress: () => {
+        navigation.navigate(constant.DASHBOARD);
+      },
+      text: STRINGS.DASHBOARD,
+    },
+    {
+      key: "Seva",
+      icon: SevaIcon,
+      showDot: showSevaDot,
+      handlePress: () => {
+        navigation.navigate(constant.SEVA);
+      },
+      text: STRINGS.SEVA,
+    },
     {
       key: "Settings",
       icon: SettingsIcon,
@@ -179,16 +215,7 @@ const BottomNavigation = ({
             { paddingBottom: bottomPad }
           ]}
         >
-          <View
-            style={[
-              styles.navigationBar,
-              // space-between stretches items to the full row width, which
-              // looked fine with 4 items but leaves Home/Settings stranded at
-              // the two extremities now that Dashboard/Seva are gone from this
-              // bar — group remaining items together instead.
-              navigationItems.length <= 2 && styles.navigationBarCentered,
-            ]}
-          >
+          <View style={styles.navigationBar}>
             {navigationItems.map((item) => {
               const IconComponent = item.icon;
 

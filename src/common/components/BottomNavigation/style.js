@@ -13,12 +13,6 @@ const createStyles = (theme) => ({
     marginRight: "auto",
     paddingHorizontal: 8,
   },
-  // Used when there are only 2 items — groups them together in the middle
-  // instead of letting space-between strand them at the left/right edges.
-  navigationBarCentered: {
-    justifyContent: "center",
-    gap: 64,
-  },
   iconContainer: {
     flex: 1,
     minHeight: 50,
