@@ -1,16 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
-import { useIsFocused } from "@react-navigation/native";
 import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import useTheme, { useNetwork } from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { AttachStep } from "react-native-spotlight-tour";
 import { Icon } from "@rneui/themed";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
-import { STRINGS, CustomText, Coachmark, PREVIEW_STEPS, COACH, navigate } from "@common";
+import { STRINGS, CustomText, navigate } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 
@@ -43,11 +41,6 @@ const AudioTrackDialog = ({
   // aware. `isOffline` stays false during the unknown startup window, so tracks
   // are never falsely greyed.
   const { isOffline } = useNetwork();
-  // Only the focused Reader runs the preview coachmark. A backgrounded Reader
-  // (e.g. the previous one still in the stack after "Revisit Tutorial" pushes a
-  // new Reader) shares the global isAudio flag and would otherwise fire a second
-  // PREVIEW spotlight whose unmeasured target lands at (0,0).
-  const isFocused = useIsFocused();
   // Banner shows only when offline AND at least one track can't be played offline.
   const hasUnplayableOffline =
     isOffline && tracks.some((t) => !isOfflineAvailable(t, downloadRegistry));
@@ -444,12 +437,14 @@ const AudioTrackDialog = ({
   };
 
   // Open the Manage Downloads screen from the picker. Stop any running preview
-  // first so its audio doesn't keep playing on the other screen, then close the
-  // picker so we don't return to a stale modal.
+  // first so its audio doesn't keep playing on the other screen. We intentionally
+  // do NOT close the picker / exit audio mode here: ManageDownloads is pushed onto
+  // the same stack above the Reader, so leaving the picker mounted underneath means
+  // tapping back (or the OS back button) returns the user to the artist-selection
+  // screen they came from — not the plain read screen.
   const handleManageDownloads = () => {
     stopPreview();
     setSelectedTrack(null);
-    onCloseTrackModal();
     navigate("ManageDownloads");
   };
 
@@ -461,12 +456,6 @@ const AudioTrackDialog = ({
     : STRINGS.NEXT;
 
   return (
-    <Coachmark
-      coachKey={COACH.PREVIEW}
-      steps={PREVIEW_STEPS}
-      active={isHeader && isFooter && tracks.length > 0 && isFocused}
-      placement="top"
-    >
     <View style={styles.modalWrapper}>
       <View
         style={[
@@ -516,18 +505,15 @@ const AudioTrackDialog = ({
           </View>
         )}
 
-        {/* Coachmark step 0: choose an artist (highlights the artist list). */}
-        <AttachStep index={0} fill>
-          <ScrollViewComponent
-            tracks={tracks}
-            selectedTrack={selectedTrack}
-            playingTrack={playingTrack}
-            isPlaying={isPlaying}
-            previewLoadingTrackId={previewLoadingTrackId}
-            isOffline={isOffline}
-            handleSelectTrack={handleSelectTrack}
-          />
-        </AttachStep>
+        <ScrollViewComponent
+          tracks={tracks}
+          selectedTrack={selectedTrack}
+          playingTrack={playingTrack}
+          isPlaying={isPlaying}
+          previewLoadingTrackId={previewLoadingTrackId}
+          isOffline={isOffline}
+          handleSelectTrack={handleSelectTrack}
+        />
 
         {isFooter && tracks.length > 0 && (
           <View style={styles.footerRow}>
@@ -548,43 +534,39 @@ const AudioTrackDialog = ({
                 {STRINGS.MANAGE_DOWNLOADS}
               </CustomText>
             </Pressable>
-            {/* Coachmark step 1: press Next (highlights the Next button). */}
-            <AttachStep index={1} fill>
-              <Pressable
-                testID="play-button"
-                style={[styles.playButton, !selectedTrack && styles.playButtonDisabled]}
-                onPress={handlePlay}
-                disabled={isNextLoading}
-                activeOpacity={0.8}
-              >
-                {isNextLoading && (
-                  <ActivityIndicator
-                    size="small"
-                    color={theme.staticColors.WHITE_COLOR}
-                    style={styles.nextLoadingSpinner}
+            <Pressable
+              testID="play-button"
+              style={[styles.playButton, !selectedTrack && styles.playButtonDisabled]}
+              onPress={handlePlay}
+              disabled={isNextLoading}
+              activeOpacity={0.8}
+            >
+              {isNextLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.staticColors.WHITE_COLOR}
+                  style={styles.nextLoadingSpinner}
+                />
+              )}
+              {isPreviewRunning && (
+                <View style={styles.previewProgressTrack}>
+                  <View
+                    style={[
+                      styles.previewProgressFill,
+                      { width: `${Math.round(previewProgress * 100)}%` },
+                    ]}
                   />
-                )}
-                {isPreviewRunning && (
-                  <View style={styles.previewProgressTrack}>
-                    <View
-                      style={[
-                        styles.previewProgressFill,
-                        { width: `${Math.round(previewProgress * 100)}%` },
-                      ]}
-                    />
-                  </View>
-                )}
-                <CustomText style={styles.playButtonText}>
-                  {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
-                </CustomText>
-                <ArrowRightIcon size={24} color={theme.staticColors.WHITE_COLOR} />
-              </Pressable>
-            </AttachStep>
+                </View>
+              )}
+              <CustomText style={styles.playButtonText}>
+                {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
+              </CustomText>
+              <ArrowRightIcon size={24} color={theme.staticColors.WHITE_COLOR} />
+            </Pressable>
           </View>
         )}
       </View>
     </View>
-    </Coachmark>
   );
 };
 

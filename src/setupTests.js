@@ -116,27 +116,6 @@ jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock")
 );
 
-// Mock the spotlight-tour library: render children passthrough and stub the
-// imperative controls so components that wrap subtrees in AttachStep/provider
-// render normally in tests without the SVG/Modal overlay machinery.
-jest.mock("react-native-spotlight-tour", () => {
-  const React = require("react");
-  return {
-    SpotlightTourProvider: React.forwardRef(({ children }, _ref) =>
-      typeof children === "function" ? null : children ?? null
-    ),
-    AttachStep: ({ children }) => children ?? null,
-    useSpotlightTour: () => ({
-      start: jest.fn(),
-      next: jest.fn(),
-      previous: jest.fn(),
-      stop: jest.fn(),
-      goTo: jest.fn(),
-    }),
-    TourBox: ({ children }) => children ?? null,
-  };
-});
-
 // Mock react-native-safe-area-context
 jest.mock("react-native-safe-area-context", () => {
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };

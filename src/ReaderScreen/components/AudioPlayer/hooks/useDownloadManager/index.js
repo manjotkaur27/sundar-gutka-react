@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import NetInfo from '@react-native-community/netinfo';
 import { enqueueDownload, toggleDownloadWifiOnly } from '@common/actions';
-import { STRINGS, showConfirm, COACH, useCoachmark } from '@common';
+import { STRINGS, showConfirm } from '@common';
 import { getLocalTrackPath } from '../../utils/audioDownloader';
 
 // Thin Redux bridge. All download logic lives in useGlobalDownloadManager
@@ -14,19 +14,6 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
   const downloadRegistry     = useSelector((s) => s.downloadRegistry);
   const autoDownloadOnStream = useSelector((s) => s.autoDownloadOnStream);
   const downloadWifiOnly       = useSelector((s) => s.downloadWifiOnly);
-
-  // Defer auto-download only until the PLAYER tutorial (play/pause → download
-  // steps) has been shown — not through the rest of the tour. Auto-enqueuing a
-  // download during those two steps floods the JS thread (enqueue + the
-  // download-button spinner + the "download complete" toast) and chokes the
-  // spotlight tooltips, and it also pre-empts the "tap to download" step (the
-  // track would already be downloading). Gating on COACH.PLAYER means
-  // shouldShow is true for exactly the play + download steps and flips false the
-  // moment that pair completes (or the user skips/opts out) — so auto-download
-  // kicks in right after we've explained the download button, instead of waiting
-  // for the later "show me / Manage Downloads" walk-through. For users not in
-  // the tour, shouldShow is always false, so auto-download fires immediately.
-  const { shouldShow: tourInProgress } = useCoachmark(COACH.PLAYER);
 
   const trackKey   = currentPlaying?.audioUrl ? getLocalTrackPath(currentPlaying.audioUrl) : null;
   const queueEntry = trackKey ? downloadQueue[trackKey] : null;
@@ -44,7 +31,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
   // WiFi-only off, so every later download (manual or auto) proceeds without
   // asking again, until the user re-enables WiFi-only themselves.
   useEffect(() => {
-    if (!autoDownloadOnStream || !currentPlaying?.audioUrl || isDownloaded || queueEntry || tourInProgress) {
+    if (!autoDownloadOnStream || !currentPlaying?.audioUrl || isDownloaded || queueEntry) {
       return undefined;
     }
 
@@ -87,7 +74,7 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPlaying?.audioUrl, autoDownloadOnStream, downloadWifiOnly, tourInProgress]);
+  }, [currentPlaying?.audioUrl, autoDownloadOnStream, downloadWifiOnly]);
 
   // When global engine completes a download, stamp the manifest entry so the
   // existing mergeDownloadedTracks / isLocallyDownloaded flow still works.

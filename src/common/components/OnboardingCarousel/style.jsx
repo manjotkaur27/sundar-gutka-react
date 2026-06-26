@@ -1,0 +1,193 @@
+// Themed styles for the onboarding carousel. Colors come from the theme; only
+// neutral spacing/sizes are hard-coded. We deliberately do NOT alpha-blend theme
+// colors (their format isn't guaranteed hex), using solid accents + the `opacity`
+// style prop instead.
+const createStyles = (theme) => ({
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: theme.colors.surface,
+    // Android paints by elevation, not just tree order — sit above every screen
+    // (the reader's bottom nav and player have elevation of their own).
+    elevation: 9999,
+    zIndex: 9999,
+  },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    height: 48,
+  },
+  globeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+  },
+  globeLabel: {
+    marginLeft: 6,
+    color: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 13,
+  },
+  slide: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingHorizontal: 16,
+  },
+  imageWrap: {
+    width: "100%",
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+  },
+  imageBorder: {
+    width: "88%",
+    borderRadius: 15,
+    borderWidth: 3.5,
+    borderColor: "#0066ff",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  // Shown until a real screenshot is dropped in for the slide.
+  placeholder: {
+    width: "80%",
+    height: "100%",
+    maxHeight: 460,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderText: {
+    marginTop: 10,
+    color: theme.colors.primaryText,
+    opacity: 0.45,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 13,
+  },
+  textBlock: {
+    paddingBottom: 8,
+  },
+  title: {
+    color: theme.colors.primaryText,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 24,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  body: {
+    color: theme.colors.primaryText,
+    opacity: 0.7,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+    backgroundColor: theme.colors.primaryText,
+    opacity: 0.2,
+  },
+  dotActive: {
+    width: 22,
+    backgroundColor: theme.colors.primary,
+    opacity: 1,
+  },
+  controls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
+    minHeight: 56,
+  },
+  skipButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minWidth: 80,
+  },
+  skipText: {
+    color: theme.colors.primaryText,
+    opacity: 0.6,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 16,
+  },
+  nextButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 26,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    minWidth: 120,
+    alignItems: "center",
+  },
+  nextText: {
+    color: theme.staticColors.WHITE_COLOR,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 16,
+  },
+  langBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  langCard: {
+    position: "absolute",
+    right: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 14,
+    paddingVertical: 6,
+    minWidth: 190,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  langItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  langItemText: {
+    color: theme.colors.primaryText,
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: 16,
+  },
+  langItemTextActive: {
+    color: theme.colors.primary,
+  },
+});
+
+export default createStyles;

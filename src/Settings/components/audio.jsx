@@ -3,7 +3,6 @@ import { View, LayoutAnimation, Platform } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import { ListItem, Icon } from "@rneui/themed";
-import { AttachStep } from "react-native-spotlight-tour";
 import {
   toggleAudioAutoPlay,
   toggleAutoDownload,
@@ -77,22 +76,20 @@ const Audio = () => {
         />
       </ListItem>
 
-      {/* Manage Downloads → (index 0 = the "Show me" guide's spotlight target) */}
-      <AttachStep index={0} fill>
-        <ListItem
-          bottomDivider
-          containerStyle={styles.containerNightStyles}
-          onPress={() => navigation.navigate('ManageDownloads')}
-        >
-          <View style={styles.iconContainerStyle}>
-            <Icon color={theme.colors.primaryText} name="file-download" type="material" size={26} />
-          </View>
-          <ListItem.Content>
-            <ListItemTitle title={MANAGE_DOWNLOADS} style={styles.listItemTitle} />
-          </ListItem.Content>
-          <ListItem.Chevron color={theme.colors.primaryText} />
-        </ListItem>
-      </AttachStep>
+      {/* Manage Downloads */}
+      <ListItem
+        bottomDivider
+        containerStyle={styles.containerNightStyles}
+        onPress={() => navigation.navigate('ManageDownloads')}
+      >
+        <View style={styles.iconContainerStyle}>
+          <Icon color={theme.colors.primaryText} name="file-download" type="material" size={26} />
+        </View>
+        <ListItem.Content>
+          <ListItemTitle title={MANAGE_DOWNLOADS} style={styles.listItemTitle} />
+        </ListItem.Content>
+        <ListItem.Chevron color={theme.colors.primaryText} />
+      </ListItem>
 
       {/* Download over Wi-Fi only */}
       <ListItem

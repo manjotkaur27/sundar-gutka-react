@@ -488,9 +488,9 @@ export const minimizePlayerStyles = (theme) => ({
     // metrics vary across devices/locales. Circle (28px) + paddingVertical*2 (8px) = 36px;
     // 44px gives a comfortable touch target with a small visual top/bottom margin.
     height: 44,
-    // Wider cap so long artist names show in full (with the text's right padding)
-    // instead of truncating ("Bibi Indermohan K...").
-    maxWidth: "92%",
+    // No width cap — the pill sizes to its content so the FULL artist name always
+    // shows (no "Bibi Indermohan K..." truncation), expanding the pill as needed.
+    // The drag-release clamp (MinimizePlayer) keeps it within the viewport.
     borderRadius: theme.borderRadius.xl,
     // Symmetric horizontal padding only — this keeps the COLLAPSED pill a perfect
     // 44x44 circle (28 icon + 8+8). The right breathing room after the artist name
@@ -546,16 +546,20 @@ export const minimizePlayerStyles = (theme) => ({
   timestamp: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.sm,
+    // Tight line box (≈ font size) strips the font's bottom leading, which is the
+    // main source of the gap down to the artist name below.
+    lineHeight: theme.typography.sizes.sm + 2,
     color: theme.colors.audioTitleText,
     opacity: 0.7,
   },
   artistName: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
+    // Tight line box + a larger negative margin together cut the vertical gap to
+    // the timestamp roughly in half again (the leading is what made it look big).
+    lineHeight: theme.typography.sizes.md + 2,
     color: theme.colors.audioTitleText,
-    // Pull the artist name up ~2px to halve the vertical gap to the timestamp
-    // above it (the gap is just the ~4px line-box leading between the two lines).
-    marginTop: -2,
+    marginTop: -4,
   },
 });
 

@@ -299,33 +299,18 @@ export const toggleAutoDownload = (value) => ({
   value,
 });
 
-// Onboarding tour
-export const markCoachmarkSeen = (key, version) => ({
-  type: actionTypes.MARK_COACHMARK_SEEN,
-  payload: { key, version },
-});
-
-export const setHasChosenLanguage = (value) => ({
-  type: actionTypes.SET_HAS_CHOSEN_LANGUAGE,
+// Onboarding carousel guide
+// Show/hide the full-screen onboarding carousel. Set true on a genuine fresh
+// install (see useOnboardingTrigger) and from the Settings "Revisit Tutorial"
+// row; set false when the user finishes or skips it.
+export const setOnboardingVisible = (value) => ({
+  type: actionTypes.SET_ONBOARDING_VISIBLE,
   value,
 });
 
-// Transient guide step for the "explore your downloads" walk-through:
-// null | "settings" | "manage".
-export const setGuideStep = (value) => ({
-  type: actionTypes.SET_GUIDE_STEP,
+// Persist that the carousel has been seen once so the first-run auto-open
+// doesn't fire again on later launches. "Revisit" ignores this flag.
+export const setOnboardingSeen = (value) => ({
+  type: actionTypes.SET_ONBOARDING_SEEN,
   value,
-});
-
-// Opt the user out of (or back into) the whole onboarding tour. Any Skip /
-// "Not now" sets this true; a future Settings toggle can set it back to false.
-export const setTourOptedOut = (value) => ({
-  type: actionTypes.SET_TOUR_OPTED_OUT,
-  value,
-});
-
-// Replay the tour: clear all seen coachmarks + opt back in (handled by the
-// coachmarksSeen, tourOptedOut and guideStep reducers).
-export const resetTour = () => ({
-  type: actionTypes.RESET_TOUR,
 });

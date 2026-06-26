@@ -21,17 +21,12 @@ import {
   ExpandCollapseIcon,
   DownloadIcon,
 } from "@common/icons";
-import { AttachStep } from "react-native-spotlight-tour";
 import {
   STRINGS,
   CustomText,
   logError,
   showConfirm,
   showInfoToast,
-  Coachmark,
-  PLAYER_STEPS,
-  COACH,
-  ExplorePromptCallout,
 } from "@common";
 import {
   useAnimation,
@@ -635,16 +630,7 @@ const AudioControlBar = ({
   }, [isPlaying, currentPlaying?.id, baniID, dispatch]);
 
   return (
-    <Coachmark
-      coachKey={COACH.PLAYER}
-      steps={PLAYER_STEPS}
-      active={!isMinimized && !!currentPlaying && isFocused}
-      placement="top"
-    >
     <View style={styles.container} pointerEvents="box-none">
-      {/* Optional "explore your downloads" prompt — shown once after the
-          player coachmark finishes. Touch-through callout, not a spotlight. */}
-      <ExplorePromptCallout visible={!isMinimized && !!currentPlaying} />
       {/* DownloadBadge replaced by DownloadButton in the trackInfo row */}
       {isMinimized && (
         <MinimizePlayer
@@ -748,14 +734,12 @@ const AudioControlBar = ({
             {/* Download indicator + timestamp — stay right-aligned as a unit */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               {currentPlaying && (
-                <AttachStep index={1}>
-                  <DownloadButton
-                    track={currentPlaying}
-                    baniTitle={title}
-                    baniNameUni={notificationTitle || title}
-                    baniId={baniID}
-                  />
-                </AttachStep>
+                <DownloadButton
+                  track={currentPlaying}
+                  baniTitle={title}
+                  baniNameUni={notificationTitle || title}
+                  baniId={baniID}
+                />
               )}
               <CustomText style={[styles.timestamp, styles.timestampWithColor]}>
                 {formatTime(safePosition)}
@@ -764,26 +748,24 @@ const AudioControlBar = ({
           </View>
 
           <View style={styles.playbackControls}>
-            <AttachStep index={0}>
-              <Pressable
-                style={styles.playButton}
-                onPress={handlePlayPause}
-                disabled={!isAudioEnabled || isPlayerActionLoading || isBuffering}
-              >
-                {isPlayerActionLoading || isBuffering ? (
-                  <ActivityIndicator
-                    testID="player-action-loading-indicator"
-                    size="small"
-                    color={theme.colors.audioTitleText}
-                    style={styles.playButtonLoadingSpinner}
-                  />
-                ) : isPlaying ? (
-                  <PauseIcon size={30} color={theme.colors.audioTitleText} />
-                ) : (
-                  <PlayIcon size={30} color={theme.colors.audioTitleText} />
-                )}
-              </Pressable>
-            </AttachStep>
+            <Pressable
+              style={styles.playButton}
+              onPress={handlePlayPause}
+              disabled={!isAudioEnabled || isPlayerActionLoading || isBuffering}
+            >
+              {isPlayerActionLoading || isBuffering ? (
+                <ActivityIndicator
+                  testID="player-action-loading-indicator"
+                  size="small"
+                  color={theme.colors.audioTitleText}
+                  style={styles.playButtonLoadingSpinner}
+                />
+              ) : isPlaying ? (
+                <PauseIcon size={30} color={theme.colors.audioTitleText} />
+              ) : (
+                <PlayIcon size={30} color={theme.colors.audioTitleText} />
+              )}
+            </Pressable>
 
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
@@ -816,7 +798,6 @@ const AudioControlBar = ({
         </View>
       )}
     </View>
-    </Coachmark>
   );
 };
 

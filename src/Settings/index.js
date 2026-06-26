@@ -1,9 +1,7 @@
-import React, { useRef, useEffect } from "react";
+import React from "react";
 import { StatusBar, Animated, View } from "react-native";
-import { useSelector, useDispatch } from "react-redux";
-import { useIsFocused } from "@react-navigation/native";
+import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { setGuideStep } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
@@ -15,9 +13,6 @@ import {
   useCustomScrollbar,
   useBackHandler,
   BottomNavigation,
-  Coachmark,
-  SETTINGS_MANAGE_STEPS,
-  COACH,
   constant,
 } from "@common";
 import Audio from "./components/audio";
@@ -70,31 +65,6 @@ const Settings = ({ navigation, route }) => {
   const { theme } = useTheme();
   const { scrollViewProps, Indicator } = useCustomScrollbar();
 
-  // "Explore your downloads" guide: when the user picks "Show me" in the player,
-  // we land here with guideStep === "manage". Scroll the Audio section (which
-  // holds the Manage Downloads row) into view, then the Coachmark below spotlights
-  // that row.
-  const guideStep = useSelector((state) => state.guideStep);
-  const dispatch = useDispatch();
-  // Settings is registered in TWO navigators (the Home tab AND the root stack).
-  // guideStep is global, so without this gate every mounted Settings instance
-  // would start the Manage-Downloads spotlight into the shared overlay portal —
-  // and dismissing the focused one would leave the background tab's copy still
-  // showing ("it comes up again"). Only the focused instance runs the coachmark.
-  const isFocused = useIsFocused();
-  const scrollRef = useRef(null);
-  const audioSectionY = useRef(0);
-
-  useEffect(() => {
-    if (guideStep !== "manage") return undefined;
-    const timer = setTimeout(() => {
-      const sv = scrollRef.current;
-      const node = sv && (sv.scrollTo ? sv : sv.getNode && sv.getNode());
-      node?.scrollTo?.({ y: Math.max(0, audioSectionY.current - 40), animated: true });
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [guideStep]);
-
   const styles = useThemedStyles(createStyles);
   const { displayOptionsText, end } = styles;
   const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO } = STRINGS;
@@ -108,17 +78,7 @@ const Settings = ({ navigation, route }) => {
       <GradientDivider />
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <View style={{ flex: 1 }}>
-      <Coachmark
-        coachKey={COACH.MANAGE_SETTINGS}
-        steps={SETTINGS_MANAGE_STEPS}
-        active={guideStep === "manage" && isFocused}
-        startDelay={1100}
-        placement="top"
-        // Clear the transient guide step once dismissed so no other mounted
-        // Settings instance (or a later remount) can re-trigger the spotlight.
-        onStop={() => dispatch(setGuideStep(null))}
-      >
-      <Animated.ScrollView ref={scrollRef} {...scrollViewProps}>
+      <Animated.ScrollView {...scrollViewProps}>
         <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
         <FontSizeComponent />
         <FontFaceComponent />
@@ -132,12 +92,7 @@ const Settings = ({ navigation, route }) => {
         <KeepAwake />
         {/* Audio Player */}
         <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
-        {/* Measure where the Audio section starts in the scroll content so the
-            "Show me" guide can scroll its Manage Downloads row into view. This
-            View is a direct ScrollView child, so layout.y is the content offset. */}
-        <View onLayout={(e) => { audioSectionY.current = e.nativeEvent.layout.y; }}>
-          <Audio />
-        </View>
+        <Audio />
         {/* Bani Options */}
         <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
         <EditBaniOrder navigate={navigate} />
@@ -166,7 +121,6 @@ const Settings = ({ navigation, route }) => {
         />
         <CustomText style={end} />
       </Animated.ScrollView>
-      </Coachmark>
       {Indicator}
       </View>
       {fromReader && (

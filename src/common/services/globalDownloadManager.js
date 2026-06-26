@@ -8,7 +8,14 @@ import {
 } from '@kesha-antonov/react-native-background-downloader';
 import NetInfo from '@react-native-community/netinfo';
 import { exists, stat, unlink, readDir, getFSInfo } from 'react-native-fs';
-import { logError, logMessage, trackTrackDownload, showSuccessToast, STRINGS } from '@common';
+import {
+  logError,
+  logMessage,
+  trackTrackDownload,
+  showSuccessToast,
+  requestNotificationPermission,
+  STRINGS,
+} from '@common';
 import {
   updateDownloadStatus,
   updateDownloadProgress,
@@ -100,15 +107,17 @@ const cleanupLegacyTempFiles = async () => {
   );
 };
 
-// Applies the native download config. OS progress notifications are disabled —
-// feedback is via in-app toasts on start/finish instead. Bani audio is small and
-// CDN-served, so a download is near-instant; a persistent OS progress
-// notification would be pure noise.
+// Applies the native download config. OS progress notifications are ENABLED so
+// the download foreground service (dataSync on Android <14) surfaces its standard
+// system progress notification — which on Android 13+ only shows if the user has
+// granted POST_NOTIFICATIONS (requested once via ensureNotificationPermission
+// before the first task starts). In-app toasts still confirm start/finish; the
+// notification adds the conventional Android download UI on top.
 const applyDownloadConfig = () => {
   setConfig({
     progressInterval: 1000,
     maxParallelDownloads: MAX_PARALLEL,
-    showNotificationsEnabled: false,
+    showNotificationsEnabled: true,
   });
 };
 
@@ -138,6 +147,10 @@ const useGlobalDownloadManager = () => {
   // is populated) — closes the double-start race when the processor re-runs.
   const startingRef = useRef(new Set());
   const configAppliedRef = useRef(false);
+  // Caches the one-time notification-permission request (see
+  // ensureNotificationPermission) so the whole first download batch awaits a
+  // single OS prompt instead of racing several.
+  const notifPermPromiseRef = useRef(null);
   // trackKey -> stall-detection timer id. Re-armed on every progress event.
   const stallTimersRef = useRef(new Map());
   const [networkReady, setNetworkReady] = useState(false);
@@ -300,11 +313,30 @@ const useGlobalDownloadManager = () => {
       });
   };
 
+  // Request notification permission once, lazily — the first time a real
+  // download is about to start (never at app launch). This lets the download
+  // foreground service show its progress notification on Android 13+, where it's
+  // suppressed unless POST_NOTIFICATIONS is granted. Cached as a promise so every
+  // task in the first batch awaits the same single prompt; a no-op on Android <13
+  // / iOS / once the user has already decided.
+  const ensureNotificationPermission = () => {
+    if (!notifPermPromiseRef.current) {
+      notifPermPromiseRef.current = requestNotificationPermission().catch(() => false);
+    }
+    return notifPermPromiseRef.current;
+  };
+
   // ── Start one queued entry as a native task ────────────────────────────────
   const startTask = async (entry) => {
     const { trackKey, audioUrl } = entry;
     if (activeTasksRef.current.has(trackKey) || startingRef.current.has(trackKey)) return;
     startingRef.current.add(trackKey);
+
+    // Gate the native task on the notification prompt so the first download's
+    // progress notification is allowed to appear. The dedup guard above is
+    // already set, so re-runs of the queue processor won't double-start while
+    // the prompt is open.
+    await ensureNotificationPermission();
 
     const { artistName, fileName } = parseUrl(audioUrl);
     const relativePath = `${artistName}/${fileName}`;

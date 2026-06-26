@@ -4,7 +4,7 @@ import { persistReducer, persistStore } from "redux-persist";
 import crashlyticsMiddleware from "./middleware/crashlytics";
 import reducer from "./reducer";
 
-const persistConfig = { key: "root", storage: AsyncStorage, blacklist: ["navigation", "baniList", "audioManifest", "readerTapTick", "guideStep"] };
+const persistConfig = { key: "root", storage: AsyncStorage, blacklist: ["navigation", "baniList", "audioManifest", "readerTapTick", "onboardingVisible"] };
 const persistedReducer = persistReducer(persistConfig, reducer);
 
 const configure = () => {

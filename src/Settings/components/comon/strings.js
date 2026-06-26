@@ -1,4 +1,4 @@
-import { constant } from "@common";
+import constant from "../../../common/constant";
 
 export const getFontSizes = (strings) => [
   { key: "EXTRA_SMALL", title: strings.extra_small },

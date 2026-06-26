@@ -399,47 +399,19 @@ const autoDownloadOnStream = createReducer(true, {
   [actionTypes.TOGGLE_AUTO_DOWNLOAD]: (state, action) => action.value,
 });
 
-// Per-coachmark "seen" map: { [coachKey]: tourVersionString }. Compared
-// against CURRENT_TOUR_VERSION (src/common/onboarding/tourVersion.js) by
-// useCoachmark. A missing entry means "never seen" — which naturally covers
-// both fresh installs and users updating from a version without this key.
-const coachmarksSeen = (state = {}, action) => {
-  switch (action.type) {
-    case actionTypes.MARK_COACHMARK_SEEN:
-      return { ...state, [action.payload.key]: action.payload.version };
-    // "Revisit tutorial" wipes every seen flag so all coachmarks show again.
-    case actionTypes.RESET_TOUR:
-      return {};
-    default:
-      return state;
-  }
-};
-
-// Transient cross-screen step for the optional "explore your downloads"
-// walk-through (touch-through callouts). Not persisted (see store.js blacklist)
-// so it never lingers across app restarts. null | "settings" | "manage".
-const guideStep = createReducer(null, {
-  [actionTypes.SET_GUIDE_STEP]: (state, action) => action.value,
-  [actionTypes.RESET_TOUR]: () => null,
+// Transient visibility of the full-screen onboarding carousel. NOT persisted
+// (see store.js blacklist) so it never re-shows on its own after a restart —
+// the persisted `hasSeenOnboarding` flag below drives the first-run auto-open.
+const onboardingVisible = createReducer(false, {
+  [actionTypes.SET_ONBOARDING_VISIBLE]: (state, action) => action.value,
 });
 
-// True once a new user has gone through the first-run language picker
-// (LanguageSelector), regardless of which option they picked — including
-// "Default" — so it's never shown again. Distinct from the `language` value
-// itself, which defaults to "DEFAULT" on a fresh store and would otherwise be
-// ambiguous with a deliberate "Default" choice.
-const hasChosenLanguage = createReducer(false, {
-  [actionTypes.SET_HAS_CHOSEN_LANGUAGE]: (state, action) => action.value,
-});
-
-// True once the user opts out of the onboarding tour via any Skip / "Not now"
-// button. Read centrally in useCoachmark so it suppresses every coachmark on
-// every screen at once. Persisted (not blacklisted) so the choice sticks across
-// restarts until the user re-enables the tour (future Settings toggle).
-const tourOptedOut = createReducer(false, {
-  [actionTypes.SET_TOUR_OPTED_OUT]: (state, action) => action.value,
-  // Revisiting the tutorial opts the user back in.
-  [actionTypes.RESET_TOUR]: () => false,
+// True once the user has finished or skipped the onboarding carousel. Reuses the
+// "genuine fresh install" gate (baniLength === "") in useOnboardingTrigger so it
+// only ever auto-opens for brand-new installs; "Revisit Tutorial" reopens the
+// carousel regardless of this flag.
+const hasSeenOnboarding = createReducer(false, {
+  [actionTypes.SET_ONBOARDING_SEEN]: (state, action) => action.value,
 });
 
 const rootReducer = combineReducers({
@@ -495,9 +467,7 @@ const rootReducer = combineReducers({
   downloadRegistry,
   downloadWifiOnly,
   autoDownloadOnStream,
-  coachmarksSeen,
-  guideStep,
-  hasChosenLanguage,
-  tourOptedOut,
+  onboardingVisible,
+  hasSeenOnboarding,
 });
 export default rootReducer;

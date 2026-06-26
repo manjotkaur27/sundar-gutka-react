@@ -18,7 +18,7 @@ import {
   navigateTo,
   initializePerformanceMonitoring,
   ConfirmDialogHost,
-  CoachmarkHost,
+  OnboardingCarousel,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
 import NetworkProvider from "./src/common/context/NetworkProvider";
@@ -28,6 +28,7 @@ import useGlobalDownloadManager from "./src/common/services/globalDownloadManage
 import useStorageMigration from "./src/common/hooks/useStorageMigration";
 import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
 import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
+import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
 
 const { store, persistor } = createStore();
 
@@ -50,6 +51,7 @@ const GlobalServices = () => {
   useStorageMigration();
   useOfflinePlaybackGuard();
   usePauseAudioOnExit();
+  useOnboardingTrigger();
   return null;
 };
 
@@ -109,10 +111,9 @@ const App = () => {
                 <Navigation />
                 <Toast config={toastConfig} />
                 <ConfirmDialogHost />
-                {/* Mounted last so the spotlight-tour overlay (rendered here, in
-                    the app's own immersive window instead of a Modal) stacks
-                    above every screen. */}
-                <CoachmarkHost />
+                {/* Mounted last so the full-screen onboarding carousel stacks
+                    above every screen when shown (first run + Revisit Tutorial). */}
+                <OnboardingCarousel />
               </SafeAreaProvider>
             </ErrorBoundary>
           </ThemeProvider>

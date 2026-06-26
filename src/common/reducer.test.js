@@ -67,34 +67,23 @@ describe("Redux Default State (audio settings)", () => {
   });
 });
 
-describe("Onboarding tour — RESET_TOUR (Revisit Tutorial)", () => {
-  // A user who has seen the tour and opted out: every coachmark is marked seen
-  // and tourOptedOut is true.
-  const seenState = (() => {
-    let s = rootReducer(undefined, { type: "@@INIT" });
-    s = rootReducer(s, { type: "MARK_COACHMARK_SEEN", payload: { key: "audioHint", version: "1" } });
-    s = rootReducer(s, { type: "SET_TOUR_OPTED_OUT", value: true });
-    s = rootReducer(s, { type: "SET_GUIDE_STEP", value: "manage" });
-    return s;
-  })();
+describe("Onboarding carousel", () => {
+  const initial = rootReducer(undefined, { type: "@@INIT" });
 
-  it("starts from a 'tour already seen + opted out' state", () => {
-    expect(seenState.coachmarksSeen.audioHint).toBe("1");
-    expect(seenState.tourOptedOut).toBe(true);
+  it("defaults to hidden and not-yet-seen", () => {
+    expect(initial.onboardingVisible).toBe(false);
+    expect(initial.hasSeenOnboarding).toBe(false);
   });
 
-  it("RESET_TOUR clears every seen coachmark", () => {
-    const next = rootReducer(seenState, { type: "RESET_TOUR" });
-    expect(next.coachmarksSeen).toEqual({});
+  it("SET_ONBOARDING_VISIBLE toggles visibility (e.g. Revisit Tutorial)", () => {
+    const shown = rootReducer(initial, { type: "SET_ONBOARDING_VISIBLE", value: true });
+    expect(shown.onboardingVisible).toBe(true);
+    const hidden = rootReducer(shown, { type: "SET_ONBOARDING_VISIBLE", value: false });
+    expect(hidden.onboardingVisible).toBe(false);
   });
 
-  it("RESET_TOUR opts the user back into the tour", () => {
-    const next = rootReducer(seenState, { type: "RESET_TOUR" });
-    expect(next.tourOptedOut).toBe(false);
-  });
-
-  it("RESET_TOUR clears any transient guide step", () => {
-    const next = rootReducer(seenState, { type: "RESET_TOUR" });
-    expect(next.guideStep).toBeNull();
+  it("SET_ONBOARDING_SEEN marks the carousel seen so first-run won't re-open it", () => {
+    const next = rootReducer(initial, { type: "SET_ONBOARDING_SEEN", value: true });
+    expect(next.hasSeenOnboarding).toBe(true);
   });
 });

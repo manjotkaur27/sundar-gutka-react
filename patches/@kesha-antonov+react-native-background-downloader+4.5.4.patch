@@ -1,7 +1,8 @@
 diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt
+index 3ad6104..7c54c26 100644
 --- a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt
 +++ b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/DownloadConstants.kt
-@@ -24,7 +24,7 @@
+@@ -24,7 +24,7 @@ object DownloadConstants {
      // ========== Download Buffer ==========
  
      /** Size of buffer for reading download data (bytes) */
@@ -10,10 +11,35 @@ diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/andr
  
      // ========== Progress Reporting ==========
  
+diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/RNBackgroundDownloaderModuleImpl.kt b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/RNBackgroundDownloaderModuleImpl.kt
+index 8e25f50..e219210 100644
+--- a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/RNBackgroundDownloaderModuleImpl.kt
++++ b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/RNBackgroundDownloaderModuleImpl.kt
+@@ -695,6 +695,19 @@ class RNBackgroundDownloaderModuleImpl(private val reactContext: ReactApplicatio
+       request.setRequiresCharging(false)
+     }
+ 
++    // Patched (sundar-gutka): surface a human-readable title on the system
++    // DownloadManager notification (Android <14 path). The JS layer puts the
++    // "<bani in Punjabi>  •  <artist in English>" string in metadata.groupName;
++    // without setTitle, DownloadManager labels the notification with the raw
++    // file name. Mirrors the UIDT path, which already reads groupName from
++    // metadata, so the title is consistent across Android versions.
++    try {
++      val groupName = JSONObject(metadata ?: "{}").optString("groupName", "")
++      if (groupName.isNotEmpty()) request.setTitle(groupName)
++    } catch (e: Exception) {
++      logW(NAME, "Failed to set download notification title: ${e.message}")
++    }
++
+     // Note: On Android 16+, we use ResumableDownloader with UIDT jobs instead of DownloadManager
+     // for better background execution support. See the Android 16+ check below in download path.
+ 
 diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
+index 0401372..b8fa8d5 100644
 --- a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
 +++ b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
-@@ -123,7 +123,7 @@
+@@ -123,7 +123,7 @@ object UIDTNotificationManager {
                  .build()
          }
  
@@ -22,7 +48,7 @@ diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/andr
              groupName
          } else {
              config.getText("downloadTitle")
-@@ -173,7 +173,7 @@
+@@ -173,7 +173,7 @@ object UIDTNotificationManager {
  
          val progress = ProgressUtils.calculateProgress(bytesDownloaded, bytesTotal)
  
@@ -31,7 +57,7 @@ diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/andr
              jobState.groupName
          } else {
              config.getText("downloadTitle")
-@@ -212,7 +212,7 @@
+@@ -212,7 +212,7 @@ object UIDTNotificationManager {
          progress: Int,
          groupName: String
      ) {
@@ -40,7 +66,7 @@ diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/andr
              groupName
          } else {
              config.getText("downloadTitle")
-@@ -249,7 +249,7 @@
+@@ -249,7 +249,7 @@ object UIDTNotificationManager {
          // Update tracking state so next onProgress knows current state
          jobState.lastNotifiedProgress = progress
  
