@@ -299,6 +299,12 @@ export const audioTrackDialogStyles = (theme) => ({
     fontSize: theme.typography.sizes.xxl,
     textAlign: "center",
     color: theme.colors.audioTitleText,
+    // Reserve room on BOTH sides for the absolutely-positioned close (X) button
+    // (icon 30 + right inset) so the centered title never slides under it in
+    // longer translations (e.g. Italian/German) — symmetric so it stays centred
+    // and works whichever side is trailing in RTL (Shahmukhi). Title wraps if a
+    // translation is very long, which is preferable to overlapping the X.
+    paddingHorizontal: theme.spacing.xxl,
   },
   subtitleText: {
     fontFamily: constant.BALOO_PAAJI,

@@ -235,7 +235,7 @@ const useGlobalDownloadManager = () => {
   // Runs when a download completes — from the live `done` event, OR on the next
   // app start for downloads that finished while the app was terminated.
   const finalizeDownload = async (meta) => {
-    const { trackKey, audioUrl, displayName, baniTitle, baniId, sizeMB, relativePath, finalPath, downloadNetwork } = meta;
+    const { trackKey, audioUrl, displayName, baniTitle, baniNameUni, baniId, sizeMB, relativePath, finalPath, downloadNetwork } = meta;
     clearStallTimer(trackKey);
     try {
       if (registryRef.current[relativePath]) {
@@ -258,6 +258,10 @@ const useGlobalDownloadManager = () => {
         relativePath,
         artistDisplayName: displayName,
         baniTitle,
+        // Unicode Gurmukhi name — ManageDownloads renders this with the Unicode
+        // BalooPaaji font, so without it the row falls back to the legacy-ASCII
+        // baniTitle and shows gibberish ("jpuji swibh" instead of ਜਪੁਜੀ ਸਾਹਿਬ).
+        baniNameUni,
         baniId,
         sizeMB: sizeMB ?? 0,
         // Exact on-disk byte count — used for deterministic integrity checks

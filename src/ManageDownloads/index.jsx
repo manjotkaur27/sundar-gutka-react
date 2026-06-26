@@ -18,7 +18,9 @@ import {
   STRINGS,
   CustomText,
   showConfirm,
+  convertToUnicode,
 } from '@common';
+import constant from '@common/constant';
 import { BackIconComponent } from '@common/components';
 import useTheme from '@common/context';
 import useThemedStyles from '@common/hooks/useThemedStyles';
@@ -38,6 +40,45 @@ const ManageDownloads = ({ navigation }) => {
 
   const downloadRegistry = useSelector((s) => s.downloadRegistry);
   const downloadQueue    = useSelector((s) => s.downloadQueue);
+
+  // Settings that drive the bani name shown on the home list — read the same
+  // ones here so download names stay in sync with it (transliteration on/off,
+  // and the Gurmukhi font when it's off).
+  const fontFace         = useSelector((s) => s.fontFace);
+  const isTransliteration = useSelector((s) => s.isTransliteration);
+  const baniList         = useSelector((s) => s.baniList);
+  const isUnicode        = fontFace === constant.BALOO_PAAJI;
+
+  // Look up a downloaded track's bani by id so we can render its name live from
+  // the same source the home list uses (baniList already carries `translit`
+  // computed for the current transliteration language).
+  const baniById = useMemo(() => {
+    const map = {};
+    (baniList || []).forEach((b) => {
+      if (b && b.id != null) map[b.id] = b;
+    });
+    return map;
+  }, [baniList]);
+
+  // Mirror BaniList's getBaniTuk so names match the home list exactly. Falls
+  // back to the name snapshot stored at download time when the bani can't be
+  // resolved (e.g. baniId missing on an older entry, or removed from the DB).
+  const getDisplayName = useCallback((item) => {
+    const bani = item && item.baniId != null ? baniById[item.baniId] : null;
+    const fallback = item.baniNameUni || item.baniTitle;
+    if (!bani) return fallback;
+    if (isTransliteration) return bani.translit || fallback;
+    if (isUnicode) return bani.gurmukhiUni || convertToUnicode(bani.gurmukhi);
+    return bani.gurmukhi || fallback;
+  }, [baniById, isTransliteration, isUnicode]);
+
+  // Font override for the name: legacy/Unicode Gurmukhi uses the selected
+  // fontFace; transliteration uses the default (Latin/Devanagari) font. Matches
+  // BaniList's `displayFont = !isTransliteration ? fontFace : null`.
+  const nameFontStyle = useMemo(
+    () => ({ fontFamily: isTransliteration ? null : fontFace }),
+    [isTransliteration, fontFace],
+  );
 
   const [selected, setSelected]   = useState(new Set());
   const [validated, setValidated] = useState(false);
@@ -89,6 +130,7 @@ const ManageDownloads = ({ navigation }) => {
           artistDisplayName: artist,
           baniTitle: task.baniTitle || trackKey,
           baniNameUni: task.baniNameUni,
+          baniId: task.baniId,
           sizeMB: task.sizeMB ?? 0,
           isQueued: true,
           queueStatus: task.status,
@@ -200,10 +242,7 @@ const ManageDownloads = ({ navigation }) => {
           }
         >
           <View style={styles.trackInfo}>
-            {/* Prefer the Unicode name so it renders in Baloo regardless of the
-                font selected when it was downloaded (legacy ASCII title would
-                otherwise show as Latin gibberish in this list). */}
-            <CustomText style={styles.trackName}>{item.baniNameUni || item.baniTitle}</CustomText>
+            <CustomText style={[styles.trackName, nameFontStyle]}>{getDisplayName(item)}</CustomText>
             <CustomText style={styles.trackMeta}>
               {queueStatusLabel(item.queueStatus)}
             </CustomText>
@@ -229,14 +268,14 @@ const ManageDownloads = ({ navigation }) => {
           )}
         </View>
         <View style={styles.trackInfo}>
-          <CustomText style={styles.trackName}>{item.baniNameUni || item.baniTitle}</CustomText>
+          <CustomText style={[styles.trackName, nameFontStyle]}>{getDisplayName(item)}</CustomText>
         </View>
         {item.sizeMB > 0 && (
           <CustomText style={styles.trackSize}>{formatMB(item.sizeMB)} MB</CustomText>
         )}
       </Pressable>
     );
-  }, [selected, toggleSelect, cancelQueueEntry, styles, theme]);
+  }, [selected, toggleSelect, cancelQueueEntry, styles, theme, getDisplayName, nameFontStyle]);
 
   const { top: safeTop } = useSafeAreaInsets();
   const isEmpty = sections.length === 0 && validated;
