@@ -70,9 +70,9 @@ describe("Redux Default State (audio settings)", () => {
 describe("Onboarding carousel", () => {
   const initial = rootReducer(undefined, { type: "@@INIT" });
 
-  it("defaults to hidden and not-yet-seen", () => {
+  it("defaults to hidden and no onboarding version completed", () => {
     expect(initial.onboardingVisible).toBe(false);
-    expect(initial.hasSeenOnboarding).toBe(false);
+    expect(initial.seenOnboardingVersion).toBe(0);
   });
 
   it("SET_ONBOARDING_VISIBLE toggles visibility (e.g. Revisit Tutorial)", () => {
@@ -82,8 +82,8 @@ describe("Onboarding carousel", () => {
     expect(hidden.onboardingVisible).toBe(false);
   });
 
-  it("SET_ONBOARDING_SEEN marks the carousel seen so first-run won't re-open it", () => {
-    const next = rootReducer(initial, { type: "SET_ONBOARDING_SEEN", value: true });
-    expect(next.hasSeenOnboarding).toBe(true);
+  it("SET_ONBOARDING_SEEN stamps the completed version so first-run won't re-open it", () => {
+    const next = rootReducer(initial, { type: "SET_ONBOARDING_SEEN", value: 1 });
+    expect(next.seenOnboardingVersion).toBe(1);
   });
 });

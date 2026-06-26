@@ -15,6 +15,13 @@ export default {
   SETTINGS: "Settings",
   DASHBOARD: "Dashboard",
   SEVA: "Seva",
+  // The current onboarding-carousel version. The carousel auto-opens whenever a
+  // user's persisted `seenOnboardingVersion` is below this number, so every
+  // build that bumps this re-shows the carousel exactly once to EVERYONE on
+  // their next launch — fresh installs, updaters from old versions, and users
+  // who already saw an earlier onboarding alike. Bump it whenever the
+  // onboarding content should be force-shown again.
+  ONBOARDING_VERSION: 1,
   EXTRA_SMALL: "EXTRA_SMALL",
   SMALL: "SMALL",
   MEDIUM: "MEDIUM",

@@ -308,8 +308,9 @@ export const setOnboardingVisible = (value) => ({
   value,
 });
 
-// Persist that the carousel has been seen once so the first-run auto-open
-// doesn't fire again on later launches. "Revisit" ignores this flag.
+// Persist the onboarding-carousel version the user has completed (pass
+// constant.ONBOARDING_VERSION) so the first-run auto-open doesn't fire again
+// until that constant is bumped. "Revisit" ignores this value.
 export const setOnboardingSeen = (value) => ({
   type: actionTypes.SET_ONBOARDING_SEEN,
   value,

@@ -401,16 +401,21 @@ const autoDownloadOnStream = createReducer(true, {
 
 // Transient visibility of the full-screen onboarding carousel. NOT persisted
 // (see store.js blacklist) so it never re-shows on its own after a restart —
-// the persisted `hasSeenOnboarding` flag below drives the first-run auto-open.
+// the persisted `seenOnboardingVersion` below drives the first-run auto-open.
 const onboardingVisible = createReducer(false, {
   [actionTypes.SET_ONBOARDING_VISIBLE]: (state, action) => action.value,
 });
 
-// True once the user has finished or skipped the onboarding carousel. This is
-// the sole gate in useOnboardingTrigger, so the carousel auto-opens exactly once
-// per user (fresh installs and upgraders alike); "Revisit Tutorial" reopens the
-// carousel regardless of this flag.
-const hasSeenOnboarding = createReducer(false, {
+// The onboarding-carousel version this user has completed (finished or skipped).
+// useOnboardingTrigger auto-opens the carousel whenever this is below
+// constant.ONBOARDING_VERSION, so the carousel shows exactly once per onboarding
+// version — fresh installs, upgraders from old versions, and users who already
+// saw an earlier onboarding all see the current one once (bumping
+// ONBOARDING_VERSION re-shows it to everyone). Defaults to 0 = never completed.
+// Renaming the key from the old boolean also resets existing users, so the very
+// first build carrying this change re-shows the carousel to everyone once.
+// "Revisit Tutorial" reopens the carousel regardless of this value.
+const seenOnboardingVersion = createReducer(0, {
   [actionTypes.SET_ONBOARDING_SEEN]: (state, action) => action.value,
 });
 
@@ -468,6 +473,6 @@ const rootReducer = combineReducers({
   downloadWifiOnly,
   autoDownloadOnStream,
   onboardingVisible,
-  hasSeenOnboarding,
+  seenOnboardingVersion,
 });
 export default rootReducer;

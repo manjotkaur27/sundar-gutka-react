@@ -8,6 +8,7 @@ import CustomText from "../CustomText";
 import STRINGS from "../../localization";
 import useTheme from "../../context";
 import useThemedStyles from "../../hooks/useThemedStyles";
+import constant from "../../constant";
 import { setLanguage, setOnboardingSeen, setOnboardingVisible } from "../../actions";
 import { ONBOARDING_SLIDES } from "./slides";
 import createStyles from "./style";
@@ -55,7 +56,7 @@ const OnboardingCarousel = () => {
   const currentLangTitle = byKey[effectiveLanguage]?.title;
 
   const finish = useCallback(() => {
-    dispatch(setOnboardingSeen(true));
+    dispatch(setOnboardingSeen(constant.ONBOARDING_VERSION));
     dispatch(setOnboardingVisible(false));
   }, [dispatch]);
 
