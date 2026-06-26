@@ -2,8 +2,8 @@ import React, { useMemo } from "react";
 import { View, Pressable } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { ArrowRightIcon, CloseIcon } from "@common/icons";
-import { useTheme, useThemedStyles, CustomText, STRINGS, constant } from "@common";
+import { CloseIcon } from "@common/icons";
+import { useTheme, useThemedStyles, CustomText, STRINGS } from "@common";
 import createStyles from "./styles";
 
 const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle }) => {
@@ -39,10 +39,14 @@ const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle 
           onPress={buttonPress}
           accessibilityRole="link"
         >
-          <View style={styles.joinMailingListContent}>
-            <CustomText style={styles.joinMailingListText}>{buttonText}</CustomText>
-            <ArrowRightIcon size={constant.ICON_SIZE_SMALL} color={theme.colors.primary} />
-          </View>
+          {/* Arrow is inlined into the label (not a flex sibling) so it hugs the
+              last word and wraps with it — otherwise it floats to the row's far
+              edge when longer translations (French/Italian) wrap to two lines.
+              The non-breaking space keeps it attached to the final word. */}
+          <CustomText style={styles.joinMailingListText}>
+            {buttonText}
+            <CustomText style={styles.joinMailingListArrow}>{" →"}</CustomText>
+          </CustomText>
         </Pressable>
       </View>
     </View>

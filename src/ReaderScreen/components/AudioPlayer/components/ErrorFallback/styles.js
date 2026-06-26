@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 const createStyles = (theme) => ({
   statusContainer: {
     padding: theme.spacing.xl,
@@ -42,17 +44,20 @@ const createStyles = (theme) => ({
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md_12,
   },
-  joinMailingListContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: theme.spacing.xs,
-  },
   joinMailingListText: {
     color: theme.colors.primary,
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
     textDecorationLine: "underline",
+    // Centre wrapped lines so longer translations (e.g. French/Italian) stay
+    // centred rather than rendering left-aligned when the label spans two lines.
+    textAlign: "center",
+  },
+  joinMailingListArrow: {
+    // System font (not BalooPaaji, which lacks the arrow glyph) so "→" renders
+    // identically across OEMs. Not underlined, unlike the label it follows.
+    fontFamily: Platform.select({ android: "sans-serif", ios: "Helvetica" }),
+    textDecorationLine: "none",
   },
 });
 export default createStyles;

@@ -153,7 +153,8 @@ describe("ErrorFallback", () => {
 
     expect(getByText("Maafi ji 🙏🏽")).toBeTruthy();
     expect(getByText("Failed to initialize audio player")).toBeTruthy();
-    expect(getByText("Please try again.")).toBeTruthy();
+    // exact: false — the label now carries a trailing inline arrow ("… →").
+    expect(getByText("Please try again.", { exact: false })).toBeTruthy();
   });
 
   it("calls handleClose when close button is pressed", () => {
@@ -170,7 +171,7 @@ describe("ErrorFallback", () => {
     const props = createProps();
     const { getByText } = render(<ErrorFallback {...props} />);
 
-    const button = getByText("Please try again.");
+    const button = getByText("Please try again.", { exact: false });
     fireEvent.press(button);
 
     expect(props.buttonPress).toHaveBeenCalledTimes(1);

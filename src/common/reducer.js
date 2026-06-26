@@ -406,9 +406,9 @@ const onboardingVisible = createReducer(false, {
   [actionTypes.SET_ONBOARDING_VISIBLE]: (state, action) => action.value,
 });
 
-// True once the user has finished or skipped the onboarding carousel. Reuses the
-// "genuine fresh install" gate (baniLength === "") in useOnboardingTrigger so it
-// only ever auto-opens for brand-new installs; "Revisit Tutorial" reopens the
+// True once the user has finished or skipped the onboarding carousel. This is
+// the sole gate in useOnboardingTrigger, so the carousel auto-opens exactly once
+// per user (fresh installs and upgraders alike); "Revisit Tutorial" reopens the
 // carousel regardless of this flag.
 const hasSeenOnboarding = createReducer(false, {
   [actionTypes.SET_ONBOARDING_SEEN]: (state, action) => action.value,

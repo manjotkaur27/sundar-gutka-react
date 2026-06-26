@@ -3,30 +3,29 @@ import { useDispatch, useSelector } from "react-redux";
 import { setOnboardingVisible } from "../actions";
 
 /**
- * Auto-opens the onboarding carousel once, on a genuine fresh install.
+ * Auto-opens the onboarding carousel once per user, gated solely on the
+ * persisted `hasSeenOnboarding` flag.
  *
- * `baniLength === ""` is the same "brand-new install" signal the Bani-length
- * selector uses, so existing users updating into this release (whose baniLength
- * is already set) never get the carousel pushed at them — they can still reach
- * it via Settings → Revisit Tutorial. `hasSeenOnboarding` then keeps it from
- * re-opening on later launches once finished/skipped.
+ * `hasSeenOnboarding` is new in this release and defaults to false, so both
+ * brand-new installs and users updating into this release see the carousel
+ * exactly once. Finishing or skipping sets the flag, so it never re-opens on
+ * later launches; "Revisit Tutorial" in Settings reopens it on demand.
  *
  * Mounted inside the Redux + PersistGate tree (see app.js GlobalServices), so it
  * reads already-rehydrated values.
  */
 const useOnboardingTrigger = () => {
   const dispatch = useDispatch();
-  const baniLength = useSelector((state) => state.baniLength);
   const hasSeenOnboarding = useSelector((state) => state.hasSeenOnboarding);
   const firedRef = useRef(false);
 
   useEffect(() => {
     if (firedRef.current) return;
-    if (baniLength === "" && !hasSeenOnboarding) {
+    if (!hasSeenOnboarding) {
       firedRef.current = true;
       dispatch(setOnboardingVisible(true));
     }
-  }, [baniLength, hasSeenOnboarding, dispatch]);
+  }, [hasSeenOnboarding, dispatch]);
 };
 
 export default useOnboardingTrigger;
