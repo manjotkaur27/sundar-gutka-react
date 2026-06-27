@@ -561,11 +561,11 @@ export const minimizePlayerStyles = (theme) => ({
   artistName: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
-    // Tight line box + a larger negative margin together cut the vertical gap to
-    // the timestamp roughly in half again (the leading is what made it look big).
+    // Tight line box with a small negative margin: pulls the name up close to the
+    // timestamp but leaves a tiny breathing gap between the two (was -4).
     lineHeight: theme.typography.sizes.md + 2,
     color: theme.colors.audioTitleText,
-    marginTop: -4,
+    marginTop: -3.5,
   },
 });
 
