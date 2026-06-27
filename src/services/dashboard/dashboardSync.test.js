@@ -6,12 +6,23 @@
  *    reminder times to "h:mm A", and only reschedules when asked.
  */
 
-import { getDashboardLatest, applyDashboardRestore } from "./dashboardSync";
+import * as analytics from "../../database/analytics";
+import {
+  getDashboardLatest,
+  applyDashboardRestore,
+  seedAnalyticsFromSnapshot,
+  buildCachePayload,
+  pushDashboardCache,
+} from "./dashboardSync";
 
 const mockUpdateReminders = jest.fn();
 
 jest.mock("@common", () => ({
-  constant: { DASHBOARD_API_BASE_URL: "http://localhost:3500" },
+  constant: {
+    DASHBOARD_API_BASE_URL: "http://api.test",
+    DASHBOARD_LATEST_API_URL: "http://api.test/dashboard/latest",
+    DASHBOARD_SYNC_API_URL: "http://api.test/dashboard/cache",
+  },
   logError: jest.fn(),
   updateReminders: (...a) => mockUpdateReminders(...a),
   actions: {
@@ -22,6 +33,19 @@ jest.mock("@common", () => ({
     toggleReminders: (value) => ({ type: "TOGGLE_REMINDERS", value }),
     setReminderSound: (value) => ({ type: "SET_REMINDER_SOUND", value }),
   },
+}));
+
+jest.mock("../../database/analytics", () => ({
+  getOrCreateSummary: jest.fn(),
+  getDailyActivity: jest.fn(),
+  getTopReadBanis: jest.fn(),
+  getTopListenedBanis: jest.fn(),
+  getRecentReadBanis: jest.fn(),
+  getRecentListenedBanis: jest.fn(),
+  getCompletedBanisCount: jest.fn(),
+  getReadingListeningTotals: jest.fn(),
+  upsertDailyActivity: jest.fn(),
+  updateSummary: jest.fn(),
 }));
 
 beforeEach(() => jest.clearAllMocks());
@@ -115,5 +139,130 @@ describe("applyDashboardRestore", () => {
     const applied = await applyDashboardRestore(null, dispatch);
     expect(applied).toEqual([]);
     expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("seedAnalyticsFromSnapshot", () => {
+  it("seeds daily_activity per day and writes the summary", async () => {
+    await seedAnalyticsFromSnapshot({
+      month: {
+        key: "2025-06",
+        days: [
+          [1, 120, 0],
+          [5, 0, 300],
+        ],
+      },
+      streaks: { current: 14, longest: 31 },
+      totals: {
+        daysActive: 88,
+        readingSeconds: 360000,
+        listeningSeconds: 250000,
+        audioSessions: 300,
+      },
+    });
+
+    expect(analytics.upsertDailyActivity).toHaveBeenCalledTimes(2);
+    expect(analytics.upsertDailyActivity).toHaveBeenCalledWith({
+      date: "2025-06-01",
+      reading_seconds_delta: 120,
+      listening_seconds_delta: 0,
+    });
+    const fields = analytics.updateSummary.mock.calls[0][0];
+    expect(fields).toMatchObject({
+      current_streak: 14,
+      longest_streak: 31,
+      total_days_active: 88,
+      total_reading_seconds: 360000,
+      total_listening_seconds: 250000,
+      total_audio_sessions: 300,
+    });
+  });
+
+  it("is a no-op for a null payload", async () => {
+    await seedAnalyticsFromSnapshot(null);
+    expect(analytics.upsertDailyActivity).not.toHaveBeenCalled();
+    expect(analytics.updateSummary).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildCachePayload", () => {
+  const state = {
+    currentBani: { id: 4 },
+    isReminders: true,
+    reminderSound: "default",
+    reminderBanis: JSON.stringify([
+      { id: 2, time: "3:30 AM", enabled: true },
+      { id: 21, time: "6:00 PM", enabled: false },
+    ]),
+    todaysNitnem: { selectedBaniIds: [2, 3, 4], completed: { "2025-06-11": [2] } },
+    userProfile: { name: "Harpreet Kaur" },
+    dashboardLayout: { order: ["streak", "nitnem"], hidden: ["weekChart"] },
+  };
+
+  beforeEach(() => {
+    analytics.getOrCreateSummary.mockResolvedValue({
+      current_streak: 14,
+      longest_streak: 31,
+      total_days_active: 88,
+      total_audio_sessions: 300,
+    });
+    analytics.getDailyActivity.mockResolvedValue([
+      { date: "2025-06-01", reading_seconds: 120, listening_seconds: 0 },
+    ]);
+    analytics.getTopReadBanis.mockResolvedValue([{ bani_id: 2, session_count: 42 }]);
+    analytics.getTopListenedBanis.mockResolvedValue([{ bani_id: 1, session_count: 27 }]);
+    analytics.getRecentReadBanis.mockResolvedValue([{ bani_id: 5 }]);
+    analytics.getRecentListenedBanis.mockResolvedValue([{ bani_id: 1 }]);
+    analytics.getCompletedBanisCount.mockResolvedValue(540);
+    analytics.getReadingListeningTotals.mockResolvedValue({
+      total_reading_seconds: 360000,
+      total_listening_seconds: 250000,
+    });
+  });
+
+  it("maps Redux state + analytics into the KHALIS payload (24h reminder times)", async () => {
+    const body = await buildCachePayload({ state, version: "1.0.0", deviceId: "dev-1" });
+
+    expect(body.version).toBe("1.0.0");
+    expect(body.deviceId).toBe("dev-1");
+    expect(body.userId).toBeNull();
+    expect(typeof body.capturedAt).toBe("string");
+
+    const p = body.payload;
+    expect(p.lastVisitedBaaniId).toBe(4);
+    expect(p.streaks).toEqual({ current: 14, longest: 31 });
+    expect(p.month.days).toEqual([[1, 120, 0]]);
+    expect(p.read.top5).toEqual([[2, 42]]);
+    expect(p.read.last).toEqual({ baaniId: 5 });
+    expect(p.totals.banisCompleted).toBe(540);
+    expect(p.nitnem.selectedBaaniIds).toEqual([2, 3, 4]);
+    expect(p.profile.name).toBe("Harpreet Kaur");
+    expect(p.layout).toEqual({ order: ["streak", "nitnem"], hidden: ["weekChart"] });
+    // App "h:mm A" → contract "HH:mm".
+    expect(p.reminders.items).toEqual([
+      { baaniId: 2, time: "03:30", enabled: true },
+      { baaniId: 21, time: "18:00", enabled: false },
+    ]);
+  });
+});
+
+describe("pushDashboardCache", () => {
+  it("no-ops without a token (dormant until SSO)", async () => {
+    global.fetch = jest.fn();
+    const res = await pushDashboardCache({ payload: {} }, null);
+    expect(res).toEqual({ skipped: true });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("POSTs with a Bearer token when authenticated", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ id: "dbc_1", syncedAt: "t" }) });
+    const res = await pushDashboardCache({ payload: { profile: { name: "x" } } }, "jwt123");
+    expect(res.ok).toBe(true);
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toBe("http://api.test/dashboard/cache");
+    expect(opts.method).toBe("POST");
+    expect(opts.headers.Authorization).toBe("Bearer jwt123");
   });
 });

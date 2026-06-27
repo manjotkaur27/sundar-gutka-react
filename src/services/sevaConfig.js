@@ -1,12 +1,15 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { constant, logError } from "@common";
 import STRINGS from "../common/localization";
 
 /**
  * Seva configuration service.
  *
- * Currently returns hardcoded filler data.
- * TODO: Replace getSevaConfig() body with a real STTM API call when the
- *       endpoint is available. All consumers are already coded against this
- *       interface so no other changes will be needed.
+ * Fetches the dynamic Seva config from the Khalis backend (constant.SEVA_CONFIG_API_URL)
+ * and maps it onto the app-facing SevaConfig shape that SevaScreen + BottomNavigation
+ * already consume. The page COPY stays app-local (6 languages via STRINGS); the backend
+ * only drives the dynamic bits: donation amounts, payment (Qgiv) config, country, and the
+ * Seva dot (redDot). Falls back to the last cached config, then bundled defaults, offline.
  */
 
 /** @typedef {'one_time' | 'recurring' | 'unknown'} DonorType */
@@ -27,7 +30,7 @@ import STRINGS from "../common/localization";
  * @property {boolean}     showSevaDot
  */
 
-/** Filler defaults used until the STTM API is integrated. */
+/** App-local copy + defaults, used as the base and the offline fallback. */
 const FILLER_CONFIG = {
   configVersion: "mock-v1",
   country: "US",
@@ -60,22 +63,87 @@ const FILLER_CONFIG = {
   showSevaDot: true,
 };
 
+// Cache only the backend's dynamic bits (not the localized copy, which is rebuilt each
+// call with the current language). Keyed v1 in case the shape changes later.
+const CACHE_KEY = "@seva_config_dynamic_v1";
+
+// Latest payment block from the backend. Kept module-level so buildQgivUrl() can use it
+// without changing its call site in SevaScreen (no UI change).
+let cachedPayment = null;
+
+/** Merge the backend dynamic bits onto the app-local copy → SevaConfig. */
+const buildConfig = (dyn) => ({
+  ...FILLER_CONFIG,
+  configVersion: dyn?.version != null ? String(dyn.version) : FILLER_CONFIG.configVersion,
+  country: dyn?.country || FILLER_CONFIG.country,
+  defaults: {
+    amounts:
+      Array.isArray(dyn?.defaults?.amounts) && dyn.defaults.amounts.length
+        ? dyn.defaults.amounts
+        : FILLER_CONFIG.defaults.amounts,
+    selectedAmount: dyn?.defaults?.selectedAmount ?? FILLER_CONFIG.defaults.selectedAmount,
+  },
+  payment_mode: dyn?.payment?.mode || FILLER_CONFIG.payment_mode,
+  // Only let the backend control the dot once we actually have a response.
+  showSevaDot: dyn ? (dyn.redDot ?? 0) > 0 : FILLER_CONFIG.showSevaDot,
+  content: {
+    ...FILLER_CONFIG.content,
+    description: STRINGS.SEVA_DESCRIPTION,
+    footerText: STRINGS.SEVA_FOOTER_TEXT,
+  },
+});
+
+const fetchJson = async (url) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const readCache = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+};
+
 /**
- * Returns the Seva configuration.
- * Async signature is intentional so the real API call can be dropped in later.
- *
+ * Returns the Seva configuration (backend dynamic bits + app-local copy).
  * @returns {Promise<SevaConfig>}
  */
 export const getSevaConfig = async () => {
-  // TODO: replace with fetch from STTM API + AsyncStorage cache
-  return {
-    ...FILLER_CONFIG,
-    content: {
-      ...FILLER_CONFIG.content,
-      description: STRINGS.SEVA_DESCRIPTION,
-      footerText: STRINGS.SEVA_FOOTER_TEXT,
-    },
-  };
+  const cached = await readCache();
+  const url = constant.SEVA_CONFIG_API_URL;
+  try {
+    if (!url) throw new Error("SEVA_CONFIG_API_URL not set");
+    // Send the last cached version so the backend can compute missedVersions/redDot.
+    const v = cached?.version != null ? cached.version : "";
+    const resp = await fetchJson(`${url}?v=${encodeURIComponent(v)}`);
+    const dyn = {
+      version: resp?.version,
+      country: resp?.country,
+      defaults: resp?.defaults,
+      payment: resp?.payment,
+      redDot: resp?.redDot,
+    };
+    cachedPayment = resp?.payment ?? null;
+    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dyn)).catch(() => {});
+    return buildConfig(dyn);
+  } catch (err) {
+    logError(new Error(`getSevaConfig failed: ${err?.message || err}`));
+    if (cached) {
+      cachedPayment = cached.payment ?? null;
+      return buildConfig(cached);
+    }
+    return buildConfig(null);
+  }
 };
 
 /**
@@ -86,16 +154,18 @@ export const getSevaConfig = async () => {
  *   /amount/other/[value]    – pre-fills the "other amount" field
  *   /frequency/[letter]      – m=monthly, a=annually, w=weekly, q=quarterly, s=semiannually
  *
+ * The form base comes from the backend payment config when available
+ * (constant.SEVA_CONFIG_API_URL → payment.baseUrl), else the bundled default.
+ *
  * @param {Object} params
  * @param {number} params.amount
- * @param {boolean} params.isCustomAmount  - true when the donor typed a custom value
  * @param {'one_time'|'recurring'} params.donationType
  * @param {'Monthly'|'Annually'} [params.frequency]
  * @returns {string}
  */
-export const buildQgivUrl = ({ amount, isCustomAmount = false, donationType, frequency }) => {
-  // TODO: replace with the real Qgiv form key
-  let url = "https://secure.qgiv.com/for/khalisfoundation";
+export const buildQgivUrl = ({ amount, donationType, frequency }) => {
+  // Backend-owned Qgiv form (falls back to the bundled default).
+  let url = cachedPayment?.baseUrl || "https://secure.qgiv.com/for/khalisfoundation";
 
   // Amount segment - always pre-fill the "other" field to guarantee pre-filling on the Qgiv form
   if (amount) {

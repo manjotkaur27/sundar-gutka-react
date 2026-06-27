@@ -4,4 +4,11 @@ export { default as getDailyVaak } from "./dailyVaak";
 export { default as getWordOfDay } from "./wordOfDay";
 export { default as getUpcomingEvents, getNextEvent } from "./upcomingEvents";
 export { isOnline, OfflineError } from "./connectivity";
-export { getDashboardLatest, applyDashboardRestore } from "./dashboardSync";
+export {
+  getDashboardLatest,
+  applyDashboardRestore,
+  seedAnalyticsFromSnapshot,
+  buildCachePayload,
+  pushDashboardCache,
+} from "./dashboardSync";
+export { getAuthToken } from "./auth";

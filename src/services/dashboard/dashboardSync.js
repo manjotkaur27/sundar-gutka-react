@@ -1,14 +1,28 @@
 import { constant, actions, updateReminders, logError } from "@common";
+import {
+  getOrCreateSummary,
+  getDailyActivity,
+  getTopReadBanis,
+  getTopListenedBanis,
+  getRecentReadBanis,
+  getRecentListenedBanis,
+  getCompletedBanisCount,
+  getReadingListeningTotals,
+  upsertDailyActivity,
+  updateSummary,
+} from "../../database/analytics";
 
-// Cross-device restore for the dashboard (KHALIS_API.md §3 → GET /dashboard/latest).
-// Fetches the latest snapshot and applies the user-setup blocks (profile, layout,
-// nitnem, reminders) back into Redux. The analytics blocks (streaks/totals/month)
-// are returned for the caller to seed SQLite if it's a fresh install.
+// Cross-device dashboard sync (KHALIS_API.md §3): push (POST /dashboard/cache) and
+// restore (GET /dashboard/latest). Restore applies the user-setup blocks (profile,
+// layout, nitnem, reminders) into Redux and seeds analytics SQLite from the snapshot.
 //
-// Auth: the contract requires a Bearer JWT. Pass { token } once SSO is live; with
-// the backend's DEV_AUTH_BYPASS on, the call works without one.
+// Auth: both endpoints require a Bearer JWT. Pass { token } from getAuthToken(); the
+// sync stays dormant (no-op) while that returns null (no SSO yet).
 
-const latestUrl = () => `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/latest`;
+const latestUrl = () =>
+  constant.DASHBOARD_LATEST_API_URL || `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/latest`;
+const syncUrl = () =>
+  constant.DASHBOARD_SYNC_API_URL || `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/cache`;
 
 const fetchLatest = async (token) => {
   const controller = new AbortController();
@@ -109,6 +123,161 @@ export const applyDashboardRestore = async (payload, dispatch, { reschedule = fa
   }
 
   return applied;
+};
+
+// ─── Restore: seed analytics SQLite from the snapshot ────────────────────────
+// Intended for a fresh install (empty analytics) — the restore-once flag prevents
+// re-running, so upsertDailyActivity's additive semantics don't double-count.
+export const seedAnalyticsFromSnapshot = async (payload) => {
+  if (!payload) return;
+  try {
+    const { month, streaks, totals } = payload;
+    if (month?.key && Array.isArray(month.days)) {
+      await Promise.all(
+        month.days.map(([day, r = 0, l = 0]) =>
+          upsertDailyActivity({
+            date: `${month.key}-${String(day).padStart(2, "0")}`,
+            reading_seconds_delta: r,
+            listening_seconds_delta: l,
+          })
+        )
+      );
+    }
+    const fields = {};
+    if (streaks?.current != null) fields.current_streak = streaks.current;
+    if (streaks?.longest != null) fields.longest_streak = streaks.longest;
+    if (totals?.daysActive != null) fields.total_days_active = totals.daysActive;
+    if (totals?.readingSeconds != null) fields.total_reading_seconds = totals.readingSeconds;
+    if (totals?.listeningSeconds != null) fields.total_listening_seconds = totals.listeningSeconds;
+    if (totals?.audioSessions != null) fields.total_audio_sessions = totals.audioSessions;
+    if (Object.keys(fields).length) await updateSummary(fields);
+  } catch (err) {
+    logError(new Error(`seedAnalyticsFromSnapshot failed: ${err?.message || err}`));
+  }
+};
+
+// ─── Push: build + POST the snapshot ─────────────────────────────────────────
+// The app stores reminder times as "h:mm A"; the contract wants 24h "HH:mm".
+const to24h = (t) => {
+  const m = String(t || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*([ap]m)?$/i);
+  if (!m) return t;
+  let hr = Number(m[1]);
+  const meridiem = m[3] ? m[3].toLowerCase() : "";
+  if (meridiem === "pm" && hr < 12) hr += 12;
+  if (meridiem === "am" && hr === 12) hr = 0;
+  return `${String(hr).padStart(2, "0")}:${m[2]}`;
+};
+
+// Builds the POST /dashboard/cache body from Redux state + analytics. version and
+// deviceId are passed in (gathered via react-native-device-info at the call site) so
+// this stays unit-testable without native modules.
+export const buildCachePayload = async ({ state, version, deviceId, userId = null }) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+
+  const [summary, monthRows, topRead, topListen, recentRead, recentListen, banisCompleted, totals] =
+    await Promise.all([
+      getOrCreateSummary(),
+      getDailyActivity(year, month),
+      getTopReadBanis(5),
+      getTopListenedBanis(5),
+      getRecentReadBanis(1),
+      getRecentListenedBanis(1),
+      getCompletedBanisCount(),
+      getReadingListeningTotals(),
+    ]);
+
+  const days = (monthRows || []).map((r) => [
+    Number(String(r.date).slice(8, 10)),
+    r.reading_seconds ?? 0,
+    r.listening_seconds ?? 0,
+  ]);
+
+  let reminderItems = [];
+  try {
+    const parsed = state.reminderBanis ? JSON.parse(state.reminderBanis) : [];
+    reminderItems = parsed.map((it) => ({
+      baaniId: it.id,
+      time: to24h(it.time),
+      enabled: !!it.enabled,
+    }));
+  } catch (_) {
+    reminderItems = [];
+  }
+
+  // Keep only the most recent ~60 days of completion history.
+  const completed = state.todaysNitnem?.completed || {};
+  const trimmedCompleted = {};
+  Object.keys(completed)
+    .sort()
+    .slice(-60)
+    .forEach((d) => {
+      trimmedCompleted[d] = completed[d];
+    });
+
+  const lastRead = recentRead?.[0];
+  const lastListen = recentListen?.[0];
+
+  const payload = {
+    lastVisitedBaaniId: state.currentBani?.id ?? null,
+    streaks: { current: summary?.current_streak ?? 0, longest: summary?.longest_streak ?? 0 },
+    month: { key: monthKey, days },
+    read: {
+      top5: (topRead || []).map((r) => [r.bani_id, r.session_count ?? 0]),
+      last: lastRead ? { baaniId: lastRead.bani_id } : null,
+    },
+    listen: {
+      top5: (topListen || []).map((r) => [r.bani_id, r.session_count ?? 0]),
+      last: lastListen ? { baaniId: lastListen.bani_id } : null,
+    },
+    totals: {
+      banisCompleted: banisCompleted ?? 0,
+      readingSeconds: totals?.total_reading_seconds ?? 0,
+      listeningSeconds: totals?.total_listening_seconds ?? 0,
+      daysActive: summary?.total_days_active ?? 0,
+      audioSessions: summary?.total_audio_sessions ?? 0,
+    },
+    nitnem: {
+      selectedBaaniIds: state.todaysNitnem?.selectedBaniIds ?? [],
+      completed: trimmedCompleted,
+    },
+    profile: { name: state.userProfile?.name ?? "" },
+    reminders: {
+      enabled: !!state.isReminders,
+      sound: state.reminderSound || "",
+      items: reminderItems,
+    },
+    layout: {
+      order: state.dashboardLayout?.order ?? [],
+      hidden: state.dashboardLayout?.hidden ?? [],
+    },
+  };
+
+  return { version, capturedAt: now.toISOString(), deviceId, userId, payload };
+};
+
+// POSTs a cache body. No-op (returns { skipped: true }) without a token, so the
+// whole sync stays dormant until SSO is live.
+export const pushDashboardCache = async (body, token) => {
+  if (!token) return { skipped: true };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(syncUrl(), {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return { ok: true, data: await res.json() };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 export default getDashboardLatest;
