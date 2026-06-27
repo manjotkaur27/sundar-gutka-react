@@ -15,6 +15,7 @@ import DashboardHeader from "./components/DashboardHeader";
 import LayoutEditOverlay from "./components/LayoutEditOverlay";
 import EditNameModal from "./components/EditNameModal";
 import { SECTION_REGISTRY } from "./components/sectionRegistry";
+import useDashboardSync from "./useDashboardSync";
 
 // Registry-driven dashboard. Sections render in the user's persisted order and
 // visibility (see dashboardLayout slice). Add a new section by registering it in
@@ -27,6 +28,9 @@ const DashboardScreen = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [layoutEditVisible, setLayoutEditVisible] = useState(false);
   const [editNameVisible, setEditNameVisible] = useState(false);
+
+  // Cross-device sync (dormant until SSO/JWT exists — see useDashboardSync).
+  useDashboardSync();
 
   useFocusEffect(
     useCallback(() => {

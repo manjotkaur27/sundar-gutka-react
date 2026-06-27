@@ -1,3 +1,10 @@
+// Khalis backend base URL (Seva + Dashboard APIs).
+// TODO: replace with the STABLE production alias / custom domain. The current value
+// is a Vercel *preview* deploy whose hash changes on every backend deploy.
+// For local backend dev, temporarily set this to "http://localhost:3500"
+// (and run `adb reverse tcp:3500 tcp:3500`).
+const KHALIS_API_BASE = "https://khalis-users-73ud6ssoy-divyanshugarg36s-projects.vercel.app";
+
 export default {
   DB: "gutka_v01",
   ENGLISH: "ENGLISH",
@@ -147,15 +154,15 @@ export default {
   // Default daily Nitnem bani set (classic Sat Bania by Banis.ID).
   DEFAULT_NITNEM_BANI_IDS: [2, 3, 4, 9, 5, 21, 1],
 
-  // Dashboard backend.
-  // Dev only: the device reaches the Mac's local server via `adb reverse tcp:3500 tcp:3500`.
-  // Release builds use "" → direct sources (Daily Vaak → BaniDB, Word of Day → local).
-  // When the backend is deployed, replace "" with the production HTTPS base/URLs.
-  DASHBOARD_API_BASE_URL: __DEV__ ? "http://localhost:3500" : "",
+  // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
+  DASHBOARD_API_BASE_URL: KHALIS_API_BASE,
+  SEVA_CONFIG_API_URL: `${KHALIS_API_BASE}/seva/config`,
+  DAILY_VAAK_API_URL: `${KHALIS_API_BASE}/dashboard/daily-vaak`,
+  WORD_OF_DAY_API_URL: `${KHALIS_API_BASE}/dashboard/word-of-day`,
+  DASHBOARD_SYNC_API_URL: `${KHALIS_API_BASE}/dashboard/cache`, // POST, Bearer JWT
+  DASHBOARD_LATEST_API_URL: `${KHALIS_API_BASE}/dashboard/latest`, // GET, Bearer JWT
   // Random Shabad stays on BaniDB directly (backend proxy was dropped).
   RANDOM_SHABAD_API_URL: "",
-  DAILY_VAAK_API_URL: __DEV__ ? "http://localhost:3500/dashboard/daily-vaak" : "",
-  WORD_OF_DAY_API_URL: __DEV__ ? "http://localhost:3500/dashboard/word-of-day" : "",
   UPCOMING_EVENTS_API_URL: "",
   NANAKSHAHI_API_URL: "",
 };

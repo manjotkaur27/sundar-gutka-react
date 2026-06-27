@@ -18,8 +18,11 @@ import { getRandomShabad } from "./randomShabad";
 // jest.mock calls are hoisted above the imports above by babel-jest.
 jest.mock("@common", () => ({
   logError: jest.fn(),
-  // Empty URLs → daily vaak uses the BaniDB fallback, word of day uses mock.
-  constant: { DAILY_VAAK_API_URL: "", WORD_OF_DAY_API_URL: "" },
+  // A configured backend URL (≠ BaniDB) so we can exercise the backend→BaniDB fallback.
+  constant: {
+    DAILY_VAAK_API_URL: "http://backend.test/dashboard/daily-vaak",
+    WORD_OF_DAY_API_URL: "",
+  },
 }));
 jest.mock("@database", () => ({ getRandomTukk: jest.fn().mockResolvedValue(null) }));
 jest.mock("./connectivity", () => {
@@ -140,7 +143,19 @@ describe("getDailyVaak error handling", () => {
     expect(res.shabadId).toBe(42);
   });
 
-  it("throws (not a mock) when online but the API fails", async () => {
+  it("falls back to BaniDB when the configured backend is unreachable", async () => {
+    isOnline.mockResolvedValue(true);
+    global.fetch = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("backend down")) // configured backend
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ shabads: [apiShabadPayload] }) }); // BaniDB
+    const res = await getDailyVaak({ requireOnline: true });
+    expect(res._source).toBe("api");
+    expect(res.lines).toHaveLength(2);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws (not a mock) when both backend and BaniDB fail", async () => {
     isOnline.mockResolvedValue(true);
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
     await expect(getDailyVaak({ requireOnline: true })).rejects.toThrow();
