@@ -11,7 +11,9 @@ export const isOnline = async () => {
       cache: "no-store",
       signal: controller.signal,
     });
-    return response?.ok ?? false;
+    // generate_204 returns 204 only on real internet; a captive portal returns
+    // 200 (login redirect), which we treat as offline.
+    return response?.status === 204;
   } catch (_) {
     return false;
   } finally {

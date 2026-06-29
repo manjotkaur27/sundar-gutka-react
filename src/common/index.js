@@ -42,6 +42,12 @@ import {
   trackAudioCompleted,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
+import {
+  initializePerformanceMonitoring,
+  startPerformanceTrace,
+  stopTrace,
+  resetTrace,
+} from "./firebase/performance";
 import baseFontSize, { validateBaniOrder } from "./helpers";
 import { openInAppBrowser } from "./inAppBrowser";
 import useKeepAwake from "./hooks/keepAwake";
@@ -78,6 +84,10 @@ export {
   logError,
   logMessage,
   initializeCrashlytics,
+  initializePerformanceMonitoring,
+  startPerformanceTrace,
+  stopTrace,
+  resetTrace,
   allowTracking,
   trackReaderEvent,
   trackAudioEvent,

@@ -165,4 +165,9 @@ export default {
   RANDOM_SHABAD_API_URL: "",
   UPCOMING_EVENTS_API_URL: "",
   NANAKSHAHI_API_URL: "",
+  // Reachability probe for dashboard network services (see services/dashboard/
+  // connectivity.js). Same globally-distributed 204 endpoint the app's NetInfo
+  // layer uses (services/networkManager.js) — returns HTTP 204 when there is
+  // real internet, so a captive portal (which returns 200) reads as offline.
+  INTERNET_CHECK_URL: "https://clients3.google.com/generate_204",
 };

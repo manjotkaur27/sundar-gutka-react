@@ -3,10 +3,11 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 apply plugin: "com.google.firebase.crashlytics"
-// firebase-perf plugin removed: the firebase-perf library and @react-native-firebase/perf
-// package are not in the project dependencies. The plugin rewrites OkHttp bytecode to inject
-// FirebasePerfOkHttpClient, which causes a NoClassDefFoundError crash at startup when the
-// library is absent. Re-add both the library and this plugin together if perf monitoring is needed.
+// firebase-perf: @react-native-firebase/perf is installed again, so the native
+// firebase-perf library is on the classpath via autolinking. This plugin rewrites
+// OkHttp bytecode to inject FirebasePerfOkHttpClient and enables automatic
+// instrumentation; classpath is declared in android/build.gradle.
+apply plugin: "com.google.firebase.firebase-perf"
 
 
 /**

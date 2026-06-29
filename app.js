@@ -88,6 +88,7 @@ const App = () => {
   useEffect(() => {
     const runSetup = async () => {
       await initializeCrashlytics();
+      await initializePerformanceMonitoring();
       await TrackPlayerSetup();
     };
 

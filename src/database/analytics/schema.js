@@ -72,10 +72,22 @@ export const initSchema = async (db) => {
   await db.executeSql(CREATE_USER_STATS_SUMMARY);
   await db.executeSql(CREATE_BANI_READ_COUNTS);
   await db.executeSql(SEED_USER_STATS_SUMMARY);
-  // Migration: add artist_name column if upgrading from an older install
+  // Migration: add artist_name column if upgrading from an older install.
+  // Check the column first via PRAGMA so we don't fire an ALTER that the native
+  // SQLite layer logs as an error on every launch once the column exists.
   try {
-    await db.executeSql(`ALTER TABLE audio_history ADD COLUMN artist_name TEXT`);
+    const [info] = await db.executeSql(`PRAGMA table_info(audio_history)`);
+    let hasArtistName = false;
+    for (let i = 0; i < info.rows.length; i += 1) {
+      if (info.rows.item(i).name === "artist_name") {
+        hasArtistName = true;
+        break;
+      }
+    }
+    if (!hasArtistName) {
+      await db.executeSql(`ALTER TABLE audio_history ADD COLUMN artist_name TEXT`);
+    }
   } catch (_) {
-    // column already exists — safe to ignore
+    // Non-fatal: the column is also created on fresh installs via newer schema.
   }
 };

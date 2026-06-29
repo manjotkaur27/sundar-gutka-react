@@ -50,23 +50,6 @@ const createStyles = (theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Wraps just the title line, so the icon below is positioned relative to
-  // this row's own height — vertically centered against the title text
-  // itself, not the header block as a whole.
-  titleRow: {
-    width: "100%",
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  settingsWrap: {
-    position: "absolute",
-    right: theme.spacing.sm,
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
-    zIndex: 2,
-  },
   newHeaderInvocationText: {
     fontSize: 15,
     color: theme.mode === "dark" ? "#8A99AD" : "#718096",
