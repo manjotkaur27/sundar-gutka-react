@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Pressable, Platform } from "react-native";
+import { View, Pressable, Platform, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -13,7 +13,7 @@ import createStyles from "./style";
 
 const { INTERNET_CHECK_URL } = constant;
 
-const BottomNavigation = ({ activeKey }) => {
+const BottomNavigation = ({ activeKey, visible = true }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -34,6 +34,25 @@ const BottomNavigation = ({ activeKey }) => {
   // without ballooning the navbar height. On Android: gesture bar is hidden by
   // sticky-immersive mode in MainActivity, so no bottom padding is needed.
   const bottomPad = Platform.OS === "ios" ? Math.min(insets.bottom, 8) : 0;
+
+  // Slide the navbar down out of view when hidden (the Reader passes visible=false
+  // to hide it together with the header). Defaults to visible everywhere else.
+  // Stop the animation on unmount so a mid-flight native-driver animation can't
+  // connect to an already-torn-down view ("Animated node does not exist" crash).
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.timing(translateY, {
+      toValue: visible ? 0 : 100,
+      duration: 300,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => {
+      anim.stop();
+      translateY.stopAnimation();
+    };
+  }, [visible, translateY]);
 
   const checkInternetConnection = useCallback(async () => {
     const controller = new AbortController();
@@ -275,12 +294,13 @@ const BottomNavigation = ({ activeKey }) => {
   });
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
         // Absorb the home-indicator / gesture-bar height so the navbar background
         // colour fills behind the indicator while the icons stay compact above it.
         { paddingBottom: bottomPad },
+        { transform: [{ translateY }] },
       ]}
     >
       <View style={styles.navigationBar}>
@@ -314,12 +334,13 @@ const BottomNavigation = ({ activeKey }) => {
           );
         })}
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
 BottomNavigation.propTypes = {
   activeKey: PropTypes.string.isRequired,
+  visible: PropTypes.bool,
 };
 
 export default BottomNavigation;

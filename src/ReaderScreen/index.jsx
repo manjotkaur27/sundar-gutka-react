@@ -79,6 +79,21 @@ const Reader = ({ navigation, route }) => {
   // Latest scroll % (0-100) for analytics — updated on every WebView scroll message
   const scrollPercentRef = useRef(0);
 
+  // Animated height for the BottomNavigation wrapper — collapses the layout space
+  // when the nav hides so no blank gap is left behind. The nav tracks isHeader, so
+  // it hides/shows together with the header on the same tap and scroll signals.
+  const navTotalHeight =
+    theme.components.bottomNavigation.height + (Platform.OS === "ios" ? insetBottom : 0);
+  const navHeightAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(navHeightAnim, {
+      toValue: isHeader ? navTotalHeight : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isHeader, navTotalHeight, navHeightAnim]);
+
   // iPad scroll guard: blocks spurious WebView scroll events during and shortly
   // after screen transitions (Bookmarks → Reader). WKWebView can fire scroll-to-0
   // events both while backgrounded AND during the return transition animation.
@@ -426,7 +441,12 @@ const Reader = ({ navigation, route }) => {
         />
       </View>
 
-      <BottomNavigation activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"} />
+      <Animated.View style={{ height: navHeightAnim, overflow: "hidden" }}>
+        <BottomNavigation
+          activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
+          visible={isHeader}
+        />
+      </Animated.View>
     </SafeArea>
   );
 };
