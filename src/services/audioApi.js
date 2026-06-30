@@ -1,7 +1,8 @@
 import { constant, showErrorToast, STRINGS } from "@common";
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
-const BLOB_BASE = "https://banidb.blob.core.windows.net/audios";
+// Served via the Azure Front Door CDN — see constant.AUDIO_BASE_URL.
+const BLOB_BASE = constant.AUDIO_BASE_URL;
 
 // ─── Artist IDs ──────────────────────────────────────────────────────────────
 const JARNAIL_ARTIST_ID = 4;

@@ -91,6 +91,9 @@ export default {
   PORTRAIT: "PORTRAIT",
   LANDSCAPE: "LANDSCAPE",
   REMOTE_DB_URL: "https://banidb.blob.core.windows.net/database",
+  // Audio + lyrics assets are served via the Azure Front Door CDN
+  // (origin: banidb.blob.core.windows.net). The database stays on the raw blob.
+  AUDIO_BASE_URL: "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios",
   BASIC_AUTH_USERNAME: "admin",
   BASIC_AUTH_PASSWORD: "",
   REMOTE_AUDIO_API_URL:

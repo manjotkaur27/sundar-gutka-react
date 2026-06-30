@@ -17,8 +17,8 @@ const CANONICAL_ARTIST_NAMES = {
   9: "Giani Gurdev Singh",
 };
 
-// Base URL for all Azure Blob audio assets
-const _BLOB = "https://banidb.blob.core.windows.net/audios";
+// Base URL for all audio assets — served via the Azure Front Door CDN.
+const _BLOB = constant.AUDIO_BASE_URL;
 
 /**
  * Emergency manifests cover all supported banis for all 3 artists.
