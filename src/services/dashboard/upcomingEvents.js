@@ -2,8 +2,13 @@
 // doesn't enable package "exports", so a bare import would resolve the IIFE build).
 // eslint-disable-next-line import/extensions, import/no-unresolved
 import { findMovableGurpurab as libFindMovableGurpurab } from "nanakshahi/dist/index.js";
-import { logError } from "@common";
+import { constant, logError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
+import { readFreshCache, writeCache } from "./dailyCache";
+
+// Backend feed cache (per local day — the event list is stable, and daysAway is
+// computed relative to "today", so a same-day cache is always correct).
+const CACHE_KEY = "@upcoming_events_cache_v1";
 
 // Sikh Gurpurabs / historical days for the Discover "Upcoming" card.
 //
@@ -123,10 +128,58 @@ const movableEvents = () => {
   return Object.values(nearest);
 };
 
-export const getUpcomingEvents = async ({ requireOnline = false } = {}) => {
-  if (requireOnline && !(await isOnline())) {
-    throw new OfflineError();
+const fetchJson = async (url) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
+};
+
+// Parse "YYYY-MM-DD" (ignoring any time part) as a device-local date so the
+// day boundary matches what the user sees, not UTC.
+const parseIsoLocal = (str) => {
+  const parts = String(str).slice(0, 10).split("-");
+  if (parts.length !== 3) return null;
+  const [y, mo, d] = parts.map(Number);
+  if (!y || !mo || !d) return null;
+  return new Date(y, mo - 1, d);
+};
+
+// Maps the backend feed → the app's event shape. Accepts `{ events: [...] }` or a
+// bare array. Each entry needs a `name` plus EITHER an explicit `date`
+// ("YYYY-MM-DD", for movable/one-off days you feed per year) OR a recurring
+// `month` + `day` (for fixed solar gurpurabs — feed once, recurs every year).
+const parseApiEvents = (data) => {
+  let list = null;
+  if (Array.isArray(data)) list = data;
+  else if (Array.isArray(data?.events)) list = data.events;
+  if (!list) return null;
+  const out = [];
+  list.forEach((e) => {
+    if (!e || !e.name) return;
+    let daysAway = null;
+    if (e.date) {
+      const d = parseIsoLocal(e.date);
+      const da = d ? daysAwayFromDate(d) : null;
+      if (da != null && da >= 0) daysAway = da; // drop explicit dates already past
+    } else if (e.month && e.day) {
+      daysAway = daysAwayFrom(Number(e.month), Number(e.day)); // recurring
+    }
+    if (daysAway == null) return;
+    out.push({ name: e.name, subtitle: e.subtitle ?? "", daysAway, _source: "api" });
+  });
+  return out.length ? out.sort((a, b) => a.daysAway - b.daysAway) : null;
+};
+
+// Bundled local computation — always available. Fixed gurpurabs recur yearly;
+// movable ones come from the nanakshahi lib. Used offline or until the backend
+// feed is deployed.
+const computeLocalEvents = () => {
   const fixed = GURPURABS.map((e) => ({
     name: e.name,
     subtitle: e.subtitle ?? "",
@@ -140,6 +193,34 @@ export const getUpcomingEvents = async ({ requireOnline = false } = {}) => {
     logError(new Error(`movable gurpurabs failed: ${err?.message || err}`));
   }
   return [...fixed, ...movable].sort((a, b) => a.daysAway - b.daysAway);
+};
+
+export const getUpcomingEvents = async ({ requireOnline = false } = {}) => {
+  // 1. Today's cached feed → use it (offline-safe, refreshes daily).
+  const cached = await readFreshCache(CACHE_KEY);
+  if (cached) return cached;
+
+  // 2. Backend feed (the yearly list maintained server-side), when configured.
+  //    On any failure (incl. the endpoint not being deployed yet) we silently fall
+  //    through to the bundled local computation, so the card always shows events.
+  const url = constant.UPCOMING_EVENTS_API_URL;
+  if (url) {
+    try {
+      const parsed = parseApiEvents(await fetchJson(url));
+      if (parsed) {
+        writeCache(CACHE_KEY, parsed);
+        return parsed;
+      }
+    } catch (err) {
+      logError(new Error(`upcoming events feed failed, using local: ${err?.message || err}`));
+    }
+  }
+
+  // 3. requireOnline callers (rare) get an offline signal instead of the local list.
+  if (requireOnline && !(await isOnline())) throw new OfflineError();
+
+  // 4. Local fallback.
+  return computeLocalEvents();
 };
 
 // Convenience: the single nearest upcoming event (for the compact Discover card).

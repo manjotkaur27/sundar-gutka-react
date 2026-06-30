@@ -231,6 +231,15 @@ const createStyles = (theme) => {
       paddingHorizontal: 16,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
+    taxNote: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: isDarkMode ? "#A0AEC0" : "#718096",
+      textAlign: "center",
+      width: "100%",
+      paddingHorizontal: 8,
+      fontFamily: theme.typography.fonts.balooPaaji,
+    },
     centered: {
       flex: 1,
       justifyContent: "center",

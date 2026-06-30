@@ -2,11 +2,10 @@ import { constant, STRINGS } from "@common";
 import Discover from "./Discover";
 import ExploreGurbani from "./ExploreGurbani";
 import MonthCalendar from "./MonthCalendar";
-import RandomShabad from "./RandomShabad";
 import RemindersCard from "./RemindersCard";
+import ShabadVaak from "./ShabadVaak";
 import StreakCard from "./StreakCard";
 import TodaysNitnem from "./TodaysNitnem";
-import TodaysVaak from "./TodaysVaak";
 import WeekChart from "./WeekChart";
 import YourPractice from "./YourPractice";
 
@@ -24,8 +23,7 @@ export const SECTION_REGISTRY = {
   [S.WEEK_CHART]: { Component: WeekChart, labelKey: "THIS_WEEK" },
   [S.DISCOVER]: { Component: Discover, labelKey: "DISCOVER" },
   [S.REMINDERS]: { Component: RemindersCard, labelKey: "REMINDERS_TITLE" },
-  [S.RANDOM_SHABAD]: { Component: RandomShabad, labelKey: "RANDOM_SHABAD" },
-  [S.VAAK]: { Component: TodaysVaak, labelKey: "TODAYS_VAAK" },
+  [S.SHABAD_VAAK]: { Component: ShabadVaak, labelKey: null, label: "Shabad & Vaak" },
 };
 
 export const sectionLabel = (key) => {

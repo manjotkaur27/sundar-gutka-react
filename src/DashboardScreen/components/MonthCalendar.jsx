@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Pressable, StyleSheet, PanResponder } from "react-native";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, constant, logError } from "@common";
+import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
 import { getDailyActivity } from "../../database/analytics";
 import useDashboardTheme from "./dashboardTheme";
 import DayDetailModal from "./DayDetailModal";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+const hasAnyActivity = (row) =>
+  !!row && ((row.reading_seconds ?? 0) > 0 || (row.listening_seconds ?? 0) > 0);
 
 const getLocalYM = () => {
   const n = new Date();
@@ -55,18 +58,25 @@ const MonthCalendar = ({ refreshKey }) => {
   const [modalDate, setModalDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const canGoForward = year < curYM.year || (year === curYM.year && month < curYM.month);
+  // The PanResponder below is created once, so its handlers must read the latest
+  // year/month from a ref (not a stale closure). Without this, the captured
+  // forward-guard stayed false from first render and forward swipes never worked.
+  const ymRef = useRef({ year, month });
+  ymRef.current = { year, month };
 
   const prevMonth = useCallback(() => {
-    setMonth((m) => (m === 1 ? 12 : m - 1));
-    setYear((y) => (month === 1 ? y - 1 : y));
-  }, [month]);
+    const m = ymRef.current.month;
+    setYear((y) => (m === 1 ? y - 1 : y));
+    setMonth((mm) => (mm === 1 ? 12 : mm - 1));
+  }, []);
 
   const nextMonth = useCallback(() => {
-    if (!canGoForward) return;
-    setMonth((m) => (m === 12 ? 1 : m + 1));
-    setYear((y) => (month === 12 ? y + 1 : y));
-  }, [canGoForward, month]);
+    const { year: y, month: m } = ymRef.current;
+    const forward = y < curYM.year || (y === curYM.year && m < curYM.month);
+    if (!forward) return;
+    setYear((yy) => (m === 12 ? yy + 1 : yy));
+    setMonth((mm) => (mm === 12 ? 1 : mm + 1));
+  }, [curYM.year, curYM.month]);
 
   const loadActivity = useCallback(async (y, m) => {
     try {
@@ -100,10 +110,15 @@ const MonthCalendar = ({ refreshKey }) => {
   const handleDayPress = useCallback(
     (d) => {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      // No activity on this day → quick toast instead of an empty detail sheet.
+      if (!hasAnyActivity(activityMap[dateStr])) {
+        showInfoToast(STRINGS.NO_ACTIVITY);
+        return;
+      }
       setModalDate(dateStr);
       setModalVisible(true);
     },
-    [year, month]
+    [year, month, activityMap]
   );
 
   const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });

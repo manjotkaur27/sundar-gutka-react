@@ -20,7 +20,6 @@ import AutoScroll from "./components/autoScroll";
 import BaniFontFaceComponent from "./components/baniFontFace";
 import BaniLengthComponent from "./components/baniLength";
 import CollectStatistics from "./components/collectStatistics";
-import ClearJourneyData from "./components/clearJourneyData";
 import ListItemWithIcon from "./components/comon/ListitemWithIcon";
 import DatabaseUpdateBanner from "./components/databaseUpdate";
 import Donate from "./components/donate";
@@ -79,59 +78,52 @@ const Settings = ({ navigation, route }) => {
       <GradientDivider />
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <View style={{ flex: 1 }}>
-      <Animated.ScrollView {...scrollViewProps}>
-        <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
-        <FontSizeComponent />
-        <FontFaceComponent />
-        <LanguageComponent language={language} />
-        <TransliterationComponent />
-        <TranslationComponent />
-        <ThemeComponent />
-        <StatusBar />
-        <HideStatusBar />
-        <AutoScroll />
-        <KeepAwake />
-        {/* Audio Player */}
-        <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
-        <Audio />
-        {/* Bani Options */}
-        <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
-        <EditBaniOrder navigate={navigate} />
-        <BaniFontFaceComponent />
-        <BaniLengthComponent />
-        <LarivaarComponent />
-        <ParagraphMode />
-        <PadchedSettingsComponent />
-        <VishraamComponent />
-        <RemindersComponent navigation={navigation} />
-        <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
-        <CollectStatistics />
-        <RevisitTutorial />
-        <ClearJourneyData />
-        <Donate />
-        <ListItemWithIcon
-          iconName="info"
-          title={about}
-          navigate={navigate}
-          navigationTarget="About"
-        />
-        <ListItemWithIcon
-          iconName="update"
-          title={databaseUpdate}
-          navigate={navigate}
-          navigationTarget="DatabaseUpdate"
-        />
-        <CustomText style={end} />
-      </Animated.ScrollView>
-      {Indicator}
+        <Animated.ScrollView {...scrollViewProps}>
+          <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
+          <FontSizeComponent />
+          <FontFaceComponent />
+          <LanguageComponent language={language} />
+          <TransliterationComponent />
+          <TranslationComponent />
+          <ThemeComponent />
+          <StatusBar />
+          <HideStatusBar />
+          <AutoScroll />
+          <KeepAwake />
+          {/* Audio Player */}
+          <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
+          <Audio />
+          {/* Bani Options */}
+          <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
+          <EditBaniOrder navigate={navigate} />
+          <BaniFontFaceComponent />
+          <BaniLengthComponent />
+          <LarivaarComponent />
+          <ParagraphMode />
+          <PadchedSettingsComponent />
+          <VishraamComponent />
+          <RemindersComponent navigation={navigation} />
+          <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
+          <CollectStatistics />
+          <RevisitTutorial />
+          <Donate />
+          <ListItemWithIcon
+            iconName="info"
+            title={about}
+            navigate={navigate}
+            navigationTarget="About"
+          />
+          <ListItemWithIcon
+            iconName="update"
+            title={databaseUpdate}
+            navigate={navigate}
+            navigationTarget="DatabaseUpdate"
+          />
+          <CustomText style={end} />
+        </Animated.ScrollView>
+        {Indicator}
       </View>
-      {fromReader && (
-        <BottomNavigation
-          activeKey={constant.SETTINGS}
-          context="reader"
-          visible={true}
-        />
-      )}
+      {fromReader && <BottomNavigation activeKey={constant.SETTINGS} context="reader" visible />}
     </SafeArea>
   );
 };

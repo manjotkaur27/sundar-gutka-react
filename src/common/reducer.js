@@ -289,17 +289,15 @@ const donorType = createReducer(null, {
 // job killed; reset them to 'queued' so the engine restarts them from scratch.
 const downloadQueue = (state = {}, action) => {
   switch (action.type) {
-    case 'persist/REHYDRATE': {
+    case "persist/REHYDRATE": {
       const persisted = action.payload?.downloadQueue ?? {};
       const healed = {};
       // 'downloading' = native task is re-adopted on launch (or restarted if
       // truly lost); 'paused_retry' = a backoff timer that didn't survive the
       // restart. Both resolve to 'queued' so the engine reconciles them.
-      const reset = new Set(['downloading', 'paused_retry']);
+      const reset = new Set(["downloading", "paused_retry"]);
       Object.entries(persisted).forEach(([k, t]) => {
-        healed[k] = reset.has(t.status)
-          ? { ...t, status: 'queued', progress: 0, jobId: null }
-          : t;
+        healed[k] = reset.has(t.status) ? { ...t, status: "queued", progress: 0, jobId: null } : t;
       });
       return healed;
     }
@@ -309,7 +307,7 @@ const downloadQueue = (state = {}, action) => {
         ...state,
         [action.payload.trackKey]: {
           ...action.payload,
-          status: 'queued',
+          status: "queued",
           progress: 0,
           retryCount: 0,
           errorMessage: null,
@@ -345,7 +343,7 @@ const downloadQueue = (state = {}, action) => {
         ...state,
         [action.payload.trackKey]: {
           ...state[action.payload.trackKey],
-          status: 'queued',
+          status: "queued",
           progress: 0,
           retryCount: 0,
           errorMessage: null,
@@ -357,10 +355,16 @@ const downloadQueue = (state = {}, action) => {
         Object.keys(next).forEach((k) => {
           if (next[k].status !== pausedStatus) return;
           // A storage failure won't be fixed by retrying — leave it for the user.
-          if (next[k].errorMessage === 'NOT_ENOUGH_STORAGE') return;
+          if (next[k].errorMessage === "NOT_ENOUGH_STORAGE") return;
           // Reset the retry budget so a previously-failed entry gets a clean
           // restart (otherwise it would immediately re-fail on its first error).
-          next[k] = { ...next[k], status: 'queued', progress: 0, retryCount: 0, errorMessage: null };
+          next[k] = {
+            ...next[k],
+            status: "queued",
+            progress: 0,
+            retryCount: 0,
+            errorMessage: null,
+          };
         });
       });
       return next;
@@ -429,9 +433,12 @@ const DEFAULT_DASHBOARD_ORDER = [
   constant.DASHBOARD_SECTIONS.WEEK_CHART,
   constant.DASHBOARD_SECTIONS.DISCOVER,
   constant.DASHBOARD_SECTIONS.REMINDERS,
-  constant.DASHBOARD_SECTIONS.RANDOM_SHABAD,
-  constant.DASHBOARD_SECTIONS.VAAK,
+  constant.DASHBOARD_SECTIONS.SHABAD_VAAK,
 ];
+
+// Section keys that are still valid (used to strip deprecated keys from a
+// persisted layout on upgrade — e.g. the old standalone randomShabad/vaak).
+const VALID_DASHBOARD_SECTIONS = new Set(Object.values(constant.DASHBOARD_SECTIONS));
 
 const userProfile = createReducer(
   { name: "" },
@@ -443,6 +450,19 @@ const userProfile = createReducer(
 const defaultLayout = () => ({ order: [...DEFAULT_DASHBOARD_ORDER], hidden: [] });
 
 const dashboardLayout = createReducer(defaultLayout(), {
+  // On rehydrate: drop any deprecated section keys (e.g. the old standalone
+  // randomShabad/vaak now merged into shabadVaak) and append newly added default
+  // sections, so an upgrading user neither loses a section nor sees a dead key.
+  "persist/REHYDRATE": (state, action) => {
+    const persisted = action.payload?.dashboardLayout;
+    if (!persisted?.order) return state; // fresh install → keep default
+    const cleaned = persisted.order.filter((k) => VALID_DASHBOARD_SECTIONS.has(k));
+    const missing = DEFAULT_DASHBOARD_ORDER.filter((k) => !cleaned.includes(k));
+    return {
+      order: [...cleaned, ...missing],
+      hidden: (persisted.hidden ?? []).filter((k) => VALID_DASHBOARD_SECTIONS.has(k)),
+    };
+  },
   [actionTypes.SET_DASHBOARD_LAYOUT]: (state, action) => {
     const next = { ...state, ...action.value };
     // Self-heal: ensure any newly added sections are appended to a persisted order.

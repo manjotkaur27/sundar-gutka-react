@@ -11,10 +11,16 @@ import {
   Text,
   useWindowDimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from "react-native-svg";
+import LinearGradient from "react-native-linear-gradient";
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Text as SvgText,
+} from "react-native-svg";
 import { useDispatch, useSelector } from "react-redux";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import {
   SafeArea,
@@ -26,9 +32,8 @@ import {
   openInAppBrowser,
   trackSevaEvent,
 } from "@common";
-import LinearGradient from "react-native-linear-gradient";
-import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
 import { DonateIcon } from "../common/icons";
+import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
 import createStyles from "./styles";
 
 // ─── Seva analytics funnel helpers (in-app, observable steps only) ───────────
@@ -162,7 +167,7 @@ const SevaScreen = () => {
         });
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAmountSelect = (amount, isOther = false) => {
@@ -200,27 +205,30 @@ const SevaScreen = () => {
   const effectiveDonationType = donationTypeOf(frequency);
 
   // ─── Shared browser helper ─────────────────────────────────────────────────
-  const openBrowserForUrl = useCallback(async (url) => {
-    if (isBrowserOpenRef.current) return;
+  const openBrowserForUrl = useCallback(
+    async (url) => {
+      if (isBrowserOpenRef.current) return;
 
-    const barColor = isDarkMode ? "#041126" : theme.colors.surface;
-    const controlColor = isDarkMode ? "#FAF9F6" : "#113979";
+      const barColor = isDarkMode ? "#041126" : theme.colors.surface;
+      const controlColor = isDarkMode ? "#FAF9F6" : "#113979";
 
-    isBrowserOpenRef.current = true;
-    pendingBrowserUrlRef.current = url;
-    appInBackgroundRef.current = false;
+      isBrowserOpenRef.current = true;
+      pendingBrowserUrlRef.current = url;
+      appInBackgroundRef.current = false;
 
-    try {
-      await openInAppBrowser(url, { barColor, controlColor });
-    } finally {
-      isBrowserOpenRef.current = false;
-      // Only clear the pending URL if the browser closed because the user dismissed it,
-      // not because the OS backgrounded the app (in which case we want to re-open on resume).
-      if (!appInBackgroundRef.current) {
-        pendingBrowserUrlRef.current = null;
+      try {
+        await openInAppBrowser(url, { barColor, controlColor });
+      } finally {
+        isBrowserOpenRef.current = false;
+        // Only clear the pending URL if the browser closed because the user dismissed it,
+        // not because the OS backgrounded the app (in which case we want to re-open on resume).
+        if (!appInBackgroundRef.current) {
+          pendingBrowserUrlRef.current = null;
+        }
       }
-    }
-  }, [isDarkMode, theme]);
+    },
+    [isDarkMode, theme]
+  );
 
   // Keep ref current so the AppState listener always calls the latest closure
   openBrowserForUrlRef.current = openBrowserForUrl;
@@ -317,6 +325,12 @@ const SevaScreen = () => {
   const content = config?.content ?? {};
   const hPad = Math.max(16, Math.min(28, screenWidth * 0.064));
 
+  // Tax messaging differs by donor country: US donations are tax-deductible;
+  // donations from outside the US are not. Country comes from the backend Seva
+  // config (defaults to "US" when unknown).
+  const isUSDonor = (config?.country ?? "US").toUpperCase() === "US";
+  const taxMessage = isUSDonor ? content.taxMessage : content.nonUsTaxMessage;
+
   const renderDescription = () => {
     const text = content.description || "";
     const links = content.descriptionLinks || [];
@@ -368,7 +382,10 @@ const SevaScreen = () => {
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeArea backgroundColor={isDarkMode ? "#041126" : theme.colors.surface} edges={["left", "right"]}>
+      <SafeArea
+        backgroundColor={isDarkMode ? "#041126" : theme.colors.surface}
+        edges={["left", "right"]}
+      >
         <StatusBarComponent />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -380,12 +397,13 @@ const SevaScreen = () => {
   // ─── Error / offline ──────────────────────────────────────────────────────
   if (error) {
     return (
-      <SafeArea backgroundColor={isDarkMode ? "#041126" : theme.colors.surface} edges={["left", "right"]}>
+      <SafeArea
+        backgroundColor={isDarkMode ? "#041126" : theme.colors.surface}
+        edges={["left", "right"]}
+      >
         <StatusBarComponent />
         <View style={styles.centered}>
-          <CustomText style={styles.description}>
-            {STRINGS.SEVA_LOAD_ERROR}
-          </CustomText>
+          <CustomText style={styles.description}>{STRINGS.SEVA_LOAD_ERROR}</CustomText>
           <Pressable onPress={() => Linking.openURL("https://khalisfoundation.org/donate")}>
             <CustomText style={[styles.description, { color: theme.colors.primary }]}>
               {STRINGS.SEVA_DONATE_DIRECTLY}
@@ -398,7 +416,10 @@ const SevaScreen = () => {
 
   // ─── Main screen ──────────────────────────────────────────────────────────
   return (
-    <SafeArea backgroundColor={isDarkMode ? "#041126" : theme.colors.surface} edges={["left", "right"]}>
+    <SafeArea
+      backgroundColor={isDarkMode ? "#041126" : theme.colors.surface}
+      edges={["left", "right"]}
+    >
       <StatusBarComponent />
       <ScrollView
         style={styles.scrollView}
@@ -409,7 +430,14 @@ const SevaScreen = () => {
           {/* Title */}
           {isDarkMode ? (
             <CustomText
-              style={[styles.headline, { fontSize: headlineFontSize, lineHeight: headlineFontSize * 1.4, width: titleWidth }]}
+              style={[
+                styles.headline,
+                {
+                  fontSize: headlineFontSize,
+                  lineHeight: headlineFontSize * 1.4,
+                  width: titleWidth,
+                },
+              ]}
               numberOfLines={1}
               adjustsFontSizeToFit
             >
@@ -529,10 +557,15 @@ const SevaScreen = () => {
             ))}
           </View>
 
+          {/* Tax note — depends on the donor's country (US = tax-deductible). */}
+          {taxMessage ? <CustomText style={styles.taxNote}>{taxMessage}</CustomText> : null}
+
           {/* Donate button */}
           <Pressable style={styles.donateButton} onPress={handleDonate}>
             <LinearGradient
-              colors={isDarkMode ? [theme.colors.primary, theme.colors.primary] : ["#113979", "#0C2958"]}
+              colors={
+                isDarkMode ? [theme.colors.primary, theme.colors.primary] : ["#113979", "#0C2958"]
+              }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{

@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, ScrollView, Image, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, constant, logError } from "@common";
+import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
 import { getOrCreateSummary, getDailyActivity } from "../../database/analytics";
 import useDashboardTheme, { GOLD } from "./dashboardTheme";
 import DayDetailModal from "./DayDetailModal";
@@ -29,7 +29,6 @@ const FLOWERS = [
 const THRESHOLDS = [1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 180, 270, 365];
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
-const DAYS_TO_SHOW = 35;
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
@@ -45,8 +44,8 @@ const styles = StyleSheet.create({
   flowerImg: { width: 44, height: 44 },
   flowerImgFuture: { opacity: 0.28 },
   flowerLabel: { fontSize: 11, fontWeight: "600" },
-  dayStrip: { gap: 10, paddingTop: 16, paddingRight: 4 },
-  dayCol: { alignItems: "center", gap: 6 },
+  weekRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 18 },
+  dayCol: { flex: 1, alignItems: "center", gap: 6 },
   dayDot: {
     width: 34,
     height: 34,
@@ -54,7 +53,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dotNum: { fontSize: 12, fontWeight: "500" },
   dayLabel: { fontSize: 12, fontWeight: "500" },
 });
 
@@ -85,9 +83,11 @@ const qualifies = (row) =>
   ((row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
     (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS);
 
+const hasAnyActivity = (row) =>
+  !!row && ((row.reading_seconds ?? 0) > 0 || (row.listening_seconds ?? 0) > 0);
+
 const StreakCard = ({ refreshKey }) => {
-  const { primaryText, mutedText, accentBlue } = useDashboardTheme();
-  const dayScrollRef = useRef(null);
+  const { primaryText, mutedText, accentBlue, separator } = useDashboardTheme();
   const [current, setCurrent] = useState(0);
   const [longest, setLongest] = useState(0);
   const [days, setDays] = useState([]);
@@ -104,14 +104,19 @@ const StreakCard = ({ refreshKey }) => {
           setLongest(summary.longest_streak ?? 0);
         }
 
-        // Activity for every month the last DAYS_TO_SHOW days touch.
+        // Current week, Monday-first (M T W T F S S).
         const today = new Date();
-        const months = new Set();
-        Array.from({ length: DAYS_TO_SHOW }).forEach((_, i) => {
-          const d = new Date(today);
-          d.setDate(today.getDate() - i);
-          months.add(`${d.getFullYear()}-${d.getMonth() + 1}`);
+        const mondayOffset = (today.getDay() + 6) % 7; // days since Monday
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - mondayOffset);
+        const weekDates = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return d;
         });
+
+        // Activity for the month(s) this week touches.
+        const months = new Set(weekDates.map((d) => `${d.getFullYear()}-${d.getMonth() + 1}`));
         const monthRows = await Promise.all(
           [...months].map((mk) => {
             const [y, m] = mk.split("-");
@@ -124,16 +129,15 @@ const StreakCard = ({ refreshKey }) => {
         });
 
         const todayStr = ymd(today);
-        const list = Array.from({ length: DAYS_TO_SHOW }, (_, i) => {
-          const d = new Date(today);
-          d.setDate(today.getDate() - (DAYS_TO_SHOW - 1 - i));
+        const list = weekDates.map((d) => {
           const key = ymd(d);
           return {
             date: key,
-            dayNum: d.getDate(),
             letter: DAY_LETTERS[d.getDay()],
             done: qualifies(map[key]),
+            hasActivity: hasAnyActivity(map[key]),
             isToday: key === todayStr,
+            isFuture: key > todayStr,
           };
         });
         if (active) setDays(list);
@@ -146,8 +150,13 @@ const StreakCard = ({ refreshKey }) => {
     };
   }, [refreshKey]);
 
-  const openDay = useCallback((date) => {
-    setModalDate(date);
+  const openDay = useCallback((day) => {
+    // No activity on this day → quick toast instead of an empty detail sheet.
+    if (!day.hasActivity) {
+      showInfoToast(STRINGS.NO_ACTIVITY);
+      return;
+    }
+    setModalDate(day.date);
     setModalVisible(true);
   }, []);
 
@@ -198,37 +207,35 @@ const StreakCard = ({ refreshKey }) => {
         })}
       </ScrollView>
 
-      {/* Calendar day strip — tap a day to see its detail */}
-      <ScrollView
-        ref={dayScrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dayStrip}
-        onContentSizeChange={() => dayScrollRef.current?.scrollToEnd({ animated: false })}
-      >
+      {/* Current-week activity strip — minimal: weekday letters only, no dates.
+          done = filled gold + check, today = gold ring, past-missed = dashed,
+          future = faint ring. Tap a day for its detail / no-activity toast. */}
+      <View style={styles.weekRow}>
         {days.map((s) => (
-          <Pressable key={s.date} style={styles.dayCol} onPress={() => openDay(s.date)}>
+          <Pressable key={s.date} style={styles.dayCol} onPress={() => openDay(s)}>
             <View
               style={[
                 styles.dayDot,
                 s.done && { backgroundColor: GOLD, borderColor: GOLD },
                 !s.done &&
-                  !s.isToday && { borderColor: mutedText, borderWidth: 1.5, borderStyle: "dashed" },
-                s.isToday && { borderColor: GOLD, borderWidth: 2 },
+                  !s.isToday &&
+                  !s.isFuture && {
+                    borderColor: mutedText,
+                    borderWidth: 1.5,
+                    borderStyle: "dashed",
+                  },
+                !s.done && s.isFuture && { borderColor: separator, borderWidth: 1.5 },
+                !s.done && s.isToday && { borderColor: GOLD, borderWidth: 2 },
               ]}
             >
-              {s.done ? (
-                <CheckIcon color="#fff" />
-              ) : (
-                <CustomText style={[styles.dotNum, { color: s.isToday ? GOLD : mutedText }]}>
-                  {s.dayNum}
-                </CustomText>
-              )}
+              {s.done ? <CheckIcon color="#fff" /> : null}
             </View>
-            <CustomText style={[styles.dayLabel, { color: mutedText }]}>{s.letter}</CustomText>
+            <CustomText style={[styles.dayLabel, { color: s.isToday ? GOLD : mutedText }]}>
+              {s.letter}
+            </CustomText>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
       <DayDetailModal
         visible={modalVisible}

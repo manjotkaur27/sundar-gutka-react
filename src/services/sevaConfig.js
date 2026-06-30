@@ -90,6 +90,8 @@ const buildConfig = (dyn) => ({
     ...FILLER_CONFIG.content,
     description: STRINGS.SEVA_DESCRIPTION,
     footerText: STRINGS.SEVA_FOOTER_TEXT,
+    taxMessage: STRINGS.SEVA_TAX_DEDUCTIBLE,
+    nonUsTaxMessage: STRINGS.SEVA_NON_US_TAX,
   },
 });
 

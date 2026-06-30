@@ -1,5 +1,10 @@
 import { constant, logError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
+import { readFreshCache, writeCache } from "./dailyCache";
+
+// Persist the resolved word for the day so it stays available offline within the
+// same calendar day (rolls over at local midnight).
+const CACHE_KEY = "@word_of_day_cache_v1";
 
 // Word of the Day for the Discover section.
 // Source priority:
@@ -19,18 +24,31 @@ import { isOnline, OfflineError } from "./connectivity";
 const HUKAMNAMA_FALLBACK_URL = "https://api.banidb.com/v2/hukamnamas/today";
 const hukamnamaUrl = () => constant.DAILY_VAAK_API_URL || HUKAMNAMA_FALLBACK_URL;
 
-const MOCK_WORDS = [
-  { gurmukhi: "ਨਦਰਿ", transliteration: "nadar", meaning: "The glance of grace; divine mercy." },
-  { gurmukhi: "ਸਹਜ", transliteration: "sahaj", meaning: "Intuitive peace; natural equilibrium." },
-  { gurmukhi: "ਹੁਕਮ", transliteration: "hukam", meaning: "The Divine Order; God's command." },
-  { gurmukhi: "ਸੇਵਾ", transliteration: "sevaa", meaning: "Selfless service." },
-  { gurmukhi: "ਅਨੰਦ", transliteration: "anand", meaning: "Bliss; spiritual joy." },
+// Offline fallback dictionary — shown (rotating one per day) when there is no
+// connectivity and no fresh same-day cache. Curated Gurbani vocabulary.
+const FALLBACK_WORDS = [
+  { gurmukhi: "ਸੂਰਮਾ", transliteration: "Soorma", meaning: "A warrior" },
+  { gurmukhi: "ਕਟੋਰੀ", transliteration: "Katori", meaning: "A bowl" },
+  { gurmukhi: "ਚਾਤ੍ਰਿਕ", transliteration: "Chatrik", meaning: "Pied Cuckoo (a song bird)" },
+  { gurmukhi: "ਬਿਸਾਰਿ", transliteration: "Bisaar", meaning: "To forget" },
+  { gurmukhi: "ਬੇਨੰਤੀਆ", transliteration: "Benantiya", meaning: "Prayer or request" },
+  { gurmukhi: "ਦੀਪਕ", transliteration: "Deepak", meaning: "Oil lamp" },
+  { gurmukhi: "ਚਿੰਤਾ", transliteration: "Chinta", meaning: "Worry or anxiety" },
+  { gurmukhi: "ਕ੍ਰਿਪਾਨ", transliteration: "Kirpaan", meaning: "Sword" },
+  { gurmukhi: "ਧਨੁ", transliteration: "Dhan", meaning: "Wealth" },
+  {
+    gurmukhi: "ਸੁਰਾਹੀ",
+    transliteration: "Surahi",
+    meaning: "Goglet (clay vessel for drinking water)",
+  },
+  { gurmukhi: "ਮੀਨ", transliteration: "Meen", meaning: "Fish" },
+  { gurmukhi: "ਰਾਈ", transliteration: "Rayi", meaning: "Mustard seed" },
 ];
 
-const mockWord = () => {
+const fallbackWord = () => {
   const start = new Date(new Date().getFullYear(), 0, 0);
   const dayOfYear = Math.floor((new Date() - start) / 86400000);
-  return { ...MOCK_WORDS[dayOfYear % MOCK_WORDS.length], _source: "mock" };
+  return { ...FALLBACK_WORDS[dayOfYear % FALLBACK_WORDS.length], _source: "fallback" };
 };
 
 const fetchJson = async (url) => {
@@ -96,20 +114,26 @@ const deriveFromHukamnama = (data) => {
   // Raw BaniDB shape: { shabads:[{ verses:[...] }] }
   const verse = data?.shabads?.[0]?.verses?.[0];
   if (!verse) return null;
-  const translitLine =
-    verse?.transliteration?.english || verse?.transliteration?.en || "";
+  const translitLine = verse?.transliteration?.english || verse?.transliteration?.en || "";
   const picked = pickWord(verse?.verse?.unicode, translitLine);
   if (!picked) return null;
   return { ...picked, meaning: verse?.translation?.en?.bdb ?? "", _source: "hukamnama" };
 };
 
 export const getWordOfDay = async ({ requireOnline = false } = {}) => {
+  // 0. Today's cached word (same local day) → serve it, even offline.
+  const cached = await readFreshCache(CACHE_KEY);
+  if (cached) return cached;
+
   // 1. Dedicated backend endpoint, when configured.
   const url = constant.WORD_OF_DAY_API_URL;
   if (url) {
     try {
       const mapped = mapWord(await fetchJson(url));
-      if (mapped) return mapped;
+      if (mapped) {
+        writeCache(CACHE_KEY, mapped);
+        return mapped;
+      }
     } catch (err) {
       logError(new Error(`getWordOfDay (api) failed: ${err?.message || err}`));
     }
@@ -119,14 +143,18 @@ export const getWordOfDay = async ({ requireOnline = false } = {}) => {
   try {
     if (requireOnline && !(await isOnline())) throw new OfflineError();
     const derived = deriveFromHukamnama(await fetchJson(hukamnamaUrl()));
-    if (derived) return derived;
+    if (derived) {
+      writeCache(CACHE_KEY, derived);
+      return derived;
+    }
   } catch (err) {
     if (err instanceof OfflineError) throw err;
     logError(new Error(`getWordOfDay (hukamnama) failed: ${err?.message || err}`));
   }
 
-  // 3. Local fallback so the card is never empty.
-  return mockWord();
+  // 3. Offline / no internet for more than a day → rotating curated word.
+  //    Not cached, so a real word replaces it as soon as connectivity returns.
+  return fallbackWord();
 };
 
 export default getWordOfDay;

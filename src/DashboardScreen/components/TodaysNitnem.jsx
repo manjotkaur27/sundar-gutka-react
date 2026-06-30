@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 14,
   },
-  primaryBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  primaryBtnText: { color: "#fff", fontSize: 13, fontWeight: "600", flexShrink: 1 },
   secondaryBtn: {
     flex: 1,
     flexDirection: "row",
@@ -62,10 +62,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     paddingVertical: 13,
+    paddingHorizontal: 8,
     borderRadius: 14,
     borderWidth: 1.5,
   },
-  secondaryBtnText: { fontSize: 13, fontWeight: "600" },
+  secondaryBtnText: { fontSize: 13, fontWeight: "600", flexShrink: 1 },
 });
 
 const ProgressRing = ({ done, total, accent, track, textColor }) => {
@@ -339,7 +340,12 @@ const TodaysNitnem = ({ refreshKey }) => {
               disabled={!firstIncomplete}
             >
               <PlayIcon color="#fff" />
-              <CustomText style={styles.primaryBtnText} numberOfLines={1}>
+              <CustomText
+                style={styles.primaryBtnText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
                 {firstIncomplete
                   ? `${STRINGS.CONTINUE} · ${nameOf(firstIncomplete) || ""}`
                       .trim()
@@ -355,7 +361,12 @@ const TodaysNitnem = ({ refreshKey }) => {
               onPress={markAllDone}
             >
               <TickIcon color={accentBlue} />
-              <CustomText style={[styles.secondaryBtnText, { color: accentBlue }]}>
+              <CustomText
+                style={[styles.secondaryBtnText, { color: accentBlue }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
                 {STRINGS.MARK_DONE}
               </CustomText>
             </Pressable>

@@ -14,11 +14,7 @@ const GURDEV_ARTIST_NAME = "Giani Gurdev Singh";
 
 // Keywords used by the filter gate
 const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan", "gurdev"];
-const ALLOWED_ARTIST_URL_KEYWORDS = [
-  "bhaijarnailsingh",
-  "indermohankauruk",
-  "gianigurdevsingh",
-];
+const ALLOWED_ARTIST_URL_KEYWORDS = ["bhaijarnailsingh", "indermohankauruk", "gianigurdevsingh"];
 
 // ─── Saviye (bani 6) Jarnail track override ──────────────────────────────────
 const SAVIYE_BANI_ID = 6;
@@ -201,7 +197,7 @@ const INDERMOHAN_TRACKS_BY_BANI = {
       track_id: 2021,
       track_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.m4a`,
       track_length_seconds: 1145,
-      track_size_mb: 17.80,
+      track_size_mb: 17.8,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.json`,
@@ -267,7 +263,7 @@ const GURDEV_TRACKS_BY_BANI = {
       track_id: 3009,
       track_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.m4a`,
       track_length_seconds: 378,
-      track_size_mb: 5.90,
+      track_size_mb: 5.9,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.json`,
@@ -358,15 +354,11 @@ const mergeStaticTracksForBani = (baniId, tracks, staticMap) => {
  */
 const getInjectedManifestForBani = (baniId) => {
   const numericId = Number(baniId);
-  const jarnailTracks = (JARNAIL_TRACKS_BY_BANI[numericId] || []).map(
-    attachLyricsUrlIfAvailable
-  );
+  const jarnailTracks = (JARNAIL_TRACKS_BY_BANI[numericId] || []).map(attachLyricsUrlIfAvailable);
   const indermohanTracks = (INDERMOHAN_TRACKS_BY_BANI[numericId] || []).map(
     attachLyricsUrlIfAvailable
   );
-  const gurdevTracks = (GURDEV_TRACKS_BY_BANI[numericId] || []).map(
-    attachLyricsUrlIfAvailable
-  );
+  const gurdevTracks = (GURDEV_TRACKS_BY_BANI[numericId] || []).map(attachLyricsUrlIfAvailable);
 
   const allTracks = [...jarnailTracks, ...indermohanTracks, ...gurdevTracks];
 
@@ -480,26 +472,90 @@ const mapArtistData = (artist) => ({
   description: artist.description,
 });
 
+// ─── Khalis backend audio source ──────────────────────────────────────────────
+// Preferred remote manifest source. The backend groups reciters by length and
+// uses different field names + the raw blob host; this adapter flattens the
+// groups, dedupes by trackId, maps to the app's track shape, and rewrites the
+// asset host to our CDN (BLOB_BASE) so URLs match the static maps exactly
+// (track_ids/paths are identical, so persisted defaults/progress/downloads stay
+// valid). The result is fed through applyManifestOverrides like any other source.
+
+// Rewrite the backend's blob URL (…/audios/<path>) to the app's CDN host, keeping
+// the artist-relative path. Leaves anything without an /audios/ segment untouched.
+const toCdnUrl = (url) => {
+  if (!url) return url;
+  const marker = "/audios/";
+  const idx = url.indexOf(marker);
+  return idx >= 0 ? `${BLOB_BASE}/${url.slice(idx + marker.length)}` : url;
+};
+
+const fetchFromKhalis = async (baniId) => {
+  const base = constant.AUDIO_API_BASE;
+  if (!base) return null;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(`${base}/${baniId}`, { signal: controller.signal });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const groups = json?.data;
+    if (!groups || typeof groups !== "object") return null;
+
+    // Flatten all length groups; a track can appear in several, so dedupe by id.
+    const byTrackId = new Map();
+    Object.values(groups).forEach((group) => {
+      (group?.artists ?? []).forEach((a) => {
+        if (!a || a.trackId == null || byTrackId.has(a.trackId)) return;
+        byTrackId.set(a.trackId, {
+          bani_id: Number(baniId),
+          track_id: a.trackId,
+          track_url: toCdnUrl(a.link),
+          track_length_seconds: a.durationSeconds ?? 0,
+          track_size_mb: a.sizeMb ?? 0,
+          artist_name: a.name ?? "",
+          artist_id: a.artistId,
+          lyrics_url: a.lyricsUrl ? toCdnUrl(a.lyricsUrl) : null,
+        });
+      });
+    });
+    const tracks = [...byTrackId.values()];
+    return tracks.length ? tracks : null;
+  } catch (_) {
+    // Silent — caller falls back to the STTM API + static maps.
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const fetchManifest = async (baniId) => {
-  const data = await makeApiRequest(`/banis/${baniId}`);
-
-  if (!data?.data?.length) {
-    // No remote data — build entirely from static maps
-    if (Number(baniId) === SAVIYE_BANI_ID) {
-      const fallbackData = applyManifestOverrides(baniId, SAVIYE_FALLBACK_MANIFEST);
-      return fallbackData?.data?.length ? fallbackData : null;
-    }
-
-    const injectedManifest = getInjectedManifestForBani(baniId);
-    if (injectedManifest?.data?.length) return injectedManifest;
-
-    return null;
+  // 1. Khalis backend (preferred remote source). Runs through the same override
+  //    pipeline as every other source, so the reciter whitelist, .m4a enforcement,
+  //    Saviye pin, and trimmed-Rehras static override all still apply.
+  const khalisTracks = await fetchFromKhalis(baniId);
+  if (khalisTracks?.length) {
+    const khalisData = applyManifestOverrides(baniId, { status: "success", data: khalisTracks });
+    if (khalisData?.data?.length) return khalisData;
   }
 
-  const filteredData = applyManifestOverrides(baniId, data);
-  return filteredData?.data?.length ? filteredData : null;
+  // 2. Legacy STTM API (fallback while the backend audio endpoint rolls out).
+  const data = await makeApiRequest(`/banis/${baniId}`);
+  if (data?.data?.length) {
+    const filteredData = applyManifestOverrides(baniId, data);
+    if (filteredData?.data?.length) return filteredData;
+  }
+
+  // 3. Bundled static maps (offline / both remotes empty).
+  if (Number(baniId) === SAVIYE_BANI_ID) {
+    const fallbackData = applyManifestOverrides(baniId, SAVIYE_FALLBACK_MANIFEST);
+    if (fallbackData?.data?.length) return fallbackData;
+  }
+  const injectedManifest = getInjectedManifestForBani(baniId);
+  if (injectedManifest?.data?.length) return injectedManifest;
+
+  return null;
 };
 
 export const fetchArtists = async () => {

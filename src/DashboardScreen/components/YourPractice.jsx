@@ -8,11 +8,20 @@ import {
   getReadingListeningTotals,
   getOrCreateSummary,
 } from "../../database/analytics";
-import SectionLabel from "./SectionLabel";
 import useDashboardTheme from "./dashboardTheme";
+import SectionLabel from "./SectionLabel";
 
 const BookIcon = ({ color }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <Svg
+    width={20}
+    height={20}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <Path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
     <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
   </Svg>
@@ -20,7 +29,16 @@ const BookIcon = ({ color }) => (
 BookIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const ClockIcon = ({ color }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <Svg
+    width={20}
+    height={20}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <Circle cx="12" cy="12" r="10" />
     <Polyline points="12 6 12 12 16 14" />
   </Svg>
@@ -56,7 +74,7 @@ const MiniStat = ({ value, unit, label, accent, primaryText, mutedText }) => (
   <View style={styles.miniStat}>
     <View style={styles.miniRow}>
       <CustomText style={[styles.miniValue, { color: primaryText }]}>{value}</CustomText>
-      <CustomText style={[styles.miniUnit, { color: accent }]}> {unit}</CustomText>
+      <CustomText style={[styles.miniUnit, { color: accent }]}>{unit}</CustomText>
     </View>
     <CustomText style={[styles.miniLabel, { color: mutedText }]}>{label}</CustomText>
   </View>
@@ -125,12 +143,40 @@ const YourPractice = ({ refreshKey }) => {
 
           {/* Lifetime stats (2×2) */}
           <View style={styles.miniRowWrap}>
-            <MiniStat value={readStat.value} unit={readStat.unit} label={STRINGS.TOTAL_READING_HRS} accent={accentBlue} primaryText={primaryText} mutedText={mutedText} />
-            <MiniStat value={listenStat.value} unit={listenStat.unit} label={STRINGS.TOTAL_LISTENING_HRS} accent={accentBlue} primaryText={primaryText} mutedText={mutedText} />
+            <MiniStat
+              value={readStat.value}
+              unit={readStat.unit}
+              label={STRINGS.TOTAL_READING_HRS}
+              accent={accentBlue}
+              primaryText={primaryText}
+              mutedText={mutedText}
+            />
+            <MiniStat
+              value={listenStat.value}
+              unit={listenStat.unit}
+              label={STRINGS.TOTAL_LISTENING_HRS}
+              accent={accentBlue}
+              primaryText={primaryText}
+              mutedText={mutedText}
+            />
           </View>
           <View style={[styles.miniRowWrap, styles.miniRow2]}>
-            <MiniStat value={String(longest)} unit="days" label={STRINGS.LONGEST_STREAK} accent={accentBlue} primaryText={primaryText} mutedText={mutedText} />
-            <MiniStat value={String(activeDays)} unit="total" label={STRINGS.TOTAL_ACTIVE_DAYS} accent={accentBlue} primaryText={primaryText} mutedText={mutedText} />
+            <MiniStat
+              value={String(longest)}
+              unit="days"
+              label={STRINGS.LONGEST_STREAK}
+              accent={accentBlue}
+              primaryText={primaryText}
+              mutedText={mutedText}
+            />
+            <MiniStat
+              value={String(activeDays)}
+              unit="total"
+              label={STRINGS.TOTAL_ACTIVE_DAYS}
+              accent={accentBlue}
+              primaryText={primaryText}
+              mutedText={mutedText}
+            />
           </View>
         </View>
       </View>
@@ -156,7 +202,7 @@ const styles = StyleSheet.create({
   miniStat: { flex: 1 },
   miniRow: { flexDirection: "row", alignItems: "baseline" },
   miniValue: { fontSize: 22, fontWeight: "600" },
-  miniUnit: { fontSize: 12, fontWeight: "500" },
+  miniUnit: { fontSize: 12, fontWeight: "500", marginLeft: 5 },
   miniLabel: { fontSize: 11, fontWeight: "500", letterSpacing: 0.6, marginTop: 2 },
 });
 

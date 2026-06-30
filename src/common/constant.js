@@ -146,8 +146,10 @@ export default {
     WEEK_CHART: "weekChart",
     DISCOVER: "discover",
     REMINDERS: "reminders",
-    RANDOM_SHABAD: "randomShabad",
-    VAAK: "vaak",
+    // Combined tabbed card (Today's Vaak + Random Shabad). Replaces the former
+    // standalone RANDOM_SHABAD ("randomShabad") and VAAK ("vaak") sections; those
+    // legacy keys are migrated/stripped on rehydrate (see reducer.js).
+    SHABAD_VAAK: "shabadVaak",
   },
   // Minimum number of visible sections the user must keep when customizing layout.
   DASHBOARD_MIN_VISIBLE: 4,
@@ -161,9 +163,18 @@ export default {
   WORD_OF_DAY_API_URL: `${KHALIS_API_BASE}/dashboard/word-of-day`,
   DASHBOARD_SYNC_API_URL: `${KHALIS_API_BASE}/dashboard/cache`, // POST, Bearer JWT
   DASHBOARD_LATEST_API_URL: `${KHALIS_API_BASE}/dashboard/latest`, // GET, Bearer JWT
+  // Khalis audio catalog (public, no auth): GET /audios/:baniId. Preferred remote
+  // manifest source; the app falls back to the legacy STTM API + bundled static
+  // maps when this is unreachable or not yet deployed, so it is safe to point here
+  // before the backend ships /audios. One-line swap with KHALIS_API_BASE later.
+  AUDIO_API_BASE: `${KHALIS_API_BASE}/audios`,
   // Random Shabad stays on BaniDB directly (backend proxy was dropped).
   RANDOM_SHABAD_API_URL: "",
-  UPCOMING_EVENTS_API_URL: "",
+  // Backend serves the yearly Gurpurab/events feed here (CMS-style — updated
+  // server-side once a year, no app release needed). The app falls back to its
+  // bundled local computation when this is unreachable or not yet deployed, so it
+  // is safe to point at the endpoint before the backend ships it.
+  UPCOMING_EVENTS_API_URL: `${KHALIS_API_BASE}/dashboard/events`,
   NANAKSHAHI_API_URL: "",
   // Reachability probe for dashboard network services (see services/dashboard/
   // connectivity.js). Same globally-distributed 204 endpoint the app's NetInfo

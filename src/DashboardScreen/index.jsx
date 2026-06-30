@@ -2,18 +2,11 @@ import React, { useState, useCallback } from "react";
 import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  SafeArea,
-  StatusBarComponent,
-  useTheme,
-  logError,
-  trackJourneyView,
-} from "@common";
+import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } from "@common";
 import { getOrCreateSummary } from "../database/analytics";
 import { computeStreaks } from "../services/streakEngine";
 import DashboardHeader from "./components/DashboardHeader";
 import LayoutEditOverlay from "./components/LayoutEditOverlay";
-import EditNameModal from "./components/EditNameModal";
 import { SECTION_REGISTRY } from "./components/sectionRegistry";
 import useDashboardSync from "./useDashboardSync";
 
@@ -27,7 +20,6 @@ const DashboardScreen = () => {
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [layoutEditVisible, setLayoutEditVisible] = useState(false);
-  const [editNameVisible, setEditNameVisible] = useState(false);
 
   // Cross-device sync (dormant until SSO/JWT exists — see useDashboardSync).
   useDashboardSync();
@@ -43,7 +35,7 @@ const DashboardScreen = () => {
           const summary = await getOrCreateSummary();
           if (active && summary) {
             trackJourneyView(summary.current_streak ?? 0, summary.total_days_active ?? 0).catch(
-              () => {},
+              () => {}
             );
           }
         } catch (err) {
@@ -55,12 +47,12 @@ const DashboardScreen = () => {
         active = false;
         task.cancel();
       };
-    }, []),
+    }, [])
   );
 
   const bg = theme.mode === "dark" ? theme.colors.inactiveView : "#ffffff";
   const visibleSections = layout.order.filter(
-    (key) => !layout.hidden.includes(key) && SECTION_REGISTRY[key],
+    (key) => !layout.hidden.includes(key) && SECTION_REGISTRY[key]
   );
 
   return (
@@ -72,11 +64,7 @@ const DashboardScreen = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <DashboardHeader
-          onMenuPress={() => setLayoutEditVisible(true)}
-          onAvatarPress={() => setEditNameVisible(true)}
-          onEditName={() => setEditNameVisible(true)}
-        />
+        <DashboardHeader onMenuPress={() => setLayoutEditVisible(true)} />
 
         {visibleSections.map((key) => {
           const { Component } = SECTION_REGISTRY[key];
@@ -89,7 +77,6 @@ const DashboardScreen = () => {
       </ScrollView>
 
       <LayoutEditOverlay visible={layoutEditVisible} onClose={() => setLayoutEditVisible(false)} />
-      <EditNameModal visible={editNameVisible} onClose={() => setEditNameVisible(false)} />
     </SafeArea>
   );
 };

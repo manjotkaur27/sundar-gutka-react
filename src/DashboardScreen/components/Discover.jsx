@@ -3,8 +3,8 @@ import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, logError } from "@common";
 import { getWordOfDay, getNextEvent } from "../../services/dashboard";
-import SectionLabel from "./SectionLabel";
 import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import SectionLabel from "./SectionLabel";
 
 const Discover = ({ refreshKey }) => {
   const { card, accentBlue, primaryText, mutedText } = useDashboardTheme();
@@ -13,9 +13,15 @@ const Discover = ({ refreshKey }) => {
 
   useEffect(() => {
     let active = true;
-    getWordOfDay().then((w) => active && setWord(w)).catch(logError);
-    getNextEvent().then((e) => active && setEvent(e)).catch(logError);
-    return () => { active = false; };
+    getWordOfDay()
+      .then((w) => active && setWord(w))
+      .catch(logError);
+    getNextEvent()
+      .then((e) => active && setEvent(e))
+      .catch(logError);
+    return () => {
+      active = false;
+    };
   }, [refreshKey]);
 
   return (
@@ -49,12 +55,18 @@ const Discover = ({ refreshKey }) => {
           <CustomText style={[styles.translit, { color: mutedText }]}>
             {event ? STRINGS.DAYS_AWAY : ""}
           </CustomText>
-          <CustomText style={[styles.eventName, { color: primaryText }]} numberOfLines={1}>
+          <CustomText
+            style={[styles.eventName, { color: primaryText }]}
+            numberOfLines={3}
+            ellipsizeMode="tail"
+          >
             {event?.name ?? ""}
           </CustomText>
-          <CustomText style={[styles.meaning, { color: mutedText }]} numberOfLines={1}>
-            {event?.subtitle ?? ""}
-          </CustomText>
+          {event?.subtitle ? (
+            <CustomText style={[styles.meaning, { color: mutedText }]} numberOfLines={1}>
+              {event.subtitle}
+            </CustomText>
+          ) : null}
         </View>
       </View>
     </View>
@@ -69,10 +81,10 @@ const styles = StyleSheet.create({
   card: { flex: 1, padding: 16, aspectRatio: 1, overflow: "hidden" },
   cardTag: { fontSize: 10, fontWeight: "600", letterSpacing: 0.8, marginBottom: 6 },
   word: { fontSize: 22, fontWeight: "600", lineHeight: 28 },
-  bigNum: { fontSize: 24, fontWeight: "700", lineHeight: 30 },
+  bigNum: { fontSize: 22, fontWeight: "700", lineHeight: 26 },
   translit: { fontSize: 12, marginTop: 2 },
   meaning: { fontSize: 12, marginTop: 6, lineHeight: 16 },
-  eventName: { fontSize: 13, fontWeight: "600", marginTop: 6 },
+  eventName: { fontSize: 12, fontWeight: "600", marginTop: 5, lineHeight: 15 },
 });
 
 export default Discover;

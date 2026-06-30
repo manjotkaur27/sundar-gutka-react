@@ -43,26 +43,29 @@ const ChevronRight = ({ color }) => (
 );
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
-const RandomShabad = ({ refreshKey }) => {
+const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
   const { card, isDark, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const [shabad, setShabad] = useState(null);
 
   const load = useCallback(() => {
+    setShabad(null);
     getRandomShabad({ language: transliterationLanguage }).then(setShabad).catch(logError);
   }, [transliterationLanguage]);
 
+  // reloadNonce: the parent's shuffle (when embedded) bumps this to re-fetch.
   useEffect(() => {
     load();
-  }, [load, refreshKey]);
+  }, [load, refreshKey, reloadNonce]);
 
   // A local-DB tukk has no ang/raag/shabadId, so hide the Ang·Raag + Read row.
   const showFooter = !!shabad?.shabadId;
 
-  return (
-    <View style={styles.wrap}>
-      <View style={[card, styles.card]}>
-        {/* Title + shuffle live inside the tile */}
+  const body = (
+    <>
+      {/* Standalone: title + shuffle in the header. Embedded: the parent provides
+          the tab title + shuffle, so neither is rendered here. */}
+      {embedded ? null : (
         <View style={styles.headerRow}>
           <CustomText style={[styles.cardTitle, { color: GOLD }]}>
             {STRINGS.RANDOM_SHABAD.toUpperCase()}
@@ -81,49 +84,61 @@ const RandomShabad = ({ refreshKey }) => {
             </CustomText>
           </Pressable>
         </View>
+      )}
 
-        {(shabad?.lines ?? []).map((line, i) => (
-          <CustomText key={i} style={[styles.gurmukhi, { color: primaryText }]}>
-            {line}
-          </CustomText>
-        ))}
-        {shabad?.translation ? (
-          <CustomText style={[styles.translation, { color: mutedText }]}>
-            {shabad.translation}
-          </CustomText>
-        ) : null}
+      {!shabad ? <CustomText style={[styles.loading, { color: mutedText }]}>…</CustomText> : null}
+      {(shabad?.lines ?? []).map((line, i) => (
+        <CustomText key={i} style={[styles.gurmukhi, { color: primaryText }]}>
+          {line}
+        </CustomText>
+      ))}
+      {shabad?.translation ? (
+        <CustomText style={[styles.translation, { color: mutedText }]}>
+          {shabad.translation}
+        </CustomText>
+      ) : null}
 
-        {showFooter ? (
-          <>
-            <View style={[styles.footerDivider, { backgroundColor: separator }]} />
-            <View style={styles.footer}>
-              <CustomText style={[styles.meta, { color: mutedText }]}>
-                {[shabad.ang ? `Ang ${shabad.ang}` : null, shabad.raag || null]
-                  .filter(Boolean)
-                  .join(" · ")}
+      {showFooter ? (
+        <>
+          <View style={[styles.footerDivider, { backgroundColor: separator }]} />
+          <View style={styles.footer}>
+            <CustomText style={[styles.meta, { color: mutedText }]}>
+              {[shabad.ang ? `Ang ${shabad.ang}` : null, shabad.raag || null]
+                .filter(Boolean)
+                .join(" · ")}
+            </CustomText>
+            <Pressable
+              style={styles.readLink}
+              hitSlop={6}
+              onPress={() =>
+                openInAppBrowser(`https://www.sikhitothemax.org/shabad?id=${shabad.shabadId}`)
+              }
+            >
+              <CustomText style={[styles.readText, { color: accentBlue }]}>
+                {STRINGS.READ_SHABAD}
               </CustomText>
-              <Pressable
-                style={styles.readLink}
-                hitSlop={6}
-                onPress={() =>
-                  openInAppBrowser(`https://www.sikhitothemax.org/shabad?id=${shabad.shabadId}`)
-                }
-              >
-                <CustomText style={[styles.readText, { color: accentBlue }]}>
-                  {STRINGS.READ_SHABAD}
-                </CustomText>
-                <ChevronRight color={accentBlue} />
-              </Pressable>
-            </View>
-          </>
-        ) : null}
-      </View>
+              <ChevronRight color={accentBlue} />
+            </Pressable>
+          </View>
+        </>
+      ) : null}
+    </>
+  );
+
+  if (embedded) return body;
+  return (
+    <View style={styles.wrap}>
+      <View style={[card, styles.card]}>{body}</View>
     </View>
   );
 };
 
-RandomShabad.propTypes = { refreshKey: PropTypes.number };
-RandomShabad.defaultProps = { refreshKey: 0 };
+RandomShabad.propTypes = {
+  refreshKey: PropTypes.number,
+  embedded: PropTypes.bool,
+  reloadNonce: PropTypes.number,
+};
+RandomShabad.defaultProps = { refreshKey: 0, embedded: false, reloadNonce: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
@@ -135,6 +150,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: { fontSize: 12, fontWeight: "600", letterSpacing: 1.2 },
+  loading: { fontSize: 14, textAlign: "center", paddingVertical: 18 },
   gurmukhi: {
     fontSize: 19,
     fontWeight: "500",

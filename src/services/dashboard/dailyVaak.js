@@ -1,16 +1,59 @@
 import { constant, logError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
+import { readFreshCache, writeCache } from "./dailyCache";
 
-// Today's Vaak — the official daily Hukamnama from Sri Darbar Sahib.
-// Source: our backend (constant.DAILY_VAAK_API_URL) when configured, else BaniDB
-// v2 hukamnamas/today directly. If the configured backend is unreachable (e.g. a
-// teammate without the local dev server running) we fall back to BaniDB — it's the
-// same real hukamnama, so the "never fake it" guarantee holds.
+// Persist today's vaak so it stays available offline for the same IST day.
+// Keyed by the IST date (see istParts) — the official Sri Darbar Sahib Hukamnama
+// rolls over at Amritsar (IST) midnight, so the vaak must follow IST, not the
+// device timezone. v3: IST-dated fetch + IST cache key + dateLabel.
+const CACHE_KEY = "@daily_vaak_cache_v3";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Current wall-clock date in IST (UTC+5:30, no DST), regardless of device tz.
+const istParts = () => {
+  const now = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000; // local → UTC
+  const ist = new Date(utcMs + 5.5 * 3600000); // UTC → IST
+  return { y: ist.getFullYear(), m: ist.getMonth() + 1, d: ist.getDate(), wd: ist.getDay() };
+};
+const istDateKey = () => {
+  const { y, m, d } = istParts();
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+};
+const istDateLabel = () => {
+  const { y, m, d, wd } = istParts();
+  return `${WEEKDAYS[wd]}, ${d} ${MONTHS[m - 1]} ${y}`;
+};
+
+// Today's Vaak — the official daily Hukamnama from Sri Darbar Sahib, shown exactly
+// as on https://www.sikhitothemax.org/hukamnama. SikhiToTheMax is powered by
+// BaniDB, so we read BaniDB directly as the source of truth. We request the
+// hukamnama for the explicit IST date (not /today, whose meaning depends on the
+// caller's clock) so every user worldwide sees the right day's vaak. The
+// configured backend is only a secondary fallback if BaniDB is unreachable.
 //
-// Only when BOTH sources fail (or offline) does this throw, and the card shows an
+// Only when both sources fail (or offline) does this throw, and the card shows an
 // offline notice rather than presenting placeholder lines as the official vaak.
-const FALLBACK_URL = "https://api.banidb.com/v2/hukamnamas/today";
-const vaakUrl = () => constant.DAILY_VAAK_API_URL || FALLBACK_URL;
+const baniDbUrl = () => {
+  const { y, m, d } = istParts();
+  return `https://api.banidb.com/v2/hukamnamas/${y}/${m}/${d}`;
+};
+const backendUrl = () => constant.DAILY_VAAK_API_URL || "";
 
 const fetchJson = async (url) => {
   const controller = new AbortController();
@@ -24,40 +67,45 @@ const fetchJson = async (url) => {
   }
 };
 
+// Picks the first meaningful translation (skips title/header verses whose
+// translation is just a heading ending in ":", e.g. "Fourth Mehla:").
+const pickTranslation = (translations) => {
+  const trs = (translations || []).filter((t) => t && t.trim());
+  return trs.find((t) => !t.trim().endsWith(":")) || trs[0] || "";
+};
+
 // Maps a raw BaniDB hukamnama payload ({ shabads: [{ shabadInfo, verses }] }).
+// Maps EVERY verse so the card shows the complete hukamnama, like the STTM page.
 const fromBaniDb = (data) => {
   const shabad = data?.shabads?.[0];
   const info = shabad?.shabadInfo ?? {};
   const verses = Array.isArray(shabad?.verses) ? shabad.verses : [];
-  const lines = verses
-    .slice(0, 2)
-    .map((v) => v?.verse?.unicode)
-    .filter(Boolean);
+  const lines = verses.map((v) => v?.verse?.unicode).filter(Boolean);
   if (!lines.length) return null;
-  const trs = verses.map((v) => v?.translation?.en?.bdb).filter((t) => t && t.trim());
-  const translation = trs.find((t) => !t.trim().endsWith(":")) || trs[0] || "";
   return {
     lines,
-    translation,
+    translation: pickTranslation(verses.map((v) => v?.translation?.en?.bdb)),
     raag: info?.raag?.unicode ?? "",
     ang: info?.pageNo ?? verses[0]?.pageNo ?? null,
     shabadId: info?.shabadId ?? null,
     source: "Sri Darbar Sahib",
-    _source: "api",
+    dateLabel: istDateLabel(),
+    _source: "banidb",
   };
 };
 
-// Accepts either our backend's clean shape ({ lines, translation, ... }) or a raw
-// BaniDB payload.
+// Accepts our backend's clean shape ({ lines, translation, ... }) or a raw BaniDB
+// payload. Used for the secondary backend fallback only.
 const parseVaak = (data) => {
   if (Array.isArray(data?.lines) && data.lines.length) {
     return {
-      lines: data.lines.slice(0, 2),
+      lines: data.lines,
       translation: data.translation ?? "",
       raag: data.raag ?? "",
       ang: data.ang ?? null,
       shabadId: data.shabadId ?? null,
       source: data.source ?? "Sri Darbar Sahib",
+      dateLabel: istDateLabel(),
       _source: "api",
     };
   }
@@ -65,22 +113,40 @@ const parseVaak = (data) => {
 };
 
 export const getDailyVaak = async ({ requireOnline = false } = {}) => {
+  const dateKey = istDateKey();
+
+  // 1. Cached vaak for the current IST day → serve it, even offline. The daily
+  //    hukamnama is the same all day, so this avoids a refetch and keeps the card
+  //    populated when connectivity drops after the first successful load.
+  const cached = await readFreshCache(CACHE_KEY, dateKey);
+  if (cached) return cached;
+
+  // 2. No fresh cache. If offline, surface it — we never present a previous day's
+  //    vaak as today's official hukamnama.
   if (requireOnline && !(await isOnline())) {
     throw new OfflineError();
   }
-  const primary = vaakUrl();
-  let data;
+
+  // 3. BaniDB first, for the explicit IST date (the exact source the STTM
+  //    hukamnama page uses).
+  let mapped = null;
   try {
-    data = await fetchJson(primary);
+    mapped = fromBaniDb(await fetchJson(baniDbUrl()));
   } catch (err) {
-    if (primary === FALLBACK_URL) throw err; // already direct → genuine failure
-    // Configured backend unreachable → fall back to BaniDB directly.
-    logError(new Error(`daily vaak backend failed, using BaniDB: ${err?.message || err}`));
-    data = await fetchJson(FALLBACK_URL);
+    logError(new Error(`daily vaak BaniDB failed: ${err?.message || err}`));
   }
 
-  const mapped = parseVaak(data);
+  // 4. Secondary fallback: the configured backend, only if BaniDB was unreachable.
+  if (!mapped && backendUrl()) {
+    try {
+      mapped = parseVaak(await fetchJson(backendUrl()));
+    } catch (err) {
+      logError(new Error(`daily vaak backend fallback failed: ${err?.message || err}`));
+    }
+  }
+
   if (!mapped) throw new Error("daily vaak unavailable");
+  writeCache(CACHE_KEY, mapped, dateKey); // best-effort, fire-and-forget
   return mapped;
 };
 
