@@ -59,9 +59,13 @@ const HomeScreen = React.memo(({ navigation }) => {
     }
   }, [language]);
 
+  // The app UI (Home/Bookmarks lists, Reader header/title) is fixed to Baloo
+  // Paaji — there is no longer a Font Face setting. The only font control left
+  // ("Bani Font") drives just the Reader scripture text via `baniFontFace`.
+  // Reset any previously-persisted non-Baloo value here on the entry screen.
   useEffect(() => {
-    if (!fontFace) {
-      dispatch(actions.setFontFace(constant.GURBANI_AKHAR_TRUE));
+    if (fontFace !== constant.BALOO_PAAJI) {
+      dispatch(actions.setFontFace(constant.BALOO_PAAJI));
     }
   }, [fontFace]);
 

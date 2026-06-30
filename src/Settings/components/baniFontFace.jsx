@@ -6,16 +6,16 @@ import { constant, showInfoToast } from "@common";
 import { BottomSheetComponent, ListItemComponent } from "./comon";
 import { getBaniFontFaces } from "./comon/strings";
 
-// Controls only the font used for the Bani (scripture) text inside the Reader's
-// WebView — independent of FontFaceComponent, which drives Gurmukhi titles
-// elsewhere in the app (Home, Bookmarks, Reader header, etc.).
+// The only user-facing font control. Drives the Bani (scripture) text inside the
+// Reader's WebView via `baniFontFace`. The rest of the app UI (Home, Bookmarks,
+// Reader header, etc.) is fixed to Baloo Paaji — see HomeScreen's fontFace reset.
 const BaniFontFaceComponent = () => {
   const [isVisible, toggleVisible] = useState(false);
   const baniFontFace = useSelector((state) => state.baniFontFace);
   const prevBaniFontFaceRef = useRef(baniFontFace);
 
-  // Same character-rendering warning FontFaceComponent shows for Baloo Paaji —
-  // applies here too since it's the same font, just driving different text.
+  // Baloo Paaji renders a limited Gurmukhi character set; warn when it's picked
+  // for the Bani text so missing glyphs aren't a surprise.
   useEffect(() => {
     if (baniFontFace === constant.BALOO_PAAJI && prevBaniFontFaceRef.current !== constant.BALOO_PAAJI) {
       showInfoToast(STRINGS.baloo_paaji_warning);

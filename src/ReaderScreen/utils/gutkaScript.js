@@ -29,7 +29,7 @@ let syncScrollUntil = 0;
 // identically for gurmukhi, transliteration, translations, paragraph mode,
 // larivaar and vishraam spans. Each child's original size is snapshotted in a
 // data attribute and restored on every un-highlight path.
-const HIGHLIGHT_SCALE = 1.12;
+const HIGHLIGHT_SCALE = 1.25;
 
 const enlargeElement = (element) => {
   if (!element) return;

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Animated, View, Dimensions, Platform } from "react-native";
+import { FlatList, Animated, View, Dimensions, Platform, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
 import { ListItem, Avatar } from "@rneui/themed";
 import createStyles from "@settings/styles";
@@ -61,7 +61,10 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
             // Folder rows match the home bani-list exactly (same dark navy in
             // dark mode), so the folders section feels like part of home.
             backgroundColor: isDarkMode ? "#041126" : theme.colors.surface,
-            paddingVertical: 8,
+            // Default vertical padding (no override) keeps rows at the roomier
+            // height, with a sleek per-theme hairline divider between them.
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: theme.colors.separator,
           }}
           onPress={() => onPress(row)}
         >

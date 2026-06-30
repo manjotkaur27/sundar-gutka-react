@@ -74,6 +74,19 @@ const createStyles = (theme) => ({
     textAlign: "center",
     opacity: 0.8,
   },
+  // Ik Onkar "<>" ligature — Gurbani font so it keeps the elongated stroke.
+  // Colour is inherited from newHeaderInvocationText to stay on-theme.
+  ikOnkarGlyph: {
+    fontFamily: theme.typography.fonts.gurbaniPrimary,
+    fontSize: 18,
+  },
+  // Floral ornaments ("Œ"/"‰") flanking the title — Gurbani font, tinted with
+  // the title colour so they track light/dark like the rest of the header.
+  titleFlower: {
+    fontFamily: theme.typography.fonts.gurbaniPrimary,
+    fontSize: theme.typography.sizes.huge,
+    color: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+  },
   newHeaderTitleText: {
     fontSize: 32,
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,

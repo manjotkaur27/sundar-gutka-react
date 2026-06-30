@@ -112,22 +112,38 @@ const ManageDownloads = ({ navigation }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // SectionList data: completed entries grouped by artist, plus in-progress queue items.
+  // SectionList data: completed entries grouped by bani, plus in-progress queue
+  // items. Each bani section lists its related downloads (one row per artist).
   const sections = useMemo(() => {
-    const byArtist = {};
+    const byBani = {};
+    // Key on baniId where present; fall back to the stored name for older
+    // entries that predate baniId so they still group sensibly.
+    const keyFor = (baniId, baniNameUni, baniTitle) =>
+      (baniId != null ? `id:${baniId}` : `name:${baniNameUni || baniTitle || 'Unknown'}`);
+    const ensureGroup = (key, identity) => {
+      if (!byBani[key]) byBani[key] = { ...identity, data: [] };
+      return byBani[key];
+    };
     Object.entries(downloadRegistry).forEach(([relativePath, entry]) => {
-      const artist = entry.artistDisplayName || 'Unknown';
-      if (!byArtist[artist]) byArtist[artist] = [];
-      byArtist[artist].push({ ...entry, relativePath, isQueued: false });
+      const key = keyFor(entry.baniId, entry.baniNameUni, entry.baniTitle);
+      ensureGroup(key, {
+        baniId: entry.baniId,
+        baniNameUni: entry.baniNameUni,
+        baniTitle: entry.baniTitle,
+      }).data.push({ ...entry, relativePath, isQueued: false });
     });
     Object.entries(downloadQueue).forEach(([trackKey, task]) => {
       if (task.status === 'completed') return;
-      const artist = task.displayName || 'Unknown';
-      if (!byArtist[artist]) byArtist[artist] = [];
-      if (!byArtist[artist].find((t) => t.relativePath === trackKey)) {
-        byArtist[artist].push({
+      const key = keyFor(task.baniId, task.baniNameUni, task.baniTitle);
+      const group = ensureGroup(key, {
+        baniId: task.baniId,
+        baniNameUni: task.baniNameUni,
+        baniTitle: task.baniTitle,
+      });
+      if (!group.data.find((t) => t.relativePath === trackKey)) {
+        group.data.push({
           relativePath: trackKey,
-          artistDisplayName: artist,
+          artistDisplayName: task.displayName || 'Unknown',
           baniTitle: task.baniTitle || trackKey,
           baniNameUni: task.baniNameUni,
           baniId: task.baniId,
@@ -139,11 +155,21 @@ const ManageDownloads = ({ navigation }) => {
         });
       }
     });
-    return Object.entries(byArtist)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([title, data]) => ({
-        title,
-        data: data.sort((a, b) => (a.baniTitle ?? '').localeCompare(b.baniTitle ?? '')),
+    return Object.values(byBani)
+      .sort((a, b) => {
+        // Canonical bani order by id; nameless/idless entries fall to the end.
+        if (a.baniId == null && b.baniId == null) {
+          return (a.baniTitle ?? '').localeCompare(b.baniTitle ?? '');
+        }
+        if (a.baniId == null) return 1;
+        if (b.baniId == null) return -1;
+        return a.baniId - b.baniId;
+      })
+      .map((group) => ({
+        ...group,
+        data: group.data.sort(
+          (a, b) => (a.artistDisplayName ?? '').localeCompare(b.artistDisplayName ?? ''),
+        ),
       }));
   }, [downloadRegistry, downloadQueue]);
 
@@ -225,9 +251,14 @@ const ManageDownloads = ({ navigation }) => {
     return STRINGS.DOWNLOAD_QUEUED;
   };
 
+  // Header is the bani name, resolved live (script/font follow the user's
+  // transliteration/Unicode/fontFace settings) — the section carries the same
+  // bani identity fields getDisplayName reads off a row.
   const renderSectionHeader = useCallback(({ section }) => (
-    <CustomText style={styles.sectionHeader}>{section.title.toUpperCase()}</CustomText>
-  ), [styles]);
+    <CustomText style={[styles.sectionHeader, nameFontStyle]}>
+      {getDisplayName(section).toUpperCase()}
+    </CustomText>
+  ), [styles, getDisplayName, nameFontStyle]);
 
   const renderItem = useCallback(({ item }) => {
     if (item.isQueued) {
@@ -242,7 +273,7 @@ const ManageDownloads = ({ navigation }) => {
           }
         >
           <View style={styles.trackInfo}>
-            <CustomText style={[styles.trackName, nameFontStyle]}>{getDisplayName(item)}</CustomText>
+            <CustomText style={styles.trackName}>{item.artistDisplayName}</CustomText>
             <CustomText style={styles.trackMeta}>
               {queueStatusLabel(item.queueStatus)}
             </CustomText>
@@ -268,14 +299,14 @@ const ManageDownloads = ({ navigation }) => {
           )}
         </View>
         <View style={styles.trackInfo}>
-          <CustomText style={[styles.trackName, nameFontStyle]}>{getDisplayName(item)}</CustomText>
+          <CustomText style={styles.trackName}>{item.artistDisplayName}</CustomText>
         </View>
         {item.sizeMB > 0 && (
           <CustomText style={styles.trackSize}>{formatMB(item.sizeMB)} MB</CustomText>
         )}
       </Pressable>
     );
-  }, [selected, toggleSelect, cancelQueueEntry, styles, theme, getDisplayName, nameFontStyle]);
+  }, [selected, toggleSelect, cancelQueueEntry, styles, theme]);
 
   const { top: safeTop } = useSafeAreaInsets();
   const isEmpty = sections.length === 0 && validated;
@@ -313,20 +344,6 @@ const ManageDownloads = ({ navigation }) => {
               footprint stays small and fixed, leaving the absolutely-centered
               title room to breathe regardless of how many actions are shown. */}
           <View style={headerStyles.actions}>
-            {selectableKeys.length > 0 && (
-              <Pressable
-                onPress={toggleSelectAll}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel={allSelected ? STRINGS.DESELECT_ALL : STRINGS.SELECT_ALL}
-              >
-                <Icon
-                  name={allSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                  type="material-community"
-                  size={24}
-                  color={theme.colors.primary}
-                />
-              </Pressable>
-            )}
             {selected.size > 0 && (
               <Pressable
                 onPress={confirmDelete}
@@ -359,12 +376,38 @@ const ManageDownloads = ({ navigation }) => {
 
       <GradientDivider />
 
-      {totalTracks > 0 && (
-        <CustomText style={styles.summaryText}>
-          {STRINGS.TOTAL_DOWNLOADS_LABEL
-            .replace('{count}', String(totalTracks))
-            .replace('{size}', formatMB(totalMB))}
-        </CustomText>
+      {/* Selection toolbar: master "select all" on the left, aligned to the row
+          checkbox column (same md_12 inset + same checkbox visual as the rows),
+          with the totals summary on the right. Delete stays in the app bar. */}
+      {(totalTracks > 0 || selectableKeys.length > 0) && (
+        <View style={styles.selectionBar}>
+          {selectableKeys.length > 0 ? (
+            <Pressable
+              style={styles.selectAllControl}
+              onPress={toggleSelectAll}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={allSelected ? STRINGS.DESELECT_ALL : STRINGS.SELECT_ALL}
+            >
+              <View style={[styles.checkbox, allSelected && styles.checkboxChecked]}>
+                {allSelected && (
+                  <Icon name="check" type="material" size={14} color={theme.staticColors.WHITE_COLOR} />
+                )}
+              </View>
+              <CustomText style={styles.selectAllLabel}>
+                {allSelected ? STRINGS.DESELECT_ALL : STRINGS.SELECT_ALL}
+              </CustomText>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          {totalTracks > 0 && (
+            <CustomText style={styles.selectionSummary}>
+              {STRINGS.TOTAL_DOWNLOADS_LABEL
+                .replace('{count}', String(totalTracks))
+                .replace('{size}', formatMB(totalMB))}
+            </CustomText>
+          )}
+        </View>
       )}
 
       {isEmpty ? (

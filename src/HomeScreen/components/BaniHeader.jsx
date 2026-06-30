@@ -21,11 +21,19 @@ const BaniHeader = ({ navigate }) => {
     <SafeArea backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface} edges={["top"]} flex={0}>
       <View style={styles.newHeaderContainer}>
         <CustomText style={styles.newHeaderInvocationText}>
-          ॥ ੴ ਸ੍ਰੀ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
+          {"॥ "}
+          {/* The "<>" ligature in the Gurbani font is the Ik Onkar with its full
+              elongated stroke over the onkar — the Unicode ੴ in Baloo Paaji
+              flattens it. */}
+          <CustomText style={styles.ikOnkarGlyph}>{"<>"}</CustomText>
+          {" ਸ੍ਰੀ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥"}
         </CustomText>
         <View style={styles.titleRow}>
           <CustomText style={styles.newHeaderTitleText}>
-            {STRINGS.sg_title}
+            {/* "Œ" and "‰" map to the floral ornaments in the Gurbani font. */}
+            <CustomText style={styles.titleFlower}>Œ</CustomText>
+            {` ${STRINGS.sg_title} `}
+            <CustomText style={styles.titleFlower}>‰</CustomText>
           </CustomText>
           <View style={styles.settingsWrap}>
             <SettingsIconComponent

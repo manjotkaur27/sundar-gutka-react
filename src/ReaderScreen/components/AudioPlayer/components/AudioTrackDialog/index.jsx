@@ -6,9 +6,8 @@ import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import useTheme, { useNetwork } from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { Icon } from "@rneui/themed";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
-import { STRINGS, CustomText, navigate } from "@common";
+import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 
@@ -436,18 +435,6 @@ const AudioTrackDialog = ({
     }
   };
 
-  // Open the Manage Downloads screen from the picker. Stop any running preview
-  // first so its audio doesn't keep playing on the other screen. We intentionally
-  // do NOT close the picker / exit audio mode here: ManageDownloads is pushed onto
-  // the same stack above the Reader, so leaving the picker mounted underneath means
-  // tapping back (or the OS back button) returns the user to the artist-selection
-  // screen they came from — not the plain read screen.
-  const handleManageDownloads = () => {
-    stopPreview();
-    setSelectedTrack(null);
-    navigate("ManageDownloads");
-  };
-
   const isPreviewRunning = Boolean(
     selectedTrack && previewActiveTrackId && previewActiveTrackId === selectedTrack?.id
   );
@@ -517,23 +504,6 @@ const AudioTrackDialog = ({
 
         {isFooter && tracks.length > 0 && (
           <View style={styles.footerRow}>
-            {/* Bottom-left: jump to the Manage Downloads screen (opposite Next). */}
-            <Pressable
-              testID="manage-downloads-button"
-              style={styles.manageDownloadsButton}
-              onPress={handleManageDownloads}
-              hitSlop={8}
-            >
-              <Icon
-                name="folder"
-                type="material"
-                size={18}
-                color={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
-              />
-              <CustomText style={styles.manageDownloadsText} numberOfLines={1}>
-                {STRINGS.MANAGE_DOWNLOADS}
-              </CustomText>
-            </Pressable>
             <Pressable
               testID="play-button"
               style={[styles.playButton, !selectedTrack && styles.playButtonDisabled]}

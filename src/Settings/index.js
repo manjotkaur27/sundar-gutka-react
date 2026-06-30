@@ -24,7 +24,6 @@ import ListItemWithIcon from "./components/comon/ListitemWithIcon";
 import DatabaseUpdateBanner from "./components/databaseUpdate";
 import Donate from "./components/donate";
 import EditBaniOrder from "./components/editBaniOrder";
-import FontFaceComponent from "./components/fontFace";
 import FontSizeComponent from "./components/fontSize";
 import KeepAwake from "./components/keepAwake";
 import LanguageComponent from "./components/language";
@@ -81,7 +80,7 @@ const Settings = ({ navigation, route }) => {
       <Animated.ScrollView {...scrollViewProps}>
         <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
         <FontSizeComponent />
-        <FontFaceComponent />
+        <BaniFontFaceComponent />
         <LanguageComponent language={language} />
         <TransliterationComponent />
         <TranslationComponent />
@@ -96,7 +95,6 @@ const Settings = ({ navigation, route }) => {
         {/* Bani Options */}
         <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
         <EditBaniOrder navigate={navigate} />
-        <BaniFontFaceComponent />
         <BaniLengthComponent />
         <LarivaarComponent />
         <ParagraphMode />
