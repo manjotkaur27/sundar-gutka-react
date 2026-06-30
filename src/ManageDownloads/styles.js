@@ -15,16 +15,35 @@ const createStyles = (theme) => ({
     borderTopColor: theme.colors.separator,
   },
 
-  // ── Storage summary row ─────────────────────────────────────────────────────
-  summaryText: {
+  // ── Selection toolbar ───────────────────────────────────────────────────────
+  // "Select all" on the left (md_12 inset matches trackRow so its checkbox lines
+  // up with the row checkbox column), totals summary on the right.
+  selectionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.md_12,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm + theme.spacing.xs,
     backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.separator,
+  },
+  selectAllControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectAllLabel: {
+    color: theme.colors.primaryText,
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fonts.balooPaaji,
+  },
+  selectionSummary: {
     color: theme.colors.textDisabled,
     fontSize: theme.typography.sizes.sm,
     fontFamily: theme.typography.fonts.balooPaaji,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.separator,
+    flexShrink: 1,
+    textAlign: 'right',
+    marginLeft: theme.spacing.md,
   },
 
   // Invisible, always-mounted spotlight target used by the downloads coachmark

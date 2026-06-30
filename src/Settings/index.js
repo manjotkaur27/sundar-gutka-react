@@ -24,7 +24,6 @@ import ListItemWithIcon from "./components/comon/ListitemWithIcon";
 import DatabaseUpdateBanner from "./components/databaseUpdate";
 import Donate from "./components/donate";
 import EditBaniOrder from "./components/editBaniOrder";
-import FontFaceComponent from "./components/fontFace";
 import FontSizeComponent from "./components/fontSize";
 import KeepAwake from "./components/keepAwake";
 import LanguageComponent from "./components/language";
@@ -78,50 +77,49 @@ const Settings = ({ navigation, route }) => {
       <GradientDivider />
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <View style={{ flex: 1 }}>
-        <Animated.ScrollView {...scrollViewProps}>
-          <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
-          <FontSizeComponent />
-          <FontFaceComponent />
-          <LanguageComponent language={language} />
-          <TransliterationComponent />
-          <TranslationComponent />
-          <ThemeComponent />
-          <StatusBar />
-          <HideStatusBar />
-          <AutoScroll />
-          <KeepAwake />
-          {/* Audio Player */}
-          <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
-          <Audio />
-          {/* Bani Options */}
-          <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
-          <EditBaniOrder navigate={navigate} />
-          <BaniFontFaceComponent />
-          <BaniLengthComponent />
-          <LarivaarComponent />
-          <ParagraphMode />
-          <PadchedSettingsComponent />
-          <VishraamComponent />
-          <RemindersComponent navigation={navigation} />
-          <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
-          <CollectStatistics />
-          <RevisitTutorial />
-          <Donate />
-          <ListItemWithIcon
-            iconName="info"
-            title={about}
-            navigate={navigate}
-            navigationTarget="About"
-          />
-          <ListItemWithIcon
-            iconName="update"
-            title={databaseUpdate}
-            navigate={navigate}
-            navigationTarget="DatabaseUpdate"
-          />
-          <CustomText style={end} />
-        </Animated.ScrollView>
-        {Indicator}
+      <Animated.ScrollView {...scrollViewProps}>
+        <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
+        <FontSizeComponent />
+        <BaniFontFaceComponent />
+        <LanguageComponent language={language} />
+        <TransliterationComponent />
+        <TranslationComponent />
+        <ThemeComponent />
+        <StatusBar />
+        <HideStatusBar />
+        <AutoScroll />
+        <KeepAwake />
+        {/* Audio Player */}
+        <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
+        <Audio />
+        {/* Bani Options */}
+        <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
+        <EditBaniOrder navigate={navigate} />
+        <BaniLengthComponent />
+        <LarivaarComponent />
+        <ParagraphMode />
+        <PadchedSettingsComponent />
+        <VishraamComponent />
+        <RemindersComponent navigation={navigation} />
+        <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
+        <CollectStatistics />
+        <RevisitTutorial />
+        <Donate />
+        <ListItemWithIcon
+          iconName="info"
+          title={about}
+          navigate={navigate}
+          navigationTarget="About"
+        />
+        <ListItemWithIcon
+          iconName="update"
+          title={databaseUpdate}
+          navigate={navigate}
+          navigationTarget="DatabaseUpdate"
+        />
+        <CustomText style={end} />
+      </Animated.ScrollView>
+      {Indicator}
       </View>
       {fromReader && <BottomNavigation activeKey={constant.SETTINGS} context="reader" visible />}
     </SafeArea>

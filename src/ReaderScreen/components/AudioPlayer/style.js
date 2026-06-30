@@ -378,30 +378,11 @@ export const audioTrackDialogStyles = (theme) => ({
   trackItemDisabled: {
     opacity: 0.4,
   },
-  // Footer row holds the "Manage Downloads" link (left) opposite the Next
-  // button (right), so they sit at the two bottom corners of the picker.
+  // Footer row holds the Next/Play button, pinned to the bottom-right corner.
   footerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  manageDownloadsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    paddingRight: theme.spacing.sm,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  manageDownloadsText: {
-    fontFamily: theme.typography.fonts.balooPaaji,
-    fontSize: theme.typography.sizes.md,
-    fontWeight: theme.typography.weights.semibold,
-    // White in dark mode (navy is low-contrast on the dark picker), brand blue in light.
-    color: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
-    flexShrink: 1,
-    minWidth: 0,
+    justifyContent: "flex-end",
   },
   playButton: {
     backgroundColor: theme.colors.primary,
@@ -601,7 +582,10 @@ export const audioSettingModalStyles = (theme) => ({
   },
   speedControlButton: {
     minWidth: 44,
-    minHeight: 44,
+    // 30 matches ThemedSwitch's track height so the playback-speed row is the
+    // same height as the Auto Play / Sync Scroll rows. The 24px +/- icons fit,
+    // and the Pressable's hitSlop keeps the tap target comfortable.
+    minHeight: 30,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -5,8 +5,8 @@ import PropTypes from "prop-types";
 import { toggleAudioAutoPlay, toggleAudioSyncScroll, setAudioPlaybackSpeed } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { PlusIcon, MinusIcon } from "@common/icons";
-import { STRINGS, CustomText, ThemedSwitch } from "@common";
+import { PlusIcon, MinusIcon, ChevronRight } from "@common/icons";
+import { STRINGS, CustomText, ThemedSwitch, navigate } from "@common";
 import { audioSettingModalStyles } from "../style";
 
 const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) => {
@@ -99,6 +99,14 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) =>
             </Pressable>
           </View>
         </View>
+        {/* Jump to the Manage Downloads screen — moved here from the track
+            picker footer. Navigates above the Reader; the audio overlay stays
+            mounted so Back returns to the player. */}
+        <View style={styles.divider} />
+        <Pressable style={styles.modalContainer} onPress={() => navigate("ManageDownloads")}>
+          <CustomText style={styles.settingItemTitle}>{STRINGS.MANAGE_DOWNLOADS}</CustomText>
+          <ChevronRight size={22} color={theme.colors.audioSettingsModalText} />
+        </Pressable>
       </View>
     </ScrollView>
   );

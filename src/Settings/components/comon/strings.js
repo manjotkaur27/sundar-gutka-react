@@ -8,17 +8,9 @@ export const getFontSizes = (strings) => [
   { key: "EXTRA_LARGE", title: strings.extra_large },
 ];
 
-export const getFontFaces = (strings) => [
-  { key: constant.ANMOL_LIPI, title: strings.anmol_lipi },
-  { key: constant.GURBANI_AKHAR_TRUE, title: strings.gurbani_akhar_default },
-  { key: constant.GURBANI_AKHAR_HEAVY_TRUE, title: strings.gurbani_akhar_heavy },
-  { key: constant.GURBANI_AKHAR_THICK_TRUE, title: strings.gurbani_akhar_think },
-  { key: constant.BALOO_PAAJI, title: strings.baloo_paaji },
-];
-
-// Same 5 fonts as getFontFaces, but the "(default)" marker follows Gurbani Akhar
-// instead of Baloo Paaji — this list defaults to Gurbani Akhar (see baniFontFace
-// reducer), whereas getFontFaces' list defaults to Baloo Paaji (see fontFace reducer).
+// Font choices for the Reader scripture text. Defaults to Gurbani Akhar (see the
+// baniFontFace reducer). This is the only user-facing font control — the rest of
+// the app UI is fixed to Baloo Paaji.
 export const getBaniFontFaces = (strings) => [
   { key: constant.ANMOL_LIPI, title: strings.anmol_lipi },
   { key: constant.GURBANI_AKHAR_TRUE, title: strings.gurbani_akhar_bani_default },
