@@ -290,8 +290,12 @@ const Reader = ({ navigation, route }) => {
         }
       }
 
-      // Handle UI messages (removed toggle since it's handled by onTouchStart)
-      if (data === "show") {
+      // Handle UI messages. A tap inside the WebView posts "toggle" (tap
+      // detection lives in gutkaScript so scroll gestures never toggle). Scroll
+      // only ever posts "hide"; "show" arrives from other flows (e.g. bookmark).
+      if (data === "toggle") {
+        toggleHeader((prev) => !prev);
+      } else if (data === "show") {
         toggleHeader(true);
       } else if (data === "hide") {
         toggleHeader(false);
@@ -412,10 +416,6 @@ const Reader = ({ navigation, route }) => {
           { backgroundColor: theme.colors.surface, marginTop: 60 },
         ]}
         onMessage={handleMessage}
-        onTouchStart={() => {
-          // Toggle header when WebView is touched (not overlaid elements)
-          toggleHeader((prev) => !prev);
-        }}
       />
       {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
       {isAutoScroll && (

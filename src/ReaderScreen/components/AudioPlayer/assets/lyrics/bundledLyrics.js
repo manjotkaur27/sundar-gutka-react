@@ -23,9 +23,9 @@ const BUNDLED_LYRICS = {
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/chopai-sahib.json":
     require("./BhaiJarnailSingh/chopai-sahib.json"),
 
-  // Chaupai Sahib — Short/Medium/Long: trimmed to seq 146 (੪੦੧), timestamps rebased to 0
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/chopai-sahib-short.json":
-    require("./BhaiJarnailSingh/chopai-sahib-short.json"),
+  // // Chaupai Sahib — Short/Medium/Long: trimmed to seq 146 (੪੦੧), timestamps rebased to 0
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/chopai-sahib-short.json":
+  //   require("./BhaiJarnailSingh/chopai-sahib-short.json"),
 
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/anand-sahib.json":
     require("./BhaiJarnailSingh/anand-sahib.json"),
@@ -33,20 +33,28 @@ const BUNDLED_LYRICS = {
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/anand-sahib-6-pauri.json":
     require("./BhaiJarnailSingh/anand-sahib-6-pauri.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib.json":
-    require("./BhaiJarnailSingh/Rehras-sahib.json"),
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib.json":
+  //   require("./BhaiJarnailSingh/Rehras-sahib.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib-medium.json":
-    require("./BhaiJarnailSingh/Rehras-sahib-medium.json"),
+  // Rehras Sahib — trimmed: leading intro removed, timestamps rebased to 0
+  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib-trimmed.json":
+    require("./BhaiJarnailSingh/Rehras-sahib-trimmed.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib-short.json":
-    require("./BhaiJarnailSingh/Rehras-sahib-short.json"),
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib-medium.json":
+  //   require("./BhaiJarnailSingh/Rehras-sahib-medium.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/kirtan-sohaila.json":
-    require("./BhaiJarnailSingh/kirtan-sohaila.json"),
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/Rehras-sahib-short.json":
+  //   require("./BhaiJarnailSingh/Rehras-sahib-short.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/kirtan-sohaila-short.json":
-    require("./BhaiJarnailSingh/kirtan-sohaila-short.json"),
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/kirtan-sohaila.json":
+  //   require("./BhaiJarnailSingh/kirtan-sohaila.json"),
+
+  // Kirtan Sohaila — trimmed: 7s of leading silence removed, timestamps rebased to 0
+  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/kirtan-sohaila-trimmed.json":
+    require("./BhaiJarnailSingh/kirtan-sohaila-trimmed.json"),
+
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/BhaiJarnailSingh/kirtan-sohaila-short.json":
+  //   require("./BhaiJarnailSingh/kirtan-sohaila-short.json"),
 
   // ── Indermohan Kaur UK ───────────────────────────────────────────────────
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/JapjiSahib.json":
@@ -70,11 +78,11 @@ const BUNDLED_LYRICS = {
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/RehrasSahib.json":
     require("./IndermohanKaurUK/RehrasSahib.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/RehrasSahib-medium.json":
-    require("./IndermohanKaurUK/RehrasSahib-medium.json"),
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/RehrasSahib-medium.json":
+  //   require("./IndermohanKaurUK/RehrasSahib-medium.json"),
 
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/RehrasSahib-short.json":
-    require("./IndermohanKaurUK/RehrasSahib-short.json"),
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/RehrasSahib-short.json":
+  //   require("./IndermohanKaurUK/RehrasSahib-short.json"),
 
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/IndermohanKaurUK/KirtanSohaila.json":
     require("./IndermohanKaurUK/KirtanSohaila.json"),
@@ -97,9 +105,9 @@ const BUNDLED_LYRICS = {
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/GianiGurdevSingh/ChaupaiSahib.json":
     require("./GianiGurdevSingh/ChaupaiSahib.json"),
 
-  // Chaupai Sahib — Short/Medium/Long: trimmed to seq 146 (੪੦੧), timestamps rebased to 0
-  "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/GianiGurdevSingh/ChaupaiSahib-short.json":
-    require("./GianiGurdevSingh/ChaupaiSahib-short.json"),
+  // // Chaupai Sahib — Short/Medium/Long: trimmed to seq 146 (੪੦੧), timestamps rebased to 0
+  // "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/GianiGurdevSingh/ChaupaiSahib-short.json":
+  //   require("./GianiGurdevSingh/ChaupaiSahib-short.json"),
 
   "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios/GianiGurdevSingh/TavParsadSwayiye.json":
     require("./GianiGurdevSingh/TavParsadSwayiye.json"),

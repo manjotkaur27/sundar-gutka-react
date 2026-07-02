@@ -43,8 +43,15 @@ const clearScrollTimeout=()=> {
 }
 
 let lastScrollFuncTime = 0;
+// Tap-vs-scroll bookkeeping: any scroll event during a touch (or momentum that
+// is still settling when a new touch lands) disqualifies that touch from being
+// treated as a tap.
+let scrolledDuringTouch = false;
+let lastScrollTime = 0;
 
 const scrollFunc=(e)=> {
+  scrolledDuringTouch = true;
+  lastScrollTime = Date.now();
   // During auto-scroll, throttle this handler to every 300ms
   // to prevent 60fps RAF from triggering 60 expensive DOM queries/sec
   if (autoScrollSpeed > 0) {
@@ -90,25 +97,16 @@ const scrollFunc=(e)=> {
     window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
   }
 
-  
-  if (window.scrollY == 0) {
-    window.ReactNativeWebView.postMessage("show");
-  }
-
-
   if (typeof scrollFunc.y == "undefined") {
     scrollFunc.y = window.pageYOffset;
   }
   if (autoScrollSpeed == 0) {
     let diffY = scrollFunc.y - window.pageYOffset;
-    if (diffY < 0) {
+    // Scrolling only ever HIDES the bars — never shows them. Showing is
+    // reserved for an explicit tap (see the tap-detection touch handlers below).
+    if (diffY < -3) {
       // Scroll down
-      if (diffY < -3) {
-        window.ReactNativeWebView.postMessage("hide");
-      }
-    } else if (diffY > 5) {
-      // Scroll up
-      window.ReactNativeWebView.postMessage("show");
+      window.ReactNativeWebView.postMessage("hide");
     }
   }
   scrollFunc.y = window.pageYOffset;
@@ -271,8 +269,17 @@ ${listener}.addEventListener(
 
 
 ${listener}.onscroll = scrollFunc;
-// Touch events for auto-scroll handling only
+// Touch events for auto-scroll handling + tap detection.
 let wasAutoScrolling = false;
+// Tap detection: a touch that ends without meaningful movement is a tap and
+// toggles the bars. A touch that moves (a scroll) never toggles — scrolling
+// only hides (see scrollFunc). This keeps scroll gestures from flipping the
+// bars, while a genuine tap still shows or hides them.
+let tapStartX = 0;
+let tapStartY = 0;
+let tapStartTime = 0;
+let tapMoved = false;
+const TAP_MOVE_THRESHOLD = 10; // px
 const resumeAutoScroll = () => {
   isManuallyScrolling = false;
   // Resume auto-scroll if it was active before touch
@@ -281,16 +288,44 @@ const resumeAutoScroll = () => {
     setAutoScroll();
   }
 };
-${listener}.addEventListener("touchstart", ()=> {
+${listener}.addEventListener("touchstart", (e)=> {
   if (autoScrollSpeed !== 0) {
     wasAutoScrolling = true;
     clearScrollTimeout();
   }
+  tapMoved = false;
+  scrolledDuringTouch = false;
+  tapStartTime = Date.now();
+  if (e.touches && e.touches.length > 0) {
+    tapStartX = e.touches[0].clientX;
+    tapStartY = e.touches[0].clientY;
+  }
 });
-${listener}.addEventListener("touchmove", ()=> {
+${listener}.addEventListener("touchmove", (e)=> {
   isManuallyScrolling = true;
+  if (!tapMoved && e.touches && e.touches.length > 0) {
+    const dx = Math.abs(e.touches[0].clientX - tapStartX);
+    const dy = Math.abs(e.touches[0].clientY - tapStartY);
+    if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) {
+      tapMoved = true;
+    }
+  }
 });
-${listener}.addEventListener("touchend", resumeAutoScroll);
+${listener}.addEventListener("touchend", ()=> {
+  // A tap toggles the bars. It must be: quick, without finger movement, with no
+  // scroll event during the touch, and not landing on still-settling momentum
+  // (a tap-to-stop-scroll gesture). Any of these means it was a scroll, not a tap.
+  const now = Date.now();
+  const isTap =
+    !tapMoved &&
+    !scrolledDuringTouch &&
+    (now - tapStartTime) < 300 &&
+    (now - lastScrollTime) > 200;
+  if (isTap) {
+    window.ReactNativeWebView.postMessage("toggle");
+  }
+  resumeAutoScroll();
+});
 ${listener}.addEventListener("touchcancel", resumeAutoScroll);
 
 ${listener}.addEventListener(
@@ -425,10 +460,11 @@ ${listener}.addEventListener(
         element.style.borderRadius = "15px";
         element.style.width = "fit-content";
 
-        // Preserve alignment when using fit-content
-        if (element.classList.contains("center")) {
+        // Preserve alignment when using fit-content. The alignment class lives on
+        // the inner gurmukhi div, not on the outer .text-item (element).
+        if (gurmukhiDiv.classList.contains("center")) {
           element.style.margin = "0 auto";
-        } else if (element.classList.contains("right")) {
+        } else if (gurmukhiDiv.classList.contains("right")) {
           element.style.marginLeft = "auto";
           element.style.marginRight = "0";
         }
