@@ -11,7 +11,7 @@ import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 
-const PREVIEW_DURATION_MS = 30000;
+const PREVIEW_DURATION_MS = 15000;
 const ACTIVE_TRACK_POLL_MS = 150;
 // M4A containers require moov atom parsing before ExoPlayer can begin
 // buffering. On mobile networks this can take 10-20+ seconds for 15-20MB files.
@@ -175,7 +175,7 @@ const AudioTrackDialog = ({
 
   /**
    * The preview ticker is the single source of truth for both the visual
-   * countdown AND the 30-second stop. When elapsed reaches PREVIEW_DURATION_MS,
+   * countdown AND the 15-second stop. When elapsed reaches PREVIEW_DURATION_MS,
    * the interval itself stops the audio. This guarantees the countdown shows 0
    * at exactly the moment audio stops — no separate setTimeout that can drift.
    */
@@ -264,7 +264,7 @@ const AudioTrackDialog = ({
   ]);
 
   /**
-   * Start the 30-second preview window. Called only AFTER audio is confirmed
+   * Start the 15-second preview window. Called only AFTER audio is confirmed
    * playing (State.Playing + position > 0). The ticker handles both the visual
    * countdown and the auto-stop — no separate timeout needed.
    */

@@ -301,15 +301,13 @@ const Reader = ({ navigation, route }) => {
         }
       }
 
-      // Handle UI messages (removed toggle since it's handled by onTouchStart).
-      // show/hide specifically are ignored for a short window after a deliberate
-      // tap — gutkaScript's own scroll-direction show/hide can fire from residual
-      // scroll-settle jitter right at the top/bottom boundary (most reproducible
-      // at the very end of a bani), racing the tap's toggle and leaving the
-      // header/nav animation stuck mid-flight as the target keeps getting reset.
-      const recentManualToggle = Date.now() - manualToggleAtRef.current < 400;
-      if (data === "show") {
-        if (!recentManualToggle) toggleHeader(true);
+      // Handle UI messages. A tap inside the WebView posts "toggle" (tap
+      // detection lives in gutkaScript so scroll gestures never toggle). Scroll
+      // only ever posts "hide"; "show" arrives from other flows (e.g. bookmark).
+      if (data === "toggle") {
+        toggleHeader((prev) => !prev);
+      } else if (data === "show") {
+        toggleHeader(true);
       } else if (data === "hide") {
         if (!recentManualToggle) toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {

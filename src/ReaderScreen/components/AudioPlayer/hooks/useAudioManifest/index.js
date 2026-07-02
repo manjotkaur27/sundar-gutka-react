@@ -125,7 +125,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     return {
       status: "success",
       data: [
-        { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib-trimmed.m4a`, track_length_seconds: 1329, track_size_mb: 20.53, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-trimmed.json` },
+        { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib-trimmed.m4a`, track_length_seconds: 1328.845, track_size_mb: 20.52, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-trimmed.json` },
         { bani_id: 21, track_id: 2021, track_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`, track_length_seconds: 1145, track_size_mb: 17.77, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.json` },
       ],
     };
@@ -159,7 +159,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     return {
       status: "success",
       data: [
-        { bani_id: 23, track_id: 1023, track_url: `${_BLOB}/BhaiJarnailSingh/KirtanSohaila.m4a`, track_length_seconds: 333, track_size_mb: 5.03, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila.json` },
+        { bani_id: 23, track_id: 1023, track_url: `${_BLOB}/BhaiJarnailSingh/KirtanSohaila-trimmed.m4a`, track_length_seconds: 325.858, track_size_mb: 5.03, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila-trimmed.json` },
       ],
     };
   },

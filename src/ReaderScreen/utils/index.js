@@ -83,8 +83,8 @@ export const loadHTML = (
       .map((item) => {
         const textAlignMap = {
           0: "left",
-          1: "left",
-          2: "left",
+          1: "center",
+          2: "center",
         };
 
         let textAlign = textAlignMap[item.header];

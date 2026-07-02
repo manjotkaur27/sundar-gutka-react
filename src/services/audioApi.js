@@ -117,12 +117,12 @@ const JARNAIL_TRACKS_BY_BANI = {
     {
       bani_id: 23,
       track_id: 1023,
-      track_url: `${BLOB_BASE}/BhaiJarnailSingh/KirtanSohaila.m4a`,
-      track_length_seconds: 333,
+      track_url: `${BLOB_BASE}/BhaiJarnailSingh/KirtanSohaila-trimmed.m4a`,
+      track_length_seconds: 325.858,
       track_size_mb: 5.03,
       artist_name: "Bhai Jarnail Singh",
       artist_id: JARNAIL_ARTIST_ID,
-      lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila.json`,
+      lyrics_url: `${BLOB_BASE}/BhaiJarnailSingh/kirtan-sohaila-trimmed.json`,
     },
   ],
 };
