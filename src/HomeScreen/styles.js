@@ -77,6 +77,20 @@ const createStyles = (theme) => ({
     textAlign: "center",
     marginTop: 2,
   },
+  // Title stays centred; the settings icon is absolutely positioned on the right
+  // (like the folder header's back arrow) so it never shifts the title off-centre.
+  titleRow: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  settingsWrap: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
   newHeaderGradientDivider: {
     marginTop: theme.spacing.sm,
   },

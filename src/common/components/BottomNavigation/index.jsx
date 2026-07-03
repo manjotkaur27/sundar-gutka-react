@@ -16,7 +16,7 @@ import {
   SevaIcon,
 } from "@common/icons";
 import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
-import { getSevaConfig } from "../../../services/sevaConfig";
+import { getSevaConfig, subscribeSevaDot } from "../../../services/sevaConfig";
 import createStyles from "./style";
 
 const BottomNavigation = ({
@@ -66,7 +66,9 @@ const BottomNavigation = ({
     };
   }, [visible, translateY]);
 
-  // Load seva dot state from config
+  // Load the seva dot state from config, then stay subscribed: markSevaSeen()
+  // (fired when the user opens the Seva page) pushes an immediate clear here, so
+  // the dot disappears without waiting for the next refetch.
   useEffect(() => {
     let cancelled = false;
     getSevaConfig()
@@ -74,8 +76,12 @@ const BottomNavigation = ({
         if (!cancelled) setShowSevaDot(!!cfg?.showSevaDot);
       })
       .catch(() => {});
+    const unsubscribe = subscribeSevaDot((dotVisible) => {
+      if (!cancelled) setShowSevaDot(dotVisible);
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 

@@ -33,7 +33,7 @@ import {
   trackSevaEvent,
 } from "@common";
 import { DonateIcon } from "../common/icons";
-import { getSevaConfig, buildQgivUrl } from "../services/sevaConfig";
+import { getSevaConfig, buildQgivUrl, markSevaSeen } from "../services/sevaConfig";
 import createStyles from "./styles";
 
 // ─── Seva analytics funnel helpers (in-app, observable steps only) ───────────
@@ -123,6 +123,9 @@ const SevaScreen = () => {
           setConfig(cfg);
           setSelectedAmount(cfg?.defaults?.selectedAmount ?? 10);
         }
+        // The user is now viewing the Seva page — acknowledge the current version
+        // so the tab dot clears now and stays cleared until the backend bumps it.
+        markSevaSeen();
       } catch (err) {
         if (active) setError(true);
       } finally {

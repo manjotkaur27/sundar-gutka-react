@@ -1,13 +1,28 @@
 import React from "react";
 import { View } from "react-native";
-import { STRINGS, CustomText, useTheme, useThemedStyles, SafeArea, GradientDivider } from "@common";
+import PropTypes from "prop-types";
+import { SettingsIconComponent } from "@common/components";
+import {
+  STRINGS,
+  CustomText,
+  useTheme,
+  useThemedStyles,
+  SafeArea,
+  GradientDivider,
+  constant,
+} from "@common";
 import createStyles from "../styles";
 
-const BaniHeader = () => {
+const BaniHeader = ({ navigate }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const iconColor = theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary;
   return (
-    <SafeArea backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface} edges={["top"]} flex={0}>
+    <SafeArea
+      backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface}
+      edges={["top"]}
+      flex={0}
+    >
       <View style={styles.newHeaderContainer}>
         <CustomText style={styles.newHeaderInvocationText}>
           {"॥ "}
@@ -36,6 +51,10 @@ const BaniHeader = () => {
       </View>
     </SafeArea>
   );
+};
+
+BaniHeader.propTypes = {
+  navigate: PropTypes.func.isRequired,
 };
 
 export default BaniHeader;

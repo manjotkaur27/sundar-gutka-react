@@ -12,25 +12,27 @@ import {
   updateSummary,
 } from "../../database/analytics";
 
-// Cross-device dashboard sync (KHALIS_API.md §3): push (POST /dashboard/cache) and
-// restore (GET /dashboard/latest). Restore applies the user-setup blocks (profile,
+// Per-device dashboard sync: push (POST /dashboard/cache) and restore
+// (GET /dashboard/latest?deviceId=). Restore applies the user-setup blocks (profile,
 // layout, nitnem, reminders) into Redux and seeds analytics SQLite from the snapshot.
 //
-// Auth: both endpoints require a Bearer JWT. Pass { token } from getAuthToken(); the
-// sync stays dormant (no-op) while that returns null (no SSO yet).
+// Public + deviceId-keyed (no auth): the stable device id (DeviceInfo.getUniqueId())
+// is the only key, so sync always runs — there is no login. Per-device, not
+// per-account: device A can't see device B's data (the tradeoff until SSO lands).
+// userId stays null, reserved for future SSO.
 
 const latestUrl = () =>
   constant.DASHBOARD_LATEST_API_URL || `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/latest`;
 const syncUrl = () =>
   constant.DASHBOARD_SYNC_API_URL || `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/cache`;
 
-const fetchLatest = async (token) => {
+const fetchLatest = async (deviceId) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(latestUrl(), {
+    const res = await fetch(`${latestUrl()}?deviceId=${encodeURIComponent(deviceId)}`, {
       signal: controller.signal,
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      headers: { "Content-Type": "application/json" },
     });
     if (res.status === 404) return { notFound: true };
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -40,9 +42,10 @@ const fetchLatest = async (token) => {
   }
 };
 
-// Returns the snapshot `payload` (KHALIS shape), or null for a fresh account (404).
-export const getDashboardLatest = async ({ token } = {}) => {
-  const { notFound, data } = await fetchLatest(token);
+// Returns this device's snapshot `payload`, or null when the device has never synced
+// (404). The backend responds { syncedAt, payload }.
+export const getDashboardLatest = async ({ deviceId } = {}) => {
+  const { notFound, data } = await fetchLatest(deviceId);
   if (notFound) return null;
   return data?.payload ?? null;
 };
@@ -260,17 +263,16 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
   return { version, capturedAt: now.toISOString(), deviceId, userId, payload };
 };
 
-// POSTs a cache body. No-op (returns { skipped: true }) without a token, so the
-// whole sync stays dormant until SSO is live.
-export const pushDashboardCache = async (body, token) => {
-  if (!token) return { skipped: true };
+// POSTs a cache body (public, no auth). 201 on the day's first sync, 200 {updated:true}
+// on a same-day re-sync (last-write-wins). deviceId in the body is the only key.
+export const pushDashboardCache = async (body) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(syncUrl(), {
       method: "POST",
       signal: controller.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

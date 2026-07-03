@@ -66,10 +66,47 @@ const FILLER_CONFIG = {
 // Cache only the backend's dynamic bits (not the localized copy, which is rebuilt each
 // call with the current language). Keyed v1 in case the shape changes later.
 const CACHE_KEY = "@seva_config_dynamic_v1";
+// The config version the user has acknowledged by OPENING the Seva page. Sent as
+// ?v= so the backend computes redDot = currentVersion − seenVersion. Persisted
+// separately from the cached config so the dot survives background refetches and
+// only clears when the user actually opens Seva (see markSevaSeen). Defaults to 0
+// (never opened) → the dot shows whenever the backend version is ≥ 1.
+const SEEN_VERSION_KEY = "@seva_seen_version";
 
 // Latest payment block from the backend. Kept module-level so buildQgivUrl() can use it
 // without changing its call site in SevaScreen (no UI change).
 let cachedPayment = null;
+// Latest currentVersion observed from the backend — what markSevaSeen() records.
+let latestVersion = 0;
+
+// Tiny pub/sub so the Seva tab's red dot clears instantly when the user opens the
+// Seva page (markSevaSeen), without waiting for the bottom bar's next refetch.
+const dotListeners = new Set();
+export const subscribeSevaDot = (listener) => {
+  dotListeners.add(listener);
+  return () => {
+    dotListeners.delete(listener);
+  };
+};
+const emitSevaDot = (visible) => {
+  dotListeners.forEach((fn) => {
+    try {
+      fn(visible);
+    } catch (_) {
+      // one listener throwing must not stop the rest
+    }
+  });
+};
+
+const readSeenVersion = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(SEEN_VERSION_KEY);
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  } catch (_) {
+    return 0;
+  }
+};
 
 /** Merge the backend dynamic bits onto the app-local copy → SevaConfig. */
 const buildConfig = (dyn) => ({
@@ -125,9 +162,12 @@ export const getSevaConfig = async () => {
   const url = constant.SEVA_CONFIG_API_URL;
   try {
     if (!url) throw new Error("SEVA_CONFIG_API_URL not set");
-    // Send the last cached version so the backend can compute missedVersions/redDot.
-    const v = cached?.version != null ? cached.version : "";
-    const resp = await fetchJson(`${url}?v=${encodeURIComponent(v)}`);
+    // Send the version the user has SEEN (not merely the last one fetched): the
+    // backend returns redDot = currentVersion − seenVersion, so the dot stays up
+    // until the user opens the Seva page (markSevaSeen). A background refetch by
+    // the bottom bar must NOT clear it.
+    const seenVersion = await readSeenVersion();
+    const resp = await fetchJson(`${url}?v=${encodeURIComponent(seenVersion)}`);
     const dyn = {
       version: resp?.version,
       country: resp?.country,
@@ -135,17 +175,40 @@ export const getSevaConfig = async () => {
       payment: resp?.payment,
       redDot: resp?.redDot,
     };
+    latestVersion = Number(resp?.version) || 0;
     cachedPayment = resp?.payment ?? null;
     AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dyn)).catch(() => {});
+    emitSevaDot((dyn.redDot ?? 0) > 0);
     return buildConfig(dyn);
   } catch (err) {
     logError(new Error(`getSevaConfig failed: ${err?.message || err}`));
     if (cached) {
       cachedPayment = cached.payment ?? null;
+      latestVersion = Number(cached.version) || latestVersion;
       return buildConfig(cached);
     }
     return buildConfig(null);
   }
+};
+
+/**
+ * Acknowledge the current Seva config version — call when the user opens the Seva
+ * page. Persists it as the "seen" version so the next /seva/config sends
+ * ?v=<current> (backend then returns redDot=0) and clears the tab dot right now.
+ * The dot only reappears when the backend increments the version.
+ */
+export const markSevaSeen = async () => {
+  let version = latestVersion;
+  if (!version) {
+    const cached = await readCache();
+    version = Number(cached?.version) || 0;
+  }
+  try {
+    await AsyncStorage.setItem(SEEN_VERSION_KEY, String(version));
+  } catch (_) {
+    // best-effort; the dot re-clears on the next successful fetch anyway
+  }
+  emitSevaDot(false);
 };
 
 /**

@@ -58,9 +58,6 @@ const Reader = ({ navigation, route }) => {
   // Timestamp of the last deliberate tap-to-toggle — see handleMessage's
   // show/hide guard below.
   const manualToggleAtRef = useRef(0);
-  // Where/when the current touch on the WebView started — used to tell a
-  // genuine tap apart from the start of a scroll/drag (see onTouchEnd below).
-  const tapStartRef = useRef({ x: 0, y: 0, t: 0 });
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
@@ -305,10 +302,20 @@ const Reader = ({ navigation, route }) => {
       // detection lives in gutkaScript so scroll gestures never toggle). Scroll
       // only ever posts "hide"; "show" arrives from other flows (e.g. bookmark).
       if (data === "toggle") {
+        // Single source of truth for tap-to-toggle. gutkaScript detects a genuine
+        // tap (ignoring scroll/momentum) and posts "toggle"; we stamp the manual
+        // toggle time (so a trailing scroll "hide" can't undo it) and nudge the
+        // mini player in lockstep with the header.
+        manualToggleAtRef.current = Date.now();
         toggleHeader((prev) => !prev);
+        dispatch(actions.bumpReaderTap());
       } else if (data === "show") {
         toggleHeader(true);
       } else if (data === "hide") {
+        // A momentum scroll can post "hide" right after a deliberate tap-to-show,
+        // which would flash the header off again. Ignore scroll-driven "hide" for a
+        // short window after the last manual toggle.
+        const recentManualToggle = Date.now() - manualToggleAtRef.current < 500;
         if (!recentManualToggle) toggleHeader(false);
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID (and optional sequence) from WebView scroll events.
@@ -433,34 +440,6 @@ const Reader = ({ navigation, route }) => {
           { backgroundColor: readerBgColor, marginTop: 60 },
         ]}
         onMessage={handleMessage}
-        onTouchStart={(e) => {
-          // Record where/when the touch landed — don't toggle yet. Toggling
-          // here fired on the down-stroke of EVERY touch, including the start
-          // of a scroll/drag (nestedScrollEnabled means every scroll begins
-          // with a touch on this WebView), which fought gutkaScript's own
-          // scroll-direction show/hide on practically every scroll and left
-          // the header/nav animation perpetually re-targeted, never settling.
-          const touch = e?.nativeEvent?.touches?.[0] || e?.nativeEvent || {};
-          tapStartRef.current = {
-            x: touch.pageX ?? 0,
-            y: touch.pageY ?? 0,
-            t: Date.now(),
-          };
-        }}
-        onTouchEnd={(e) => {
-          // Only toggle for an actual tap — brief, with negligible movement.
-          // A scroll/drag's matching touchend has large dx/dy and/or a long
-          // duration, so it's correctly excluded here.
-          const touch = e?.nativeEvent?.changedTouches?.[0] || e?.nativeEvent || {};
-          const dx = Math.abs((touch.pageX ?? 0) - tapStartRef.current.x);
-          const dy = Math.abs((touch.pageY ?? 0) - tapStartRef.current.y);
-          const dt = Date.now() - tapStartRef.current.t;
-          if (dt > 400 || dx > 10 || dy > 10) return;
-          manualToggleAtRef.current = Date.now();
-          toggleHeader((prev) => !prev);
-          // Signal the floating mini player to toggle its expanded state.
-          dispatch(actions.bumpReaderTap());
-        }}
       />
       {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
       {isAutoScroll && (
