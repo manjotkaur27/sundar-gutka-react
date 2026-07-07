@@ -15,7 +15,7 @@ import {
 
 import { Slider } from "@miblanchard/react-native-slider";
 
-const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick }) => {
+const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick, onActivity }) => {
   const { theme } = useTheme();
   const isFocused = useIsFocused();
   const [isPaused, togglePaused] = useState(true);
@@ -75,17 +75,20 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick }) => {
       const val = Math.floor(valueArr[0]);
       dispatch(actions.setAutoScrollSpeed(val, shabadID));
       trackReaderEvent("autoScrollSpeed", val);
+      onActivity?.();
     },
-    [dispatch, shabadID]
+    [dispatch, shabadID, onActivity]
   );
 
   const handlePause = useCallback(() => {
     togglePaused(true);
-  }, []);
+    onActivity?.();
+  }, [onActivity]);
 
   const handlePlay = useCallback(() => {
     togglePaused(false);
-  }, []);
+    onActivity?.();
+  }, [onActivity]);
 
   const barBg = theme.colors.primary;
   const textColor = theme.staticColors.WHITE_COLOR;
@@ -113,7 +116,10 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick }) => {
             minimumValue={1}
             maximumValue={100}
             step={1}
-            onValueChange={(val) => setSliderValue(Math.floor(val[0]))}
+            onValueChange={(val) => {
+              setSliderValue(Math.floor(val[0]));
+              onActivity?.();
+            }}
             onSlidingComplete={handleSlidingComplete}
             thumbStyle={localStyles.sliderThumb}
             trackStyle={localStyles.sliderTrack}
@@ -185,10 +191,12 @@ AutoScrollComponent.propTypes = {
     }),
   }).isRequired,
   webViewLoadTick: PropTypes.number,
+  onActivity: PropTypes.func,
 };
 
 AutoScrollComponent.defaultProps = {
   webViewLoadTick: 0,
+  onActivity: undefined,
 };
 
 export default React.memo(AutoScrollComponent);

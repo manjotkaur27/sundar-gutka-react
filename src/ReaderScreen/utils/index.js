@@ -11,7 +11,7 @@ export const fontColorForReader = (header, theme, text) => {
   const defaultColor = getHeaderColor2();
   const gurmukhiMapping = {
     1: getHeaderColor1(),
-    2: getHeaderColor1(),
+    2: defaultColor,
     6: defaultColor,
     default: defaultColor,
   };

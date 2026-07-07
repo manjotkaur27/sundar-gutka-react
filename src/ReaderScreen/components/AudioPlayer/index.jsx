@@ -21,6 +21,7 @@ import {
 import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./components";
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
+import { prefetchPreviews } from "./utils/audioDownloader";
 
 // Maps each Redux baniLength constant to its human-readable display label.
 const BANI_LENGTH_LABEL = {
@@ -89,6 +90,24 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   useEffect(() => {
     trackBaniOpen(baniID, title, defaultAudio[baniID]?.displayName);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Warm the preview cache as soon as this bani's tracks are known: download
+  // every artist's 15-second preview clip (~200KB each) in the background so
+  // tapping any preview in the track dialog plays instantly from disk instead
+  // of buffering the full track. Keyed on the track-set signature so it fires
+  // once per bani (and again if a length change swaps the track list).
+  const prefetchedPreviewSigRef = useRef(null);
+  useEffect(() => {
+    if (isTracksLoading || !Array.isArray(tracks) || tracks.length === 0) {
+      return;
+    }
+    const signature = tracks.map((track) => track?.remoteUrl || track?.audioUrl).join("|");
+    if (prefetchedPreviewSigRef.current === signature) {
+      return;
+    }
+    prefetchedPreviewSigRef.current = signature;
+    prefetchPreviews(tracks);
+  }, [tracks, isTracksLoading]);
 
   // Tracks the latest playback position and track metadata in a ref so the
   // completion event handler always reads current values without stale closures.

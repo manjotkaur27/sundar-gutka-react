@@ -139,6 +139,12 @@ const createStyles = (theme) => ({
     alignItems: "center",
     paddingHorizontal: 16,
   },
+  bottomChrome: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   scrollProgressTrack: {
     height: 5,
     width: "100%",

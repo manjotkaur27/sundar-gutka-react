@@ -18,6 +18,7 @@ import defaultBaniOrder from "./defaultBaniOrder";
 import {
   allowTracking,
   trackReaderEvent,
+  trackNavBar,
   trackSettingEvent,
   trackReminderEvent,
   trackAudioEvent,
@@ -66,6 +67,7 @@ export {
   initializeCrashlytics,
   allowTracking,
   trackReaderEvent,
+  trackNavBar,
   trackAudioEvent,
   trackReminderEvent,
   trackSettingEvent,

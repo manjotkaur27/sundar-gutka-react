@@ -212,6 +212,10 @@ jest.mock("@common", () => ({
     return <View testID="status-bar" {...props} />;
   },
   useBackHandler: jest.fn(),
+  showInfoToast: jest.fn(),
+  STRINGS: {},
+  trackScrollProgress: jest.fn(),
+  trackNavBar: jest.fn(),
 }));
 
 // Mock components

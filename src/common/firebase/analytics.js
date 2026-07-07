@@ -221,9 +221,28 @@ const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollE
   }
 };
 
+// Fires whenever the reader's header + bottom navigation bar are shown or hidden,
+// as two distinct events (NAV_BAR_SHOW / NAV_BAR_HIDE) so each is a first-class
+// metric in Firebase. trigger: "tap" | "scroll_up" | "scroll_down" |
+// "auto_hide_idle" separates deliberate toggles from the inactivity auto-hide;
+// mode: "reading" | "audio" | "autoscroll" is the active reading context.
+const trackNavBar = async (visible, trigger, mode) => {
+  try {
+    await logEvent(analytics, visible ? "NAV_BAR_SHOW" : "NAV_BAR_HIDE", {
+      trigger: safeStr(trigger, "unknown"),
+      mode: safeStr(mode, "reading"),
+    });
+  } catch (error) {
+    logError(
+      new Error(`nav_bar visibility tracking failed - ${error?.message || "Unknown error"}`)
+    );
+  }
+};
+
 export {
   allowTracking,
   trackReaderEvent,
+  trackNavBar,
   trackSettingEvent,
   trackReminderEvent,
   trackScreenView,

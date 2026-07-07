@@ -17,12 +17,16 @@ import {
   showInfoToast,
   STRINGS,
   trackScrollProgress,
+  trackNavBar,
 } from "@common";
 import { Header, AutoScrollComponent, AudioPlayer } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
 import { pauseTrack } from "@common/TrackPlayerUtils";
+
+// How long the bars linger with no interaction before auto-hiding during auto-scroll.
+const BARS_IDLE_HIDE_MS = 4000;
 
 const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -79,27 +83,106 @@ const Reader = ({ navigation, route }) => {
   // Latest scroll % (0-100) for analytics — updated on every WebView scroll message
   const scrollPercentRef = useRef(0);
 
-  // Animated height for the BottomNavigation wrapper — collapses the layout space
-  // when the nav hides so no blank gap is left behind. The nav tracks isHeader, so
-  // it hides/shows together with the header on the same tap and scroll signals.
-  const navTotalHeight =
-    theme.components.bottomNavigation.height + (Platform.OS === "ios" ? insetBottom : 0);
-  const navHeightAnim = useRef(new Animated.Value(0)).current;
+  // Footprint of the bottom-nav overlay (nav height + the 5px progress track that
+  // sits on top of it). The audio player is lifted by exactly this much when the
+  // bars are shown so it clears the nav.
+  const navChromeHeight =
+    theme.components.bottomNavigation.height +
+    5 +
+    (Platform.OS === "ios" ? Math.min(insetBottom, 8) : 0);
+
+  // The bottom chrome (scroll-progress bar + BottomNavigation) is an absolute
+  // overlay pinned to the bottom of the screen. It slides in/out with a single
+  // native-driver transform — NOT a JS-driven height animation — so toggling the
+  // bars never resizes the flex WebView underneath. Resizing the WebView on every
+  // animation frame was the low-end-Android jank source: reflow storms made the
+  // bars appear laggily, and the JS-thread height animation desynced against the
+  // nav's own native transform, flickering it in and out. Sliding an overlay
+  // leaves nothing to reflow and runs entirely on the UI thread.
+  const navSlideAnim = useRef(new Animated.Value(300)).current; // starts hidden (bars off)
+  const navClusterHeightRef = useRef(0);
+
+  // The audio player stays in flow (so it never covers the text) but rides with
+  // the bars: it sits at the very bottom while reading and lifts above the nav
+  // when the bars appear, dropping back down when they hide — the way it moved
+  // before the overlay refactor. It's a native-driver transform, not a layout
+  // change, so it never resizes the WebView.
+  const audioLiftAnim = useRef(new Animated.Value(0)).current; // starts down (bars off)
 
   useEffect(() => {
-    Animated.timing(navHeightAnim, {
-      toValue: isHeader ? navTotalHeight : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isHeader, navTotalHeight, navHeightAnim]);
+    const distance = navClusterHeightRef.current || 300;
+    Animated.parallel([
+      Animated.timing(navSlideAnim, {
+        toValue: isHeader ? 0 : distance,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(audioLiftAnim, {
+        toValue: isHeader ? -navChromeHeight : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isHeader, navSlideAnim, audioLiftAnim, navChromeHeight]);
 
   // iPad scroll guard: blocks spurious WebView scroll events during and shortly
   // after screen transitions (Bookmarks → Reader). WKWebView can fire scroll-to-0
   // events both while backgrounded AND during the return transition animation.
   const iPadScrollGuardRef = useRef(false);
 
+  // Auto-hide the bars after a spell of inactivity while auto-scroll is running.
+  // Both auto-scroll and audio are hands-off reads, so a tap that reveals the bars
+  // should quietly fall away again if the user doesn't follow up — keeping the
+  // immersive view (during audio the mini-player stays; only the header + nav go).
+  // Any interaction (reading-area touch, speed-slider, audio controls) restarts the
+  // countdown; it only applies while auto-scroll/audio is active and the bars are up.
+  const barsIdleTimerRef = useRef(null);
+  // Read live state from refs so the (stable) scheduler can be called from message
+  // handlers and children without stale closures or re-renders on every touch.
+  const isHeaderRef = useRef(isHeader);
+  isHeaderRef.current = isHeader;
+  const isAutoScrollRef = useRef(isAutoScroll);
+  isAutoScrollRef.current = isAutoScroll;
+  const isAudioActiveRef = useRef(isAudioFeatureOn && isAudio);
+  isAudioActiveRef.current = isAudioFeatureOn && isAudio;
 
+  // Single funnel for every bar show/hide so each visibility change fires exactly
+  // one NAV_BAR_SHOW / NAV_BAR_HIDE analytics event with its trigger, and repeats
+  // (e.g. "hide" posted on every scroll-down tick) are deduped. isHeaderRef is
+  // nudged immediately so rapid repeats before the next render don't double-count.
+  const setBarsVisible = useCallback((visible, trigger) => {
+    if (isHeaderRef.current === visible) return;
+    isHeaderRef.current = visible;
+    toggleHeader(visible);
+    let mode = "reading";
+    if (isAutoScrollRef.current) mode = "autoscroll";
+    else if (isAudioActiveRef.current) mode = "audio";
+    trackNavBar(visible, trigger, mode);
+  }, []);
+
+  const clearBarsIdleTimer = useCallback(() => {
+    if (barsIdleTimerRef.current) {
+      clearTimeout(barsIdleTimerRef.current);
+      barsIdleTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleBarsIdleHide = useCallback(() => {
+    clearBarsIdleTimer();
+    if ((isAutoScrollRef.current || isAudioActiveRef.current) && isHeaderRef.current) {
+      barsIdleTimerRef.current = setTimeout(() => {
+        setBarsVisible(false, "auto_hide_idle");
+      }, BARS_IDLE_HIDE_MS);
+    }
+  }, [clearBarsIdleTimer, setBarsVisible]);
+
+  // Start/refresh the countdown whenever the bars are shown during auto-scroll or
+  // audio, and tear it down when the bars hide, playback stops, or the screen
+  // unmounts.
+  useEffect(() => {
+    scheduleBarsIdleHide();
+    return clearBarsIdleTimer;
+  }, [isHeader, isAutoScroll, isAudioFeatureOn, isAudio, scheduleBarsIdleHide, clearBarsIdleTimer]);
 
   const pauseAudioPlayback = useCallback(async () => {
     try {
@@ -291,14 +374,18 @@ const Reader = ({ navigation, route }) => {
       }
 
       // Handle UI messages. A tap inside the WebView posts "toggle" (tap
-      // detection lives in gutkaScript so scroll gestures never toggle). Scroll
-      // only ever posts "hide"; "show" arrives from other flows (e.g. bookmark).
+      // detection lives in gutkaScript so scroll gestures never toggle).
+      // Scrolling down posts "hide", scrolling up posts "show".
       if (data === "toggle") {
-        toggleHeader((prev) => !prev);
+        setBarsVisible(!isHeaderRef.current, "tap");
+      } else if (data === "activity") {
+        // A touch on the reading area during auto-scroll/audio — restart the idle
+        // countdown so the bars don't hide out from under an engaged user.
+        scheduleBarsIdleHide();
       } else if (data === "show") {
-        toggleHeader(true);
+        setBarsVisible(true, "scroll_up");
       } else if (data === "hide") {
-        toggleHeader(false);
+        setBarsVisible(false, "scroll_down");
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID (and optional sequence) from WebView scroll events
         const payload = data.split("scroll-elementId-")[1];
@@ -323,7 +410,7 @@ const Reader = ({ navigation, route }) => {
         }
       }
     },
-    [dispatch, id, navigation, shouldNavigateBack]
+    [dispatch, id, navigation, shouldNavigateBack, scheduleBarsIdleHide, setBarsVisible]
   );
 
   const handleLoadStart = useCallback(() => {
@@ -417,35 +504,55 @@ const Reader = ({ navigation, route }) => {
         ]}
         onMessage={handleMessage}
       />
-      {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
+      {isAudioFeatureOn && isAudio && (
+        <Animated.View
+          style={{ transform: [{ translateY: audioLiftAnim }] }}
+          // Touching the audio controls (seek, play/pause, tracks) counts as
+          // activity — restart the idle countdown so the bars, and with them the
+          // lifted player, don't drop away mid-interaction.
+          onTouchStart={scheduleBarsIdleHide}
+          onTouchMove={scheduleBarsIdleHide}
+        >
+          <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />
+        </Animated.View>
+      )}
       {isAutoScroll && (
         <View style={[styles.autoScrollFixedView, { bottom: styles.autoScrollFixedView.bottom + insetBottom, display: isHeader ? "flex" : "none" }]}>
-          <AutoScrollComponent shabadID={id} webViewRef={webViewRef} webViewLoadTick={webViewLoadTick} />
+          <AutoScrollComponent shabadID={id} webViewRef={webViewRef} webViewLoadTick={webViewLoadTick} onActivity={scheduleBarsIdleHide} />
         </View>
       )}
 
 
-      {/* Native scroll progress bar — fixed above BottomNavigation */}
-      <View style={styles.scrollProgressTrack}>
-        <Animated.View
-          style={[
-            styles.scrollProgressFill,
-            {
-              width: scrollProgressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ["0%", "100%"],
-                extrapolate: "clamp",
-              }),
-            },
-          ]}
-        />
-      </View>
-
-      <Animated.View style={{ height: navHeightAnim, overflow: "hidden" }}>
-        <BottomNavigation
-          activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
-          visible={isHeader}
-        />
+      {/* Bottom chrome overlay — scroll-progress bar + BottomNavigation. Pinned to
+          the bottom and slid out of view together via a single native-driver
+          transform, so showing/hiding the bars never resizes the WebView. */}
+      <Animated.View
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0) {
+            navClusterHeightRef.current = h;
+            // Snap to the exact off-screen distance on first measure so the initial
+            // hidden state (bars start off) lands precisely with no visible flash.
+            if (!isHeader) navSlideAnim.setValue(h);
+          }
+        }}
+        style={[styles.bottomChrome, { transform: [{ translateY: navSlideAnim }] }]}
+      >
+        <View style={styles.scrollProgressTrack}>
+          <Animated.View
+            style={[
+              styles.scrollProgressFill,
+              {
+                width: scrollProgressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                  extrapolate: "clamp",
+                }),
+              },
+            ]}
+          />
+        </View>
+        <BottomNavigation activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"} />
       </Animated.View>
     </SafeArea>
   );

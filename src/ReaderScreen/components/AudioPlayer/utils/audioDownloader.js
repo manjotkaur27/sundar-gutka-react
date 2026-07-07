@@ -23,6 +23,10 @@ import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
 const AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio`;
 const PREFETCH_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_prefetch`;
 const PREFETCH_INDEX_PATH = `${PREFETCH_AUDIO_DIRECTORY}/.prefetch-index.json`;
+// Dedicated cache for the tiny (~200KB) 15-second preview clips. Kept separate
+// from the full-track caches so previews are never evicted by the full-track
+// LRU and vice-versa.
+const PREVIEW_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_preview`;
 
 /**
  * Generate safe filename from URL and track info
@@ -114,6 +118,116 @@ export const getFullPrefetchTrackPath = (url) => {
   return `${PREFETCH_AUDIO_DIRECTORY}/${artistName}/${fileName}`;
 };
 
+/**
+ * Preview clips live next to the full track on the CDN, with a `-preview`
+ * suffix inserted before the extension (kept AFTER any length variant):
+ *   .../AnandSahib.m4a          -> .../AnandSahib-preview.m4a
+ *   .../RehrasSahib-trimmed.m4a -> .../RehrasSahib-trimmed-preview.m4a
+ * Not every track has a preview clip yet, so the returned URL may 404 — callers
+ * must treat a failed download as "no preview" and fall back to the full track.
+ */
+export const getPreviewRemoteUrl = (url) => {
+  if (!url || typeof url !== "string") return null;
+  if (!/\.m4a(\?|$)/i.test(url)) return null;
+  // The Anand Sahib "6 Pauri" variant has no dedicated preview clip, so reuse
+  // the full Anand Sahib preview:
+  //   AnandSahib-6-pauri.m4a -> AnandSahib-preview.m4a
+  const normalized = url.replace(/-6-pauri\.m4a(\?|$)/i, ".m4a$1");
+  return normalized.replace(/\.m4a(\?|$)/i, "-preview.m4a$1");
+};
+
+export const getFullPreviewTrackPath = (previewUrl) => {
+  const { artistName, fileName } = generateFilename(previewUrl);
+  return `${PREVIEW_AUDIO_DIRECTORY}/${artistName}/${fileName}`;
+};
+
+// In-flight preview downloads, keyed by preview URL. Ensures the background
+// reader-open prefetch and an on-tap request for the SAME clip share a single
+// download instead of racing two writes to the same file (which is slow and can
+// corrupt the file). A tap landing mid-prefetch simply awaits the ongoing one.
+const previewDownloadsInFlight = new Map();
+
+/**
+ * Ensure the 15-second preview clip for a track is cached on disk. Returns the
+ * local file path if available (already cached or freshly downloaded), or null
+ * when the track has no preview clip on the CDN (404) or the download fails —
+ * the caller then falls back to streaming the full track and cutting at 15s.
+ */
+export const ensurePreviewDownloaded = async (canonicalUrl, trackTitle = "Preview") => {
+  const previewUrl = getPreviewRemoteUrl(canonicalUrl);
+  // Only remote clips can be fetched; local-only tracks already play instantly.
+  if (!previewUrl || !/^https?:\/\//i.test(previewUrl)) {
+    return null;
+  }
+
+  const fullPath = getFullPreviewTrackPath(previewUrl);
+
+  // Fast path — already on disk, zero network.
+  try {
+    if (await exists(fullPath)) {
+      return fullPath;
+    }
+  } catch (_) {
+    // Fall through to (re)download.
+  }
+
+  // Reuse an in-flight download for the same clip if one is already running.
+  if (previewDownloadsInFlight.has(previewUrl)) {
+    return previewDownloadsInFlight.get(previewUrl);
+  }
+
+  const task = (async () => {
+    try {
+      await downloadAudioOnly(previewUrl, trackTitle, { targetDirectory: "preview" });
+      return (await exists(fullPath)) ? fullPath : null;
+    } catch (_) {
+      // 404 (no preview for this track) or a network failure — silent fallback.
+      return null;
+    } finally {
+      previewDownloadsInFlight.delete(previewUrl);
+    }
+  })();
+
+  previewDownloadsInFlight.set(previewUrl, task);
+  return task;
+};
+
+/**
+ * Warm the preview cache for an entire bani so tapping any preview in the
+ * AudioTrackDialog plays instantly from disk. Preview clips are ~200KB each, so
+ * fetching every artist's clip on reader-open costs well under 1MB total. Runs
+ * with limited concurrency, dedupes by URL, and never throws.
+ */
+export const prefetchPreviews = async (tracks) => {
+  if (!Array.isArray(tracks) || tracks.length === 0) {
+    return;
+  }
+
+  const seen = new Set();
+  const queue = [];
+  for (const track of tracks) {
+    const canonical = track?.remoteUrl || track?.audioUrl;
+    const previewUrl = getPreviewRemoteUrl(canonical);
+    if (!previewUrl || !/^https?:\/\//i.test(previewUrl) || seen.has(previewUrl)) {
+      continue;
+    }
+    seen.add(previewUrl);
+    queue.push({ canonical, title: track?.displayName || "Preview" });
+  }
+
+  if (queue.length === 0) {
+    return;
+  }
+
+  // Clips are tiny (~200KB) and a bani has at most ~3 of them, so fetch the
+  // whole set in parallel — the sooner every clip is on disk, the more likely
+  // it's ready before the user can tap. ensurePreviewDownloaded dedupes, so an
+  // on-tap request shares whichever download is already running here.
+  await Promise.all(
+    queue.map((item) => ensurePreviewDownloaded(item.canonical, item.title).catch(() => {}))
+  );
+};
+
 export const getLocalJsonPath = (url) => {
   const { artistName, fileName } = generateFilename(url);
   const jsonFileName = fileName.replace(/\.[^/.]+$/, ".json");
@@ -128,7 +242,12 @@ export const getFullLocalJsonPath = (url) => {
 
 export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
   const { skipDirectorySetup = false, targetDirectory = "main", expectedSizeMB = 0 } = options;
-  const baseDirectory = targetDirectory === "prefetch" ? PREFETCH_AUDIO_DIRECTORY : AUDIO_DIRECTORY;
+  const baseDirectory =
+    targetDirectory === "prefetch"
+      ? PREFETCH_AUDIO_DIRECTORY
+      : targetDirectory === "preview"
+      ? PREVIEW_AUDIO_DIRECTORY
+      : AUDIO_DIRECTORY;
   const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(
     url,
     baseDirectory

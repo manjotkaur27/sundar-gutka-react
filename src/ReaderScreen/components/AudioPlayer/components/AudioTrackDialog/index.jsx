@@ -10,6 +10,7 @@ import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent from "../ScrollViewComponent";
+import { ensurePreviewDownloaded, getPreviewRemoteUrl } from "../../utils/audioDownloader";
 
 const PREVIEW_DURATION_MS = 15000;
 const ACTIVE_TRACK_POLL_MS = 150;
@@ -337,16 +338,32 @@ const AudioTrackDialog = ({
         // Non-critical — preview audio still plays without notification controls.
       }
 
+      // Resolve the dedicated 15-second preview clip: prefer the tiny local
+      // cached clip (instant playback, no full-track moov parse), downloading
+      // it on-demand if the reader-open prefetch hasn't finished. When the CDN
+      // has no preview for this track, fall back to the full track (cut at 15s).
+      const canonicalUrl = track.remoteUrl || track.audioUrl;
+      const previewLocalPath = await ensurePreviewDownloaded(canonicalUrl, track.displayName);
+
+      if (previewSessionRef.current !== sessionId) {
+        return;
+      }
+
+      const previewPlayUrl = previewLocalPath || track.audioUrl;
+      const previewFallbackUrl = previewLocalPath
+        ? getPreviewRemoteUrl(canonicalUrl) || canonicalUrl
+        : canonicalUrl;
+
       await addAndPlayTrack(
         track.id,
-        track.audioUrl,
+        previewPlayUrl,
         notificationTitle || title,
         track.displayName,
         track.lyricsUrl,
         track.trackLengthSec,
         track.trackSizeMB,
         true,
-        track.remoteUrl || track.audioUrl
+        previewFallbackUrl
       );
 
       if (previewSessionRef.current !== sessionId) {

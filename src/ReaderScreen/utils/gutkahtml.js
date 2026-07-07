@@ -20,6 +20,9 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       background-color: ${backColor};
       word-break: break-word;
       margin-top:50px;
+      /* Clear the bottom-nav overlay (65px nav + 5px progress bar) so the last
+         verse is never hidden behind the bars when the chrome is shown. */
+      padding-bottom: 90px;
     }
     ::-webkit-scrollbar {
       width: 4px;

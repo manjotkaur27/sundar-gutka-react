@@ -48,45 +48,76 @@ let lastScrollFuncTime = 0;
 // treated as a tap.
 let scrolledDuringTouch = false;
 let lastScrollTime = 0;
+// Throttle the expensive topmost-element scan on manual scroll. Reading the bar
+// direction is cheap and runs every tick (so the bars stay responsive), but
+// scanning every text-item with getBoundingClientRect is far too heavy to run
+// 60x/sec on low-end devices — 150ms position-save granularity is plenty.
+let lastElementIdTime = 0;
+const ELEMENT_ID_THROTTLE = 150;
+// Programmatic-scroll guard: audio sync-scroll, seek, position-restore and
+// bookmark jumps all call scrollIntoView, which fires the same scroll events a
+// user swipe does. Without this window those scrolls would be read as a swipe
+// direction and flicker the bars — e.g. seeking back/forth toggles them. We stamp
+// a short window whenever we scroll the page ourselves and skip direction
+// detection until it elapses (each new programmatic scroll re-arms it).
+let programmaticScrollUntil = 0;
+const PROGRAMMATIC_SCROLL_WINDOW = 600;
 
 const scrollFunc=(e)=> {
-  scrolledDuringTouch = true;
-  lastScrollTime = Date.now();
-  // During auto-scroll, throttle this handler to every 300ms
-  // to prevent 60fps RAF from triggering 60 expensive DOM queries/sec
+  // Tap-detection bookkeeping — user scrolls only. While auto-scroll runs it
+  // drives the page itself every frame; if those frames stamped lastScrollTime,
+  // the touchend guard (now - lastScrollTime > 200) would treat every tap as
+  // "tapping a moving page" and refuse to toggle the bars. Gating on
+  // autoScrollSpeed keeps that guard working for real fling momentum (auto-scroll
+  // off) while letting a tap toggle the bars during auto-scroll.
+  if (autoScrollSpeed == 0) {
+    scrolledDuringTouch = true;
+    lastScrollTime = Date.now();
+  }
+
+  // ── Bar direction detection — FIRST, before any expensive DOM work ──────
+  // Scroll direction drives the bars: scrolling down hides them, scrolling up
+  // shows them (a tap toggles — see the touch handlers below). This runs on
+  // every scroll tick so the bars react the instant the user changes direction,
+  // even on slow devices where the element scan further down is costly. The bars
+  // are an RN overlay that no longer resizes the WebView, so a toggle can never
+  // feed a spurious scroll back into here — no cooldown is needed.
+  if (typeof scrollFunc.y == "undefined") {
+    scrollFunc.y = window.pageYOffset;
+  }
+  if (autoScrollSpeed == 0) {
+    const currentY = window.pageYOffset;
+    const diffY = scrollFunc.y - currentY; // > 0 scrolling up, < 0 scrolling down
+    // The anchor (scrollFunc.y) only advances once a direction commits, so slow
+    // scrolls keep accumulating past the threshold instead of the reference
+    // resetting on every event and swallowing the movement.
+    if (Date.now() < programmaticScrollUntil) {
+      // A programmatic scroll (audio sync / seek / restore / bookmark) is still
+      // settling — keep the anchor in sync but don't toggle. Otherwise seeking
+      // back/forth reads as a swipe and flickers the bars.
+      scrollFunc.y = currentY;
+    } else if (diffY < -3) {
+      window.ReactNativeWebView.postMessage("hide");
+      scrollFunc.y = currentY;
+    } else if (diffY > 3) {
+      window.ReactNativeWebView.postMessage("show");
+      scrollFunc.y = currentY;
+    }
+  } else {
+    // Auto-scrolling: keep the anchor pinned to the live position so the first
+    // manual scroll afterwards is measured from where the reader actually is.
+    scrollFunc.y = window.pageYOffset;
+  }
+
+  // During auto-scroll, throttle the remaining (expensive) work to every 300ms
+  // to prevent the 60fps RAF from triggering 60 DOM queries/sec.
   if (autoScrollSpeed > 0) {
     const now = Date.now();
     if (now - lastScrollFuncTime < 300) return;
     lastScrollFuncTime = now;
   }
 
-  // Check if user has reached the end of the document
-  const scrollHeight = document.documentElement.scrollHeight;
-  const scrollTop = window.scrollY || window.pageYOffset;
-  const clientHeight = window.innerHeight;
-  const threshold = 50; // pixels from bottom to consider "at end"
-  const isAtEnd = scrollTop + clientHeight >= scrollHeight - threshold;
-  
-  if (isAtEnd && !hasReachedEnd) {
-    hasReachedEnd = true;
-  } else if (!isAtEnd && hasReachedEnd) {
-    // Reset flag when user scrolls away from the end
-    hasReachedEnd = false;
-  }
-
-  // Report topmost element on both manual and auto-scroll so read context
-  // survives background/terminate mid-auto-scroll. The 300ms throttle above
-  // keeps this off the 60fps RAF hot path during auto-scroll.
-  const elementId = getTopmostElementId();
-  if (elementId && !hasReachedEnd) {
-    const topEl = document.getElementById(String(elementId));
-    const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
-    window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
-  } else if (hasReachedEnd) {
-    window.ReactNativeWebView.postMessage("scroll-elementId-null");
-  }
-
-  // ── Scroll progress — bridge message on every scroll tick ───────────
+  // ── Scroll progress — cheap arithmetic, posted every tick for a smooth bar ──
   var sh = document.documentElement.scrollHeight;
   var ch = window.innerHeight;
   var maxScroll = sh - ch;
@@ -97,19 +128,38 @@ const scrollFunc=(e)=> {
     window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
   }
 
-  if (typeof scrollFunc.y == "undefined") {
-    scrollFunc.y = window.pageYOffset;
-  }
+  // ── Topmost element (position save) — heavy DOM scan, throttled on manual
+  // scroll so it stays off the hot path on low-end devices. ────────────────
   if (autoScrollSpeed == 0) {
-    let diffY = scrollFunc.y - window.pageYOffset;
-    // Scrolling only ever HIDES the bars — never shows them. Showing is
-    // reserved for an explicit tap (see the tap-detection touch handlers below).
-    if (diffY < -3) {
-      // Scroll down
-      window.ReactNativeWebView.postMessage("hide");
-    }
+    const nowId = Date.now();
+    if (nowId - lastElementIdTime < ELEMENT_ID_THROTTLE) return;
+    lastElementIdTime = nowId;
   }
-  scrollFunc.y = window.pageYOffset;
+
+  // Check if user has reached the end of the document
+  const scrollHeight = document.documentElement.scrollHeight;
+  const scrollTop = window.scrollY || window.pageYOffset;
+  const clientHeight = window.innerHeight;
+  const threshold = 50; // pixels from bottom to consider "at end"
+  const isAtEnd = scrollTop + clientHeight >= scrollHeight - threshold;
+
+  if (isAtEnd && !hasReachedEnd) {
+    hasReachedEnd = true;
+  } else if (!isAtEnd && hasReachedEnd) {
+    // Reset flag when user scrolls away from the end
+    hasReachedEnd = false;
+  }
+
+  // Report topmost element on both manual and auto-scroll so read context
+  // survives background/terminate mid-auto-scroll.
+  const elementId = getTopmostElementId();
+  if (elementId && !hasReachedEnd) {
+    const topEl = document.getElementById(String(elementId));
+    const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
+    window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
+  } else if (hasReachedEnd) {
+    window.ReactNativeWebView.postMessage("scroll-elementId-null");
+  }
 }
 
 const getTopmostElementId=()=> {
@@ -232,6 +282,7 @@ window.addEventListener(
       if (elementId) {
         const element = document.getElementById(String(elementId));
         if (element) {
+          programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW;
           element.scrollIntoView({
             behavior: "smooth",
             block: "start",
@@ -293,6 +344,10 @@ ${listener}.addEventListener("touchstart", (e)=> {
     wasAutoScrolling = true;
     clearScrollTimeout();
   }
+  // Signal user activity so RN can restart its inactivity auto-hide countdown for
+  // the bars. RN only acts on it while auto-scroll or audio is active; harmless
+  // otherwise.
+  window.ReactNativeWebView.postMessage("activity");
   tapMoved = false;
   scrolledDuringTouch = false;
   tapStartTime = Date.now();
@@ -339,6 +394,7 @@ ${listener}.addEventListener(
         return;
       }
         // Manually scroll to the bookmarked element because location.hash is unreliable inside WebView HTML
+      programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW;
       element.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -382,6 +438,7 @@ ${listener}.addEventListener(
         }
       }
       if (element) {
+        programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW;
         element.scrollIntoView({
           behavior: "auto",
           block: "start",
@@ -435,6 +492,7 @@ ${listener}.addEventListener(
         // Only scroll if it's a different element
         if (!isSameElement) {
           const behavior = message.behavior === "smooth" ? "smooth" : "auto";
+          programmaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_WINDOW;
           gurmukhiDiv.scrollIntoView({
             behavior: behavior,
             block: "center",

@@ -32,6 +32,7 @@ import {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackNavBar,
   trackSettingEvent,
   trackAudioEvent,
   trackReaderEvent,
@@ -413,6 +414,35 @@ describe("trackScrollProgress", () => {
   it("does not throw when logEvent rejects", async () => {
     logEvent.mockRejectedValueOnce(new Error("err"));
     await expect(trackScrollProgress("2", "t", 50, false)).resolves.toBeUndefined();
+    expect(logError).toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAV_BAR_SHOW / NAV_BAR_HIDE
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("trackNavBar", () => {
+  it("fires NAV_BAR_SHOW when visible with trigger/mode", async () => {
+    await trackNavBar(true, "tap", "reading");
+    expect(lastEventName()).toBe("NAV_BAR_SHOW");
+    expect(lastParams()).toEqual({ trigger: "tap", mode: "reading" });
+  });
+
+  it("fires NAV_BAR_HIDE when hidden", async () => {
+    await trackNavBar(false, "auto_hide_idle", "audio");
+    expect(lastEventName()).toBe("NAV_BAR_HIDE");
+    expect(lastParams()).toEqual({ trigger: "auto_hide_idle", mode: "audio" });
+  });
+
+  it("falls back to safe defaults for missing trigger/mode", async () => {
+    await trackNavBar(true);
+    expect(lastParams()).toEqual({ trigger: "unknown", mode: "reading" });
+  });
+
+  it("does not throw when logEvent rejects", async () => {
+    logEvent.mockRejectedValueOnce(new Error("err"));
+    await expect(trackNavBar(true, "tap", "reading")).resolves.toBeUndefined();
     expect(logError).toHaveBeenCalled();
   });
 });
