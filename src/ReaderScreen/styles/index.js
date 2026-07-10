@@ -145,12 +145,15 @@ const createStyles = (theme) => ({
     right: 0,
     bottom: 0,
   },
-  scrollProgressTrack: {
+  scrollProgressBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     height: 5,
-    width: "100%",
-    backgroundColor: theme.mode === "dark"
-      ? "rgba(255, 255, 255, 0.12)"
-      : "rgba(0, 0, 0, 0.08)",
+    overflow: "hidden",
+    backgroundColor:
+      theme.mode === "dark" ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)",
   },
   scrollProgressFill: {
     height: "100%",

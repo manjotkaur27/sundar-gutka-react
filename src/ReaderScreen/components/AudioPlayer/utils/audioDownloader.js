@@ -26,7 +26,17 @@ const PREFETCH_INDEX_PATH = `${PREFETCH_AUDIO_DIRECTORY}/.prefetch-index.json`;
 // Dedicated cache for the tiny (~200KB) 15-second preview clips. Kept separate
 // from the full-track caches so previews are never evicted by the full-track
 // LRU and vice-versa.
-const PREVIEW_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_preview`;
+//
+// The `_v2` suffix intentionally abandons any clips written by earlier builds:
+// a concurrent-download race could truncate a clip on disk, and a truncated
+// M4A wedges ExoPlayer in Buffering forever on Android. Bumping the directory
+// guarantees every device re-downloads clean clips via the now race-free
+// downloader, with no reinstall or manual cache-clear needed.
+const LEGACY_PREVIEW_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_preview`;
+const PREVIEW_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_preview_v2`;
+// Best-effort one-time cleanup of the abandoned v1 directory (guarded so the
+// unlink is attempted at most once per app session).
+let legacyPreviewCleanupDone = false;
 
 /**
  * Generate safe filename from URL and track info
@@ -160,28 +170,29 @@ export const ensurePreviewDownloaded = async (canonicalUrl, trackTitle = "Previe
     return null;
   }
 
-  const fullPath = getFullPreviewTrackPath(previewUrl);
-
-  // Fast path — already on disk, zero network.
-  try {
-    if (await exists(fullPath)) {
-      return fullPath;
-    }
-  } catch (_) {
-    // Fall through to (re)download.
-  }
-
-  // Reuse an in-flight download for the same clip if one is already running.
+  // Reuse an in-flight download for the same clip. This check and the map set
+  // below MUST run with no await between them — otherwise two concurrent callers
+  // (the reader-open prefetch and an on-tap request for the same clip) could both
+  // pass this check and both kick off a download to the SAME file, whose
+  // interleaved writes truncate it on disk. A truncated clip then wedges
+  // ExoPlayer in Buffering forever on the next play. The exists() fast-path
+  // therefore lives INSIDE the task, after the map is claimed.
   if (previewDownloadsInFlight.has(previewUrl)) {
     return previewDownloadsInFlight.get(previewUrl);
   }
 
+  const fullPath = getFullPreviewTrackPath(previewUrl);
   const task = (async () => {
     try {
+      if (await exists(fullPath)) {
+        return fullPath;
+      }
       await downloadAudioOnly(previewUrl, trackTitle, { targetDirectory: "preview" });
       return (await exists(fullPath)) ? fullPath : null;
     } catch (_) {
-      // 404 (no preview for this track) or a network failure — silent fallback.
+      // 404 (no preview) or a network failure. Remove any partial file so a
+      // later attempt re-downloads cleanly instead of playing a truncated clip.
+      await unlink(fullPath).catch(() => {});
       return null;
     } finally {
       previewDownloadsInFlight.delete(previewUrl);
@@ -193,6 +204,18 @@ export const ensurePreviewDownloaded = async (canonicalUrl, trackTitle = "Previe
 };
 
 /**
+ * Delete a cached preview clip — used to self-heal a clip that failed to play
+ * (e.g. a truncated file left by an older build) so the next tap re-downloads it.
+ */
+export const deletePreviewClip = async (canonicalUrl) => {
+  const previewUrl = getPreviewRemoteUrl(canonicalUrl);
+  if (!previewUrl) {
+    return;
+  }
+  await unlink(getFullPreviewTrackPath(previewUrl)).catch(() => {});
+};
+
+/**
  * Warm the preview cache for an entire bani so tapping any preview in the
  * AudioTrackDialog plays instantly from disk. Preview clips are ~200KB each, so
  * fetching every artist's clip on reader-open costs well under 1MB total. Runs
@@ -201,6 +224,12 @@ export const ensurePreviewDownloaded = async (canonicalUrl, trackTitle = "Previe
 export const prefetchPreviews = async (tracks) => {
   if (!Array.isArray(tracks) || tracks.length === 0) {
     return;
+  }
+
+  // Reclaim the abandoned v1 preview directory once per session (best-effort).
+  if (!legacyPreviewCleanupDone) {
+    legacyPreviewCleanupDone = true;
+    unlink(LEGACY_PREVIEW_AUDIO_DIRECTORY).catch(() => {});
   }
 
   const seen = new Set();

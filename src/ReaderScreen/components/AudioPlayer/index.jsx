@@ -454,7 +454,15 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     []
   );
 
-  // Memoize audio track dialog to prevent unnecessary re-renders
+  // Memoize audio track dialog to prevent unnecessary re-renders.
+  //
+  // isInitialized / isAudioEnabled MUST be dependencies: the dialog captures the
+  // addAndPlayTrack/stop/reset/handleTrackSelect closures, which read isInitialized
+  // (and isAudioEnabled) at capture time. When a bani is reopened, the manifest is
+  // served from cache so `tracks` populate BEFORE the player finishes initializing —
+  // without these deps the memo would freeze closures with isInitialized=false, and
+  // every preview tap would no-op forever (spinner stuck, no audio). Recomputing when
+  // init completes re-captures the closures with the correct, ready state.
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
       const lengthLabel = BANI_LENGTH_LABEL[baniLength] || baniLength;
@@ -499,7 +507,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isPlaying={isPlaying}
       />
     );
-  }, [tracks, title, baniID, isPlaying, isAudioUnavailableForCurrentLengthOnly]);
+  }, [tracks, title, baniID, isPlaying, isAudioUnavailableForCurrentLengthOnly, isInitialized, isAudioEnabled]);
 
   // Don't render if TrackPlayer is not initialized
   if (!isInitialized && !isInitializing) {

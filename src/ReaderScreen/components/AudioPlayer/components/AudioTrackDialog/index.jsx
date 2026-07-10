@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
+import { useIsFocused } from "@react-navigation/native";
 import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
@@ -10,7 +11,11 @@ import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent from "../ScrollViewComponent";
-import { ensurePreviewDownloaded, getPreviewRemoteUrl } from "../../utils/audioDownloader";
+import {
+  ensurePreviewDownloaded,
+  getPreviewRemoteUrl,
+  deletePreviewClip,
+} from "../../utils/audioDownloader";
 
 const PREVIEW_DURATION_MS = 15000;
 const ACTIVE_TRACK_POLL_MS = 150;
@@ -35,6 +40,7 @@ const AudioTrackDialog = ({
   const styles = useThemedStyles(audioTrackDialogStyles);
   const fontFace = useSelector((state) => state.fontFace);
   const { theme } = useTheme();
+  const isScreenFocused = useIsFocused();
   const { height: windowHeight } = useWindowDimensions();
   const [selectedTrack, setSelectedTrack] = useState(null);
   const selectedTrackRef = useRef(null);
@@ -105,7 +111,11 @@ const AudioTrackDialog = ({
    * so M4A moov atom parsing doesn't get killed prematurely.
    * The timeout only fires when the track is truly inactive (not loading at all).
    */
-  const waitForPlaybackStart = async (trackId, sessionId, timeoutMs = PREVIEW_LOAD_TIMEOUT_MS) => {
+  const waitForPlaybackStart = async (
+    trackId,
+    sessionId,
+    { timeoutMs = PREVIEW_LOAD_TIMEOUT_MS, resetOnLoading = true } = {}
+  ) => {
     let lastProgressAt = Date.now();
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -128,9 +138,11 @@ const AudioTrackDialog = ({
         return true; // Audio is audible — start the preview timer now
       }
 
-      if (loadState === "loading") {
-        // Track is alive and buffering — reset timeout so we don't kill
-        // a healthy M4A moov parse that's just slow on mobile network.
+      if (loadState === "loading" && resetOnLoading) {
+        // Remote track: alive and buffering — reset the timeout so we don't kill
+        // a healthy M4A moov parse that's just slow on mobile network. Disabled
+        // for local clips, where "buffering" that never ends means a bad file
+        // and we want the hard timeout to fire so we can recover.
         lastProgressAt = Date.now();
       }
       // If 'inactive': don't reset — let the timeout count down.
@@ -282,6 +294,22 @@ const AudioTrackDialog = ({
     };
   }, [clearPreviewTimeout, clearPreviewStartTimeout, clearPreviewInterval]);
 
+  // Cancel any in-progress preview when the screen loses focus (e.g. the user
+  // opens Settings mid-preview). The nav bar pauses the native audio on leave,
+  // but the preview ticker is a wall-clock setInterval that would otherwise keep
+  // counting down — so on return the Next-button timer shows progress with no
+  // sound. Stopping the preview resets the timer to a clean state instead.
+  const previewIsActiveRef = useRef(false);
+  previewIsActiveRef.current = Boolean(
+    previewActiveTrackId || previewLoadingTrackId || playingTrack
+  );
+  useEffect(() => {
+    if (isScreenFocused || !previewIsActiveRef.current) {
+      return;
+    }
+    stopPreview();
+  }, [isScreenFocused, stopPreview]);
+
   const handleSelectTrack = async (track) => {
     if (isNextLoading) return;
     if (!track?.id || previewActionInFlightRef.current) {
@@ -349,30 +377,61 @@ const AudioTrackDialog = ({
         return;
       }
 
-      const previewPlayUrl = previewLocalPath || track.audioUrl;
-      const previewFallbackUrl = previewLocalPath
-        ? getPreviewRemoteUrl(canonicalUrl) || canonicalUrl
-        : canonicalUrl;
+      // Adds the track and waits for playback. Local clips get a strict short
+      // timeout (they buffer instantly from disk, so anything longer means a bad
+      // file) while remote streaming keeps the generous, buffer-tolerant window.
+      const addAndAwait = async (playUrl, fallbackUrl, isLocalClip) => {
+        await addAndPlayTrack(
+          track.id,
+          playUrl,
+          notificationTitle || title,
+          track.displayName,
+          track.lyricsUrl,
+          // Clips are ~15s; passing the full track length as the duration would
+          // misdescribe the media, so use the clip length for local previews.
+          isLocalClip ? PREVIEW_DURATION_MS / 1000 : track.trackLengthSec,
+          track.trackSizeMB,
+          true,
+          fallbackUrl
+        );
+        if (previewSessionRef.current !== sessionId) {
+          return false;
+        }
+        return waitForPlaybackStart(
+          track.id,
+          sessionId,
+          isLocalClip ? { timeoutMs: 8000, resetOnLoading: false } : {}
+        );
+      };
 
-      await addAndPlayTrack(
-        track.id,
-        previewPlayUrl,
-        notificationTitle || title,
-        track.displayName,
-        track.lyricsUrl,
-        track.trackLengthSec,
-        track.trackSizeMB,
-        true,
-        previewFallbackUrl
-      );
+      let playbackStarted = false;
+
+      if (previewLocalPath) {
+        playbackStarted = await addAndAwait(
+          previewLocalPath,
+          getPreviewRemoteUrl(canonicalUrl) || canonicalUrl,
+          true
+        );
+        if (previewSessionRef.current !== sessionId) {
+          return;
+        }
+        if (!playbackStarted) {
+          // The cached clip is unplayable (e.g. a truncated file from an older
+          // build). Delete it so it re-downloads cleanly next time, then fall
+          // back to streaming the full track so the user still gets a preview.
+          await deletePreviewClip(canonicalUrl).catch(() => {});
+          try { await stop(); } catch (_) {}
+          try { await reset(); } catch (_) {}
+        }
+      }
+
+      if (!playbackStarted) {
+        playbackStarted = await addAndAwait(track.audioUrl, canonicalUrl, false);
+      }
 
       if (previewSessionRef.current !== sessionId) {
         return;
       }
-
-      // Wait for audio to start buffering or playing.
-      // M4A containers need longer to parse moov atom + buffer on Android.
-      const playbackStarted = await waitForPlaybackStart(track.id, sessionId);
 
       if (playbackStarted && previewSessionRef.current === sessionId) {
         clearPreviewStartTimeout();

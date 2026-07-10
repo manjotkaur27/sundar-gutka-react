@@ -86,10 +86,13 @@ const Reader = ({ navigation, route }) => {
   // Footprint of the bottom-nav overlay (nav height + the 5px progress track that
   // sits on top of it). The audio player is lifted by exactly this much when the
   // bars are shown so it clears the nav.
-  const navChromeHeight =
-    theme.components.bottomNavigation.height +
-    5 +
-    (Platform.OS === "ios" ? Math.min(insetBottom, 8) : 0);
+  //
+  // NOTE: the navbar keeps a FIXED height (theme.components.bottomNavigation.height)
+  // on both platforms — the iOS home-indicator padding is applied INSIDE that fixed
+  // height (it nudges the icons up, it does not grow the box). So the nav's real
+  // footprint is exactly that height; adding the safe-area inset here overshot the
+  // lift and left a visible gap between the nav and the reading-progress bar on iOS.
+  const navChromeHeight = theme.components.bottomNavigation.height + 5;
 
   // The bottom chrome (scroll-progress bar + BottomNavigation) is an absolute
   // overlay pinned to the bottom of the screen. It slides in/out with a single
@@ -109,8 +112,18 @@ const Reader = ({ navigation, route }) => {
   // change, so it never resizes the WebView.
   const audioLiftAnim = useRef(new Animated.Value(0)).current; // starts down (bars off)
 
+  // The reading-progress bar rides its own transform and, unlike the nav, never
+  // slides off screen: when the bars show it lifts to sit on top of the nav, and
+  // when they hide it drops to the bottom edge of the screen (staying pinned there
+  // even while the audio mini-player is up), so reading progress is always visible.
+  // Base position is the bottom edge (translateY 0 = hidden resting spot).
+  const progressLiftAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     const distance = navClusterHeightRef.current || 300;
+    // When shown, lift to sit on top of the nav (nav height = navChromeHeight minus
+    // the 5px progress track). When hidden, drop back to the bottom edge.
+    const progressLift = isHeader ? -(navChromeHeight - 5) : 0;
     Animated.parallel([
       Animated.timing(navSlideAnim, {
         toValue: isHeader ? 0 : distance,
@@ -122,8 +135,13 @@ const Reader = ({ navigation, route }) => {
         duration: 300,
         useNativeDriver: true,
       }),
+      Animated.timing(progressLiftAnim, {
+        toValue: progressLift,
+        duration: 300,
+        useNativeDriver: true,
+      }),
     ]).start();
-  }, [isHeader, navSlideAnim, audioLiftAnim, navChromeHeight]);
+  }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight]);
 
   // iPad scroll guard: blocks spurious WebView scroll events during and shortly
   // after screen transitions (Bookmarks → Reader). WKWebView can fire scroll-to-0
@@ -523,9 +541,10 @@ const Reader = ({ navigation, route }) => {
       )}
 
 
-      {/* Bottom chrome overlay — scroll-progress bar + BottomNavigation. Pinned to
-          the bottom and slid out of view together via a single native-driver
-          transform, so showing/hiding the bars never resizes the WebView. */}
+      {/* Bottom nav overlay — pinned to the bottom and slid out of view via a
+          single native-driver transform, so showing/hiding it never resizes the
+          WebView. The reading-progress bar is intentionally NOT inside this overlay
+          (see below) so it stays visible when the nav hides. */}
       <Animated.View
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
@@ -538,21 +557,30 @@ const Reader = ({ navigation, route }) => {
         }}
         style={[styles.bottomChrome, { transform: [{ translateY: navSlideAnim }] }]}
       >
-        <View style={styles.scrollProgressTrack}>
-          <Animated.View
-            style={[
-              styles.scrollProgressFill,
-              {
-                width: scrollProgressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                  extrapolate: "clamp",
-                }),
-              },
-            ]}
-          />
-        </View>
         <BottomNavigation activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"} />
+      </Animated.View>
+
+      {/* Reading-progress bar — a separate bottom-pinned layer that never hides.
+          It lifts to sit on top of the nav when the bars show, and drops to the
+          bottom edge (or just above the mini-player during audio) when they hide,
+          so reading progress is always visible. pointerEvents none so the thin
+          bar never intercepts taps meant for the nav/mini-player beneath it. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.scrollProgressBar, { transform: [{ translateY: progressLiftAnim }] }]}
+      >
+        <Animated.View
+          style={[
+            styles.scrollProgressFill,
+            {
+              width: scrollProgressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+                extrapolate: "clamp",
+              }),
+            },
+          ]}
+        />
       </Animated.View>
     </SafeArea>
   );
