@@ -311,6 +311,7 @@ ${listener}.addEventListener(
 
 
 ${listener}.onscroll = scrollFunc;
+
 // Touch events for auto-scroll handling + tap detection.
 let wasAutoScrolling = false;
 // Tap detection: a touch that ends without meaningful movement is a tap and

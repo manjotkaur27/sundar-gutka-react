@@ -83,12 +83,12 @@ const styles = StyleSheet.create({
   },
   iconBoxLight: {
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: "rgba(100, 116, 139, 0.3)",
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
   },
   iconImage: {
     width: ICON_INNER,

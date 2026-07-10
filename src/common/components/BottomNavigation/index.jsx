@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Pressable, Platform, Animated } from "react-native";
+import { View, Pressable, Platform, Animated, AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -37,7 +37,8 @@ const BottomNavigation = ({
   useSelector((state) => state.language); // re-render on language change so STRINGS labels update
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
 
-  const [showSevaDot, setShowSevaDot] = useState(false);
+  // 0 = no dot, 1 = plain dot, 2+ = numbered badge (see render below).
+  const [sevaDotCount, setSevaDotCount] = useState(0);
   const translateY = useRef(new Animated.Value(0)).current;
 
   const insets = useSafeAreaInsets();
@@ -68,20 +69,31 @@ const BottomNavigation = ({
 
   // Load the seva dot state from config, then stay subscribed: markSevaSeen()
   // (fired when the user opens the Seva page) pushes an immediate clear here, so
-  // the dot disappears without waiting for the next refetch.
+  // the dot disappears without waiting for the next refetch. Also re-checks on
+  // every foreground — without this, a version bump pushed while the app was
+  // already open (backgrounded or just idle) would never surface until the
+  // user fully force-closed and relaunched, which for most users is rare to
+  // never once the app is already installed and running.
   useEffect(() => {
     let cancelled = false;
-    getSevaConfig()
-      .then((cfg) => {
-        if (!cancelled) setShowSevaDot(!!cfg?.showSevaDot);
-      })
-      .catch(() => {});
-    const unsubscribe = subscribeSevaDot((dotVisible) => {
-      if (!cancelled) setShowSevaDot(dotVisible);
+    const refresh = () => {
+      getSevaConfig()
+        .then((cfg) => {
+          if (!cancelled) setSevaDotCount(cfg?.sevaDotCount ?? 0);
+        })
+        .catch(() => {});
+    };
+    refresh();
+    const unsubscribe = subscribeSevaDot((count) => {
+      if (!cancelled) setSevaDotCount(count);
+    });
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
     });
     return () => {
       cancelled = true;
       unsubscribe();
+      appStateSub.remove();
     };
   }, []);
 
@@ -111,7 +123,7 @@ const BottomNavigation = ({
     {
       key: "Seva",
       icon: SevaIcon,
-      showDot: showSevaDot,
+      showDot: sevaDotCount,
       handlePress: () => {
         navigation.navigate(constant.SEVA);
       },
@@ -243,7 +255,7 @@ const BottomNavigation = ({
                             : theme.staticColors.WHITE_COLOR
                         }
                       />
-                      {!!item.showDot && (
+                      {item.showDot > 0 && (
                         <View
                           style={{
                             position: "absolute",
@@ -260,18 +272,21 @@ const BottomNavigation = ({
                             borderColor: item.key === activeKey ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
                           }}
                         >
-                          <CustomText
-                            style={{
-                              color: "#FFFFFF",
-                              fontSize: 9,
-                              fontWeight: "bold",
-                              fontFamily: theme.typography.fonts.balooPaajiSemiBold,
-                              textAlign: "center",
-                              lineHeight: 13,
-                            }}
-                          >
-                            1
-                          </CustomText>
+                          {/* 1 = plain dot, no text; 2+ = the real count */}
+                          {item.showDot > 1 && (
+                            <CustomText
+                              style={{
+                                color: "#FFFFFF",
+                                fontSize: 9,
+                                fontWeight: "bold",
+                                fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+                                textAlign: "center",
+                                lineHeight: 13,
+                              }}
+                            >
+                              {item.showDot}
+                            </CustomText>
+                          )}
                         </View>
                       )}
                     </View>

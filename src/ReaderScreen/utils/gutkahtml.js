@@ -96,7 +96,24 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
   <script>${script(theme)}</script>
 </head>
 <body>
-  ${content}  
+  ${content}
+  <script>
+    // Must run here, AFTER the content div above is in the DOM — not in the
+    // <head> script (gutkaScript.js), which executes before body content
+    // exists and would always measure an empty page as "not scrollable".
+    // A bani short enough to fit on one screen never fires a scroll event,
+    // so scrollFunc's progress report never runs for it; without this such
+    // a bani could never register as "read" under the scroll-percentage
+    // completion rule. Report 100% once, immediately, whenever there's
+    // nothing to scroll.
+    (function reportInitialScrollProgressIfNotScrollable() {
+      var sh = document.documentElement.scrollHeight;
+      var ch = window.innerHeight;
+      if (sh - ch <= 0) {
+        window.ReactNativeWebView.postMessage("scroll-progress-1.0000");
+      }
+    })();
+  </script>
 </body>
 </html>
 `;

@@ -1,10 +1,10 @@
 import React from "react";
-import { View, Pressable, ActivityIndicator } from "react-native";
-import PropTypes from "prop-types";
+import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSelector } from "react-redux";
+import { Icon } from "@rneui/themed";
+import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { Icon } from "@rneui/themed";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText } from "@common";
 import { audioTrackDialogStyles } from "../style";
@@ -37,7 +37,13 @@ const ScrollViewComponent = ({
   const styles = useThemedStyles(audioTrackDialogStyles);
   const downloadRegistry = useSelector((s) => s.downloadRegistry);
   return (
-    <View style={styles.trackList}>
+    <ScrollView
+      style={styles.trackList}
+      contentContainerStyle={styles.trackListContent}
+      showsVerticalScrollIndicator
+      indicatorStyle={theme.mode === "dark" ? "white" : "black"}
+      nestedScrollEnabled
+    >
       {tracks.map((track) => {
         const downloaded = isOfflineAvailable(track, downloadRegistry);
         // Offline + not downloaded → greyed out and non-interactive.
@@ -47,59 +53,59 @@ const ScrollViewComponent = ({
           ? theme.staticColors.WHITE_COLOR
           : theme.colors.audioPlayer;
         return (
-        <Pressable
-          key={track.id}
-          style={[
-            styles.trackItem,
-            {
-              backgroundColor: theme.colors.trackBackgroundColor,
-              borderColor: theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : "transparent",
-              borderWidth: 1,
-            },
-            selectedTrack && track.id === selectedTrack?.id && styles.selectedTrackItem,
-            unavailableOffline && styles.trackItemDisabled,
-          ]}
-          onPress={() => {
-            if (!unavailableOffline) handleSelectTrack(track);
-          }}
-          disabled={unavailableOffline}
-          activeOpacity={0.7}
-        >
-          <CustomText
+          <Pressable
+            key={track.id}
             style={[
-              styles.trackName,
+              styles.trackItem,
               {
-                color: theme.colors.audioTitleText,
+                backgroundColor: theme.colors.trackBackgroundColor,
+                borderColor: theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : "transparent",
+                borderWidth: 1,
               },
-              selectedTrack && track.id === selectedTrack.id && styles.selectedTrackName,
+              selectedTrack && track.id === selectedTrack?.id && styles.selectedTrackItem,
+              unavailableOffline && styles.trackItemDisabled,
             ]}
+            onPress={() => {
+              if (!unavailableOffline) handleSelectTrack(track);
+            }}
+            disabled={unavailableOffline}
+            activeOpacity={0.7}
           >
-            {track.displayName}
-          </CustomText>
+            <CustomText
+              style={[
+                styles.trackName,
+                {
+                  color: theme.colors.audioTitleText,
+                },
+                selectedTrack && track.id === selectedTrack.id && styles.selectedTrackName,
+              ]}
+            >
+              {track.displayName}
+            </CustomText>
 
-          <View style={styles.trackItemRight}>
-            {/* Offline tick: shown for already-downloaded tracks, sitting between
+            <View style={styles.trackItemRight}>
+              {/* Offline tick: shown for already-downloaded tracks, sitting between
                 the artist name and the play control. */}
-            {downloaded && (
-              <Icon
-                name="offline-pin"
-                type="material"
-                size={20}
-                color={isSelected ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
-              />
-            )}
-            {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
-              <ActivityIndicator size="small" color={rightIconColor} />
-            ) : playingTrack && playingTrack.id === track.id && isPlaying ? (
-              <StopIcon size={30} color={rightIconColor} />
-            ) : (
-              <PlayIcon size={30} color={rightIconColor} />
-            )}
-          </View>
-        </Pressable>
+              {downloaded && (
+                <Icon
+                  name="offline-pin"
+                  type="material"
+                  size={20}
+                  color={isSelected ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
+                />
+              )}
+              {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
+                <ActivityIndicator size="small" color={rightIconColor} />
+              ) : playingTrack && playingTrack.id === track.id && isPlaying ? (
+                <StopIcon size={30} color={rightIconColor} />
+              ) : (
+                <PlayIcon size={30} color={rightIconColor} />
+              )}
+            </View>
+          </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 };
 

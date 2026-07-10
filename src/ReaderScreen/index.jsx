@@ -224,7 +224,7 @@ const Reader = ({ navigation, route }) => {
   ]);
 
   useBookmarks(webViewRef, shabad, bookmarkPosition);
-  useReadingSession({ baniId: id, baniTitle: titleUni || title, navigation });
+  useReadingSession({ baniId: id, baniTitle: titleUni || title, navigation, scrollPercentRef });
 
   // Handle app state changes
   useEffect(() => {

@@ -1,7 +1,8 @@
 import React, { useEffect, useCallback } from "react";
-import { View, Alert, Linking, StyleSheet } from "react-native";
-import Svg, { Circle, Path, Line } from "react-native-svg";
+import { View, Pressable, Alert, Linking, StyleSheet } from "react-native";
+import Svg, { Circle, Path, Line, Polyline } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigation } from "@react-navigation/native";
 import moment from "moment";
 import PropTypes from "prop-types";
 import {
@@ -14,19 +15,20 @@ import {
   logError,
 } from "@common";
 import { getBaniList } from "@database";
-import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
-import useBaniLookup from "./useBaniLookup";
+import useBaniLookup, { toTitleCase } from "./useBaniLookup";
 
 // Same default reminder set as Settings (setDefaultReminders): Gur Mantar, Japji,
 // Rehras, Sohila. Seeded disabled so the rows always show in the dashboard.
 const DEFAULT_INDEXES = [0, 1, 19, 21];
 const DEFAULT_TIMINGS = ["3:00 AM", "3:30 AM", "6:00 PM", "10:00 PM"];
 
+// Classic sun: center disc + 8 short rays (morning / Amrit Vela).
 const SunIcon = ({ color }) => (
   <Svg
-    width={22}
-    height={22}
+    width={20}
+    height={20}
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
@@ -47,43 +49,41 @@ const SunIcon = ({ color }) => (
 );
 SunIcon.propTypes = { color: PropTypes.string.isRequired };
 
+// Arrow descending onto the ground/horizon (evening).
 const SunsetIcon = ({ color }) => (
-  <Svg
-    width={22}
-    height={22}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <Path d="M17 18a5 5 0 0 0-10 0" />
-    <Line x1="12" y1="2" x2="12" y2="9" />
-    <Line x1="4.2" y1="10.2" x2="5.6" y2="11.6" />
-    <Line x1="1" y1="18" x2="3" y2="18" />
-    <Line x1="21" y1="18" x2="23" y2="18" />
-    <Line x1="18.4" y1="11.6" x2="19.8" y2="10.2" />
-    <Path d="M9 9l3-3 3 3" />
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Line x1="12" y1="2" x2="12" y2="12" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Polyline
+      points="8 8 12 12 16 8"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+    <Line x1="5" y1="17" x2="19" y2="17" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Circle cx="8" cy="19.5" r="1" fill={color} />
+    <Circle cx="12" cy="19.5" r="1" fill={color} />
+    <Circle cx="16" cy="19.5" r="1" fill={color} />
   </Svg>
 );
 SunsetIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const MoonIcon = ({ color }) => (
-  <Svg
-    width={22}
-    height={22}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill={color} stroke="none">
     <Path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </Svg>
 );
 MoonIcon.propTypes = { color: PropTypes.string.isRequired };
+
+// No outer ring — just the plus glyph (client asked for the circle removed).
+const PlusCircle = ({ color }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Line x1="12" y1="8" x2="12" y2="16" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Line x1="8" y1="12" x2="16" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+PlusCircle.propTypes = { color: PropTypes.string.isRequired };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
@@ -100,6 +100,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: "600" },
   time: { fontSize: 12, marginTop: 2 },
   divider: { height: 1 },
+  addRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+  },
+  addText: { fontSize: 14, fontWeight: "600" },
 });
 
 const hourOf = (time) => moment(time, ["h:mm A", "H:mm"]).hour();
@@ -115,19 +123,37 @@ const labelForTime = (time) => {
   return STRINGS.NIGHT_TIME;
 };
 
-// Pick an icon from the reminder time (morning / evening / night).
-const IconForTime = ({ time, color }) => {
+// Icon + tint per time-of-day kind (morning / evening / night), each with its
+// own icon color and chip background so the three rows read distinctly.
+const kindForTime = (time) => {
   const hour = hourOf(time);
-  if (Number.isNaN(hour) || (hour >= 6 && hour < 16)) return <SunIcon color={color} />;
-  if (hour >= 16 && hour < 20) return <SunsetIcon color={color} />;
-  return <MoonIcon color={color} />;
+  if (Number.isNaN(hour) || (hour >= 6 && hour < 16)) return "sun";
+  if (hour >= 16 && hour < 20) return "sunset";
+  return "night";
 };
-IconForTime.propTypes = { time: PropTypes.string.isRequired, color: PropTypes.string.isRequired };
+
+const ICON_FOR_KIND = { sun: SunIcon, sunset: SunsetIcon, night: MoonIcon };
+
+const buildIconStyles = (isDark, accentBlue, mutedText, gold) => ({
+  sun: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
+  sunset: { color: accentBlue, bg: isDark ? "rgba(38,105,214,0.14)" : "#E3ECFB" },
+  night: { color: mutedText, bg: isDark ? "rgba(255,255,255,0.06)" : "#ECEEF2" },
+});
+
+// Client-specified reminder accents — the "+ Reminder" affordance is the same
+// blue in both modes; everything else below is scoped light/dark.
+const ADD_REMINDER_COLOR = "#5A98FC";
 
 const RemindersCard = () => {
-  const { card, isDark, primaryText, mutedText, separator } = useDashboardTheme();
+  const { isDark, accentBlue, gold, primaryText, mutedText, separator } = useDashboardTheme();
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const { nameOf } = useBaniLookup();
+  const iconStyles = buildIconStyles(isDark, accentBlue, mutedText, gold);
+  const sectionColor = isDark ? "#566684" : "#8D9FBD";
+  const titleColor = isDark ? primaryText : "#0F3677";
+  const timeColor = isDark ? "#566684" : "#8D9FBD";
+  const offThumbColor = isDark ? "#5A98FC" : null;
 
   const isReminders = useSelector((state) => state.isReminders);
   const reminderBanis = useSelector((state) => state.reminderBanis);
@@ -155,9 +181,9 @@ const RemindersCard = () => {
             key: b.id,
             id: b.id,
             gurmukhi: b.gurmukhi,
-            translit: b.translit,
+            translit: toTitleCase(b.translit),
             enabled: false,
-            title: `${STRINGS.time_for} ${b.translit}`,
+            title: `${STRINGS.time_for} ${toTitleCase(b.translit)}`,
             time: DEFAULT_TIMINGS[i],
           };
         });
@@ -205,37 +231,55 @@ const RemindersCard = () => {
     [reminderBanis, isReminders, reminderSound, dispatch]
   );
 
-  const iconBg = isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2";
-
   return (
     <View>
-      <SectionLabel title={STRINGS.REMINDERS_TITLE} />
+      <SectionLabel title={STRINGS.REMINDERS_TITLE} color={sectionColor} />
       <View style={styles.wrap}>
-        <View style={[card, styles.card]}>
-          {reminders.map((r, i) => (
-            <View key={r.key}>
-              <View style={styles.row}>
-                <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                  <IconForTime time={r.time} color={GOLD} />
+        <View style={styles.card}>
+          {reminders.map((r, i) => {
+            const kind = kindForTime(r.time);
+            const Icon = ICON_FOR_KIND[kind];
+            const { color: iconColor, bg: iconBg } = iconStyles[kind];
+            return (
+              <View key={r.key}>
+                <View style={styles.row}>
+                  <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+                    <Icon color={iconColor} />
+                  </View>
+                  <View style={styles.textBlock}>
+                    <CustomText style={[styles.title, { color: titleColor }]} numberOfLines={1}>
+                      {nameOf(r.id) || r.translit}
+                    </CustomText>
+                    <CustomText style={[styles.time, { color: timeColor }]} numberOfLines={1}>
+                      {labelForTime(r.time)} · {r.time}
+                    </CustomText>
+                  </View>
+                  <ThemedSwitch
+                    value={isReminders && !!r.enabled}
+                    onValueChange={(v) => toggleItem(r.key, v)}
+                    offThumbColor={offThumbColor}
+                  />
                 </View>
-                <View style={styles.textBlock}>
-                  <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={1}>
-                    {labelForTime(r.time)}
-                  </CustomText>
-                  <CustomText style={[styles.time, { color: mutedText }]} numberOfLines={1}>
-                    {nameOf(r.id) || r.translit} · {r.time}
-                  </CustomText>
-                </View>
-                <ThemedSwitch
-                  value={isReminders && !!r.enabled}
-                  onValueChange={(v) => toggleItem(r.key, v)}
-                />
+                {i < reminders.length - 1 ? (
+                  <View style={[styles.divider, { backgroundColor: separator }]} />
+                ) : null}
               </View>
-              {i < reminders.length - 1 ? (
-                <View style={[styles.divider, { backgroundColor: separator }]} />
-              ) : null}
-            </View>
-          ))}
+            );
+          })}
+
+          {reminders.length ? (
+            <View style={[styles.divider, { backgroundColor: separator }]} />
+          ) : null}
+          <Pressable
+            style={styles.addRow}
+            onPress={() => navigation.navigate("ReminderOptions")}
+            hitSlop={6}
+          >
+            <PlusCircle color={ADD_REMINDER_COLOR} />
+            <CustomText style={[styles.addText, { color: ADD_REMINDER_COLOR }]}>
+              {STRINGS.ADD_REMINDER}
+            </CustomText>
+          </Pressable>
         </View>
       </View>
     </View>

@@ -29,6 +29,7 @@ import Navigation from "./src/navigation";
 import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
 import useStorageMigration from "./src/common/hooks/useStorageMigration";
 import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
+import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
 import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
 
@@ -54,6 +55,7 @@ const GlobalServices = () => {
   useOfflinePlaybackGuard();
   usePauseAudioOnExit();
   useOnboardingTrigger();
+  useOfflineSyncToast();
   return null;
 };
 

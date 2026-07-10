@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, logError } from "@common";
-import { getOrCreateSummary, getReadingListeningTotals } from "../../database/analytics";
+import { getOrCreateSummary, getAllTimeTotals } from "../../database/analytics";
 
 const formatStatTime = (secs) => {
   if (!secs) return { value: "0", unit: "min" };
@@ -43,7 +43,8 @@ const LifetimeStats = ({ refreshKey }) => {
   const [totals, setTotals] = useState(null);
 
   useEffect(() => {
-    Promise.all([getOrCreateSummary(), getReadingListeningTotals()])
+    // Baseline (restored once, survives reinstall) + live (this install only).
+    Promise.all([getOrCreateSummary(), getAllTimeTotals()])
       .then(([summaryRow, totalsRow]) => {
         setSummary(summaryRow);
         setTotals(totalsRow);
@@ -51,8 +52,8 @@ const LifetimeStats = ({ refreshKey }) => {
       .catch(logError);
   }, [refreshKey]);
 
-  const readStat = totals ? formatStatTime(totals.total_reading_seconds) : { value: "—", unit: "hrs" };
-  const listenStat = totals ? formatStatTime(totals.total_listening_seconds) : { value: "—", unit: "hrs" };
+  const readStat = totals ? formatStatTime(totals.readingSeconds) : { value: "—", unit: "hrs" };
+  const listenStat = totals ? formatStatTime(totals.listeningSeconds) : { value: "—", unit: "hrs" };
   const longestStreak = summary ? String(summary.longest_streak ?? 0) : "—";
   const activeDays = summary ? String(summary.total_days_active ?? 0) : "—";
 

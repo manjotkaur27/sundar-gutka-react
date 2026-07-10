@@ -5,12 +5,16 @@ import { CustomText } from "@common";
 import useDashboardTheme from "./dashboardTheme";
 
 // Small uppercase section heading used above each dashboard section, with an
-// optional right-aligned action (e.g. "Edit banis", "Shuffle").
-const SectionLabel = ({ title, right }) => {
+// optional right-aligned action (e.g. "Edit banis", "Shuffle"). `color`
+// overrides the default mutedText for sections with their own client-specified
+// heading accent (e.g. Reminders).
+const SectionLabel = ({ title, right, color }) => {
   const { mutedText } = useDashboardTheme();
   return (
     <View style={styles.row}>
-      <CustomText style={[styles.title, { color: mutedText }]}>{title.toUpperCase()}</CustomText>
+      <CustomText style={[styles.title, { color: color || mutedText }]}>
+        {title.toUpperCase()}
+      </CustomText>
       {right ? <View style={styles.right}>{right}</View> : null}
     </View>
   );
@@ -19,9 +23,10 @@ const SectionLabel = ({ title, right }) => {
 SectionLabel.propTypes = {
   title: PropTypes.string.isRequired,
   right: PropTypes.node,
+  color: PropTypes.string,
 };
 
-SectionLabel.defaultProps = { right: null };
+SectionLabel.defaultProps = { right: null, color: null };
 
 const styles = StyleSheet.create({
   row: {

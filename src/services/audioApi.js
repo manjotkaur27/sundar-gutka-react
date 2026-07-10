@@ -367,13 +367,19 @@ const getInjectedManifestForBani = (baniId) => {
   return { status: "success", data: allTracks };
 };
 
-const applyManifestOverrides = (baniId, data) => {
+// `trustSource: true` is for the Khalis backend/DB — the catalog is now
+// server-owned specifically so a track/artist change is a backend data change,
+// not an app release. Skips the Saviye URL pin and the static-map replace step
+// (both of which existed to patch around the legacy STTM API's stale/dead MP3
+// links) so DB edits actually take effect without a rebuild. Legacy API and
+// fully-offline callers still get the old static-first safety net.
+const applyManifestOverrides = (baniId, data, { trustSource = false } = {}) => {
   if (!data?.data || !Array.isArray(data.data)) return data;
 
   let nextTracks = data.data;
 
   // ── Saviye (bani 6): pin Jarnail's Azure Blob URL as the primary ──────────
-  if (Number(baniId) === SAVIYE_BANI_ID) {
+  if (!trustSource && Number(baniId) === SAVIYE_BANI_ID) {
     const restTracks = nextTracks
       .map((track) => {
         const artistName = normalize(track?.artist_name);
@@ -413,9 +419,14 @@ const applyManifestOverrides = (baniId, data) => {
     .map(attachLyricsUrlIfAvailable);
 
   // ── Merge all static track lists (ensures all 3 artists appear) ──────────
-  nextTracks = mergeStaticTracksForBani(baniId, nextTracks, JARNAIL_TRACKS_BY_BANI);
-  nextTracks = mergeStaticTracksForBani(baniId, nextTracks, INDERMOHAN_TRACKS_BY_BANI);
-  nextTracks = mergeStaticTracksForBani(baniId, nextTracks, GURDEV_TRACKS_BY_BANI);
+  // Skipped for the trusted DB source: the DB is now authoritative for which
+  // artists/tracks exist per baani, so an artist missing from the DB should
+  // stay missing rather than being silently backfilled from stale static data.
+  if (!trustSource) {
+    nextTracks = mergeStaticTracksForBani(baniId, nextTracks, JARNAIL_TRACKS_BY_BANI);
+    nextTracks = mergeStaticTracksForBani(baniId, nextTracks, INDERMOHAN_TRACKS_BY_BANI);
+    nextTracks = mergeStaticTracksForBani(baniId, nextTracks, GURDEV_TRACKS_BY_BANI);
+  }
 
   // Re-attach lyrics for anything that came from the API without one
   nextTracks = nextTracks.map(attachLyricsUrlIfAvailable);
@@ -531,12 +542,17 @@ const fetchFromKhalis = async (baniId) => {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const fetchManifest = async (baniId) => {
-  // 1. Khalis backend (preferred remote source). Runs through the same override
-  //    pipeline as every other source, so the reciter whitelist, .m4a enforcement,
-  //    Saviye pin, and trimmed-Rehras static override all still apply.
+  // 1. Khalis backend (preferred remote source, DB-authoritative — see
+  //    applyManifestOverrides' trustSource doc). Still gets the reciter
+  //    whitelist and .m4a normalization, but not the static-replace/Saviye-pin
+  //    overrides that exist to patch around the legacy STTM API below.
   const khalisTracks = await fetchFromKhalis(baniId);
   if (khalisTracks?.length) {
-    const khalisData = applyManifestOverrides(baniId, { status: "success", data: khalisTracks });
+    const khalisData = applyManifestOverrides(
+      baniId,
+      { status: "success", data: khalisTracks },
+      { trustSource: true }
+    );
     if (khalisData?.data?.length) return khalisData;
   }
 

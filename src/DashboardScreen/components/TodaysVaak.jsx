@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, logError, openInAppBrowser } from "@common";
 import { getDailyVaak } from "../../services/dashboard";
 import { OfflineError } from "../../services/dashboard/connectivity";
-import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import DashboardCard from "./DashboardCard";
+import useDashboardTheme from "./dashboardTheme";
 import OfflineNotice from "./OfflineNotice";
+import SkeletonBlock from "./SkeletonBlock";
 
 const ChevronRight = ({ color }) => (
   <Svg
@@ -29,9 +31,15 @@ ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 const HUKAMNAMA_URL = "https://www.sikhitothemax.org/hukamnama";
 
 const TodaysVaak = ({ refreshKey, embedded }) => {
-  const { card, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
+  const { accentBlue, gold, primaryText, mutedText, separator, isDark } = useDashboardTheme();
+  // Client-specified Punjabi/English split — light mode only; dark keeps the
+  // existing primaryText/mutedText pairing.
+  const gurmukhiColor = isDark ? primaryText : "#5A99FD";
+  const translationColor = isDark ? mutedText : "#5D6F8F";
   const [vaak, setVaak] = useState(null);
   const [offline, setOffline] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -48,19 +56,46 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
         // Offline OR API failure → show the notice; never fabricate a hukamnama.
         if (!(err instanceof OfflineError)) logError(err);
         setOffline(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, retryNonce]);
 
-  if (offline) return <OfflineNotice compact message={STRINGS.VAAK_OFFLINE} />;
+  const retry = useCallback(() => setRetryNonce((n) => n + 1), []);
+
+  if (loading) {
+    const skeleton = (
+      <View style={styles.skeletonInner}>
+        <SkeletonBlock style={styles.lineSkeletonWide} />
+        <SkeletonBlock style={styles.lineSkeletonWide} />
+        <SkeletonBlock style={styles.lineSkeletonNarrow} />
+      </View>
+    );
+    if (embedded) return skeleton;
+    return (
+      <View style={styles.wrap}>
+        <DashboardCard style={styles.card}>{skeleton}</DashboardCard>
+      </View>
+    );
+  }
+
+  if (offline) {
+    return <OfflineNotice compact={embedded} message={STRINGS.VAAK_OFFLINE} onRetry={retry} />;
+  }
+
+  // No shabadId (e.g. a degraded backend fallback) → hide the Ang·Raag + Read
+  // row, same guard Random Shabad uses.
+  const showFooter = !!vaak?.shabadId;
 
   const body = (
     <>
       {/* When embedded in the Shabad/Vaak tab card the active tab is the title. */}
       {embedded ? null : (
-        <CustomText style={[styles.cardTitle, { color: GOLD }]}>
+        <CustomText style={[styles.cardTitle, { color: gold }]}>
           {STRINGS.TODAYS_VAAK.toUpperCase()}
         </CustomText>
       )}
@@ -70,30 +105,41 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
           {`${vaak.dateLabel} · IST`}
         </CustomText>
       ) : null}
+      {/* dailyVaak.js already filters the heading verse out and picks exactly
+          2 lines, matching Random Shabad's short preview. */}
       {(vaak?.lines ?? []).map((line, i) => (
-        <CustomText key={i} style={[styles.gurmukhi, { color: primaryText }]}>
+        <CustomText key={i} style={[styles.gurmukhi, { color: gurmukhiColor }]}>
           {line}
         </CustomText>
       ))}
       {vaak?.translation ? (
-        <CustomText style={[styles.translation, { color: mutedText }]}>
+        <CustomText style={[styles.translation, { color: translationColor }]}>
           {vaak.translation}
         </CustomText>
       ) : null}
 
-      <View style={[styles.footerDivider, { backgroundColor: separator }]} />
-      {/* Tap to read the full hukamnama on SikhiToTheMax. */}
-      <Pressable
-        style={styles.readLink}
-        onPress={() => openInAppBrowser(HUKAMNAMA_URL)}
-        hitSlop={6}
-        accessibilityRole="button"
-      >
-        <CustomText style={[styles.readText, { color: accentBlue }]}>
-          {STRINGS.READ_HUKAMNAMA}
-        </CustomText>
-        <ChevronRight color={accentBlue} />
-      </Pressable>
+      {showFooter ? (
+        <>
+          <View style={[styles.footerDivider, { backgroundColor: separator }]} />
+          <View style={styles.footer}>
+            <CustomText style={[styles.meta, { color: mutedText }]}>
+              {[vaak.ang ? `Ang ${vaak.ang}` : null, vaak.raag || null].filter(Boolean).join(" · ")}
+            </CustomText>
+            {/* Tap to read the full hukamnama on SikhiToTheMax. */}
+            <Pressable
+              style={styles.readLink}
+              onPress={() => openInAppBrowser(HUKAMNAMA_URL)}
+              hitSlop={6}
+              accessibilityRole="button"
+            >
+              <CustomText style={[styles.readText, { color: accentBlue }]}>
+                {STRINGS.READ_HUKAMNAMA}
+              </CustomText>
+              <ChevronRight color={accentBlue} />
+            </Pressable>
+          </View>
+        </>
+      ) : null}
     </>
   );
 
@@ -102,7 +148,7 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
   if (embedded) return body;
   return (
     <View style={styles.wrap}>
-      <View style={[card, styles.card]}>{body}</View>
+      <DashboardCard style={styles.card}>{body}</DashboardCard>
     </View>
   );
 };
@@ -140,9 +186,16 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     paddingHorizontal: 4,
   },
-  footerDivider: { height: 1, marginTop: 16, marginBottom: 12 },
-  readLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 2 },
-  readText: { fontSize: 14, fontWeight: "700" },
+  footerDivider: { height: 1, marginVertical: 16 },
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  meta: { fontSize: 13 },
+  readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  // No fontWeight — matches the "Ang · Raag" meta text beside it (Baloo Paaji
+  // Regular via CustomText's default resolution) instead of the bold brand font.
+  readText: { fontSize: 14 },
+  skeletonInner: { alignItems: "center", gap: 10, paddingVertical: 6 },
+  lineSkeletonWide: { width: "80%", height: 18 },
+  lineSkeletonNarrow: { width: "55%", height: 18 },
 });
 
 export default TodaysVaak;

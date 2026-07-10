@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Pressable, StyleSheet, PanResponder } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
-import { getDailyActivity } from "../../database/analytics";
+import { getDailyActivity, getOrCreateSummary } from "../../database/analytics";
 import useDashboardTheme from "./dashboardTheme";
 import DayDetailModal from "./DayDetailModal";
+import SectionError from "./SectionError";
+import SkeletonBlock from "./SkeletonBlock";
+import useAsyncSection from "./useAsyncSection";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const CIRCLE = 36;
 
 const hasAnyActivity = (row) =>
   !!row && ((row.reading_seconds ?? 0) > 0 || (row.listening_seconds ?? 0) > 0);
@@ -35,6 +40,78 @@ const buildWeekRows = (year, month) => {
   return rows;
 };
 
+// A dashed circle drawn as SVG, not a bordered View — RN's `borderStyle:
+// "dashed"` + `borderRadius` combo doesn't render rounded corners reliably
+// (Android in particular falls back to a square outline), so the "missed
+// day" marker has to be an actual stroked circle instead. Used standalone
+// only for the small legend swatch below.
+const DashedCircle = ({ size, color, strokeWidth, dash }) => (
+  <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+    <Circle
+      cx={size / 2}
+      cy={size / 2}
+      r={size / 2 - strokeWidth / 2}
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeDasharray={dash}
+      fill="none"
+    />
+  </Svg>
+);
+DashedCircle.propTypes = {
+  size: PropTypes.number.isRequired,
+  color: PropTypes.string.isRequired,
+  strokeWidth: PropTypes.number,
+  dash: PropTypes.string,
+};
+DashedCircle.defaultProps = { strokeWidth: 1.5, dash: "4 3" };
+
+// Every ring/fill state for a day cell (heat fill, today's accent ring,
+// missed dashed ring) drawn in one SVG sharing a single cx/cy/r. Drawing the
+// "today" ring as a separate View `borderWidth` (as before) put it on a
+// different box than the absolute-fill SVG — an absolutely-positioned child
+// filling top/left/right/bottom:0 sits at the parent's padding edge, inside
+// the border, so the fill ends up inset from the ring instead of flush with
+// it. One SVG for everything sidesteps that mismatch entirely.
+const DayMarker = ({ size, fillColor, todayColor, missedColor }) => {
+  const ringR = size / 2 - 1;
+  return (
+    <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+      {fillColor ? <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={fillColor} /> : null}
+      {missedColor ? (
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={ringR}
+          stroke={missedColor}
+          strokeWidth={1.5}
+          strokeDasharray="4 3"
+          fill="none"
+        />
+      ) : null}
+      {todayColor ? (
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={ringR}
+          stroke={todayColor}
+          strokeWidth={2}
+          fill="none"
+        />
+      ) : null}
+    </Svg>
+  );
+};
+DayMarker.propTypes = {
+  size: PropTypes.number.isRequired,
+  fillColor: PropTypes.string,
+  todayColor: PropTypes.string,
+  missedColor: PropTypes.string,
+};
+DayMarker.defaultProps = { fillColor: null, todayColor: null, missedColor: null };
+
+const MISSED_COLOR = "rgba(150,150,150,0.45)";
+
 // Heatmap bucket 0..4 from total activity seconds.
 const intensity = (row) => {
   if (!row) return 0;
@@ -48,7 +125,7 @@ const intensity = (row) => {
 };
 
 const MonthCalendar = ({ refreshKey }) => {
-  const { accentBlue, primaryText, mutedText } = useDashboardTheme();
+  const { accentBlue, mutedText } = useDashboardTheme();
   const todayStr = getTodayStr();
   const curYM = getLocalYM();
 
@@ -57,6 +134,10 @@ const MonthCalendar = ({ refreshKey }) => {
   const [activityMap, setActivityMap] = useState({});
   const [modalDate, setModalDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  // Defaults to false (suppressed) until the summary resolves — a brand-new
+  // user must never see "missed" marks for days before they installed the
+  // app, even briefly. An existing user just sees them pop in a beat later.
+  const [hasEverBeenActive, setHasEverBeenActive] = useState(false);
 
   // The PanResponder below is created once, so its handlers must read the latest
   // year/month from a ref (not a stale closure). Without this, the captured
@@ -79,21 +160,41 @@ const MonthCalendar = ({ refreshKey }) => {
   }, [curYM.year, curYM.month]);
 
   const loadActivity = useCallback(async (y, m) => {
-    try {
-      const rows = await getDailyActivity(y, m);
-      const map = {};
-      rows.forEach((r) => {
-        map[r.date] = r;
-      });
-      setActivityMap(map);
-    } catch (err) {
-      logError(err);
-    }
+    const rows = await getDailyActivity(y, m);
+    const map = {};
+    rows.forEach((r) => {
+      map[r.date] = r;
+    });
+    setActivityMap(map);
   }, []);
 
+  const task = useCallback(
+    () => loadActivity(year, month),
+    // refreshKey isn't read above but forces a refetch on screen focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadActivity, year, month, refreshKey]
+  );
+  const { loading, error, retry } = useAsyncSection(task);
+
+  // Lifetime activity check (independent of the month being viewed) — used to
+  // suppress "missed" marks for a user who never had any activity at all. Not
+  // gated by the grid's own loading/error state: the calendar should still
+  // work even if this secondary check fails. Re-checks on refreshKey (screen
+  // focus) rather than once-only — the Dashboard tab stays frozen (not
+  // unmounted) when you navigate away, so a one-time check taken before any
+  // real activity existed would otherwise latch "false" for the rest of the
+  // session even after the user has since built up history.
   useEffect(() => {
-    loadActivity(year, month);
-  }, [year, month, loadActivity, refreshKey]);
+    let active = true;
+    getOrCreateSummary()
+      .then((s) => {
+        if (active) setHasEverBeenActive((s?.total_days_active ?? 0) > 0);
+      })
+      .catch(logError);
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
 
   // Swipe left/right to change month (design: monthly calendar swipable).
   const panResponder = useRef(
@@ -110,7 +211,9 @@ const MonthCalendar = ({ refreshKey }) => {
   const handleDayPress = useCallback(
     (d) => {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      // No activity on this day → quick toast instead of an empty detail sheet.
+      // Future day → nothing to show yet, and nothing to say either.
+      if (dateStr > todayStr) return;
+      // No activity on this (past/today) day → quick toast instead of an empty detail sheet.
       if (!hasAnyActivity(activityMap[dateStr])) {
         showInfoToast(STRINGS.NO_ACTIVITY);
         return;
@@ -118,10 +221,11 @@ const MonthCalendar = ({ refreshKey }) => {
       setModalDate(dateStr);
       setModalVisible(true);
     },
-    [year, month, activityMap]
+    [year, month, activityMap, todayStr]
   );
 
   const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
+  const monthYearLabel = `${monthName} ${year}`;
   const rows = buildWeekRows(year, month);
 
   const activeDaysCount = useMemo(
@@ -145,7 +249,7 @@ const MonthCalendar = ({ refreshKey }) => {
     <View style={styles.wrap}>
       <View style={styles.card} {...panResponder.panHandlers}>
         <View style={styles.header}>
-          <CustomText style={[styles.monthText, { color: primaryText }]}>{monthName}</CustomText>
+          <CustomText style={[styles.monthText, { color: "#113879" }]}>{monthYearLabel}</CustomText>
           <CustomText style={[styles.daysCount, { color: mutedText }]}>
             {STRINGS.formatString(STRINGS.DAYS_THIS_MONTH, { count: activeDaysCount })}
           </CustomText>
@@ -159,61 +263,90 @@ const MonthCalendar = ({ refreshKey }) => {
           ))}
         </View>
 
-        {rows.map((row, ri) => (
-          <View key={ri} style={styles.weekRow}>
-            {row.map((d, ci) => {
-              if (!d) return <View key={`e-${ci}`} style={styles.cell} />;
-              const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(
-                2,
-                "0"
-              )}`;
-              const row2 = activityMap[dateStr];
-              const level = intensity(row2);
-              const isToday = dateStr === todayStr;
-              const isPast = dateStr < todayStr;
-              const missed = isPast && level === 0;
-              return (
-                <Pressable key={d} style={styles.cell} onPress={() => handleDayPress(d)}>
-                  <View
-                    style={[
-                      styles.dayCircle,
-                      level > 0 && { backgroundColor: heatColor(level) },
-                      missed && styles.missed,
-                      isToday && { borderWidth: 2, borderColor: accentBlue },
-                    ]}
-                  >
-                    <CustomText
-                      style={[
-                        styles.dayNum,
-                        // White on a filled heat cell (incl. today); otherwise accent/muted.
-                        // Same font weight as every other day so today doesn't stand out oddly.
-                        {
-                          color:
-                            level >= 2 ? "#fff" : isToday || level > 0 ? accentBlue : mutedText,
-                        },
-                      ]}
-                    >
-                      {d}
-                    </CustomText>
+        {loading
+          ? Array.from({ length: 5 }).map((_, ri) => (
+              <View key={ri} style={styles.weekRow}>
+                {Array.from({ length: 7 }).map((_c, ci) => (
+                  <View key={ci} style={styles.cell}>
+                    <SkeletonBlock style={styles.daySkeleton} />
                   </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
+                ))}
+              </View>
+            ))
+          : null}
 
-        {/* Legend: Less ▢▢▢▢ More · Missed */}
-        <View style={styles.legend}>
-          <CustomText style={[styles.legendText, { color: mutedText }]}>{STRINGS.LESS}</CustomText>
-          {[1, 2, 3, 4].map((l) => (
-            <View key={l} style={[styles.legendBox, { backgroundColor: heatColor(l) }]} />
-          ))}
-          <CustomText style={[styles.legendText, { color: mutedText }]}>{STRINGS.MORE}</CustomText>
-          <View style={[styles.legendDot, styles.missed]} />
-          <CustomText style={[styles.legendText, { color: mutedText }]}>
-            {STRINGS.MISSED}
-          </CustomText>
-        </View>
+        {!loading && error ? <SectionError onRetry={retry} /> : null}
+
+        {!loading && !error
+          ? rows.map((row, ri) => (
+              <View key={ri} style={styles.weekRow}>
+                {row.map((d, ci) => {
+                  if (!d) return <View key={`e-${ci}`} style={styles.cell} />;
+                  const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(
+                    2,
+                    "0"
+                  )}`;
+                  const row2 = activityMap[dateStr];
+                  const level = intensity(row2);
+                  const isToday = dateStr === todayStr;
+                  const isPast = dateStr < todayStr;
+                  // A brand-new user never "missed" days before they installed the app.
+                  const missed = isPast && level === 0 && hasEverBeenActive;
+                  return (
+                    <Pressable key={d} style={styles.cell} onPress={() => handleDayPress(d)}>
+                      <View style={styles.dayCircle}>
+                        <DayMarker
+                          size={CIRCLE}
+                          fillColor={level > 0 ? heatColor(level) : null}
+                          todayColor={isToday ? accentBlue : null}
+                          missedColor={missed ? MISSED_COLOR : null}
+                        />
+                        <CustomText
+                          style={[
+                            styles.dayNum,
+                            // White on a filled heat cell (incl. today); otherwise accent/muted.
+                            // Same font weight as every other day so today doesn't stand out oddly.
+                            {
+                              color:
+                                level >= 2 ? "#fff" : isToday || level > 0 ? accentBlue : mutedText,
+                            },
+                          ]}
+                        >
+                          {d}
+                        </CustomText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))
+          : null}
+
+        {/* Legend: Less ▢▢▢▢ More · Missed (missed marker hidden for a user
+            who has never had any activity — it would never appear anyway) */}
+        {!loading && !error ? (
+          <View style={styles.legend}>
+            <CustomText style={[styles.legendText, { color: mutedText }]}>
+              {STRINGS.LESS}
+            </CustomText>
+            {[1, 2, 3, 4].map((l) => (
+              <View key={l} style={[styles.legendBox, { backgroundColor: heatColor(l) }]} />
+            ))}
+            <CustomText style={[styles.legendText, { color: mutedText }]}>
+              {STRINGS.MORE}
+            </CustomText>
+            {hasEverBeenActive ? (
+              <>
+                <View style={styles.legendDot}>
+                  <DashedCircle size={14} strokeWidth={1.3} dash="2.5 2" color={MISSED_COLOR} />
+                </View>
+                <CustomText style={[styles.legendText, { color: mutedText }]}>
+                  {STRINGS.MISSED}
+                </CustomText>
+              </>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <DayDetailModal
@@ -228,7 +361,6 @@ const MonthCalendar = ({ refreshKey }) => {
 MonthCalendar.propTypes = { refreshKey: PropTypes.number };
 MonthCalendar.defaultProps = { refreshKey: 0 };
 
-const CIRCLE = 36;
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
   card: { paddingVertical: 4 },
@@ -251,11 +383,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dayNum: { fontSize: 13 },
-  missed: { borderWidth: 1.5, borderColor: "rgba(150,150,150,0.45)", borderStyle: "dashed" },
   legend: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14 },
   legendText: { fontSize: 11 },
   legendBox: { width: 14, height: 14, borderRadius: 4 },
   legendDot: { width: 14, height: 14, borderRadius: 7, marginLeft: 8 },
+  daySkeleton: { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2 },
 });
 
 export default MonthCalendar;

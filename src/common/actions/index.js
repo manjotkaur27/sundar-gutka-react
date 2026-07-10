@@ -339,6 +339,13 @@ export const toggleNitnemDone = (date, baniId) => {
   return { type: actionTypes.TOGGLE_NITNEM_DONE, payload: { date, baniId } };
 };
 
+export const markNitnemAutoDone = (date, baniIds) => {
+  // Records banis auto-detected as done (real read/listen time past threshold)
+  // for a date. Additive only (union with whatever's already recorded) — never
+  // removes anything, so it's safe to dispatch every time auto-detection runs.
+  return { type: actionTypes.MARK_NITNEM_AUTO_DONE, payload: { date, baniIds } };
+};
+
 export const restoreNitnem = (value) => {
   // value: { selectedBaniIds?: number[], completed?: { [date]: number[] } }
   return { type: actionTypes.RESTORE_NITNEM, value };

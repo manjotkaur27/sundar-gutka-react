@@ -4,6 +4,7 @@ import Svg, { Path } from "react-native-svg";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, STRINGS, logError } from "@common";
 import { getTopReadBanis } from "../../database/analytics";
+import { getRestoredTopBanis } from "../../services/dashboard";
 
 const formatDuration = (secs) => {
   if (!secs) return "0m";
@@ -29,7 +30,27 @@ const MostReadSection = ({ refreshKey }) => {
   const [banis, setBanis] = useState([]);
 
   useEffect(() => {
-    getTopReadBanis(5).then(setBanis).catch(logError);
+    getTopReadBanis(5)
+      .then((rows) => {
+        if (rows.length > 0) {
+          setBanis(rows);
+          return;
+        }
+        // Raw session history doesn't survive a reinstall — fall back to the
+        // top5 snapshot captured at the last cloud push, so a returning user
+        // doesn't see a false "you've never read anything" empty state.
+        getRestoredTopBanis().then((restored) => {
+          const top5 = restored?.read?.top5 ?? [];
+          setBanis(
+            top5.map(([baniId, sessionCount, totalSeconds]) => ({
+              bani_id: baniId,
+              session_count: sessionCount,
+              total_seconds: totalSeconds,
+            }))
+          );
+        });
+      })
+      .catch(logError);
   }, [refreshKey]);
 
   if (!banis.length) {

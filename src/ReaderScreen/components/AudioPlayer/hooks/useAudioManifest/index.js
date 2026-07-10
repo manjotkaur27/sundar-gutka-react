@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { exists, stat, unlink } from "react-native-fs";
 import { useSelector, useDispatch } from "react-redux";
-import { actions, logError, STRINGS } from "@common";
+import { actions, logError, STRINGS, useNetwork } from "@common";
 import constant from "@common/constant";
 import { fetchManifest } from "@service";
 import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownloader";
@@ -212,6 +212,11 @@ const useAudioManifest = (baniID) => {
   // Gate manifest fetch on redux-persist rehydration — prevents re-downloading
   // tracks that are already on disk but whose manifest hasn't been restored yet.
   const isRehydrated = useSelector((state) => state._persist?.rehydrated);
+  const { isOnline } = useNetwork();
+  // Tracks whether we've observed an offline period since mount, so the
+  // reconnect-refresh effect below only fires on a real offline→online
+  // transition, never on first mount (which already fetches on its own).
+  const wasOfflineRef = useRef(false);
 
   // Map API manifest data to our track format
   const mapApiDataToTracks = (manifest) => {
@@ -617,6 +622,24 @@ const useAudioManifest = (baniID) => {
       fetchAudioManifest();
     }
   }, [baniID, isRehydrated, baniLength]);
+
+  // Auto-refresh the moment connectivity returns. Without this, a manifest
+  // fetched (or cached) while offline stays stale until the user manually
+  // taps "Retry" on a network-error screen or force-closes the app — even
+  // once the device is genuinely back online. forceRefresh=true bypasses
+  // _manifestApiCache, so this is a real network call to the Khalis API, not
+  // a re-read of whatever was already cached.
+  useEffect(() => {
+    if (!baniID || !isRehydrated) return;
+    if (!isOnline) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    if (wasOfflineRef.current) {
+      wasOfflineRef.current = false;
+      fetchAudioManifest(true);
+    }
+  }, [isOnline, baniID, isRehydrated]);
 
   const isAudioUnavailableForCurrentLengthOnly =
     constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID)) && tracks.length === 0;

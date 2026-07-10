@@ -1,14 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, logError } from "@common";
+import { CustomText, STRINGS } from "@common";
 import { getDayActivity } from "../../database/analytics";
-import SectionLabel from "./SectionLabel";
 import useDashboardTheme from "./dashboardTheme";
+import SectionError from "./SectionError";
+import SectionLabel from "./SectionLabel";
+import SkeletonBlock from "./SkeletonBlock";
+import useAsyncSection from "./useAsyncSection";
 
 const DAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 
-const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const ymd = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
+    2,
+    "0",
+  )}`;
 
 // Last 7 days ending today (oldest first).
 const last7 = () => {
@@ -25,32 +32,29 @@ const WeekChart = ({ refreshKey }) => {
   const [bars, setBars] = useState([]);
   const [avg, setAvg] = useState(0);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const days = last7();
-        const rows = await Promise.all(days.map((d) => getDayActivity(ymd(d))));
-        if (!active) return;
-        const todayKey = ymd(new Date());
-        const mins = rows.map((r) =>
-          r ? Math.round(((r.reading_seconds ?? 0) + (r.listening_seconds ?? 0)) / 60) : 0,
-        );
-        const max = Math.max(1, ...mins);
-        setBars(days.map((d, i) => ({
-          letter: DAY_LETTER[d.getDay()],
-          mins: mins[i],
-          ratio: mins[i] / max,
-          isToday: ymd(d) === todayKey,
-        })));
-        const total = mins.reduce((a, b) => a + b, 0);
-        setAvg(Math.round(total / 7));
-      } catch (err) {
-        logError(err);
-      }
-    })();
-    return () => { active = false; };
+  const task = useCallback(async () => {
+    const days = last7();
+    const rows = await Promise.all(days.map((d) => getDayActivity(ymd(d))));
+    const todayKey = ymd(new Date());
+    const mins = rows.map((r) =>
+      r ? Math.round(((r.reading_seconds ?? 0) + (r.listening_seconds ?? 0)) / 60) : 0,
+    );
+    const max = Math.max(1, ...mins);
+    setBars(
+      days.map((d, i) => ({
+        letter: DAY_LETTER[d.getDay()],
+        mins: mins[i],
+        ratio: mins[i] / max,
+        isToday: ymd(d) === todayKey,
+      })),
+    );
+    const total = mins.reduce((a, b) => a + b, 0);
+    setAvg(Math.round(total / 7));
+    // refreshKey isn't read above but forces a refetch on screen focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
+
+  const { loading, error, retry } = useAsyncSection(task);
 
   const inactiveBar = isDark ? "rgba(37,129,223,0.25)" : "#dce4f2";
 
@@ -66,26 +70,40 @@ const WeekChart = ({ refreshKey }) => {
       />
       <View style={styles.wrap}>
         <View style={styles.card}>
-          <View style={styles.chart}>
-            {bars.map((b, i) => (
-              <View key={i} style={styles.barCol}>
-                <View style={styles.barTrack}>
-                  <View
-                    style={[
-                      styles.bar,
-                      {
-                        height: `${Math.max(6, b.ratio * 100)}%`,
-                        backgroundColor: b.isToday ? accentBlue : inactiveBar,
-                      },
-                    ]}
-                  />
+          {loading ? (
+            <View style={styles.chart}>
+              {Array.from({ length: 7 }).map((_, i) => (
+                <View key={i} style={styles.barCol}>
+                  <SkeletonBlock style={styles.barSkeleton} />
                 </View>
-                <CustomText style={[styles.barLabel, { color: b.isToday ? accentBlue : mutedText }]}>
-                  {b.letter}
-                </CustomText>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          ) : null}
+          {!loading && error ? <SectionError compact onRetry={retry} /> : null}
+          {!loading && !error ? (
+            <View style={styles.chart}>
+              {bars.map((b, i) => (
+                <View key={i} style={styles.barCol}>
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.bar,
+                        {
+                          height: `${Math.max(6, b.ratio * 100)}%`,
+                          backgroundColor: b.isToday ? accentBlue : inactiveBar,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <CustomText
+                    style={[styles.barLabel, { color: b.isToday ? accentBlue : mutedText }]}
+                  >
+                    {b.letter}
+                  </CustomText>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       </View>
     </View>
@@ -102,8 +120,16 @@ const styles = StyleSheet.create({
   chart: { flexDirection: "row", alignItems: "flex-end", height: 120, gap: 8 },
   barCol: { flex: 1, alignItems: "center", height: "100%", justifyContent: "flex-end" },
   barTrack: { flex: 1, width: 18, justifyContent: "flex-end" },
-  bar: { width: 18, borderRadius: 9 },
+  // bar: { width: 18, borderRadius: 9 },
+  bar: {
+    width: 18,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+  },
   barLabel: { fontSize: 12, marginTop: 8, fontWeight: "500" },
+  barSkeleton: { width: 18, height: 60, borderRadius: 8 },
 });
 
 export default WeekChart;

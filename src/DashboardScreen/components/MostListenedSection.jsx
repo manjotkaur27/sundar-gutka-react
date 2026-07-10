@@ -4,6 +4,7 @@ import Svg, { Path } from "react-native-svg";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, logError } from "@common";
 import { getTopListenedBanis } from "../../database/analytics";
+import { getRestoredTopBanis } from "../../services/dashboard";
 
 const HeadphoneIcon = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -40,7 +41,27 @@ const MostListenedSection = ({ refreshKey }) => {
   const [banis, setBanis] = useState([]);
 
   useEffect(() => {
-    getTopListenedBanis(5).then(setBanis).catch(logError);
+    getTopListenedBanis(5)
+      .then((rows) => {
+        if (rows.length > 0) {
+          setBanis(rows);
+          return;
+        }
+        // Raw session history doesn't survive a reinstall — fall back to the
+        // top5 snapshot captured at the last cloud push (no artist info in
+        // that compact form, but the artist line is already optional below).
+        getRestoredTopBanis().then((restored) => {
+          const top5 = restored?.listen?.top5 ?? [];
+          setBanis(
+            top5.map(([baniId, sessionCount, totalSeconds]) => ({
+              bani_id: baniId,
+              session_count: sessionCount,
+              total_seconds: totalSeconds,
+            }))
+          );
+        });
+      })
+      .catch(logError);
   }, [refreshKey]);
 
   if (!banis.length) {

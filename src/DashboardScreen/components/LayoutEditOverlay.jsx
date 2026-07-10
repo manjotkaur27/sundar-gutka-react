@@ -6,7 +6,7 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Line, Circle } from "react-native-svg";
+import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, constant, actions, showErrorToast } from "@common";
@@ -26,23 +26,6 @@ const DragHandle = ({ color }) => (
 );
 DragHandle.propTypes = { color: PropTypes.string.isRequired };
 
-const EyeOff = ({ color }) => (
-  <Svg
-    width={18}
-    height={18}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <Line x1="2" y1="2" x2="22" y2="22" />
-    <Line x1="6.7" y1="6.7" x2="17.9" y2="17.9" />
-  </Svg>
-);
-EyeOff.propTypes = { color: PropTypes.string.isRequired };
-
 const ThemedSwitchLite = ({ value, onToggle, accent, muted }) => (
   <Pressable
     onPress={onToggle}
@@ -60,7 +43,13 @@ ThemedSwitchLite.propTypes = {
 };
 
 const LayoutEditOverlay = ({ visible, onClose }) => {
-  const { screenBg, cardBg, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
+  const { screenBg, cardBg, accentBlue, primaryText, mutedText, separator, theme } =
+    useDashboardTheme();
+  // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
+  // fontWeight with a custom TTF makes Android synthesize a fake bold and
+  // silently fall back off the real glyph, which was making the title/Save
+  // text render in the system font instead of Baloo Paaji.
+  const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const { top, bottom } = useSafeAreaInsets();
   const dispatch = useDispatch();
   const layout = useSelector((state) => state.dashboardLayout);
@@ -129,7 +118,6 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
               >
                 {sectionLabel(key)}
               </CustomText>
-              {!isVisible && <EyeOff color={mutedText} />}
               <ThemedSwitchLite
                 value={isVisible}
                 onToggle={() => toggleHidden(key)}
@@ -154,11 +142,11 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
                 {STRINGS.CANCEL}
               </CustomText>
             </Pressable>
-            <CustomText style={[styles.headerTitle, { color: primaryText }]}>
+            <CustomText style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}>
               {STRINGS.CUSTOMIZE_LAYOUT}
             </CustomText>
             <Pressable onPress={save} hitSlop={8}>
-              <CustomText style={[styles.action, { color: accentBlue, fontWeight: "700" }]}>
+              <CustomText style={[styles.action, { color: accentBlue, fontFamily: boldFont }]}>
                 {STRINGS.SAVE}
               </CustomText>
             </Pressable>
@@ -203,7 +191,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 17, fontWeight: "700" },
+  headerTitle: { fontSize: 17 },
   action: { fontSize: 15 },
   hint: { fontSize: 12, paddingHorizontal: 20, paddingTop: 14 },
   row: {

@@ -87,6 +87,9 @@ const SevaScreen = () => {
   const [customAmount, setCustomAmount] = useState("");
   const [frequency, setFrequency] = useState("Monthly");
 
+  // Explicit focus for the "Other" amount input — see the effect below.
+  const otherAmountInputRef = useRef(null);
+
   // Tracks the URL currently open in InAppBrowser so we can re-open after app resume
   const pendingBrowserUrlRef = useRef(null);
   // True when the app went to background while the browser was open
@@ -121,7 +124,7 @@ const SevaScreen = () => {
         const cfg = await getSevaConfig();
         if (active) {
           setConfig(cfg);
-          setSelectedAmount(cfg?.defaults?.selectedAmount ?? 10);
+          setSelectedAmount(cfg?.selectedAmount ?? 10);
         }
         // The user is now viewing the Seva page — acknowledge the current version
         // so the tab dot clears now and stays cleared until the backend bumps it.
@@ -193,6 +196,18 @@ const SevaScreen = () => {
     const cleaned = val.replace(/[^0-9]/g, "");
     setCustomAmount(cleaned);
   };
+
+  // The input's `autoFocus` prop only reliably fires on its very first mount —
+  // after leaving this screen and coming back (tab screens stay frozen, not
+  // unmounted, so the input isn't remounting) it silently no-ops and the
+  // cursor never reappears when "Other" is re-selected. Focus explicitly
+  // instead, every time isOtherSelected turns true, with a brief delay so the
+  // native view is ready to accept it.
+  useEffect(() => {
+    if (!isOtherSelected) return undefined;
+    const timer = setTimeout(() => otherAmountInputRef.current?.focus(), 100);
+    return () => clearTimeout(timer);
+  }, [isOtherSelected]);
 
   const handleFrequencyChange = (freq) => {
     setFrequency(freq);
@@ -380,7 +395,7 @@ const SevaScreen = () => {
   const displayAmount =
     isOtherSelected && customAmount ? customAmount : String(selectedAmount ?? "");
 
-  const amounts = config?.defaults?.amounts ?? [10, 50, 100];
+  const amounts = config?.amounts ?? [10, 50, 100];
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
@@ -479,13 +494,13 @@ const SevaScreen = () => {
                 {isOtherSelected ? (
                   <View style={styles.amountInputWrap}>
                     <TextInput
+                      ref={otherAmountInputRef}
                       style={styles.amountDisplay}
                       value={customAmount}
                       onChangeText={handleCustomAmountChange}
                       keyboardType="numeric"
                       cursorColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
                       selectionColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
-                      autoFocus
                     />
                     {customAmount === "" && (
                       <CustomText

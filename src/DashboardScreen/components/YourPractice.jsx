@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import Svg, { Path, Circle, Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, constant, logError } from "@common";
-import {
-  getCompletedBanisCount,
-  getReadingListeningTotals,
-  getOrCreateSummary,
-} from "../../database/analytics";
+import { CustomText, STRINGS } from "@common";
+import { getAllTimeTotals } from "../../database/analytics";
+import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
+import SectionError from "./SectionError";
 import SectionLabel from "./SectionLabel";
+import SkeletonBlock from "./SkeletonBlock";
+import useAsyncSection from "./useAsyncSection";
 
 const BookIcon = ({ color }) => (
   <Svg
@@ -45,18 +45,41 @@ const ClockIcon = ({ color }) => (
 );
 ClockIcon.propTypes = { color: PropTypes.string.isRequired };
 
-const fmtHrs = (secs) => {
-  if (!secs) return { value: "0", unit: "min" };
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return { value: String(mins), unit: "min" };
-  return { value: String(Math.floor(secs / 3600)), unit: "hrs" };
-};
+// Lifetime mini-stats (reading/listening hrs, longest streak, active days) are
+// hidden from the UI per design but still tracked in the background — see the
+// commented-out fmtHrs/MiniStat/JSX below for a quick re-enable.
+// const fmtHrs = (secs) => {
+//   if (!secs) return { value: "0", unit: "min" };
+//   const mins = Math.floor(secs / 60);
+//   if (mins < 60) return { value: String(mins), unit: "min" };
+//   return { value: String(Math.floor(secs / 3600)), unit: "hrs" };
+// };
 
-const HeroStat = ({ icon, value, label, sub, accent, primaryText, mutedText }) => (
+// numFont/labelFont: explicit fontFamily with NO fontWeight alongside it — these
+// are custom TTFs (same convention as StreakCard/TodaysNitnem), and pairing them
+// with a numeric fontWeight makes Android synthesize a fake bold and silently
+// fall back off the real glyph, which is why these hero numbers weren't matching
+// the rest of the dashboard's brand font.
+const HeroStat = ({
+  icon,
+  value,
+  label,
+  sub,
+  accent,
+  numColor,
+  labelColor,
+  mutedText,
+  numFont,
+  labelFont,
+}) => (
   <View style={styles.hero}>
     {icon === "book" ? <BookIcon color={accent} /> : <ClockIcon color={accent} />}
-    <CustomText style={[styles.heroValue, { color: primaryText }]}>{value}</CustomText>
-    <CustomText style={[styles.heroLabel, { color: primaryText }]}>{label}</CustomText>
+    <CustomText style={[styles.heroValue, { color: numColor, fontFamily: numFont }]}>
+      {value}
+    </CustomText>
+    <CustomText style={[styles.heroLabel, { color: labelColor, fontFamily: labelFont }]}>
+      {label}
+    </CustomText>
     <CustomText style={[styles.heroSub, { color: mutedText }]}>{sub}</CustomText>
   </View>
 );
@@ -66,82 +89,120 @@ HeroStat.propTypes = {
   label: PropTypes.string.isRequired,
   sub: PropTypes.string.isRequired,
   accent: PropTypes.string.isRequired,
-  primaryText: PropTypes.string.isRequired,
+  numColor: PropTypes.string.isRequired,
+  labelColor: PropTypes.string.isRequired,
   mutedText: PropTypes.string.isRequired,
+  numFont: PropTypes.string.isRequired,
+  labelFont: PropTypes.string.isRequired,
 };
 
-const MiniStat = ({ value, unit, label, accent, primaryText, mutedText }) => (
-  <View style={styles.miniStat}>
-    <View style={styles.miniRow}>
-      <CustomText style={[styles.miniValue, { color: primaryText }]}>{value}</CustomText>
-      <CustomText style={[styles.miniUnit, { color: accent }]}>{unit}</CustomText>
-    </View>
-    <CustomText style={[styles.miniLabel, { color: mutedText }]}>{label}</CustomText>
-  </View>
-);
-MiniStat.propTypes = {
-  value: PropTypes.string.isRequired,
-  unit: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  accent: PropTypes.string.isRequired,
-  primaryText: PropTypes.string.isRequired,
-  mutedText: PropTypes.string.isRequired,
-};
+// const MiniStat = ({ value, unit, label, accent, primaryText, mutedText }) => (
+//   <View style={styles.miniStat}>
+//     <View style={styles.miniRow}>
+//       <CustomText style={[styles.miniValue, { color: primaryText }]}>{value}</CustomText>
+//       <CustomText style={[styles.miniUnit, { color: accent }]}>{unit}</CustomText>
+//     </View>
+//     <CustomText style={[styles.miniLabel, { color: mutedText }]}>{label}</CustomText>
+//   </View>
+// );
+// MiniStat.propTypes = {
+//   value: PropTypes.string.isRequired,
+//   unit: PropTypes.string.isRequired,
+//   label: PropTypes.string.isRequired,
+//   accent: PropTypes.string.isRequired,
+//   primaryText: PropTypes.string.isRequired,
+//   mutedText: PropTypes.string.isRequired,
+// };
 
 const YourPractice = ({ refreshKey }) => {
-  const { card, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
+  const { isDark, accentBlue, primaryText, mutedText, theme } = useDashboardTheme();
+  const numFont = theme.typography.fonts.balooPaajiSemiBold;
+  const labelFont = theme.typography.fonts.balooPaaji;
+  // Client-specified accents for the hero numbers/labels — light mode only;
+  // dark keeps the existing primaryText.
+  const heroNumColor = isDark ? primaryText : "#113879";
+  const heroLabelColor = isDark ? primaryText : "#5E7090";
   const [data, setData] = useState(null);
 
-  useEffect(() => {
-    Promise.all([
-      getCompletedBanisCount(constant.MIN_READ_SESSION_SECONDS),
-      getReadingListeningTotals(),
-      getOrCreateSummary(),
-    ])
-      .then(([completed, totals, summary]) => setData({ completed, totals, summary }))
-      .catch(logError);
+  const task = useCallback(async () => {
+    // Baseline (restored once, survives reinstall) + live (this install only) —
+    // see getAllTimeTotals for why the raw live-only queries alone reset to 0
+    // right after a reinstall.
+    const totals = await getAllTimeTotals();
+    setData(totals);
+    // refreshKey isn't read above but forces a refetch on screen focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
-  const completed = data ? data.completed : 0;
-  const readSecs = data?.totals?.total_reading_seconds ?? 0;
-  const listenSecs = data?.totals?.total_listening_seconds ?? 0;
+  const { loading, error, retry } = useAsyncSection(task);
+
+  const completed = data ? data.banisCompleted : 0;
+  const readSecs = data?.readingSeconds ?? 0;
+  const listenSecs = data?.listeningSeconds ?? 0;
   const nitnemHrs = Math.floor((readSecs + listenSecs) / 3600);
-  const readStat = fmtHrs(readSecs);
-  const listenStat = fmtHrs(listenSecs);
-  const longest = data?.summary?.longest_streak ?? 0;
-  const activeDays = data?.summary?.total_days_active ?? 0;
+  // Still tracked in the background — see the commented-out mini-stats block below.
+  // const readStat = fmtHrs(readSecs);
+  // const listenStat = fmtHrs(listenSecs);
+  // const longest = data?.summary?.longest_streak ?? 0;
+  // const activeDays = data?.summary?.total_days_active ?? 0;
 
   return (
     <View>
       <SectionLabel title={STRINGS.YOUR_PRACTICE} />
       <View style={styles.wrap}>
-        <View style={[card, styles.card]}>
-          {/* Two hero stats */}
+        {loading ? (
           <View style={styles.heroRow}>
-            <HeroStat
-              icon="book"
-              value={completed.toLocaleString()}
-              label={STRINGS.BANIS_COMPLETED}
-              sub={STRINGS.ALL_TIME}
-              accent={accentBlue}
-              primaryText={primaryText}
-              mutedText={mutedText}
-            />
-            <View style={[styles.vDivider, { backgroundColor: separator }]} />
-            <HeroStat
-              icon="clock"
-              value={`${nitnemHrs}h`}
-              label={STRINGS.IN_NITNEM}
-              sub={STRINGS.THIS_YEAR}
-              accent={accentBlue}
-              primaryText={primaryText}
-              mutedText={mutedText}
-            />
+            <DashboardCard style={styles.heroBox}>
+              <SkeletonBlock style={styles.heroSkeleton} />
+            </DashboardCard>
+            <DashboardCard style={styles.heroBox}>
+              <SkeletonBlock style={styles.heroSkeleton} />
+            </DashboardCard>
           </View>
+        ) : null}
 
-          <View style={[styles.hDivider, { backgroundColor: separator }]} />
+        {!loading && error ? (
+          <DashboardCard style={styles.errorBox}>
+            <SectionError compact onRetry={retry} />
+          </DashboardCard>
+        ) : null}
 
-          {/* Lifetime stats (2×2) */}
+        {/* Two hero stats, each its own box */}
+        {!loading && !error ? (
+          <View style={styles.heroRow}>
+            <DashboardCard style={styles.heroBox}>
+              <HeroStat
+                icon="book"
+                value={completed.toLocaleString()}
+                label={STRINGS.BANIS_COMPLETED}
+                sub={STRINGS.ALL_TIME}
+                accent={accentBlue}
+                numColor={heroNumColor}
+                labelColor={heroLabelColor}
+                mutedText={mutedText}
+                numFont={numFont}
+                labelFont={labelFont}
+              />
+            </DashboardCard>
+            <DashboardCard style={styles.heroBox}>
+              <HeroStat
+                icon="clock"
+                value={`${nitnemHrs}h`}
+                label={STRINGS.IN_NITNEM}
+                sub={STRINGS.THIS_YEAR}
+                accent={accentBlue}
+                numColor={heroNumColor}
+                labelColor={heroLabelColor}
+                mutedText={mutedText}
+                numFont={numFont}
+                labelFont={labelFont}
+              />
+            </DashboardCard>
+          </View>
+        ) : null}
+
+        {/* Lifetime stats (2×2) — hidden from UI per design, still tracked.
+        <View style={[card, styles.card]}>
           <View style={styles.miniRowWrap}>
             <MiniStat
               value={readStat.value}
@@ -179,6 +240,7 @@ const YourPractice = ({ refreshKey }) => {
             />
           </View>
         </View>
+        */}
       </View>
     </View>
   );
@@ -189,21 +251,27 @@ YourPractice.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
-  card: { padding: 20 },
-  heroRow: { flexDirection: "row", alignItems: "flex-start" },
+  heroRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  heroBox: { flex: 1, padding: 18 },
   hero: { flex: 1, gap: 5 },
-  heroValue: { fontSize: 26, fontWeight: "700", marginTop: 6 },
-  heroLabel: { fontSize: 13, fontWeight: "500" },
+  heroValue: { fontSize: 26, marginTop: 6 },
+  heroLabel: { fontSize: 13 },
   heroSub: { fontSize: 11 },
-  vDivider: { width: 1, alignSelf: "stretch", marginHorizontal: 16, opacity: 0.6 },
-  hDivider: { height: 1, marginVertical: 18 },
-  miniRowWrap: { flexDirection: "row" },
-  miniRow2: { marginTop: 16 },
-  miniStat: { flex: 1 },
-  miniRow: { flexDirection: "row", alignItems: "baseline" },
-  miniValue: { fontSize: 22, fontWeight: "600" },
-  miniUnit: { fontSize: 12, fontWeight: "500", marginLeft: 5 },
-  miniLabel: { fontSize: 11, fontWeight: "500", letterSpacing: 0.6, marginTop: 2 },
+  heroSkeleton: { width: "70%", height: 40, alignSelf: "flex-start" },
+  errorBox: { flex: 1, padding: 18 },
 });
+
+// Paired with the commented-out MiniStat component/JSX above — kept for a quick
+// re-enable if the lifetime mini-stats ever come back to the UI.
+// const miniStyles = {
+//   card: { padding: 20 },
+//   miniRowWrap: { flexDirection: "row" },
+//   miniRow2: { marginTop: 16 },
+//   miniStat: { flex: 1 },
+//   miniRow: { flexDirection: "row", alignItems: "baseline" },
+//   miniValue: { fontSize: 22, fontWeight: "600" },
+//   miniUnit: { fontSize: 12, fontWeight: "500", marginLeft: 5 },
+//   miniLabel: { fontSize: 11, fontWeight: "500", letterSpacing: 0.6, marginTop: 2 },
+// };
 
 export default YourPractice;

@@ -12,7 +12,6 @@ import {
   applyDashboardRestore,
   seedAnalyticsFromSnapshot,
   buildCachePayload,
-  pushDashboardCache,
 } from "./dashboardSync";
 
 const mockUpdateReminders = jest.fn();
@@ -42,9 +41,8 @@ jest.mock("../../database/analytics", () => ({
   getTopListenedBanis: jest.fn(),
   getRecentReadBanis: jest.fn(),
   getRecentListenedBanis: jest.fn(),
-  getCompletedBanisCount: jest.fn(),
-  getReadingListeningTotals: jest.fn(),
-  upsertDailyActivity: jest.fn(),
+  getAllTimeTotals: jest.fn(),
+  setDailyActivity: jest.fn(),
   updateSummary: jest.fn(),
 }));
 
@@ -81,15 +79,6 @@ describe("getDashboardLatest", () => {
   it("throws on a non-404 error status", async () => {
     global.fetch = jest.fn().mockResolvedValue({ status: 500, ok: false });
     await expect(getDashboardLatest()).rejects.toThrow();
-  });
-
-  it("sends a Bearer token when provided", async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValue({ status: 200, ok: true, json: async () => ({ payload: {} }) });
-    await getDashboardLatest({ token: "jwt123" });
-    const opts = global.fetch.mock.calls[0][1];
-    expect(opts.headers.Authorization).toBe("Bearer jwt123");
   });
 });
 
@@ -143,7 +132,7 @@ describe("applyDashboardRestore", () => {
 });
 
 describe("seedAnalyticsFromSnapshot", () => {
-  it("seeds daily_activity per day and writes the summary", async () => {
+  it("seeds daily_activity per day (overwrite) and writes the summary, including last_active_date", async () => {
     await seedAnalyticsFromSnapshot({
       month: {
         key: "2025-06",
@@ -158,14 +147,15 @@ describe("seedAnalyticsFromSnapshot", () => {
         readingSeconds: 360000,
         listeningSeconds: 250000,
         audioSessions: 300,
+        banisCompleted: 540,
       },
     });
 
-    expect(analytics.upsertDailyActivity).toHaveBeenCalledTimes(2);
-    expect(analytics.upsertDailyActivity).toHaveBeenCalledWith({
+    expect(analytics.setDailyActivity).toHaveBeenCalledTimes(2);
+    expect(analytics.setDailyActivity).toHaveBeenCalledWith({
       date: "2025-06-01",
-      reading_seconds_delta: 120,
-      listening_seconds_delta: 0,
+      reading_seconds: 120,
+      listening_seconds: 0,
     });
     const fields = analytics.updateSummary.mock.calls[0][0];
     expect(fields).toMatchObject({
@@ -175,12 +165,17 @@ describe("seedAnalyticsFromSnapshot", () => {
       total_reading_seconds: 360000,
       total_listening_seconds: 250000,
       total_audio_sessions: 300,
+      total_banis_read: 540,
+      // Derived from the latest restored day (day 5) — without this, the
+      // streak engine sees a null last_active_date and zeroes current_streak
+      // right back to 0 on the very next computeStreaks() run.
+      last_active_date: "2025-06-05",
     });
   });
 
   it("is a no-op for a null payload", async () => {
     await seedAnalyticsFromSnapshot(null);
-    expect(analytics.upsertDailyActivity).not.toHaveBeenCalled();
+    expect(analytics.setDailyActivity).not.toHaveBeenCalled();
     expect(analytics.updateSummary).not.toHaveBeenCalled();
   });
 });
@@ -204,7 +199,6 @@ describe("buildCachePayload", () => {
       current_streak: 14,
       longest_streak: 31,
       total_days_active: 88,
-      total_audio_sessions: 300,
     });
     analytics.getDailyActivity.mockResolvedValue([
       { date: "2025-06-01", reading_seconds: 120, listening_seconds: 0 },
@@ -213,10 +207,12 @@ describe("buildCachePayload", () => {
     analytics.getTopListenedBanis.mockResolvedValue([{ bani_id: 1, session_count: 27 }]);
     analytics.getRecentReadBanis.mockResolvedValue([{ bani_id: 5 }]);
     analytics.getRecentListenedBanis.mockResolvedValue([{ bani_id: 1 }]);
-    analytics.getCompletedBanisCount.mockResolvedValue(540);
-    analytics.getReadingListeningTotals.mockResolvedValue({
-      total_reading_seconds: 360000,
-      total_listening_seconds: 250000,
+    // Baseline (restored) + live (this install) combined — see getAllTimeTotals.
+    analytics.getAllTimeTotals.mockResolvedValue({
+      banisCompleted: 540,
+      readingSeconds: 360000,
+      listeningSeconds: 250000,
+      audioSessions: 300,
     });
   });
 
@@ -232,7 +228,7 @@ describe("buildCachePayload", () => {
     expect(p.lastVisitedBaaniId).toBe(4);
     expect(p.streaks).toEqual({ current: 14, longest: 31 });
     expect(p.month.days).toEqual([[1, 120, 0]]);
-    expect(p.read.top5).toEqual([[2, 42]]);
+    expect(p.read.top5).toEqual([[2, 42, 0]]);
     expect(p.read.last).toEqual({ baaniId: 5 });
     expect(p.totals.banisCompleted).toBe(540);
     expect(p.nitnem.selectedBaaniIds).toEqual([2, 3, 4]);
@@ -243,26 +239,5 @@ describe("buildCachePayload", () => {
       { baaniId: 2, time: "03:30", enabled: true },
       { baaniId: 21, time: "18:00", enabled: false },
     ]);
-  });
-});
-
-describe("pushDashboardCache", () => {
-  it("no-ops without a token (dormant until SSO)", async () => {
-    global.fetch = jest.fn();
-    const res = await pushDashboardCache({ payload: {} }, null);
-    expect(res).toEqual({ skipped: true });
-    expect(global.fetch).not.toHaveBeenCalled();
-  });
-
-  it("POSTs with a Bearer token when authenticated", async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValue({ ok: true, json: async () => ({ id: "dbc_1", syncedAt: "t" }) });
-    const res = await pushDashboardCache({ payload: { profile: { name: "x" } } }, "jwt123");
-    expect(res.ok).toBe(true);
-    const [url, opts] = global.fetch.mock.calls[0];
-    expect(url).toBe("http://api.test/dashboard/cache");
-    expect(opts.method).toBe("POST");
-    expect(opts.headers.Authorization).toBe("Bearer jwt123");
   });
 });

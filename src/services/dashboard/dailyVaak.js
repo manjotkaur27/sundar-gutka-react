@@ -74,19 +74,33 @@ const pickTranslation = (translations) => {
   return trs.find((t) => !t.trim().endsWith(":")) || trs[0] || "";
 };
 
+// A verse is a real line of the hukamnama (vs. a structural heading like
+// "Fourth Mehla:" or "Sorat'h, Fifth Mehla:") when its English translation
+// isn't just a heading ending in ":". Mirrors randomShabad.js's
+// isMeaningfulVerse — the heading isn't reliably always verse[0], so this
+// content-based check replaces the card's old fixed-index slice(1, 3).
+const isMeaningfulVerse = (v) => {
+  const t = v?.translation?.en?.bdb;
+  return typeof t === "string" && t.trim() && !t.trim().endsWith(":");
+};
+
 // Maps a raw BaniDB hukamnama payload ({ shabads: [{ shabadInfo, verses }] }).
-// Maps EVERY verse so the card shows the complete hukamnama, like the STTM page.
+// Picks the first 2 non-heading verses — the card only ever shows a 2-line
+// preview (with a "Read Hukamnama" link out to the full page), so there's no
+// need to carry the rest.
 const fromBaniDb = (data) => {
   const shabad = data?.shabads?.[0];
   const info = shabad?.shabadInfo ?? {};
   const verses = Array.isArray(shabad?.verses) ? shabad.verses : [];
-  const lines = verses.map((v) => v?.verse?.unicode).filter(Boolean);
+  const good = verses.filter(isMeaningfulVerse);
+  const picked = (good.length ? good : verses).slice(0, 2);
+  const lines = picked.map((v) => v?.verse?.unicode).filter(Boolean);
   if (!lines.length) return null;
   return {
     lines,
     translation: pickTranslation(verses.map((v) => v?.translation?.en?.bdb)),
     raag: info?.raag?.unicode ?? "",
-    ang: info?.pageNo ?? verses[0]?.pageNo ?? null,
+    ang: info?.pageNo ?? picked[0]?.pageNo ?? verses[0]?.pageNo ?? null,
     shabadId: info?.shabadId ?? null,
     source: "Sri Darbar Sahib",
     dateLabel: istDateLabel(),

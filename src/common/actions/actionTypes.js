@@ -96,5 +96,6 @@ export const RESET_DASHBOARD_LAYOUT = "RESET_DASHBOARD_LAYOUT";
 // Today's Nitnem — the user's selected daily bani set + per-day completion map
 export const SET_NITNEM_BANIS = "SET_NITNEM_BANIS";
 export const TOGGLE_NITNEM_DONE = "TOGGLE_NITNEM_DONE";
+export const MARK_NITNEM_AUTO_DONE = "MARK_NITNEM_AUTO_DONE";
 // Restore the whole nitnem slice at once (cross-device sync / GET /dashboard/latest)
 export const RESTORE_NITNEM = "RESTORE_NITNEM";

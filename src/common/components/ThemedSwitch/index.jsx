@@ -11,12 +11,12 @@ const TRAVEL = TRACK_WIDTH - THUMB_SIZE - PADDING * 2;
 
 const OFF_TRACK_LIGHT = "#D1D1D6";
 const OFF_TRACK_DARK = "#6c6c71";
-const ON_TRACK_LIGHT = "#113979";
-const ON_TRACK_DARK = "#4A80D2";
+const ON_TRACK_LIGHT = "#4A80D2";
+const ON_TRACK_DARK = "#6FA0E0";
 const THUMB_COLOR = "#FFFFFF";
 const THUMB_BORDER = "rgba(0,0,0,0.1)";
 
-const ThemedSwitch = ({ value, onValueChange, disabled }) => {
+const ThemedSwitch = ({ value, onValueChange, disabled, offThumbColor }) => {
   const { theme } = useTheme();
   const progress = useRef(new Animated.Value(value ? 1 : 0)).current;
 
@@ -71,7 +71,9 @@ const ThemedSwitch = ({ value, onValueChange, disabled }) => {
             width: THUMB_SIZE,
             height: THUMB_SIZE,
             borderRadius: THUMB_SIZE / 2,
-            backgroundColor: THUMB_COLOR,
+            // offThumbColor only tints the OFF-state circle; ON stays the
+            // default white thumb everywhere.
+            backgroundColor: !value && offThumbColor ? offThumbColor : THUMB_COLOR,
             borderWidth: 0.5,
             borderColor: THUMB_BORDER,
             transform: [{ translateX }],
@@ -86,11 +88,13 @@ ThemedSwitch.propTypes = {
   value: PropTypes.bool.isRequired,
   onValueChange: PropTypes.func,
   disabled: PropTypes.bool,
+  offThumbColor: PropTypes.string,
 };
 
 ThemedSwitch.defaultProps = {
   onValueChange: undefined,
   disabled: false,
+  offThumbColor: null,
 };
 
 export default ThemedSwitch;

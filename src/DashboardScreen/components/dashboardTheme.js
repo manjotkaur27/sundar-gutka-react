@@ -13,29 +13,15 @@ const useDashboardTheme = () => {
   return {
     theme,
     isDark,
-    gold: GOLD,
+    // Golden accent is warmer/brighter in dark mode so it still pops against
+    // the near-black background — GOLD stays the light-mode literal.
+    gold: isDark ? "#E8B355" : GOLD,
     accentBlue: ACCENT_BLUE,
-    screenBg: isDark ? theme.colors.inactiveView : "#ffffff",
+    screenBg: isDark ? "#050D1B" : "#F4F7FC",
     cardBg: isDark ? theme.colors.activeView : "#ffffff",
     primaryText: theme.colors.primaryText,
     mutedText: theme.colors.textDisabled,
     separator: theme.colors.separator,
-    // Card style with rounded borders (design note: rounded borders everywhere).
-    card: {
-      borderRadius: 18,
-      backgroundColor: isDark ? theme.colors.activeView : "#ffffff",
-      borderWidth: isDark ? 0 : 1,
-      borderColor: "rgba(0,0,0,0.06)",
-      ...(isDark
-        ? {}
-        : {
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 8,
-            elevation: 2,
-          }),
-    },
   };
 };
 

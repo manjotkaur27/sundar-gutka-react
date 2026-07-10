@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
 import { getDayDetail } from "../../database/analytics";
+import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import EditBanisModal from "./EditBanisModal";
 import SectionLabel from "./SectionLabel";
@@ -25,10 +26,10 @@ const styles = StyleSheet.create({
   editLink: { fontSize: 13, fontWeight: "600" },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   headerText: { flex: 1 },
-  subtitle: { fontSize: 15, fontWeight: "500" },
+  subtitle: { fontSize: 17 },
   ringCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
-  ringNum: { fontSize: 14, fontWeight: "600" },
-  ringLabel: { fontSize: 10, opacity: 0.7 },
+  ringNum: { fontSize: 15 },
+  ringLabel: { fontSize: 10 },
   listDivider: { height: 1, marginVertical: 16 },
   // ~8 rows visible (4 per column) then scrolls within the card.
   gridScroll: { maxHeight: 184 },
@@ -55,49 +56,79 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   primaryBtnText: { color: "#fff", fontSize: 13, fontWeight: "600", flexShrink: 1 },
-  secondaryBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 13,
-    paddingHorizontal: 8,
-    borderRadius: 14,
-    borderWidth: 1.5,
-  },
-  secondaryBtnText: { fontSize: 13, fontWeight: "600", flexShrink: 1 },
 });
 
-const ProgressRing = ({ done, total, accent, track, textColor }) => {
+// Builds a filled "rounded annulus sector" — the progress fill as its own
+// shape (outer arc + inner arc + 4 small corner fillets of radius `capR`)
+// instead of a stroked circle. Unlike strokeLinecap="round" (always exactly
+// stroke/2), this corner radius is independent of the bar's thickness — set
+// it below stroke/2 for a flat-topped end with softened corners.
+const buildRoundedArcPath = (cx, cy, r, stroke, startDeg, endDeg, capR) => {
+  const outerR = r + stroke / 2;
+  const innerR = r - stroke / 2;
+  const toXY = (deg, radius) => {
+    const rad = (deg * Math.PI) / 180;
+    return { x: cx + radius * Math.sin(rad), y: cy - radius * Math.cos(rad) };
+  };
+  const span = endDeg - startDeg;
+  // Shrink the corner radius if the arc is too short to fit two fillets.
+  const maxCapR = (span * innerR * Math.PI) / 360;
+  const safeCapR = Math.max(0, Math.min(capR, maxCapR * 0.85));
+  const outerInset = (safeCapR / outerR) * (180 / Math.PI);
+  const innerInset = (safeCapR / innerR) * (180 / Math.PI);
+
+  const pOuterStart = toXY(startDeg + outerInset, outerR);
+  const pOuterEnd = toXY(endDeg - outerInset, outerR);
+  const pOuterFlatStart = toXY(startDeg, outerR - safeCapR);
+  const pOuterFlatEnd = toXY(endDeg, outerR - safeCapR);
+  const pInnerFlatStart = toXY(startDeg, innerR + safeCapR);
+  const pInnerFlatEnd = toXY(endDeg, innerR + safeCapR);
+  const pInnerStart = toXY(startDeg + innerInset, innerR);
+  const pInnerEnd = toXY(endDeg - innerInset, innerR);
+  const largeArc = span > 180 ? 1 : 0;
+
+  return [
+    `M ${pOuterStart.x} ${pOuterStart.y}`,
+    `A ${outerR} ${outerR} 0 ${largeArc} 1 ${pOuterEnd.x} ${pOuterEnd.y}`,
+    `A ${safeCapR} ${safeCapR} 0 0 1 ${pOuterFlatEnd.x} ${pOuterFlatEnd.y}`,
+    `L ${pInnerFlatEnd.x} ${pInnerFlatEnd.y}`,
+    `A ${safeCapR} ${safeCapR} 0 0 1 ${pInnerEnd.x} ${pInnerEnd.y}`,
+    `A ${innerR} ${innerR} 0 ${largeArc} 0 ${pInnerStart.x} ${pInnerStart.y}`,
+    `A ${safeCapR} ${safeCapR} 0 0 1 ${pInnerFlatStart.x} ${pInnerFlatStart.y}`,
+    `L ${pOuterFlatStart.x} ${pOuterFlatStart.y}`,
+    `A ${safeCapR} ${safeCapR} 0 0 1 ${pOuterStart.x} ${pOuterStart.y}`,
+    "Z",
+  ].join(" ");
+};
+
+const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFont }) => {
   const size = 64;
-  const stroke = 6;
+  const stroke = 7;
   const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
+  const cx = size / 2;
+  const cy = size / 2;
   const pct = total > 0 ? done / total : 0;
+  // Independent of stroke width — smaller than stroke/2 softens the corners
+  // without a full round "pill" bulge. Tune this one number to taste.
+  const capR = 2.5;
+  const progressPath =
+    pct > 0 && pct < 1 ? buildRoundedArcPath(cx, cy, r, stroke, 0, pct * 360, capR) : null;
+
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
       <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth={stroke} fill="none" />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={accent}
-          strokeWidth={stroke}
-          fill="none"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct)}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
+        <Circle cx={cx} cy={cy} r={r} stroke={track} strokeWidth={stroke} fill="none" />
+        {pct >= 1 ? (
+          <Circle cx={cx} cy={cy} r={r} stroke={accent} strokeWidth={stroke} fill="none" />
+        ) : null}
+        {progressPath ? <Path d={progressPath} fill={accent} /> : null}
       </Svg>
       <View style={StyleSheet.absoluteFill}>
         <View style={styles.ringCenter}>
-          <CustomText style={[styles.ringNum, { color: textColor }]}>
+          <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont }]}>
             {done}/{total}
           </CustomText>
-          <CustomText style={[styles.ringLabel, { color: textColor }]}>banis</CustomText>
+          <CustomText style={[styles.ringLabel, { color: labelColor }]}>banis</CustomText>
         </View>
       </View>
     </View>
@@ -108,7 +139,9 @@ ProgressRing.propTypes = {
   total: PropTypes.number.isRequired,
   accent: PropTypes.string.isRequired,
   track: PropTypes.string.isRequired,
-  textColor: PropTypes.string.isRequired,
+  numColor: PropTypes.string.isRequired,
+  labelColor: PropTypes.string.isRequired,
+  numFont: PropTypes.string.isRequired,
 };
 
 const Check = ({ filled, accent, muted }) => (
@@ -146,22 +179,6 @@ const PlayIcon = ({ color }) => (
 );
 PlayIcon.propTypes = { color: PropTypes.string.isRequired };
 
-const TickIcon = ({ color }) => (
-  <Svg
-    width={14}
-    height={14}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="3"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <Polyline points="20 6 9 17 4 12" />
-  </Svg>
-);
-TickIcon.propTypes = { color: PropTypes.string.isRequired };
-
 const EditIcon = ({ color }) => (
   <Svg
     width={14}
@@ -188,8 +205,41 @@ const PlusCircle = ({ color }) => (
 );
 PlusCircle.propTypes = { color: PropTypes.string.isRequired };
 
+// Small counts only (realistic Nitnem list size); falls back to the numeral past 20.
+const ONES = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+  "twenty",
+];
+const numberToWords = (n) => ONES[n] ?? String(n);
+
 const TodaysNitnem = ({ refreshKey }) => {
-  const { card, isDark, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
+  const { isDark, accentBlue: baseAccentBlue, mutedText, separator, theme } = useDashboardTheme();
+  // Matches the username/streak accent color (blue in light, off-white in dark).
+  const accentTextColor = isDark ? "#E8EEF7" : "#133a78";
+  // Client-specified "light blue" accent for this section in dark mode only —
+  // scoped locally rather than changing the shared accentBlue theme value,
+  // which every other dashboard section also relies on.
+  const accentBlue = isDark ? "#5A99FD" : baseAccentBlue;
+  const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const { selectedBaniIds, completed } = useSelector((state) => state.todaysNitnem);
@@ -199,9 +249,11 @@ const TodaysNitnem = ({ refreshKey }) => {
   const [editVisible, setEditVisible] = useState(false);
 
   const today = todayStr();
+  // Manual ticks (restored — see the Check Pressable below), merged with
+  // auto-detected completions (autoDone) into one doneSet further down.
   const manualDone = useMemo(() => completed?.[today] ?? [], [completed, today]);
 
-  // Auto-completion: banis read/listened past threshold today (Task B/C tracking).
+  // Auto-completion: banis read (>=95% scrolled) or listened past threshold today.
   useEffect(() => {
     let active = true;
     getDayDetail(today)
@@ -209,18 +261,24 @@ const TodaysNitnem = ({ refreshKey }) => {
         if (!active) return;
         const ids = new Set();
         reads.forEach((r) => {
-          if ((r.duration ?? 0) >= constant.MIN_READ_SESSION_SECONDS) ids.add(r.bani_id);
+          if (r.completed) ids.add(r.bani_id);
         });
         listens.forEach((l) => {
           if ((l.duration ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS) ids.add(l.bani_id);
         });
         setAutoDone([...ids]);
+        // Persist into Redux (and from there, the dashboard_cache sync payload)
+        // — without this, an auto-detected completion only ever lived in this
+        // component's local state, recomputed from raw SQLite on every mount.
+        // It would show correctly on this device today but silently vanish
+        // from the cloud snapshot, cross-device sync, and any reinstall.
+        if (ids.size > 0) dispatch(actions.markNitnemAutoDone(today, [...ids]));
       })
       .catch(logError);
     return () => {
       active = false;
     };
-  }, [today, refreshKey]);
+  }, [today, refreshKey, dispatch]);
 
   const doneSet = useMemo(() => new Set([...manualDone, ...autoDone]), [manualDone, autoDone]);
   const doneCount = selectedBaniIds.filter((id) => doneSet.has(id)).length;
@@ -240,23 +298,18 @@ const TodaysNitnem = ({ refreshKey }) => {
     [baniMap, dispatch, navigation]
   );
 
-  const toggleDone = useCallback(
-    (id) => {
-      dispatch(actions.toggleNitnemDone(today, id));
-    },
-    [dispatch, today]
-  );
-
-  const markAllDone = useCallback(() => {
-    selectedBaniIds.forEach((id) => {
-      if (!doneSet.has(id)) dispatch(actions.toggleNitnemDone(today, id));
-    });
-  }, [selectedBaniIds, doneSet, dispatch, today]);
-
-  const subtitle =
+  // English spells the count out ("two banis left"); other languages keep the
+  // numeral since spelled-out numbers need per-language translation we don't have.
+  const isEnglish = STRINGS.getLanguage() === "en-US";
+  const rawSubtitle =
     remaining > 0
-      ? STRINGS.formatString(STRINGS.NITNEM_LEFT, { count: remaining })
+      ? STRINGS.formatString(STRINGS.NITNEM_LEFT, {
+          count: isEnglish ? numberToWords(remaining) : remaining,
+        })
       : STRINGS.ALL_DONE_TODAY;
+  // numberToWords lowercases the spelled-out count ("five"), which sits first
+  // in the sentence — capitalize it (no-op for a leading digit in other langs).
+  const subtitle = rawSubtitle ? rawSubtitle[0].toUpperCase() + rawSubtitle.slice(1) : rawSubtitle;
 
   // Two-column grid cells: all selected banis + a trailing "Add a bani" cell.
   const cells = [...selectedBaniIds.map((id) => ({ type: "bani", id })), { type: "add" }];
@@ -276,17 +329,23 @@ const TodaysNitnem = ({ refreshKey }) => {
       />
 
       <View style={styles.wrap}>
-        <View style={[card, styles.card]}>
+        <DashboardCard style={styles.card}>
           <View style={styles.headerRow}>
             <ProgressRing
               done={doneCount}
               total={selectedBaniIds.length}
               accent={accentBlue}
               track={isDark ? "rgba(255,255,255,0.12)" : "#e6ebf5"}
-              textColor={primaryText}
+              numColor={accentTextColor}
+              labelColor={mutedText}
+              numFont={boldFont}
             />
             <View style={styles.headerText}>
-              <CustomText style={[styles.subtitle, { color: primaryText }]}>{subtitle}</CustomText>
+              <CustomText
+                style={[styles.subtitle, { color: accentTextColor, fontFamily: boldFont }]}
+              >
+                {subtitle}
+              </CustomText>
             </View>
           </View>
 
@@ -296,7 +355,9 @@ const TodaysNitnem = ({ refreshKey }) => {
           <ScrollView
             style={styles.gridScroll}
             nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator
+            indicatorStyle={isDark ? "white" : "black"}
+            persistentScrollbar
             contentContainerStyle={styles.grid}
           >
             {cells.map((cell) => {
@@ -313,15 +374,21 @@ const TodaysNitnem = ({ refreshKey }) => {
               const isDone = doneSet.has(cell.id);
               return (
                 <View key={cell.id} style={styles.gridItem}>
-                  <Pressable onPress={() => toggleDone(cell.id)} hitSlop={6}>
+                  {/* Manual mark-done, restored — tapping the tick toggles it
+                      directly; auto-detection (autoDone above) still applies
+                      independently via the same doneSet union. */}
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => dispatch(actions.toggleNitnemDone(today, cell.id))}
+                  >
                     <Check filled={isDone} accent={accentBlue} muted={mutedText} />
                   </Pressable>
                   <Pressable style={styles.baniNamePress} onPress={() => openBani(cell.id)}>
                     <CustomText
                       style={[
                         styles.baniName,
-                        { color: primaryText },
-                        isDone && { color: mutedText },
+                        { color: mutedText },
+                        isDone && { color: accentTextColor, fontFamily: boldFont },
                       ]}
                       numberOfLines={1}
                     >
@@ -353,25 +420,8 @@ const TodaysNitnem = ({ refreshKey }) => {
                   : STRINGS.CONTINUE}
               </CustomText>
             </Pressable>
-            <Pressable
-              style={[
-                styles.secondaryBtn,
-                { borderColor: isDark ? "rgba(255,255,255,0.18)" : "#d7deea" },
-              ]}
-              onPress={markAllDone}
-            >
-              <TickIcon color={accentBlue} />
-              <CustomText
-                style={[styles.secondaryBtnText, { color: accentBlue }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                {STRINGS.MARK_DONE}
-              </CustomText>
-            </Pressable>
           </View>
-        </View>
+        </DashboardCard>
       </View>
 
       <EditBanisModal

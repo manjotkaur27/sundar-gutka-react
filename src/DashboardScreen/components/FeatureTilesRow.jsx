@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, STRINGS, openInAppBrowser, logError, constant } from "@common";
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
+import { getRestoredTopBanis } from "../../services/dashboard";
 // eslint-disable-next-line import/order
 const KHALIS_LOGO = require("../../assets/images/khalis.png");
 // eslint-disable-next-line import/order
@@ -134,11 +135,30 @@ const FeatureTilesRow = () => {
   const [lastListened, setLastListened] = useState(null);
 
   useEffect(() => {
+    // Raw session history doesn't survive a reinstall — fall back to the
+    // last-read/listened baaniId captured at the last cloud push (no title in
+    // that compact form, but bani_title is already optional at render below).
     getRecentReadBanis(1)
-      .then((rows) => setLastRead(rows[0] ?? null))
+      .then(async (rows) => {
+        if (rows[0]) {
+          setLastRead(rows[0]);
+          return;
+        }
+        const restored = await getRestoredTopBanis();
+        const baniId = restored?.read?.last?.baaniId;
+        setLastRead(baniId != null ? { bani_id: baniId } : null);
+      })
       .catch(logError);
     getRecentListenedBanis(1)
-      .then((rows) => setLastListened(rows[0] ?? null))
+      .then(async (rows) => {
+        if (rows[0]) {
+          setLastListened(rows[0]);
+          return;
+        }
+        const restored = await getRestoredTopBanis();
+        const baniId = restored?.listen?.last?.baaniId;
+        setLastListened(baniId != null ? { bani_id: baniId } : null);
+      })
       .catch(logError);
   }, []);
 

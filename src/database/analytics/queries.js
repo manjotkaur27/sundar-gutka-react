@@ -1,17 +1,22 @@
 import { logError, logMessage } from "@common";
 import { getAnalyticsDB } from "./connect";
+import { runSerialized } from "./queue";
 
-const runQuery = async (sql, params = []) => {
-  try {
-    const db = await getAnalyticsDB();
-    const [result] = await db.executeSql(sql, params);
-    return result;
-  } catch (err) {
-    logMessage(`analytics_db_write_failed: ${err?.message || err}`);
-    logError(new Error(`Analytics query error: ${err?.message || err} | SQL: ${sql}`));
-    throw err;
-  }
-};
+// Serialized (see queue.js) — the Dashboard mounts many independent reads at
+// once, and react-native-sqlite-storage's native bridge isn't safe under that
+// much concurrency.
+const runQuery = (sql, params = []) =>
+  runSerialized(async () => {
+    try {
+      const db = await getAnalyticsDB();
+      const [result] = await db.executeSql(sql, params);
+      return result;
+    } catch (err) {
+      logMessage(`analytics_db_write_failed: ${err?.message || err}`);
+      logError(new Error(`Analytics query error: ${err?.message || err} | SQL: ${sql}`));
+      throw err;
+    }
+  });
 
 const rowsToArray = (result) => {
   const rows = [];
@@ -150,6 +155,23 @@ export const upsertDailyActivity = async ({
   );
 };
 
+// Overwrites (not accumulates) a day's totals — for restoring a cloud snapshot,
+// where the incoming numbers are already the day's true total, not a delta.
+// Using the additive upsertDailyActivity here would double-count on a second
+// restore of the same day (e.g. a repeat reinstall before the next cloud push).
+export const setDailyActivity = async ({ date, reading_seconds = 0, listening_seconds = 0 }) => {
+  return runQuery(
+    `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
+     VALUES (?, ?, ?, ?, strftime('%s','now'))
+     ON CONFLICT(date) DO UPDATE SET
+       reading_seconds   = excluded.reading_seconds,
+       listening_seconds = excluded.listening_seconds,
+       total_seconds     = excluded.reading_seconds + excluded.listening_seconds,
+       updated_at        = strftime('%s','now')`,
+    [date, reading_seconds, listening_seconds, reading_seconds + listening_seconds]
+  );
+};
+
 export const getDayActivity = async (date) => {
   const result = await runQuery(`SELECT * FROM daily_activity WHERE date = ? LIMIT 1`, [date]);
   const rows = rowsToArray(result);
@@ -195,7 +217,29 @@ export const getReadingListeningTotals = async () => {
   const result = await runQuery(
     `SELECT
       COALESCE((SELECT SUM(duration_seconds) FROM bani_read_history), 0) AS total_reading_seconds,
-      COALESCE((SELECT SUM(duration_played)  FROM audio_history),        0) AS total_listening_seconds`
+      COALESCE((SELECT SUM(duration_played)  FROM audio_history),        0) AS total_listening_seconds,
+      COALESCE((SELECT COUNT(*)              FROM audio_history),        0) AS total_audio_sessions`
+  );
+  const rows = rowsToArray(result);
+  return (
+    rows[0] ?? { total_reading_seconds: 0, total_listening_seconds: 0, total_audio_sessions: 0 }
+  );
+};
+
+// All-time reading/listening sum straight from the daily aggregate table —
+// used as a floor against getAllTimeTotals' baseline+live figures below.
+// daily_activity is kept consistent by both real sessions (upsertDailyActivity,
+// additive) and restores (setDailyActivity), so it can end up ahead of the
+// frozen baseline if the two ever drift (e.g. a partial cloud repair that only
+// touches summary totals without touching that snapshot's day-by-day
+// breakdown, as happened once this session) — never report less than what
+// the daily breakdown itself already shows.
+export const getDailyActivityTotals = async () => {
+  const result = await runQuery(
+    `SELECT
+      COALESCE(SUM(reading_seconds), 0)   AS total_reading_seconds,
+      COALESCE(SUM(listening_seconds), 0) AS total_listening_seconds
+     FROM daily_activity`
   );
   const rows = rowsToArray(result);
   return rows[0] ?? { total_reading_seconds: 0, total_listening_seconds: 0 };
@@ -222,9 +266,12 @@ export const clearAllAnalyticsData = async () => {
 
 export const getDayDetail = async (dateStr) => {
   const [readResult, listenResult] = await Promise.all([
-    // start_time is stored as Date.now() → milliseconds; divide by 1000 for 'unixepoch'
+    // start_time is stored as Date.now() → milliseconds; divide by 1000 for 'unixepoch'.
+    // MAX(completed) acts as an OR across a bani's sessions that day — 1 if any
+    // single session crossed the 95%-scrolled completion mark, matching
+    // useReadingSession's per-session `completed` flag.
     runQuery(
-      `SELECT bani_id, bani_title, SUM(duration_seconds) as duration
+      `SELECT bani_id, bani_title, SUM(duration_seconds) as duration, MAX(completed) as completed
        FROM bani_read_history
        WHERE date(start_time / 1000, 'unixepoch', 'localtime') = ?
        GROUP BY bani_id
@@ -283,15 +330,47 @@ export const getAllBaniReadCounts = async () => {
 
 // ─── Completed banis ───────────────────────────────────────────────────────────
 
-// Counts reading sessions that crossed the "completed" threshold (default 4 min).
-// A bani is considered "completed" each time it is read for >= minSeconds.
-export const getCompletedBanisCount = async (minSeconds = 240) => {
+// Counts reading sessions marked completed — `completed` is set by
+// useReadingSession based on scroll position (>=95% through the bani),
+// not time spent, so this reflects sessions the reader actually finished.
+export const getCompletedBanisCount = async () => {
   const result = await runQuery(
-    `SELECT COUNT(*) as cnt FROM bani_read_history WHERE duration_seconds >= ?`,
-    [minSeconds]
+    `SELECT COUNT(*) as cnt FROM bani_read_history WHERE completed = 1`
   );
   const rows = rowsToArray(result);
   return rows[0]?.cnt ?? 0;
+};
+
+// ─── All-time totals (restore baseline + live, survives reinstall) ───────────
+// A fresh install's raw tables (bani_read_history/audio_history) are always
+// empty — they're never restored from a cloud snapshot (there's no per-session
+// history in it, only aggregates). So "all-time" = the baseline captured once
+// at restore time (user_stats_summary.total_*, untouched afterward) + whatever
+// this install has actually recorded since. Use this instead of the raw live
+// queries directly wherever a stat is presented/synced as "all time".
+//
+// readingSeconds/listeningSeconds additionally floor against
+// getDailyActivityTotals() (see its own comment) — the baseline+live figure
+// can under-report if it and daily_activity ever drift apart, and taking the
+// max means we're always at least as high as the more granular source,
+// without needing to fully replace the baseline approach (which is still the
+// more complete source across a reinstall that only restores one month's
+// day-by-day breakdown).
+export const getAllTimeTotals = async () => {
+  const [summary, live, liveBanisCompleted, dailyTotals] = await Promise.all([
+    getOrCreateSummary(),
+    getReadingListeningTotals(),
+    getCompletedBanisCount(),
+    getDailyActivityTotals(),
+  ]);
+  const baselineReading = (summary?.total_reading_seconds ?? 0) + live.total_reading_seconds;
+  const baselineListening = (summary?.total_listening_seconds ?? 0) + live.total_listening_seconds;
+  return {
+    banisCompleted: (summary?.total_banis_read ?? 0) + liveBanisCompleted,
+    readingSeconds: Math.max(baselineReading, dailyTotals.total_reading_seconds),
+    listeningSeconds: Math.max(baselineListening, dailyTotals.total_listening_seconds),
+    audioSessions: (summary?.total_audio_sessions ?? 0) + live.total_audio_sessions,
+  };
 };
 
 // ─── Sync helpers ─────────────────────────────────────────────────────────────

@@ -8,7 +8,11 @@ import {
   enqueueAnalyticsWrite,
 } from "../../database/analytics";
 
-const useReadingSession = ({ baniId, baniTitle, navigation }) => {
+// Completion is based on how far the user scrolled through the bani, not time
+// spent — a bani is "read" once the scroll bar crosses this percentage.
+const COMPLETION_SCROLL_PERCENT = 95;
+
+const useReadingSession = ({ baniId, baniTitle, navigation, scrollPercentRef }) => {
   const startTimeRef = useRef(null);
 
   // Synchronous — captures timestamps and queues DB work; returns instantly.
@@ -21,6 +25,10 @@ const useReadingSession = ({ baniId, baniTitle, navigation }) => {
     const durationSeconds = Math.round((endTime - start) / 1000);
     if (durationSeconds <= 0) return;
 
+    // Read at call time (not captured at hook-init), so it reflects wherever
+    // the user actually scrolled to during this specific session.
+    const completed = (scrollPercentRef?.current ?? 0) >= COMPLETION_SCROLL_PERCENT;
+
     const today = new Date().toISOString().slice(0, 10);
     enqueueAnalyticsWrite(async () => {
       try {
@@ -31,7 +39,7 @@ const useReadingSession = ({ baniId, baniTitle, navigation }) => {
             start_time: start,
             end_time: endTime,
             duration_seconds: durationSeconds,
-            completed: false,
+            completed,
           }),
           upsertDailyActivity({
             date: today,

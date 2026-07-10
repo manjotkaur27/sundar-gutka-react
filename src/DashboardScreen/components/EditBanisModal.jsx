@@ -6,20 +6,26 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { CustomText, STRINGS, actions, logError } from "@common";
 import { getBaniList } from "@database";
-import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
+import { toTitleCase } from "./useBaniLookup";
 
-const Check = ({ filled, muted }) => (
+const Check = ({ filled, muted, gold }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="10" fill={filled ? GOLD : "none"} stroke={filled ? GOLD : muted} strokeWidth="2" />
+    <Circle cx="12" cy="12" r="10" fill={filled ? gold : "none"} stroke={filled ? gold : muted} strokeWidth="2" />
     {filled ? (
       <Polyline points="17 9 10.5 15.5 7 12" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     ) : null}
   </Svg>
 );
-Check.propTypes = { filled: PropTypes.bool.isRequired, muted: PropTypes.string.isRequired };
+Check.propTypes = {
+  filled: PropTypes.bool.isRequired,
+  muted: PropTypes.string.isRequired,
+  gold: PropTypes.string.isRequired,
+};
 
 const EditBanisModal = ({ visible, onClose, selectedIds }) => {
-  const { screenBg, primaryText, mutedText, accentBlue, separator, isDark } = useDashboardTheme();
+  const { screenBg, primaryText, mutedText, accentBlue, separator, isDark, gold } =
+    useDashboardTheme();
   const { top, bottom } = useSafeAreaInsets();
   const dispatch = useDispatch();
   const language = useSelector((state) => state.language);
@@ -73,14 +79,14 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
                 style={[styles.row, { borderBottomColor: separator }]}
                 onPress={() => toggle(b.id)}
               >
-                <Check filled={isPicked} muted={mutedText} />
+                <Check filled={isPicked} muted={mutedText} gold={gold} />
                 <View style={styles.rowText}>
                   <CustomText style={[styles.gurmukhi, { color: primaryText }]} numberOfLines={1}>
                     {b.gurmukhiUni}
                   </CustomText>
                   {b.translit ? (
                     <CustomText style={[styles.translit, { color: mutedText }]} numberOfLines={1}>
-                      {b.translit}
+                      {toTitleCase(b.translit)}
                     </CustomText>
                   ) : null}
                 </View>

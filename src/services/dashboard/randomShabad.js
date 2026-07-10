@@ -41,20 +41,28 @@ const pickTranslation = (verses) => {
   return meaningful || trs[0] || "";
 };
 
+// A verse is a real line of the shabad (vs. a structural heading like "Salok
+// Mehla 4:" or "Sorat'h, Fifth Mehla:") when its English translation isn't
+// just a heading ending in ":". Mirrors buildEmergencyShabads.mjs so the
+// online and offline-bundled shabads skip the same heading verse.
+const isMeaningfulVerse = (v) => {
+  const t = v?.translation?.en?.bdb;
+  return typeof t === "string" && t.trim() && !t.trim().endsWith(":");
+};
+
 // Maps a BaniDB shabad payload to the card shape.
 const mapShabad = (data) => {
   const info = data?.shabadInfo ?? {};
   const verses = Array.isArray(data?.verses) ? data.verses : [];
-  const lines = verses
-    .slice(0, 2)
-    .map((v) => v?.verse?.unicode)
-    .filter(Boolean);
+  const good = verses.filter(isMeaningfulVerse);
+  const picked = (good.length ? good : verses).slice(0, 2);
+  const lines = picked.map((v) => v?.verse?.unicode).filter(Boolean);
   const translation = pickTranslation(verses);
   return {
     lines,
     translation,
     raag: info?.raag?.unicode ?? "",
-    ang: info?.pageNo ?? verses[0]?.pageNo ?? null,
+    ang: info?.pageNo ?? picked[0]?.pageNo ?? verses[0]?.pageNo ?? null,
     shabadId: info?.shabadId ?? null,
     _source: "api",
   };

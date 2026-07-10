@@ -8,8 +8,9 @@ import STRINGS from "../common/localization";
  * Fetches the dynamic Seva config from the Khalis backend (constant.SEVA_CONFIG_API_URL)
  * and maps it onto the app-facing SevaConfig shape that SevaScreen + BottomNavigation
  * already consume. The page COPY stays app-local (6 languages via STRINGS); the backend
- * only drives the dynamic bits: donation amounts, payment (Qgiv) config, country, and the
- * Seva dot (redDot). Falls back to the last cached config, then bundled defaults, offline.
+ * only drives the dynamic bits: payment (Qgiv) config, country, and the Seva dot (redDot).
+ * Donation amounts are fixed app-local (see FILLER_CONFIG.amounts) — the backend no longer
+ * provides them. Falls back to the last cached config, then bundled defaults, offline.
  */
 
 /** @typedef {'one_time' | 'recurring' | 'unknown'} DonorType */
@@ -23,14 +24,14 @@ import STRINGS from "../common/localization";
  * @property {Object}      content
  * @property {string}      content.headline
  * @property {string}      content.description
- * @property {Object}      defaults
- * @property {number[]}    defaults.amounts
- * @property {number}      defaults.selectedAmount
+ * @property {number[]}    amounts
+ * @property {number}      selectedAmount
  * @property {PaymentMode} payment_mode
- * @property {boolean}     showSevaDot
+ * @property {boolean}     showSevaDot   - true whenever sevaDotCount > 0
+ * @property {number}      sevaDotCount  - 0 none / 1 plain dot / 2+ numbered badge
  */
 
-/** App-local copy + defaults, used as the base and the offline fallback. */
+/** App-local copy + fixed donation amounts, used as the base and the offline fallback. */
 const FILLER_CONFIG = {
   configVersion: "mock-v1",
   country: "US",
@@ -55,10 +56,8 @@ const FILLER_CONFIG = {
       "Your monthly seva is making a difference. Thank you for your continued support.",
     convertToRecurringCTA: "Upgrade to Monthly Giving",
   },
-  defaults: {
-    amounts: [10, 50, 100],
-    selectedAmount: 10,
-  },
+  amounts: [10, 50, 100],
+  selectedAmount: 10,
   payment_mode: "qgiv_prefill_open",
   showSevaDot: true,
 };
@@ -81,6 +80,8 @@ let latestVersion = 0;
 
 // Tiny pub/sub so the Seva tab's red dot clears instantly when the user opens the
 // Seva page (markSevaSeen), without waiting for the bottom bar's next refetch.
+// Carries the actual missed-version count (0 = none), not just a boolean, so
+// subscribers can render 0 none / 1 plain dot / 2+ numbered badge.
 const dotListeners = new Set();
 export const subscribeSevaDot = (listener) => {
   dotListeners.add(listener);
@@ -88,10 +89,10 @@ export const subscribeSevaDot = (listener) => {
     dotListeners.delete(listener);
   };
 };
-const emitSevaDot = (visible) => {
+const emitSevaDot = (count) => {
   dotListeners.forEach((fn) => {
     try {
-      fn(visible);
+      fn(count);
     } catch (_) {
       // one listener throwing must not stop the rest
     }
@@ -113,16 +114,13 @@ const buildConfig = (dyn) => ({
   ...FILLER_CONFIG,
   configVersion: dyn?.version != null ? String(dyn.version) : FILLER_CONFIG.configVersion,
   country: dyn?.country || FILLER_CONFIG.country,
-  defaults: {
-    amounts:
-      Array.isArray(dyn?.defaults?.amounts) && dyn.defaults.amounts.length
-        ? dyn.defaults.amounts
-        : FILLER_CONFIG.defaults.amounts,
-    selectedAmount: dyn?.defaults?.selectedAmount ?? FILLER_CONFIG.defaults.selectedAmount,
-  },
   payment_mode: dyn?.payment?.mode || FILLER_CONFIG.payment_mode,
   // Only let the backend control the dot once we actually have a response.
   showSevaDot: dyn ? (dyn.redDot ?? 0) > 0 : FILLER_CONFIG.showSevaDot,
+  // Real count for the numbered-badge UI (0 none / 1 plain dot / 2+ shows the
+  // number). No response yet (offline, first-ever launch) falls back to 1
+  // rather than a real count, since we can't know the true value.
+  sevaDotCount: dyn ? dyn.redDot ?? 0 : Number(FILLER_CONFIG.showSevaDot),
   content: {
     ...FILLER_CONFIG.content,
     description: STRINGS.SEVA_DESCRIPTION,
@@ -171,14 +169,13 @@ export const getSevaConfig = async () => {
     const dyn = {
       version: resp?.version,
       country: resp?.country,
-      defaults: resp?.defaults,
       payment: resp?.payment,
       redDot: resp?.redDot,
     };
     latestVersion = Number(resp?.version) || 0;
     cachedPayment = resp?.payment ?? null;
     AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dyn)).catch(() => {});
-    emitSevaDot((dyn.redDot ?? 0) > 0);
+    emitSevaDot(dyn.redDot ?? 0);
     return buildConfig(dyn);
   } catch (err) {
     logError(new Error(`getSevaConfig failed: ${err?.message || err}`));
@@ -208,7 +205,7 @@ export const markSevaSeen = async () => {
   } catch (_) {
     // best-effort; the dot re-clears on the next successful fetch anyway
   }
-  emitSevaDot(false);
+  emitSevaDot(0);
 };
 
 /**

@@ -487,6 +487,17 @@ const todaysNitnem = createReducer(
         : [...dayList, baniId];
       return { ...state, completed: { ...state.completed, [date]: nextDay } };
     },
+    // Auto-detected completions (real read/listen time) union into the same
+    // per-day list TOGGLE_NITNEM_DONE writes — additive only, so this can't
+    // undo a manual entry, and repeated dispatches for the same day are safe.
+    [actionTypes.MARK_NITNEM_AUTO_DONE]: (state, action) => {
+      const { date, baniIds } = action.payload;
+      if (!baniIds || baniIds.length === 0) return state;
+      const dayList = state.completed[date] ?? [];
+      const merged = Array.from(new Set([...dayList, ...baniIds]));
+      if (merged.length === dayList.length) return state;
+      return { ...state, completed: { ...state.completed, [date]: merged } };
+    },
     [actionTypes.RESTORE_NITNEM]: (state, action) => ({
       selectedBaniIds: action.value?.selectedBaniIds ?? state.selectedBaniIds,
       completed: action.value?.completed ?? state.completed,

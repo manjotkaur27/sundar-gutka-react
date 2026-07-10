@@ -1,11 +1,13 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS } from "@common";
+import { CustomText } from "@common";
 import { getNanakshahiDate } from "../../services/dashboard";
-import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import { LAST_PUSH_KEY } from "../useDashboardSync";
+import useDashboardTheme from "./dashboardTheme";
 
 // Display name is fixed until a real account/profile feature exists.
 const DEFAULT_NAME = "User";
@@ -26,16 +28,20 @@ const MenuIcon = ({ color }) => (
 );
 MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 
-const greetingKey = () => {
-  const h = new Date().getHours();
-  if (h < 12) return "GREETING_MORNING";
-  if (h < 17) return "GREETING_AFTERNOON";
-  return "GREETING_EVENING";
-};
-
-const DashboardHeader = ({ onMenuPress }) => {
-  const { isDark, primaryText, mutedText } = useDashboardTheme();
+const DashboardHeader = ({ onMenuPress, refreshKey }) => {
+  const { isDark, gold, primaryText, mutedText, theme } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
+  // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
+  // fontWeight with a custom TTF makes Android synthesize a fake bold and
+  // silently fall back off the real glyph.
+  const nameFont = theme.typography.fonts.balooPaajiSemiBold;
+
+  // Username: brand blue in light mode, off-white in dark.
+  const nameColor = isDark ? "#E8EEF7" : "#133a78";
+  // Text below the name (date line) and the avatar's "U" initial each get their
+  // own client-specified accents, distinct from the generic mutedText/nameColor.
+  const belowNameColor = isDark ? "#6E84A9" : "#9AA8C4";
+  const avatarTextColor = isDark ? "#5A99FD" : "#113979";
 
   const dateLine = useMemo(() => {
     const now = new Date();
@@ -45,24 +51,52 @@ const DashboardHeader = ({ onMenuPress }) => {
     return `${weekday} · ${dayMonth} · ${nanak.label}`;
   }, []);
 
-  const bg = isDark ? "#041126" : "#ffffff";
+  // Temporary, for testing the cloud sync push (see useDashboardSync.js). Reads
+  // on every refreshKey change (screen focus) since pushNow() runs on blur/
+  // background, so the value written during the *previous* visit only becomes
+  // visible the next time this mounts/focuses.
+  const [lastSyncedLabel, setLastSyncedLabel] = useState(null);
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(LAST_PUSH_KEY).then((raw) => {
+      if (!active) return;
+      if (!raw) {
+        setLastSyncedLabel("never");
+        return;
+      }
+      setLastSyncedLabel(new Date(Number(raw)).toLocaleString());
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
+
+  const bg = isDark ? "#050D1B" : "#F4F7FC";
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 8, backgroundColor: bg }]}>
-      <CustomText style={[styles.salutation, { color: GOLD }]}>
-        ੴ ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
+      <CustomText style={[styles.salutation, { color: gold }]}>
+        ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
       </CustomText>
 
       <View style={styles.row}>
         <View style={styles.nameBlock}>
-          <CustomText style={[styles.name, { color: primaryText }]} numberOfLines={1}>
+          <CustomText
+            style={[styles.name, { color: nameColor, fontFamily: nameFont }]}
+            numberOfLines={1}
+          >
             {DEFAULT_NAME}
           </CustomText>
-          {/* Time-based greeting (Good morning / afternoon / evening) + date.
-              Wraps to 2 lines so the trailing Nanakshahi date is never cut off. */}
-          <CustomText style={[styles.date, { color: mutedText }]} numberOfLines={2}>
-            {`${STRINGS[greetingKey()]} · ${dateLine}`}
+          {/* Gregorian + Nanakshahi date line (greeting removed per design). */}
+          <CustomText style={[styles.date, { color: belowNameColor }]} numberOfLines={1}>
+            {dateLine}
           </CustomText>
+          {/* Temporary testing readout — remove once cloud sync is verified. */}
+          {lastSyncedLabel ? (
+            <CustomText style={[styles.syncLine, { color: mutedText }]} numberOfLines={1}>
+              {`Last synced: ${lastSyncedLabel}`}
+            </CustomText>
+          ) : null}
         </View>
 
         <View style={styles.controls}>
@@ -82,7 +116,7 @@ const DashboardHeader = ({ onMenuPress }) => {
               { backgroundColor: isDark ? "rgba(37,129,223,0.25)" : "#dbe6fb" },
             ]}
           >
-            <CustomText style={[styles.avatarText, { color: isDark ? "#bcd4ff" : "#113979" }]}>
+            <CustomText style={[styles.avatarText, { color: avatarTextColor }]}>
               {DEFAULT_NAME[0]}
             </CustomText>
           </View>
@@ -94,10 +128,12 @@ const DashboardHeader = ({ onMenuPress }) => {
 
 DashboardHeader.propTypes = {
   onMenuPress: PropTypes.func,
+  refreshKey: PropTypes.number,
 };
 
 DashboardHeader.defaultProps = {
   onMenuPress: () => {},
+  refreshKey: 0,
 };
 
 const styles = StyleSheet.create({
@@ -107,7 +143,7 @@ const styles = StyleSheet.create({
   },
   salutation: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "700",
     marginBottom: 10,
   },
   row: {
@@ -121,12 +157,17 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 23,
-    fontWeight: "600",
   },
   date: {
     fontSize: 13,
     lineHeight: 18,
     marginTop: 2,
+  },
+  syncLine: {
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+    opacity: 0.7,
   },
   controls: {
     flexDirection: "row",

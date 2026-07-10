@@ -21,6 +21,9 @@ jest.mock("@common", () => ({
     })),
   },
   logError: jest.fn(),
+  // Optimistic default (online) matches the real NetworkContext's default —
+  // tests that need to simulate offline/reconnect override this per-test.
+  useNetwork: jest.fn(() => ({ isOnline: true })),
 }));
 
 jest.mock("@service", () => ({

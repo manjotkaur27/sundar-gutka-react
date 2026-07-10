@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, ScrollView, Pressable, StyleSheet, Image } from "react-native";
 import Svg, { Path, Circle } from "react-native-svg";
 import PropTypes from "prop-types";
@@ -6,8 +6,12 @@ import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
 import { CustomText, STRINGS, constant, actions, openInAppBrowser } from "@common";
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
+import { getRestoredTopBanis } from "../../services/dashboard";
+import DashboardCard from "./DashboardCard";
+import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
-import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import SkeletonBlock from "./SkeletonBlock";
+import useAsyncSection from "./useAsyncSection";
 import useBaniLookup from "./useBaniLookup";
 
 const KHALIS_LOGO = require("../../assets/images/khalis.png");
@@ -47,7 +51,7 @@ const APP_TILES = [
 ];
 
 const ExploreGurbani = ({ refreshKey }) => {
-  const { card, isDark, accentBlue, primaryText, mutedText } = useDashboardTheme();
+  const { isDark, accentBlue, gold, primaryText, mutedText } = useDashboardTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { nameOf } = useBaniLookup();
@@ -56,15 +60,34 @@ const ExploreGurbani = ({ refreshKey }) => {
   const [lastRead, setLastRead] = useState(null);
   const [lastListened, setLastListened] = useState(null);
 
-  useEffect(() => {
-    getRecentReadBanis(1).then((r) => setLastRead(r[0] ?? null)).catch(() => {});
-    getRecentListenedBanis(1).then((r) => setLastListened(r[0] ?? null)).catch(() => {});
+  const task = useCallback(async () => {
+    const [r, l] = await Promise.all([getRecentReadBanis(1), getRecentListenedBanis(1)]);
+    // Raw session history doesn't survive a reinstall — fall back to the
+    // last-read/listened baaniId captured at the last cloud push. nameOf()
+    // above already resolves the display name from the static bani
+    // reference, so only the id is actually needed here.
+    if (r[0]) {
+      setLastRead(r[0]);
+    } else {
+      const restored = await getRestoredTopBanis();
+      const baniId = restored?.read?.last?.baaniId;
+      setLastRead(baniId != null ? { bani_id: baniId } : null);
+    }
+    if (l[0]) {
+      setLastListened(l[0]);
+    } else {
+      const restored = await getRestoredTopBanis();
+      const baniId = restored?.listen?.last?.baaniId;
+      setLastListened(baniId != null ? { bani_id: baniId } : null);
+    }
+    // refreshKey isn't read above but forces a refetch on screen focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
-  // Fall back to the default bani so Continue Reading/Listening always render.
-  const fallback = { bani_id: constant.defaultBani.id, bani_title: constant.defaultBani.titleUni };
-  const readItem = lastRead ?? fallback;
-  const listenItem = lastListened ?? fallback;
+  // No SectionError on failure: these tiles are supplementary personalization,
+  // not core content — falling back to "no continue tiles" (same as a genuinely
+  // new user) keeps the row from disappearing behind a heavy error block.
+  const { loading } = useAsyncSection(task);
 
   // withAudio = true opens the bani with the audio player active (Continue Listening);
   // false opens it for reading (Continue Reading). The Reader only mounts the
@@ -78,18 +101,20 @@ const ExploreGurbani = ({ refreshKey }) => {
   };
 
   const ContinueTile = ({ icon, label, item, withAudio }) => (
-    <Pressable
-      onPress={() => openReader(item, withAudio)}
-      style={({ pressed }) => [card, styles.tile, pressed && { opacity: 0.75 }]}
-    >
-      <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-        {icon === "book" ? <BookIcon color={accentBlue} /> : <HeadphonesIcon color={accentBlue} />}
-      </View>
-      <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={2}>
-        {nameOf(item.bani_id) || item.bani_title || `Bani ${item.bani_id}`}
-      </CustomText>
-      <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>{label}</CustomText>
-    </Pressable>
+    <DashboardCard style={styles.tile}>
+      <Pressable
+        onPress={() => openReader(item, withAudio)}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+          {icon === "book" ? <BookIcon color={accentBlue} /> : <HeadphonesIcon color={accentBlue} />}
+        </View>
+        <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={2}>
+          {nameOf(item.bani_id) || item.bani_title || `Bani ${item.bani_id}`}
+        </CustomText>
+        <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>{label}</CustomText>
+      </Pressable>
+    </DashboardCard>
   );
   ContinueTile.propTypes = {
     icon: PropTypes.string.isRequired,
@@ -102,34 +127,68 @@ const ExploreGurbani = ({ refreshKey }) => {
     <View>
       <SectionLabel title={STRINGS.EXPLORE} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        <ContinueTile icon="book" label={STRINGS.CONTINUE_READING} item={readItem} withAudio={false} />
-        <ContinueTile icon="headphones" label={STRINGS.CONTINUE_LISTENING} item={listenItem} withAudio />
+        {/* While the recent-history lookup is in flight, hold the tiles' place
+            with skeletons instead of popping them in after APP_TILES. */}
+        {loading ? (
+          <>
+            <DashboardCard style={styles.tile}>
+              <SkeletonBlock style={styles.tileSkeleton} />
+            </DashboardCard>
+            <DashboardCard style={styles.tile}>
+              <SkeletonBlock style={styles.tileSkeleton} />
+            </DashboardCard>
+          </>
+        ) : null}
+
+        {/* New users with no read/listen history yet get no tile — never a
+            fabricated "Continue" pointing at a bani they've never opened. */}
+        {!loading && lastRead ? (
+          <ContinueTile
+            icon="book"
+            label={STRINGS.CONTINUE_READING}
+            item={lastRead}
+            withAudio={false}
+          />
+        ) : null}
+        {!loading && lastListened ? (
+          <ContinueTile
+            icon="headphones"
+            label={STRINGS.CONTINUE_LISTENING}
+            item={lastListened}
+            withAudio
+          />
+        ) : null}
 
         {APP_TILES.map((t) => (
-          <Pressable
-            key={t.id}
-            onPress={() => openInAppBrowser(t.url)}
-            style={({ pressed }) => [card, styles.tile, pressed && { opacity: 0.75 }]}
-            accessibilityRole="link"
-            accessibilityLabel={t.title}
-          >
-            <View style={styles.iconRow}>
-              <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                {t.icon === "search" ? (
-                  <SearchIcon color={accentBlue} />
-                ) : (
-                  <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
-                )}
-              </View>
-              {t.badge ? (
-                <View style={[styles.badge, { backgroundColor: GOLD }]}>
-                  <CustomText style={styles.badgeText}>{t.badge}</CustomText>
+          <DashboardCard key={t.id} style={styles.tile}>
+            <Pressable
+              onPress={() => openInAppBrowser(t.url)}
+              style={({ pressed }) => pressed && styles.pressed}
+              accessibilityRole="link"
+              accessibilityLabel={t.title}
+            >
+              <View style={styles.iconRow}>
+                <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+                  {t.icon === "search" ? (
+                    <SearchIcon color={accentBlue} />
+                  ) : (
+                    <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
+                  )}
                 </View>
-              ) : null}
-            </View>
-            <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={2}>{t.title}</CustomText>
-            <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>{t.subtitle}</CustomText>
-          </Pressable>
+                {t.badge ? (
+                  <View style={[styles.badge, { backgroundColor: gold }]}>
+                    <CustomText style={styles.badgeText}>{t.badge}</CustomText>
+                  </View>
+                ) : null}
+              </View>
+              <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={2}>
+                {t.title}
+              </CustomText>
+              <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>
+                {t.subtitle}
+              </CustomText>
+            </Pressable>
+          </DashboardCard>
         ))}
       </ScrollView>
     </View>
@@ -142,6 +201,7 @@ ExploreGurbani.defaultProps = { refreshKey: 0 };
 const styles = StyleSheet.create({
   row: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
   tile: { width: 150, padding: 16 },
+  pressed: { opacity: 0.75 },
   iconRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   iconBox: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: 14 },
   iconImg: { width: 32, height: 32 },
@@ -149,6 +209,7 @@ const styles = StyleSheet.create({
   badgeText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
   title: { fontSize: 14, fontWeight: "600" },
   subtitle: { fontSize: 12, marginTop: 3 },
+  tileSkeleton: { width: "100%", height: 88 },
 });
 
 export default ExploreGurbani;

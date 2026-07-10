@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { constant, actions, updateReminders, logError } from "@common";
 import {
   getOrCreateSummary,
@@ -6,9 +7,8 @@ import {
   getTopListenedBanis,
   getRecentReadBanis,
   getRecentListenedBanis,
-  getCompletedBanisCount,
-  getReadingListeningTotals,
-  upsertDailyActivity,
+  getAllTimeTotals,
+  setDailyActivity,
   updateSummary,
 } from "../../database/analytics";
 
@@ -128,23 +128,61 @@ export const applyDashboardRestore = async (payload, dispatch, { reschedule = fa
   return applied;
 };
 
+// Raw per-session tables (bani_read_history/audio_history) are device-local
+// and never restored from a cloud snapshot — only the aggregates are. So
+// "top read/listened banis" and "continue reading/listening" (which query
+// those raw tables directly) go blank right after a reinstall for a
+// returning user with real cloud history, indistinguishable from a genuinely
+// new user. Cache the snapshot's own read/listen (top5 + last) here so those
+// UI sections can fall back to it when the live query is empty, instead of
+// showing a false "you've never read/listened to anything" state.
+const RESTORED_TOP_BANIS_KEY = "@restored_top_banis_v1";
+
+// Returns { read: {top5,last}, listen: {top5,last} } as captured at the last
+// restore, or null if there's no restored snapshot (e.g. a genuinely new
+// user, or nothing was ever synced). Callers should only use this as a
+// fallback when their own live query returns empty.
+export const getRestoredTopBanis = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(RESTORED_TOP_BANIS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+};
+
 // ─── Restore: seed analytics SQLite from the snapshot ────────────────────────
-// Intended for a fresh install (empty analytics) — the restore-once flag prevents
-// re-running, so upsertDailyActivity's additive semantics don't double-count.
+// Intended for a fresh install (empty analytics). Uses setDailyActivity
+// (overwrite, not additive) so a repeat restore before the next cloud push
+// (e.g. reinstalling twice) can't double-count a day — unlike upsertDailyActivity,
+// which real sessions use and which correctly accumulates multiple same-day
+// sessions.
 export const seedAnalyticsFromSnapshot = async (payload) => {
   if (!payload) return;
   try {
-    const { month, streaks, totals } = payload;
-    if (month?.key && Array.isArray(month.days)) {
+    const { month, streaks, totals, read, listen } = payload;
+    if (read || listen) {
+      AsyncStorage.setItem(
+        RESTORED_TOP_BANIS_KEY,
+        JSON.stringify({ read: read ?? null, listen: listen ?? null })
+      ).catch(() => {});
+    }
+    let lastActiveDate = null;
+    if (month?.key && Array.isArray(month.days) && month.days.length) {
       await Promise.all(
         month.days.map(([day, r = 0, l = 0]) =>
-          upsertDailyActivity({
+          setDailyActivity({
             date: `${month.key}-${String(day).padStart(2, "0")}`,
-            reading_seconds_delta: r,
-            listening_seconds_delta: l,
+            reading_seconds: r,
+            listening_seconds: l,
           })
         )
       );
+      // The streak engine treats a missing last_active_date as "never active",
+      // which would immediately zero out a freshly-restored current_streak the
+      // next time it runs. Derive it from the latest restored day so it doesn't.
+      const latestDay = Math.max(...month.days.map(([day]) => day));
+      lastActiveDate = `${month.key}-${String(latestDay).padStart(2, "0")}`;
     }
     const fields = {};
     if (streaks?.current != null) fields.current_streak = streaks.current;
@@ -153,6 +191,8 @@ export const seedAnalyticsFromSnapshot = async (payload) => {
     if (totals?.readingSeconds != null) fields.total_reading_seconds = totals.readingSeconds;
     if (totals?.listeningSeconds != null) fields.total_listening_seconds = totals.listeningSeconds;
     if (totals?.audioSessions != null) fields.total_audio_sessions = totals.audioSessions;
+    if (totals?.banisCompleted != null) fields.total_banis_read = totals.banisCompleted;
+    if (lastActiveDate) fields.last_active_date = lastActiveDate;
     if (Object.keys(fields).length) await updateSummary(fields);
   } catch (err) {
     logError(new Error(`seedAnalyticsFromSnapshot failed: ${err?.message || err}`));
@@ -182,7 +222,7 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
   const month = now.getMonth() + 1;
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
 
-  const [summary, monthRows, topRead, topListen, recentRead, recentListen, banisCompleted, totals] =
+  const [summary, monthRows, topRead, topListen, recentRead, recentListen, allTimeTotals] =
     await Promise.all([
       getOrCreateSummary(),
       getDailyActivity(year, month),
@@ -190,8 +230,10 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
       getTopListenedBanis(5),
       getRecentReadBanis(1),
       getRecentListenedBanis(1),
-      getCompletedBanisCount(),
-      getReadingListeningTotals(),
+      // Restore baseline (set once at restore) + live (this install only) — so
+      // "all time" survives a reinstall instead of resetting to whatever this
+      // install alone has recorded since.
+      getAllTimeTotals(),
     ]);
 
   const days = (monthRows || []).map((r) => [
@@ -222,6 +264,16 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
       trimmedCompleted[d] = completed[d];
     });
 
+  // All-time count of days with at least one nitnem completion recorded. (Not
+  // "days the full nitnem was completed" — that requires knowing how many
+  // banis were selected on each past day, which isn't tracked, so comparing
+  // against today's selection count made this silently read 0 for anyone
+  // whose selection has changed size over time, even with real completions
+  // on record.)
+  const nitnemCompletedCount = Object.values(completed).filter(
+    (doneIds) => Array.isArray(doneIds) && doneIds.length > 0
+  ).length;
+
   const lastRead = recentRead?.[0];
   const lastListen = recentListen?.[0];
 
@@ -230,23 +282,26 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
     streaks: { current: summary?.current_streak ?? 0, longest: summary?.longest_streak ?? 0 },
     month: { key: monthKey, days },
     read: {
-      top5: (topRead || []).map((r) => [r.bani_id, r.session_count ?? 0]),
+      // [baaniId, sessionCount, totalReadingSeconds]
+      top5: (topRead || []).map((r) => [r.bani_id, r.session_count ?? 0, r.total_seconds ?? 0]),
       last: lastRead ? { baaniId: lastRead.bani_id } : null,
     },
     listen: {
-      top5: (topListen || []).map((r) => [r.bani_id, r.session_count ?? 0]),
+      // [baaniId, sessionCount, totalListeningSeconds]
+      top5: (topListen || []).map((r) => [r.bani_id, r.session_count ?? 0, r.total_seconds ?? 0]),
       last: lastListen ? { baaniId: lastListen.bani_id } : null,
     },
     totals: {
-      banisCompleted: banisCompleted ?? 0,
-      readingSeconds: totals?.total_reading_seconds ?? 0,
-      listeningSeconds: totals?.total_listening_seconds ?? 0,
+      banisCompleted: allTimeTotals.banisCompleted,
+      readingSeconds: allTimeTotals.readingSeconds,
+      listeningSeconds: allTimeTotals.listeningSeconds,
       daysActive: summary?.total_days_active ?? 0,
-      audioSessions: summary?.total_audio_sessions ?? 0,
+      audioSessions: allTimeTotals.audioSessions,
     },
     nitnem: {
       selectedBaaniIds: state.todaysNitnem?.selectedBaniIds ?? [],
       completed: trimmedCompleted,
+      completedCount: nitnemCompletedCount,
     },
     profile: { name: state.userProfile?.name ?? "" },
     reminders: {

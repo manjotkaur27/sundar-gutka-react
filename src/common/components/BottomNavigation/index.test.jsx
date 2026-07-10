@@ -23,7 +23,8 @@ jest.mock("@react-navigation/native", () => ({
 // — whose native module isn't available in Jest and throws on import. The
 // component only needs getSevaConfig() to decide the Seva dot, so mock it.
 jest.mock("../../../services/sevaConfig", () => ({
-  getSevaConfig: jest.fn(() => Promise.resolve({ showSevaDot: false })),
+  getSevaConfig: jest.fn(() => Promise.resolve({ showSevaDot: false, sevaDotCount: 0 })),
+  subscribeSevaDot: jest.fn(() => () => {}),
 }));
 
 const mockPauseTrack = jest.fn(() => Promise.resolve());

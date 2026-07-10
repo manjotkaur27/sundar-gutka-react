@@ -322,8 +322,7 @@ export const audioTrackDialogStyles = (theme) => ({
   },
   offlineBanner: {
     alignSelf: "stretch",
-    backgroundColor:
-      theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+    backgroundColor: theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
     borderRadius: theme.borderRadius.lg,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
@@ -341,6 +340,11 @@ export const audioTrackDialogStyles = (theme) => ({
     maxHeight: 200,
     zIndex: 1,
   },
+  // Reserves a thin lane on the right so the native scroll indicator floats
+  // in the gap next to each pill instead of drawing on top of it.
+  trackListContent: {
+    paddingRight: 6,
+  },
   trackItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -349,6 +353,7 @@ export const audioTrackDialogStyles = (theme) => ({
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl_20,
     marginBottom: theme.spacing.md,
+    marginRight: 2,
     // borderWidth: 2,
     borderColor: "transparent",
     minHeight: 36, // Consistent height for Android

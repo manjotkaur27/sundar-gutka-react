@@ -102,17 +102,29 @@ const pickWord = (gurmukhiLine, transliterationLine) => {
   };
 };
 
+// A verse is a real line of the shabad (vs. a structural heading like "Salok
+// Mehla 4:" or "Sorat'h, Fifth Mehla:") when its English translation isn't
+// just a heading ending in ":". Mirrors randomShabad.js / buildEmergencyShabads.mjs
+// so the word — and its "meaning" — never comes from the heading line.
+const isMeaningfulVerse = (v) => {
+  const t = v?.translation?.en?.bdb;
+  return typeof t === "string" && t.trim() && !t.trim().endsWith(":");
+};
+
 // Derive a word from today's hukamnama, handling both the clean backend shape
 // and a raw BaniDB payload.
 const deriveFromHukamnama = (data) => {
   // Clean backend shape: { lines:[...], translation }
   if (Array.isArray(data?.lines) && data.lines.length) {
-    const picked = pickWord(data.lines[0], "");
+    // Line 1 is usually the Raag/Mehla heading — prefer line 2 when it exists.
+    const line = data.lines[1] ?? data.lines[0];
+    const picked = pickWord(line, "");
     if (!picked) return null;
     return { ...picked, meaning: data.translation ?? "", _source: "hukamnama" };
   }
   // Raw BaniDB shape: { shabads:[{ verses:[...] }] }
-  const verse = data?.shabads?.[0]?.verses?.[0];
+  const verses = Array.isArray(data?.shabads?.[0]?.verses) ? data.shabads[0].verses : [];
+  const verse = verses.find(isMeaningfulVerse) ?? verses[0];
   if (!verse) return null;
   const translitLine = verse?.transliteration?.english || verse?.transliteration?.en || "";
   const picked = pickWord(verse?.verse?.unicode, translitLine);

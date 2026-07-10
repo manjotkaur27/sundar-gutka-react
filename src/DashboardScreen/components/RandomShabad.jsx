@@ -1,13 +1,19 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Path, Polyline } from "react-native-svg";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, logError, openInAppBrowser } from "@common";
+import { CustomText, STRINGS, openInAppBrowser } from "@common";
 import { getRandomShabad } from "../../services/dashboard";
-import useDashboardTheme, { GOLD } from "./dashboardTheme";
+import DashboardCard from "./DashboardCard";
+import useDashboardTheme from "./dashboardTheme";
+import SectionError from "./SectionError";
+import SkeletonBlock from "./SkeletonBlock";
+import useAsyncSection from "./useAsyncSection";
 
-const ShuffleIcon = ({ color }) => (
+// Single-arrow refresh glyph: one near-full circular arc with one arrowhead
+// (as opposed to the two-arrow "shuffle-style" refresh look).
+const RefreshIcon = ({ color }) => (
   <Svg
     width={15}
     height={15}
@@ -18,14 +24,11 @@ const ShuffleIcon = ({ color }) => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <Polyline points="16 3 21 3 21 8" />
-    <Path d="M4 20L21 3" />
-    <Polyline points="21 16 21 21 16 21" />
-    <Path d="M15 15l6 6" />
-    <Path d="M4 4l5 5" />
+    <Path d="M21 12a9 9 0 1 1-3.05-6.75" />
+    <Polyline points="21 3 21 8 16 8" />
   </Svg>
 );
-ShuffleIcon.propTypes = { color: PropTypes.string.isRequired };
+RefreshIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const ChevronRight = ({ color }) => (
   <Svg
@@ -44,19 +47,22 @@ const ChevronRight = ({ color }) => (
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
 const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
-  const { card, isDark, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
+  const { isDark, accentBlue, gold, primaryText, mutedText, separator } = useDashboardTheme();
+  // Client-specified Punjabi/English split — light mode only; dark keeps the
+  // existing primaryText/mutedText pairing.
+  const gurmukhiColor = isDark ? primaryText : "#5A99FD";
+  const translationColor = isDark ? mutedText : "#5D6F8F";
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const [shabad, setShabad] = useState(null);
 
-  const load = useCallback(() => {
-    setShabad(null);
-    getRandomShabad({ language: transliterationLanguage }).then(setShabad).catch(logError);
-  }, [transliterationLanguage]);
-
-  // reloadNonce: the parent's shuffle (when embedded) bumps this to re-fetch.
-  useEffect(() => {
-    load();
-  }, [load, refreshKey, reloadNonce]);
+  // refreshKey/reloadNonce (the parent's shuffle, when embedded) aren't read
+  // below but force a refetch on screen focus / manual shuffle.
+  const task = useCallback(
+    () => getRandomShabad({ language: transliterationLanguage }).then(setShabad),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transliterationLanguage, refreshKey, reloadNonce]
+  );
+  const { loading, error, retry } = useAsyncSection(task);
 
   // A local-DB tukk has no ang/raag/shabadId, so hide the Ang·Raag + Read row.
   const showFooter = !!shabad?.shabadId;
@@ -67,18 +73,18 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
           the tab title + shuffle, so neither is rendered here. */}
       {embedded ? null : (
         <View style={styles.headerRow}>
-          <CustomText style={[styles.cardTitle, { color: GOLD }]}>
+          <CustomText style={[styles.cardTitle, { color: gold }]}>
             {STRINGS.RANDOM_SHABAD.toUpperCase()}
           </CustomText>
           <Pressable
-            onPress={load}
+            onPress={retry}
             hitSlop={8}
             style={[
               styles.shuffleBtn,
               { backgroundColor: isDark ? "rgba(37,129,223,0.16)" : "#eef2fb" },
             ]}
           >
-            <ShuffleIcon color={accentBlue} />
+            <RefreshIcon color={accentBlue} />
             <CustomText style={[styles.shuffleText, { color: accentBlue }]}>
               {STRINGS.SHUFFLE}
             </CustomText>
@@ -86,19 +92,30 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
         </View>
       )}
 
-      {!shabad ? <CustomText style={[styles.loading, { color: mutedText }]}>…</CustomText> : null}
-      {(shabad?.lines ?? []).map((line, i) => (
-        <CustomText key={i} style={[styles.gurmukhi, { color: primaryText }]}>
-          {line}
-        </CustomText>
-      ))}
-      {shabad?.translation ? (
-        <CustomText style={[styles.translation, { color: mutedText }]}>
+      {loading ? (
+        <View style={styles.skeletonWrap}>
+          <SkeletonBlock style={styles.lineSkeletonWide} />
+          <SkeletonBlock style={styles.lineSkeletonWide} />
+          <SkeletonBlock style={styles.lineSkeletonNarrow} />
+        </View>
+      ) : null}
+
+      {!loading && error ? <SectionError compact onRetry={retry} /> : null}
+
+      {!loading && !error
+        ? (shabad?.lines ?? []).map((line, i) => (
+            <CustomText key={i} style={[styles.gurmukhi, { color: gurmukhiColor }]}>
+              {line}
+            </CustomText>
+          ))
+        : null}
+      {!loading && !error && shabad?.translation ? (
+        <CustomText style={[styles.translation, { color: translationColor }]}>
           {shabad.translation}
         </CustomText>
       ) : null}
 
-      {showFooter ? (
+      {!loading && !error && showFooter ? (
         <>
           <View style={[styles.footerDivider, { backgroundColor: separator }]} />
           <View style={styles.footer}>
@@ -128,7 +145,7 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
   if (embedded) return body;
   return (
     <View style={styles.wrap}>
-      <View style={[card, styles.card]}>{body}</View>
+      <DashboardCard style={styles.card}>{body}</DashboardCard>
     </View>
   );
 };
@@ -150,7 +167,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: { fontSize: 12, fontWeight: "600", letterSpacing: 1.2 },
-  loading: { fontSize: 14, textAlign: "center", paddingVertical: 18 },
+  skeletonWrap: { alignItems: "center", gap: 10, paddingVertical: 18 },
+  lineSkeletonWide: { width: "80%", height: 18 },
+  lineSkeletonNarrow: { width: "55%", height: 18 },
   gurmukhi: {
     fontSize: 19,
     fontWeight: "500",
@@ -170,7 +189,9 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   meta: { fontSize: 13 },
   readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
-  readText: { fontSize: 14, fontWeight: "700" },
+  // No fontWeight — matches the "Ang · Raag" meta text beside it (Baloo Paaji
+  // Regular via CustomText's default resolution) instead of the bold brand font.
+  readText: { fontSize: 14 },
   shuffleBtn: {
     flexDirection: "row",
     alignItems: "center",

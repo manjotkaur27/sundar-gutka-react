@@ -1,18 +1,17 @@
-import React, { useEffect, useState } from "react";
-import { View, Modal, StyleSheet, Pressable } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Modal, StyleSheet, Pressable, Animated, Easing, Dimensions } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, logError } from "@common";
-import { getDayDetail } from "../../database/analytics";
+import { getDayDetail, getDayActivity } from "../../database/analytics";
+
+// Fully off-screen regardless of the sheet's actual (content-dependent) height.
+const OFFSCREEN_Y = Dimensions.get("window").height;
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: "flex-end",
-  },
-  dimOverlay: {
-    backgroundColor: "rgba(0,0,0,0.2)",
   },
   sheet: {
     borderTopLeftRadius: 24,
@@ -121,14 +120,47 @@ const DayDetailModal = ({ visible, date, onClose }) => {
   const iconBg = isDark ? "rgba(100,150,255,0.15)" : "#EEF2FF";
 
   const [detail, setDetail] = useState(null);
+  const [dayActivity, setDayActivity] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Custom slide (no dim overlay, no built-in Modal transition — that snapped
+  // in/out abruptly). `mounted` keeps the native Modal alive during the exit
+  // animation; the Modal itself unmounts only once the slide-down finishes.
+  const [mounted, setMounted] = useState(visible);
+  const translateY = useRef(new Animated.Value(visible ? 0 : OFFSCREEN_Y)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(translateY, {
+        toValue: OFFSCREEN_Y,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   useEffect(() => {
     if (!visible || !date) return;
     setLoading(true);
     setDetail(null);
-    getDayDetail(date)
-      .then(setDetail)
+    setDayActivity(null);
+    Promise.all([getDayDetail(date), getDayActivity(date)])
+      .then(([d, activity]) => {
+        setDetail(d);
+        setDayActivity(activity);
+      })
       .catch(logError)
       .finally(() => setLoading(false));
   }, [visible, date]);
@@ -139,25 +171,28 @@ const DayDetailModal = ({ visible, date, onClose }) => {
   const hasRead = totalReadSecs > 0;
   const hasListen = totalListenSecs > 0;
 
+  // Per-session detail (bani_read_history/audio_history) is device-local and
+  // never restored from a cloud snapshot — only the daily aggregate is. So a
+  // day restored on a fresh install has real activity but no per-bani rows.
+  // Fall back to the aggregate rather than falsely showing "no activity".
+  const aggregateReadSecs = dayActivity?.reading_seconds ?? 0;
+  const aggregateListenSecs = dayActivity?.listening_seconds ?? 0;
+  const showAggregateRead = !hasRead && aggregateReadSecs > 0;
+  const showAggregateListen = !hasListen && aggregateListenSecs > 0;
+
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >
       <View style={styles.root}>
-        <BlurView
-          style={StyleSheet.absoluteFillObject}
-          blurType={isDark ? "dark" : "light"}
-          blurAmount={10}
-          reducedTransparencyFallbackColor={isDark ? "rgba(0,0,0,0.75)" : "rgba(240,240,240,0.75)"}
-        />
-        <View style={[StyleSheet.absoluteFillObject, styles.dimOverlay]} />
+        {/* No dim overlay per design — just an invisible tap-catcher to dismiss. */}
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View
-          style={[styles.sheet, { backgroundColor: bg }]}
+        <Animated.View
+          style={[styles.sheet, { backgroundColor: bg, transform: [{ translateY }] }]}
           onStartShouldSetResponder={() => true}
         >
           <View style={[styles.handle, { backgroundColor: theme.colors.separator }]} />
@@ -174,7 +209,7 @@ const DayDetailModal = ({ visible, date, onClose }) => {
 
           {!loading && (
             <>
-              {hasRead && (
+              {(hasRead || showAggregateRead) && (
                 <View style={styles.actRow}>
                   <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
                     <BookIcon color={accentBlue} />
@@ -184,13 +219,13 @@ const DayDetailModal = ({ visible, date, onClose }) => {
                       Reading
                     </CustomText>
                     <CustomText style={[styles.actDuration, { color: theme.colors.textDisabled }]}>
-                      {Math.floor(totalReadSecs / 60)}m
+                      {Math.floor((hasRead ? totalReadSecs : aggregateReadSecs) / 60)}m
                     </CustomText>
                   </View>
                 </View>
               )}
 
-              {hasListen && (
+              {(hasListen || showAggregateListen) && (
                 <View style={styles.actRow}>
                   <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
                     <HeadphoneIcon color={accentBlue} />
@@ -200,20 +235,20 @@ const DayDetailModal = ({ visible, date, onClose }) => {
                       Listening
                     </CustomText>
                     <CustomText style={[styles.actDuration, { color: theme.colors.textDisabled }]}>
-                      {Math.floor(totalListenSecs / 60)}m
+                      {Math.floor((hasListen ? totalListenSecs : aggregateListenSecs) / 60)}m
                     </CustomText>
                   </View>
                 </View>
               )}
 
-              {!hasRead && !hasListen && (
+              {!hasRead && !hasListen && !showAggregateRead && !showAggregateListen && (
                 <CustomText style={[styles.emptyText, { color: theme.colors.textDisabled }]}>
                   No activity recorded for this day
                 </CustomText>
               )}
             </>
           )}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

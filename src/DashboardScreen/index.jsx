@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect } from "@react-navigation/native";
@@ -22,7 +22,17 @@ const DashboardScreen = () => {
   const [layoutEditVisible, setLayoutEditVisible] = useState(false);
 
   // Cross-device sync (dormant until SSO/JWT exists — see useDashboardSync).
-  useDashboardSync();
+  const restoreTick = useDashboardSync();
+
+  // Sections that fetch their own data on mount (YourPractice, MonthCalendar)
+  // race the restore's SQLite writes — on a fresh install, they can fetch
+  // before the restore has written anything and then never look again. Force
+  // one guaranteed refetch the moment the restore attempt actually settles,
+  // instead of relying on the unrelated focus-driven refresh below to happen
+  // to land afterward.
+  useEffect(() => {
+    if (restoreTick > 0) setRefreshKey((k) => k + 1);
+  }, [restoreTick]);
 
   useFocusEffect(
     useCallback(() => {
@@ -50,7 +60,7 @@ const DashboardScreen = () => {
     }, [])
   );
 
-  const bg = theme.mode === "dark" ? theme.colors.inactiveView : "#ffffff";
+  const bg = theme.mode === "dark" ? "#050D1B" : "#F4F7FC";
   const visibleSections = layout.order.filter(
     (key) => !layout.hidden.includes(key) && SECTION_REGISTRY[key]
   );
@@ -64,7 +74,7 @@ const DashboardScreen = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <DashboardHeader onMenuPress={() => setLayoutEditVisible(true)} />
+        <DashboardHeader onMenuPress={() => setLayoutEditVisible(true)} refreshKey={refreshKey} />
 
         {visibleSections.map((key) => {
           const { Component } = SECTION_REGISTRY[key];
