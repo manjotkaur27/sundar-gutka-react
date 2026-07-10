@@ -109,7 +109,10 @@ const DonationWebView = ({ route, navigation }) => {
             // Keep target=_blank / popup payment pages in this same WebView
             // instead of silently dropping them.
             setSupportMultipleWindows={false}
-            startInLoadingState
+            // NB: no `startInLoadingState` — it renders react-native-webview's
+            // own default spinner, which stacked on top of our themed overlay
+            // below (two concentric loaders). `isLoading` starts true, so the
+            // overlay already covers the initial load on its own.
             onLoadStart={() => setIsLoading(true)}
             onLoadEnd={() => setIsLoading(false)}
             onError={() => {

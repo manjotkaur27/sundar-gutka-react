@@ -245,42 +245,36 @@ const TodaysNitnem = ({ refreshKey }) => {
   const { selectedBaniIds, completed } = useSelector((state) => state.todaysNitnem);
   const { map: baniMap, nameOf } = useBaniLookup();
 
-  const [autoDone, setAutoDone] = useState([]);
   const [editVisible, setEditVisible] = useState(false);
 
   const today = todayStr();
-  // Manual ticks (restored — see the Check Pressable below), merged with
-  // auto-detected completions (autoDone) into one doneSet further down.
-  const manualDone = useMemo(() => completed?.[today] ?? [], [completed, today]);
 
-  // Auto-completion: banis read (>=95% scrolled) or listened past threshold today.
+  // Single source of truth for what's done today: the persisted `completed`
+  // list. It holds both manual ticks (TOGGLE_NITNEM_DONE) and auto-detected
+  // 95%-scroll reads (folded in by markNitnemAutoDone below), so a manual
+  // un-tick actually sticks instead of being re-added from a live DB read.
+  const doneSet = useMemo(() => new Set(completed?.[today] ?? []), [completed, today]);
+
+  // Auto-completion is 95%-scroll ONLY. useReadingSession marks a read
+  // `completed` once the scroll crosses 95% — and with audio sync-scroll on,
+  // the text auto-scrolls as it plays, so listening to the end hits 95% and
+  // records a read completion too. There is deliberately no separate
+  // listen-duration path. Detected ids are merged into the persisted `completed`
+  // list (so they survive reinstall + cloud sync); markNitnemAutoDone never
+  // resurrects an id the user has since manually un-ticked (see autoSeeded).
   useEffect(() => {
     let active = true;
     getDayDetail(today)
-      .then(({ reads, listens }) => {
+      .then(({ reads }) => {
         if (!active) return;
-        const ids = new Set();
-        reads.forEach((r) => {
-          if (r.completed) ids.add(r.bani_id);
-        });
-        listens.forEach((l) => {
-          if ((l.duration ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS) ids.add(l.bani_id);
-        });
-        setAutoDone([...ids]);
-        // Persist into Redux (and from there, the dashboard_cache sync payload)
-        // — without this, an auto-detected completion only ever lived in this
-        // component's local state, recomputed from raw SQLite on every mount.
-        // It would show correctly on this device today but silently vanish
-        // from the cloud snapshot, cross-device sync, and any reinstall.
-        if (ids.size > 0) dispatch(actions.markNitnemAutoDone(today, [...ids]));
+        const ids = reads.filter((r) => r.completed).map((r) => r.bani_id);
+        if (ids.length > 0) dispatch(actions.markNitnemAutoDone(today, ids));
       })
       .catch(logError);
     return () => {
       active = false;
     };
   }, [today, refreshKey, dispatch]);
-
-  const doneSet = useMemo(() => new Set([...manualDone, ...autoDone]), [manualDone, autoDone]);
   const doneCount = selectedBaniIds.filter((id) => doneSet.has(id)).length;
   const remaining = selectedBaniIds.length - doneCount;
   const firstIncomplete = selectedBaniIds.find((id) => !doneSet.has(id));
@@ -374,9 +368,9 @@ const TodaysNitnem = ({ refreshKey }) => {
               const isDone = doneSet.has(cell.id);
               return (
                 <View key={cell.id} style={styles.gridItem}>
-                  {/* Manual mark-done, restored — tapping the tick toggles it
-                      directly; auto-detection (autoDone above) still applies
-                      independently via the same doneSet union. */}
+                  {/* Manual tick — toggles the bani in the same persisted
+                      `completed` list the 95%-scroll auto-detection writes to,
+                      so it both marks AND un-marks (incl. auto-completed banis). */}
                   <Pressable
                     hitSlop={8}
                     onPress={() => dispatch(actions.toggleNitnemDone(today, cell.id))}

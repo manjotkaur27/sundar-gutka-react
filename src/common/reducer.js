@@ -473,7 +473,10 @@ const dashboardLayout = createReducer(defaultLayout(), {
 });
 
 const todaysNitnem = createReducer(
-  { selectedBaniIds: constant.DEFAULT_NITNEM_BANI_IDS, completed: {} },
+  // `completed[date]`  : ids done today (manual ticks + auto 95%-scroll reads).
+  // `autoSeeded[date]` : ids auto-completion has already folded in once, so a
+  //                      manual un-tick is never resurrected on the next refocus.
+  { selectedBaniIds: constant.DEFAULT_NITNEM_BANI_IDS, completed: {}, autoSeeded: {} },
   {
     [actionTypes.SET_NITNEM_BANIS]: (state, action) => ({
       ...state,
@@ -487,18 +490,32 @@ const todaysNitnem = createReducer(
         : [...dayList, baniId];
       return { ...state, completed: { ...state.completed, [date]: nextDay } };
     },
-    // Auto-detected completions (real read/listen time) union into the same
-    // per-day list TOGGLE_NITNEM_DONE writes — additive only, so this can't
-    // undo a manual entry, and repeated dispatches for the same day are safe.
+    // Auto-detected 95%-scroll completions fold into the same per-day list
+    // TOGGLE_NITNEM_DONE writes — but only ids we've NEVER auto-added before
+    // (tracked in autoSeeded). Once seeded, an id the user manually un-ticks
+    // stays un-ticked: it is not re-added here on the next dashboard refocus.
     [actionTypes.MARK_NITNEM_AUTO_DONE]: (state, action) => {
       const { date, baniIds } = action.payload;
       if (!baniIds || baniIds.length === 0) return state;
+      const autoSeeded = state.autoSeeded ?? {};
+      const seededDay = autoSeeded[date] ?? [];
+      const freshIds = baniIds.filter((id) => !seededDay.includes(id));
+      if (freshIds.length === 0) return state;
       const dayList = state.completed[date] ?? [];
-      const merged = Array.from(new Set([...dayList, ...baniIds]));
-      if (merged.length === dayList.length) return state;
-      return { ...state, completed: { ...state.completed, [date]: merged } };
+      return {
+        ...state,
+        completed: {
+          ...state.completed,
+          [date]: Array.from(new Set([...dayList, ...freshIds])),
+        },
+        autoSeeded: {
+          ...autoSeeded,
+          [date]: Array.from(new Set([...seededDay, ...freshIds])),
+        },
+      };
     },
     [actionTypes.RESTORE_NITNEM]: (state, action) => ({
+      ...state,
       selectedBaniIds: action.value?.selectedBaniIds ?? state.selectedBaniIds,
       completed: action.value?.completed ?? state.completed,
     }),

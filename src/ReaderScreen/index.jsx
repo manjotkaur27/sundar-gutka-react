@@ -129,6 +129,17 @@ const Reader = ({ navigation, route }) => {
     dispatch(actions.setCurrentBani({ id, title, titleUni }));
   }, [id, title, titleUni]);
 
+  // A fresh bani starts at 0% progress. The Reader screen is REUSED across
+  // banis (navigating to "Reader" swaps route.params without remounting), so
+  // without this reset scrollPercentRef keeps the PREVIOUS bani's value.
+  // useReadingSession reads that ref on blur to decide completion — so a stale
+  // >=95% from an already-read bani would falsely auto-mark the next bani
+  // "done" at 0 scroll. Reset the analytics ref and the progress bar on id change.
+  useEffect(() => {
+    scrollPercentRef.current = 0;
+    scrollProgressAnim.setValue(0);
+  }, [id, scrollProgressAnim]);
+
   useEffect(() => {
     // Handle undefined titleUni gracefully - fallback to title if titleUni is not available
     const displayTitle = fontFace === constant.BALOO_PAAJI ? titleUni || title : title;

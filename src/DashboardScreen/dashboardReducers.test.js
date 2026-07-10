@@ -21,6 +21,10 @@ const actions = {
     type: actionTypes.TOGGLE_NITNEM_DONE,
     payload: { date, baniId },
   }),
+  markNitnemAutoDone: (date, baniIds) => ({
+    type: actionTypes.MARK_NITNEM_AUTO_DONE,
+    payload: { date, baniIds },
+  }),
   restoreNitnem: (value) => ({ type: actionTypes.RESTORE_NITNEM, value }),
 };
 
@@ -90,5 +94,30 @@ describe("Dashboard redesign reducers", () => {
 
     const state2 = rootReducer(state1, actions.toggleNitnemDone(date, 2));
     expect(state2.todaysNitnem.completed[date]).toEqual([]);
+  });
+
+  it("markNitnemAutoDone folds 95%-scroll ids into completed and records autoSeeded", () => {
+    const date = "2026-07-01";
+    const state0 = init();
+    const state1 = rootReducer(state0, actions.markNitnemAutoDone(date, [2, 9]));
+    expect(state1.todaysNitnem.completed[date]).toEqual([2, 9]);
+    expect(state1.todaysNitnem.autoSeeded[date]).toEqual([2, 9]);
+  });
+
+  it("a manually un-ticked auto-done bani is NOT resurrected on the next auto-detect", () => {
+    const date = "2026-07-02";
+    const state0 = init();
+    // Auto-detected as done (scrolled to 95%).
+    const state1 = rootReducer(state0, actions.markNitnemAutoDone(date, [2]));
+    expect(state1.todaysNitnem.completed[date]).toEqual([2]);
+
+    // User manually un-ticks it.
+    const state2 = rootReducer(state1, actions.toggleNitnemDone(date, 2));
+    expect(state2.todaysNitnem.completed[date]).toEqual([]);
+
+    // Dashboard refocus re-runs auto-detection with the same completed read —
+    // the un-tick must stick (bani 2 already in autoSeeded, so not re-added).
+    const state3 = rootReducer(state2, actions.markNitnemAutoDone(date, [2]));
+    expect(state3.todaysNitnem.completed[date]).toEqual([]);
   });
 });

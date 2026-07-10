@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { STRINGS, logError } from "@common";
+import { logError } from "@common";
 import { getBaniList } from "@database";
 
 // The DB's Transliterations JSON is lowercase phonetic ("japujee saahib") — there's
@@ -13,11 +13,13 @@ export const toTitleCase = (text) =>
     .map((word) => (word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word))
     .join(" ");
 
-// Resolves bani names by ID for dashboard chrome (reminders, Nitnem grid, etc.).
-// Unlike the Reader's "show transliteration" toggle, this always follows the
-// interface language: Punjabi UI shows Gurmukhi, every other language shows the
-// Roman transliteration — so an English UI never surfaces Punjabi bani names.
-// Used so dashboard sections never show raw legacy-ASCII titles (e.g. "jpujl swihb").
+// Resolves bani names by ID for dashboard chrome (reminders, Nitnem grid,
+// Continue Reading/Listening, etc.). Dashboard chrome always shows the proper
+// Gurmukhi (Unicode) title — rendered in Baloo Paaji via CustomText — regardless
+// of the interface language: the lowercase Roman transliteration ("Japujee
+// Saahib") reads as odd/disrespectful. Falls back to a title-cased
+// transliteration only for banis with no Unicode Gurmukhi title, and never shows
+// raw legacy-ASCII ("jpujl swihb").
 const useBaniLookup = () => {
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const baniListRedux = useSelector((state) => state.baniList);
@@ -58,10 +60,10 @@ const useBaniLookup = () => {
     (idOrBani) => {
       const b = typeof idOrBani === "object" && idOrBani !== null ? idOrBani : map[idOrBani];
       if (!b) return null;
-      const isPunjabiUI = STRINGS.getLanguage() === "pa";
-      // Gurmukhi is already properly cased; only the Roman transliteration needs it.
-      if (isPunjabiUI) return b.gurmukhiUni || toTitleCase(b.translit);
-      return (b.translit && toTitleCase(b.translit)) || b.gurmukhiUni;
+      // Always prefer the Unicode Gurmukhi title (Baloo Paaji renders it); the
+      // title-cased Roman transliteration is only a fallback for banis missing a
+      // Gurmukhi Unicode name in the data.
+      return b.gurmukhiUni || toTitleCase(b.translit) || null;
     },
     [map]
   );

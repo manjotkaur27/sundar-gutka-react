@@ -209,6 +209,19 @@ const SevaScreen = () => {
     return () => clearTimeout(timer);
   }, [isOtherSelected]);
 
+  // Re-open the keyboard when the amount is tapped while already in "Other".
+  // The effect above only fires on the false→true switch, so after the user
+  // dismisses the keyboard (e.g. hardware back) without leaving "Other",
+  // nothing re-focuses the input. On Android the TextInput can also keep RN
+  // focus after a keyboard dismiss, making a plain focus() a no-op — so blur
+  // first, then focus, to force the keyboard to reappear.
+  const focusOtherAmount = () => {
+    const input = otherAmountInputRef.current;
+    if (!input) return;
+    input.blur();
+    setTimeout(() => otherAmountInputRef.current?.focus(), 50);
+  };
+
   const handleFrequencyChange = (freq) => {
     setFrequency(freq);
     lastFrequencyRef.current = freq;
@@ -486,8 +499,13 @@ const SevaScreen = () => {
           {/* Description */}
           {renderDescription()}
 
-          {/* Amount card — static display OR inline input when Other is selected */}
-          <View style={styles.amountCard}>
+          {/* Amount card — static display OR inline input when Other is selected.
+              The whole card is the tap target in "Other" mode so the keyboard
+              re-opens on tapping anywhere on it, not just the thin cursor line. */}
+          <Pressable
+            style={styles.amountCard}
+            onPress={isOtherSelected ? focusOtherAmount : undefined}
+          >
             <View style={styles.amountContainer}>
               <View style={styles.amountRow}>
                 <CustomText style={styles.currency}>$</CustomText>
@@ -519,7 +537,7 @@ const SevaScreen = () => {
                 <CustomText style={styles.perMonth}>/{getFrequencyLabel()}</CustomText>
               )}
             </View>
-          </View>
+          </Pressable>
 
           {/* Preset amounts */}
           <View style={styles.amountButtons}>

@@ -125,7 +125,7 @@ const intensity = (row) => {
 };
 
 const MonthCalendar = ({ refreshKey }) => {
-  const { accentBlue, mutedText } = useDashboardTheme();
+  const { accentBlue, mutedText, isDark } = useDashboardTheme();
   const todayStr = getTodayStr();
   const curYM = getLocalYM();
 
@@ -249,7 +249,9 @@ const MonthCalendar = ({ refreshKey }) => {
     <View style={styles.wrap}>
       <View style={styles.card} {...panResponder.panHandlers}>
         <View style={styles.header}>
-          <CustomText style={[styles.monthText, { color: "#113879" }]}>{monthYearLabel}</CustomText>
+          <CustomText style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113879" }]}>
+            {monthYearLabel}
+          </CustomText>
           <CustomText style={[styles.daysCount, { color: mutedText }]}>
             {STRINGS.formatString(STRINGS.DAYS_THIS_MONTH, { count: activeDaysCount })}
           </CustomText>
