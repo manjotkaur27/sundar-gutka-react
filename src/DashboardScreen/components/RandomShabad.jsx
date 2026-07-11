@@ -188,8 +188,7 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   meta: { fontSize: 13 },
   readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
-  readText: { fontSize: 14, fontWeight: 600
-   },
+  readText: { fontSize: 14, fontWeight: "600" },
   shuffleBtn: {
     flexDirection: "row",
     alignItems: "center",
