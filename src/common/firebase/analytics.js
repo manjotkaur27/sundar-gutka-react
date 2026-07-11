@@ -224,6 +224,19 @@ const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollE
   }
 };
 
+// Nav-bar (top app bar + bottom navigation) show/hide. `trigger` is one of
+// tap | scroll_up | scroll_down | auto_hide_idle; `mode` is reading | autoscroll | audio.
+const trackNavBar = async (visible, trigger, mode) => {
+  try {
+    await logEvent(analytics, visible ? "NAV_BAR_SHOW" : "NAV_BAR_HIDE", {
+      trigger: safeStr(trigger, "unknown"),
+      mode: safeStr(mode, "reading"),
+    });
+  } catch (error) {
+    logError(new Error(`nav_bar visibility tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
 // Seva donation funnel — IN-APP, OBSERVABLE steps only. Funnel:
 //   opened (landing) → frequency_changed (donation type) → amount_selected
 //   → payment_started (Donate tapped) → payment_success (Qgiv handoff opened).
@@ -366,6 +379,7 @@ export {
   trackTrackDownload,
   trackAudioLinkRequest,
   trackScrollProgress,
+  trackNavBar,
   trackTourEvent,
   // Journey + session lifecycle events
   trackJourneyView,

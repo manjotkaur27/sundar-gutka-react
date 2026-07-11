@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
+import useReadingSession from "@common/hooks/useReadingSession";
+import { pauseTrack } from "@common/TrackPlayerUtils";
 import {
   constant,
   actions,
@@ -17,13 +19,16 @@ import {
   showInfoToast,
   STRINGS,
   trackScrollProgress,
+  trackNavBar,
 } from "@common";
 import { Header, AutoScrollComponent, AudioPlayer } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
-import useReadingSession from "@common/hooks/useReadingSession";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
-import { pauseTrack } from "@common/TrackPlayerUtils";
+
+// How long the bars linger with no interaction before auto-hiding during
+// auto-scroll or audio playback.
+const BARS_IDLE_HIDE_MS = 4000;
 
 const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -55,9 +60,6 @@ const Reader = ({ navigation, route }) => {
   const { webView } = styles;
   const { title, id, titleUni } = route.params.params || {};
   const [isHeader, toggleHeader] = useState(false);
-  // Timestamp of the last deliberate tap-to-toggle — see handleMessage's
-  // show/hide guard below.
-  const manualToggleAtRef = useRef(0);
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
@@ -82,22 +84,101 @@ const Reader = ({ navigation, route }) => {
   const { shabad, isLoading } = useFetchShabad(id);
   const { bottom: insetBottom } = useSafeAreaInsets();
 
-  // Animated height for the BottomNavigation wrapper — collapses the layout
-  // space when the nav hides so no blank gap is left behind
-  const navTotalHeight =
-    theme.components.bottomNavigation.height + (Platform.OS === "ios" ? insetBottom : 0);
-  const navHeightAnim = useRef(new Animated.Value(0)).current;
+  // Bottom-nav overlay footprint (nav height + the 5px progress track on top).
+  // The audio player is lifted by exactly this much when the bars show so it
+  // clears the nav.
+  const navChromeHeight = theme.components.bottomNavigation.height + 5;
+
+  // Native-driver transforms (NOT a JS height animation) so toggling the bars
+  // never resizes the flex WebView underneath — the reflow was the low-end-
+  // Android jank source. navSlideAnim slides the nav overlay off-screen;
+  // audioLiftAnim rides the audio player above the nav; progressLiftAnim lifts
+  // the progress bar to sit on top of the nav when the bars are shown.
+  const navSlideAnim = useRef(new Animated.Value(300)).current; // starts hidden
+  const navClusterHeightRef = useRef(0);
+  const audioLiftAnim = useRef(new Animated.Value(0)).current; // starts down
+  const progressLiftAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(navHeightAnim, {
-      toValue: isHeader ? navTotalHeight : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isHeader, navTotalHeight]);
+    const distance = navClusterHeightRef.current || 300;
+    Animated.parallel([
+      Animated.timing(navSlideAnim, {
+        toValue: isHeader ? 0 : distance,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(audioLiftAnim, {
+        toValue: isHeader ? -navChromeHeight : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(progressLiftAnim, {
+        // Lift the progress bar onto the nav (nav height = navChromeHeight − 5px
+        // track) when shown; drop it back to the bottom edge when hidden.
+        toValue: isHeader ? -(navChromeHeight - 5) : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight]);
+
+  // ── Bar-visibility funnel + idle auto-hide ──────────────────────────────
+  // Live state mirrored into refs so the stable (empty-dep) scheduler never
+  // reads stale closures.
+  const isHeaderRef = useRef(isHeader);
+  const isAutoScrollRef = useRef(isAutoScroll);
+  const isAudioActiveRef = useRef(isAudioFeatureOn && isAudio);
+  const barsIdleTimerRef = useRef(null);
+
+  useEffect(() => {
+    isAutoScrollRef.current = isAutoScroll;
+  }, [isAutoScroll]);
+  useEffect(() => {
+    isAudioActiveRef.current = isAudioFeatureOn && isAudio;
+  }, [isAudioFeatureOn, isAudio]);
+
+  // Single mutation path for bar visibility — dedupes and fires analytics.
+  const setBarsVisible = useCallback((visible, trigger) => {
+    if (isHeaderRef.current === visible) return;
+    isHeaderRef.current = visible;
+    toggleHeader(visible);
+    let mode = "reading";
+    if (isAutoScrollRef.current) mode = "autoscroll";
+    else if (isAudioActiveRef.current) mode = "audio";
+    trackNavBar(visible, trigger, mode);
+  }, []);
+
+  const clearBarsIdleTimer = useCallback(() => {
+    if (barsIdleTimerRef.current) {
+      clearTimeout(barsIdleTimerRef.current);
+      barsIdleTimerRef.current = null;
+    }
+  }, []);
+
+  // While auto-scroll or audio is active and the bars are showing, hide them
+  // after a period of no interaction. Any activity (touch/scroll/control tap)
+  // restarts the countdown.
+  const scheduleBarsIdleHide = useCallback(() => {
+    clearBarsIdleTimer();
+    if ((isAutoScrollRef.current || isAudioActiveRef.current) && isHeaderRef.current) {
+      barsIdleTimerRef.current = setTimeout(() => {
+        setBarsVisible(false, "auto_hide_idle");
+      }, BARS_IDLE_HIDE_MS);
+    }
+  }, [clearBarsIdleTimer, setBarsVisible]);
+
+  useEffect(() => {
+    scheduleBarsIdleHide();
+    return clearBarsIdleTimer;
+  }, [isHeader, isAutoScroll, isAudioFeatureOn, isAudio, scheduleBarsIdleHide, clearBarsIdleTimer]);
 
   // Animated progress value — driven by ref to avoid re-renders on every scroll tick
   const scrollProgressAnim = useRef(new Animated.Value(0)).current;
+  // Measured width of the progress bar, so the fill animates a NUMERIC pixel
+  // width (0 → barWidth) instead of a percentage string. Animated percentage
+  // widths can fail to apply on first paint and render full-width — this avoids
+  // that entirely (the fill is 0px until measured).
+  const [progressBarWidth, setProgressBarWidth] = useState(0);
   // Latest scroll % (0-100) for analytics — updated on every WebView scroll message
   const scrollPercentRef = useRef(0);
 
@@ -137,6 +218,21 @@ const Reader = ({ navigation, route }) => {
     scrollPercentRef.current = 0;
     scrollProgressAnim.setValue(0);
   }, [id, scrollProgressAnim]);
+
+  // Bottom inset for the WebView content. Whenever the bars are visible they
+  // overlay the bottom navChromeHeight strip of the viewport, hiding the last
+  // few lines — in reading mode the nav bar sits there, and in audio mode the
+  // player lifts up by exactly navChromeHeight over it (see audioLiftAnim). The
+  // amount covered is navChromeHeight in both modes, so reserve that much
+  // scrollable space at the end of the content so the last line can scroll clear.
+  // Re-applied on webViewLoadTick so it survives a WebView reload. Driven by
+  // message (not baked into the HTML) so it never reflows/reloads the page.
+  useEffect(() => {
+    if (!webViewRef.current) return;
+    webViewRef.current.postMessage(
+      JSON.stringify({ action: "setBottomInset", value: navChromeHeight })
+    );
+  }, [navChromeHeight, webViewLoadTick]);
 
   useEffect(() => {
     // Handle undefined titleUni gracefully - fallback to title if titleUni is not available
@@ -216,7 +312,7 @@ const Reader = ({ navigation, route }) => {
         isPunjabiTranslation,
         isSpanishTranslation,
         theme,
-        isLarivaar,
+        isLarivaar
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",
     };
@@ -301,31 +397,30 @@ const Reader = ({ navigation, route }) => {
           data === "show" ||
           data === "hide" ||
           data.includes("scroll-elementId-") ||
-          data.startsWith("scroll-progress-")
+          // Let the position-restore progress fill through — it reflects an
+          // intentional scrollIntoView after load, not a spurious transition
+          // scroll-to-0, so the bar must still track the restored position.
+          (data.startsWith("scroll-progress-") && !data.startsWith("scroll-progress-restore-"))
         ) {
           return;
         }
       }
 
-      // Handle UI messages. A tap inside the WebView posts "toggle" (tap
-      // detection lives in gutkaScript so scroll gestures never toggle). Scroll
-      // only ever posts "hide"; "show" arrives from other flows (e.g. bookmark).
+      // Handle UI messages. gutkaScript posts: "toggle" on a genuine tap,
+      // "show"/"hide" on scroll up/down, and "activity" on any touch (to restart
+      // the idle auto-hide countdown during auto-scroll/audio). setBarsVisible is
+      // the single mutation path (dedupes + fires analytics).
       if (data === "toggle") {
-        // Single source of truth for tap-to-toggle. gutkaScript detects a genuine
-        // tap (ignoring scroll/momentum) and posts "toggle"; we stamp the manual
-        // toggle time (so a trailing scroll "hide" can't undo it) and nudge the
-        // mini player in lockstep with the header.
-        manualToggleAtRef.current = Date.now();
-        toggleHeader((prev) => !prev);
+        setBarsVisible(!isHeaderRef.current, "tap");
+        scheduleBarsIdleHide();
         dispatch(actions.bumpReaderTap());
+      } else if (data === "activity") {
+        scheduleBarsIdleHide();
       } else if (data === "show") {
-        toggleHeader(true);
+        setBarsVisible(true, "scroll_up");
+        scheduleBarsIdleHide();
       } else if (data === "hide") {
-        // A momentum scroll can post "hide" right after a deliberate tap-to-show,
-        // which would flash the header off again. Ignore scroll-driven "hide" for a
-        // short window after the last manual toggle.
-        const recentManualToggle = Date.now() - manualToggleAtRef.current < 500;
-        if (!recentManualToggle) toggleHeader(false);
+        setBarsVisible(false, "scroll_down");
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID (and optional sequence) from WebView scroll events.
         // Only update refs here — do NOT dispatch to Redux on every scroll tick.
@@ -342,6 +437,22 @@ const Reader = ({ navigation, route }) => {
       } else if (data.includes("sequenceString-")) {
         const sequenceStringData = data.split("-")[1];
         dispatch(actions.setBookmarkSequenceString(sequenceStringData));
+      } else if (data.startsWith("scroll-progress-restore-")) {
+        // Visual-only: fill the bar to the restored scroll position WITHOUT
+        // touching scrollPercentRef. Restoring a prior position must never count
+        // as reading toward completion — scrollPercentRef resets to 0 on open and
+        // catches up once the user actually scrolls. (Must be checked before the
+        // generic scroll-progress- branch below, whose prefix this also matches.)
+        const pct = parseFloat(data.split("scroll-progress-restore-")[1]);
+        // [SGDBG temp] confirm the restore fills the bar to the saved position.
+        console.log(`SGDBG restore-progress pct=${pct} id=${id}`);
+        if (Number.isFinite(pct)) {
+          Animated.timing(scrollProgressAnim, {
+            toValue: pct,
+            duration: 0,
+            useNativeDriver: false,
+          }).start();
+        }
       } else if (data.startsWith("scroll-progress-")) {
         const pct = parseFloat(data.split("scroll-progress-")[1]);
         if (Number.isFinite(pct)) {
@@ -356,7 +467,15 @@ const Reader = ({ navigation, route }) => {
         }
       }
     },
-    [dispatch, id, navigation, shouldNavigateBack, isPlayerDragging],
+    [
+      dispatch,
+      id,
+      navigation,
+      shouldNavigateBack,
+      isPlayerDragging,
+      setBarsVisible,
+      scheduleBarsIdleHide,
+    ]
   );
 
   const handleLoadStart = useCallback(() => {
@@ -423,40 +542,55 @@ const Reader = ({ navigation, route }) => {
         isHeader={isHeader}
       />
       {isLoading && <ActivityIndicator size="small" color={theme.colors.primary} />}
-      <WebView
-        key={webViewKey}
-        webviewDebuggingEnabled={__DEV__}
-        javaScriptEnabled
-        originWhitelist={["*"]}
-        onLoadStart={handleLoadStart}
-        onLoadEnd={handleLoadEnd}
-        ref={webViewRef}
-        onError={handleError}
-        onHttpError={handleHttpError}
-        decelerationRate={0.998}
-        scrollEnabled={!isPlayerDragging}
-        bounces={false}
-        overScrollMode="never"
-        nestedScrollEnabled
-        showsVerticalScrollIndicator
-        showsHorizontalScrollIndicator={false}
-        onContentProcessDidTerminate={reloadWebView}
-        source={webViewSource}
-        backgroundColor={readerBgColor}
-        style={[
-          webView,
-          theme.mode === "dark" && { opacity: viewLoaded ? 1 : 0.1 },
-          { backgroundColor: readerBgColor, marginTop: 60 },
-        ]}
-        onMessage={handleMessage}
-      />
-      {isAudioFeatureOn && isAudio && (
-        <AudioPlayer
-          baniID={id}
-          title={titleText}
-          notificationTitle={titleUni || titleText}
-          webViewRef={webViewRef}
+      {/* Don't mount the WebView until the shabad has loaded. Mounting on the
+          initial empty shabad ([]) renders a placeholder page whose height equals
+          the viewport, which the "not scrollable" check misreads as a completed
+          read (false 100%) before the real content replaces it. Waiting also
+          removes the wasteful empty→full WebView reload on every bani open. */}
+      {shabad.length > 0 && (
+        <WebView
+          key={webViewKey}
+          webviewDebuggingEnabled={__DEV__}
+          javaScriptEnabled
+          originWhitelist={["*"]}
+          onLoadStart={handleLoadStart}
+          onLoadEnd={handleLoadEnd}
+          ref={webViewRef}
+          onError={handleError}
+          onHttpError={handleHttpError}
+          decelerationRate={0.998}
+          scrollEnabled={!isPlayerDragging}
+          bounces={false}
+          overScrollMode="never"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          showsHorizontalScrollIndicator={false}
+          onContentProcessDidTerminate={reloadWebView}
+          source={webViewSource}
+          backgroundColor={readerBgColor}
+          style={[
+            webView,
+            theme.mode === "dark" && { opacity: viewLoaded ? 1 : 0.1 },
+            { backgroundColor: readerBgColor, marginTop: 60 },
+          ]}
+          onMessage={handleMessage}
         />
+      )}
+      {isAudioFeatureOn && isAudio && (
+        <Animated.View
+          style={{ transform: [{ translateY: audioLiftAnim }] }}
+          // Touching the audio controls counts as activity — restart the idle
+          // countdown so the bars (and the lifted player) don't drop mid-interaction.
+          onTouchStart={scheduleBarsIdleHide}
+          onTouchMove={scheduleBarsIdleHide}
+        >
+          <AudioPlayer
+            baniID={id}
+            title={titleText}
+            notificationTitle={titleUni || titleText}
+            webViewRef={webViewRef}
+          />
+        </Animated.View>
       )}
       {isAutoScroll && (
         <View
@@ -472,30 +606,54 @@ const Reader = ({ navigation, route }) => {
             shabadID={id}
             webViewRef={webViewRef}
             webViewLoadTick={webViewLoadTick}
+            onActivity={scheduleBarsIdleHide}
           />
         </View>
       )}
 
-      {/* Native scroll progress bar — fixed above BottomNavigation */}
-      <View style={styles.scrollProgressTrack}>
+      {/* Bottom nav overlay — pinned to the bottom, slid out via a single
+          native-driver transform, so showing/hiding never resizes the WebView. */}
+      <Animated.View
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0) {
+            navClusterHeightRef.current = h;
+            // Snap to the exact off-screen distance on first measure so the
+            // initial hidden state lands precisely with no visible flash.
+            if (!isHeader) navSlideAnim.setValue(h);
+          }
+        }}
+        style={[styles.bottomChrome, { transform: [{ translateY: navSlideAnim }] }]}
+      >
+        <BottomNavigation
+          activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
+          context="reader"
+          visible
+        />
+      </Animated.View>
+
+      {/* Reading-progress bar — a separate bottom-pinned layer that never hides.
+          pointerEvents none so the thin bar never intercepts taps meant for the
+          nav/mini-player beneath it. */}
+      <Animated.View
+        pointerEvents="none"
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0 && w !== progressBarWidth) setProgressBarWidth(w);
+        }}
+        style={[styles.scrollProgressBar, { transform: [{ translateY: progressLiftAnim }] }]}
+      >
         <Animated.View
           style={[
             styles.scrollProgressFill,
             {
               width: scrollProgressAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: ["0%", "100%"],
+                outputRange: [0, progressBarWidth],
+                extrapolate: "clamp",
               }),
             },
           ]}
-        />
-      </View>
-
-      <Animated.View style={{ height: navHeightAnim, overflow: "hidden" }}>
-        <BottomNavigation
-          activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
-          context="reader"
-          visible={isHeader}
         />
       </Animated.View>
     </SafeArea>

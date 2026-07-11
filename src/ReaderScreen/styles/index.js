@@ -139,21 +139,47 @@ const createStyles = (theme) => ({
     alignItems: "center",
     paddingHorizontal: 16,
   },
-  scrollProgressTrack: {
-    height: 5,
+  // Bottom-nav overlay: pinned to the bottom edge and slid out of view via a
+  // single native-driver transform, so showing/hiding the bars never resizes
+  // the flex WebView underneath (that reflow was the low-end-Android jank).
+  bottomChrome: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    elevation: 10,
+  },
+  // Reading-progress bar — a separate bottom-pinned layer that never hides. It
+  // lifts to sit on top of the nav when the bars show and drops to the bottom
+  // edge when they hide, so progress stays visible either way.
+  scrollProgressBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // Explicit width so the percentage-width fill child always has a definite
+    // base to resolve against. Without it, the fill's initial "0%" can fail to
+    // resolve against the (left/right-sized) parent and render full-width — the
+    // progress bar looked "complete" on first open.
     width: "100%",
+    height: 5,
     overflow: "hidden",
-    borderRadius: 2.5,
+    zIndex: 11,
+    elevation: 11,
     backgroundColor: "rgba(37, 105, 214, 0.2)",
   },
   // Width-driven, not transform: scaleX — scaleX stretches/squishes the
-  // already-painted pixels (including borderRadius) non-uniformly along X, so
-  // the rounded cap only looked correct near 100% and flattened into a near-
-  // rectangle at low progress. Animating width directly keeps the radius a
-  // true, undistorted circle at every percentage.
+  // already-painted pixels non-uniformly along X. Animating width directly
+  // keeps the fill true at every percentage.
   scrollProgressFill: {
     height: "100%",
-    borderRadius: 2.5,
+    // Anchor to the left. Without this, the column container's default
+    // alignItems:"stretch" makes the fill span the FULL width whenever its
+    // animated width isn't resolved on a given frame — which made the bar look
+    // 100% complete on a bani's first open.
+    alignSelf: "flex-start",
+    width: 0,
     backgroundColor: "#7A99C980",
   },
 });

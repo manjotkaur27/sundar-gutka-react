@@ -196,6 +196,8 @@ jest.mock("@common", () => ({
   useScreenAnalytics: jest.fn(),
   logMessage: jest.fn(),
   logError: jest.fn(),
+  trackScrollProgress: jest.fn(),
+  trackNavBar: jest.fn(),
   SafeArea: ({ children, ...props }) => {
     const { View } = require("react-native");
     return (
@@ -599,13 +601,12 @@ describe("Reader", () => {
     mockState.isAutoScroll = true;
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
+    // The auto-scroll bar is only shown (display: flex) when the bars are
+    // visible. Tap detection now lives in the WebView's injected JS, which posts
+    // a "toggle" message — simulate that to reveal the bar.
     const webview = getByTestId("webview");
-    // Toggling the header now requires a real tap (touch down + lift, close
-    // together in time/position) rather than firing on touch-down alone —
-    // simulate both ends of a tap.
     act(() => {
-      webview.props.onTouchStart({ nativeEvent: { touches: [{ pageX: 0, pageY: 0 }] } });
-      webview.props.onTouchEnd({ nativeEvent: { changedTouches: [{ pageX: 0, pageY: 0 }] } });
+      webview.props.onMessage({ nativeEvent: { data: "toggle" } });
     });
 
     expect(getByTestId("auto-scroll-component")).toBeTruthy();
@@ -616,16 +617,21 @@ describe("Reader", () => {
     mockPostMessage.mockClear();
     render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
+    // Other actions (e.g. setBottomInset) also post messages, some before load,
+    // so wait for the scrollToPosition message specifically rather than any call.
+    const findScrollToPosition = () =>
+      mockPostMessage.mock.calls
+        .map((call) => JSON.parse(call[0]))
+        .find((msg) => msg.action === "scrollToPosition");
+
     await waitFor(
       () => {
-        expect(mockPostMessage).toHaveBeenCalled();
+        expect(findScrollToPosition()).toBeTruthy();
       },
       { timeout: 1000 }
     );
 
-    const scrollMessage = JSON.parse(mockPostMessage.mock.calls[0][0]);
-    expect(scrollMessage.action).toBe("scrollToPosition");
-    expect(scrollMessage.elementId).toBe("element456");
+    expect(findScrollToPosition().elementId).toBe("element456");
   });
 
   it("re-scrolls when fontSize changes", async () => {

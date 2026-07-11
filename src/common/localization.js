@@ -203,7 +203,7 @@ const STRINGS = new LocalizedStrings({
     SEVA_DESCRIPTION:
       "Is built by volunteers at Khalis Foundation, a non-profit organization that builds software like Sundar Gutka and SikhiToTheMax. Khalis Foundation helps millions of Sikhs around the world connect with Gurbani. You can be part of this seva as well; serve millions with a single donation.",
     SEVA_FOOTER_TEXT: "Know coding? You can also do seva through open source contributions.",
-    AUDIO_PREVIEW_HINT: "Tap to hear 30s preview, then press Next.",
+    AUDIO_PREVIEW_HINT: "Tap to preview",
     COMING_SOON: "Coming Soon",
     OPENING_PLAYER: "Opening Player...",
     AUTO_SCROLL_PLAY: "Play auto-scroll",
@@ -558,7 +558,7 @@ const STRINGS = new LocalizedStrings({
     SEVA_DESCRIPTION:
       "खालिस फाउंडेशन के स्वयंसेवकों द्वारा निर्मित, एक गैर-लाभकारी संगठन जो सुंदर गुटका और SikhiToTheMax जैसे सॉफ्टवेयर बनाता है। Khalis Foundation लाखों सिखों को दुनिया भर में गुरबाणी से जोड़ने में मदद करता है। आप भी इस सेवा का हिस्सा बन सकते हैं; एक दान से लाखों की सेवा करें।",
     SEVA_FOOTER_TEXT: "कोडिंग आती है? आप ओपन सोर्स योगदान के माध्यम से भी सेवा कर सकते हैं।",
-    AUDIO_PREVIEW_HINT: "30 सेकंड का प्रीव्यू सुनने के लिए टैप करें, फिर अगला दबाएं।",
+    AUDIO_PREVIEW_HINT: "प्रीव्यू के लिए टैप करें",
     COMING_SOON: "जल्द आ रहा है",
     OPENING_PLAYER: "प्लेयर खुल रहा है...",
     AUTO_SCROLL_PLAY: "ऑटो स्क्रॉल चलाएं",
@@ -913,7 +913,7 @@ const STRINGS = new LocalizedStrings({
     SEVA_DESCRIPTION:
       "ਖਾਲਿਸ ਫਾਊਂਡੇਸ਼ਨ ਦੇ ਵਲੰਟੀਅਰਾਂ ਦੁਆਰਾ ਬਣਾਇਆ ਗਿਆ, ਇੱਕ ਗੈਰ-ਮੁਨਾਫਾ ਸੰਸਥਾ ਜੋ ਸੁੰਦਰ ਗੁਟਕਾ ਅਤੇ SikhiToTheMax ਵਰਗੇ ਸੌਫਟਵੇਅਰ ਬਣਾਉਂਦੀ ਹੈ। Khalis Foundation ਦੁਨੀਆ ਭਰ ਦੇ ਲੱਖਾਂ ਸਿੱਖਾਂ ਨੂੰ ਗੁਰਬਾਣੀ ਨਾਲ ਜੋੜਨ ਵਿੱਚ ਮਦਦ ਕਰਦੀ ਹੈ। ਤੁਸੀਂ ਵੀ ਇਸ ਸੇਵਾ ਦਾ ਹਿੱਸਾ ਬਣ ਸਕਦੇ ਹੋ; ਇੱਕ ਦਾਨ ਨਾਲ ਲੱਖਾਂ ਦੀ ਸੇਵਾ ਕਰੋ।",
     SEVA_FOOTER_TEXT: "ਕੋਡਿੰਗ ਜਾਣਦੇ ਹੋ? ਤੁਸੀਂ ਓਪਨ ਸੋਰਸ ਯੋਗਦਾਨ ਰਾਹੀਂ ਵੀ ਸੇਵਾ ਕਰ ਸਕਦੇ ਹੋ।",
-    AUDIO_PREVIEW_HINT: "30 ਸਕਿੰਟ ਦਾ ਪ੍ਰੀਵਿਊ ਸੁਣਨ ਲਈ ਟੈਪ ਕਰੋ, ਫਿਰ ਅਗਲਾ ਦਬਾਓ।",
+    AUDIO_PREVIEW_HINT: "ਪ੍ਰੀਵਿਊ ਲਈ ਟੈਪ ਕਰੋ",
     COMING_SOON: "ਜਲਦ ਆ ਰਿਹਾ ਹੈ",
     OPENING_PLAYER: "ਪਲੇਅਰ ਖੁੱਲ੍ਹ ਰਿਹਾ ਹੈ...",
     AUTO_SCROLL_PLAY: "ਆਟੋ ਸਕਰੋਲ ਚਲਾਓ",
@@ -1276,7 +1276,7 @@ const STRINGS = new LocalizedStrings({
     SEVA_PER_YEAR: "an",
     SEVA_DESCRIPTION: "Construit par des bénévoles de Khalis Foundation, une organisation à but non lucratif qui développe des logiciels comme Sundar Gutka et SikhiToTheMax. Khalis Foundation aide des millions de Sikhs à travers le monde à se connecter avec le Gurbani. Vous pouvez également faire partie de ce seva ; servez des millions avec un seul don.",
     SEVA_FOOTER_TEXT: "Vous savez coder ? Vous pouvez aussi faire du seva à travers des contributions open source.",
-    AUDIO_PREVIEW_HINT: "Appuyez pour écouter un aperçu de 30s, puis appuyez sur Suivant.",
+    AUDIO_PREVIEW_HINT: "Appuyez pour un aperçu",
     COMING_SOON: "Bientôt disponible",
     OPENING_PLAYER: "Ouverture du lecteur...",
     AUTO_SCROLL_PLAY: "Lire le défilement automatique",
@@ -1636,7 +1636,7 @@ const STRINGS = new LocalizedStrings({
     SEVA_DESCRIPTION:
       "Realizzato da volontari di Khalis Foundation, un'organizzazione non profit che sviluppa software come Sundar Gutka e SikhiToTheMax. Khalis Foundation aiuta milioni di Sikh in tutto il mondo a connettersi con il Gurbani. Puoi far parte di questo seva anche tu; servi milioni con una sola donazione.",
     SEVA_FOOTER_TEXT: "Sai programmare? Puoi fare seva anche attraverso contributi open source.",
-    AUDIO_PREVIEW_HINT: "Tocca per ascoltare un'anteprima di 30s, poi premi Avanti.",
+    AUDIO_PREVIEW_HINT: "Tocca per l'anteprima",
     COMING_SOON: "Prossimamente",
     OPENING_PLAYER: "Apertura del lettore...",
     AUTO_SCROLL_PLAY: "Avvia scorrimento automatico",
@@ -1996,7 +1996,7 @@ const STRINGS = new LocalizedStrings({
     SEVA_PER_YEAR: "año",
     SEVA_DESCRIPTION: "Construido por voluntarios de Khalis Foundation, una organización sin ánimo de lucro que desarrolla software como Sundar Gutka y SikhiToTheMax. Khalis Foundation ayuda a millones de Sikhs de todo el mundo a conectarse con el Gurbani. Tú también puedes ser parte de este seva; sirve a millones con una sola donación.",
     SEVA_FOOTER_TEXT: "¿Sabes programar? También puedes hacer seva a través de contribuciones de código abierto.",
-    AUDIO_PREVIEW_HINT: "Toca para escuchar una vista previa de 30s y luego presiona Siguiente.",
+    AUDIO_PREVIEW_HINT: "Toca para la vista previa",
     COMING_SOON: "Próximamente",
     OPENING_PLAYER: "Abriendo el reproductor...",
     AUTO_SCROLL_PLAY: "Reproducir desplazamiento automático",

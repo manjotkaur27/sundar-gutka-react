@@ -104,13 +104,43 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
     // A bani short enough to fit on one screen never fires a scroll event,
     // so scrollFunc's progress report never runs for it; without this such
     // a bani could never register as "read" under the scroll-percentage
-    // completion rule. Report 100% once, immediately, whenever there's
-    // nothing to scroll.
+    // completion rule. Report 100% once, whenever there's nothing to scroll.
+    //
+    // The measurement must wait until the Gurmukhi @font-face files have loaded
+    // and the text has reflowed to its true height. Measuring synchronously at
+    // parse time uses fallback (or zero-height) metrics, so a LONG bani like
+    // Sukhmani Sahib momentarily fits on one screen and would falsely report
+    // 100% on first open. Defer until fonts + layout settle, then re-measure.
     (function reportInitialScrollProgressIfNotScrollable() {
-      var sh = document.documentElement.scrollHeight;
-      var ch = window.innerHeight;
-      if (sh - ch <= 0) {
-        window.ReactNativeWebView.postMessage("scroll-progress-1.0000");
+      function check() {
+        var sh = document.documentElement.scrollHeight;
+        var ch = window.innerHeight;
+        // Exclude the artificial bottom inset (body padding-bottom, set by the
+        // RN setBottomInset message to clear the nav/audio chrome) so a bani
+        // whose real content fits on one screen still counts as non-scrollable
+        // regardless of whether the inset was applied before or after this runs.
+        var pb = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+        // Only auto-complete a genuinely rendered, non-scrollable bani. Without the
+        // items>0 guard, the empty placeholder page (rendered while the shabad is
+        // still loading — scrollHeight == innerHeight, no content) measures as
+        // "not scrollable" and falsely reports 100%, auto-marking long banis read.
+        var items = document.querySelectorAll(".text-item").length;
+        if (items > 0 && sh - ch - pb <= 0) {
+          window.ReactNativeWebView.postMessage("scroll-progress-1.0000");
+        }
+      }
+      function checkAfterLayout() {
+        // Two rAFs: let the post-font-load reflow paint before measuring.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(check);
+        });
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(checkAfterLayout);
+      } else if (document.readyState === "complete") {
+        checkAfterLayout();
+      } else {
+        window.addEventListener("load", checkAfterLayout);
       }
     })();
   </script>

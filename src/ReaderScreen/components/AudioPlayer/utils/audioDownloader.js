@@ -30,6 +30,25 @@ const PREFETCH_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_prefetch`;
 export const AUDIO_DIRECTORY_PATH = AUDIO_DIRECTORY;
 const PREFETCH_INDEX_PATH = `${PREFETCH_AUDIO_DIRECTORY}/.prefetch-index.json`;
 
+// Dedicated cache for the tiny (~200KB) 15-second preview clips, kept separate
+// from the full-track caches so previews are never evicted by the full-track
+// LRU and vice-versa.
+//
+// The `_v2` suffix intentionally abandons any clips written by earlier builds:
+// a concurrent-download race could truncate a clip on disk, and a truncated
+// M4A wedges ExoPlayer in Buffering forever on Android. Bumping the directory
+// guarantees every device re-downloads clean clips via the now race-free
+// downloader, with no reinstall or manual cache-clear needed.
+const LEGACY_PREVIEW_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_preview`;
+const PREVIEW_AUDIO_DIRECTORY = `${DocumentDirectoryPath}/audio_preview_v2`;
+// Best-effort one-time cleanup of the abandoned v1 directory (guarded so the
+// unlink is attempted at most once per app session).
+let legacyPreviewCleanupDone = false;
+// In-flight preview downloads, keyed by preview URL, so concurrent callers
+// (reader-open prefetch + an on-tap request for the same clip) share one task
+// instead of racing to write the same file.
+const previewDownloadsInFlight = new Map();
+
 /**
  * Generate safe filename from URL and track info
  */
@@ -134,7 +153,9 @@ export const getFullLocalJsonPath = (url) => {
 
 export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
   const { skipDirectorySetup = false, targetDirectory = "main", expectedSizeMB = 0 } = options;
-  const baseDirectory = targetDirectory === "prefetch" ? PREFETCH_AUDIO_DIRECTORY : AUDIO_DIRECTORY;
+  let baseDirectory = AUDIO_DIRECTORY;
+  if (targetDirectory === "prefetch") baseDirectory = PREFETCH_AUDIO_DIRECTORY;
+  else if (targetDirectory === "preview") baseDirectory = PREVIEW_AUDIO_DIRECTORY;
   const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(
     url,
     baseDirectory
@@ -198,6 +219,97 @@ export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
 
   logMessage(`Audio download completed: ${fileName} (${fileStat.size} bytes)`);
   return { relativePath: audioRelativePath, alreadyExists: false, downloaded: true, jobId };
+};
+
+// ── 15-second audio previews ────────────────────────────────────────────────
+// Preview clips live at the canonical track URL with a `-preview` suffix, e.g.
+//   .../BhaiJarnailSingh/RehrasSahib.m4a         -> RehrasSahib-preview.m4a
+//   .../BhaiJarnailSingh/RehrasSahib-trimmed.m4a -> RehrasSahib-trimmed-preview.m4a
+// AnandSahib-6-pauri reuses the full Anand preview (there is no 6-pauri clip).
+// A preview URL may 404 (not yet generated on the CDN) — callers fall back to
+// streaming the full track cut at 15s.
+export const getPreviewRemoteUrl = (url) => {
+  if (!url || typeof url !== "string") return null;
+  if (!/\.m4a(\?|$)/i.test(url)) return null;
+  const normalized = url.replace(/-6-pauri\.m4a(\?|$)/i, ".m4a$1");
+  return normalized.replace(/\.m4a(\?|$)/i, "-preview.m4a$1");
+};
+
+export const getFullPreviewTrackPath = (previewUrl) => {
+  const { artistName, fileName } = generateFilename(previewUrl);
+  return `${PREVIEW_AUDIO_DIRECTORY}/${artistName}/${fileName}`;
+};
+
+// Ensure the preview clip for a track is on disk, returning its local path (or
+// null if there is no preview / the download failed). Concurrent callers for
+// the same clip share a single in-flight task.
+export const ensurePreviewDownloaded = async (canonicalUrl, trackTitle = "Preview") => {
+  const previewUrl = getPreviewRemoteUrl(canonicalUrl);
+  if (!previewUrl || !/^https?:\/\//i.test(previewUrl)) {
+    return null;
+  }
+  // This check and the map set below MUST run with no await between them —
+  // otherwise two concurrent callers could both pass the check and both kick
+  // off a download to the SAME file, whose interleaved writes truncate it on
+  // disk. A truncated clip then wedges ExoPlayer in Buffering forever on the
+  // next play. The exists() fast-path therefore lives INSIDE the task, after
+  // the map is claimed.
+  if (previewDownloadsInFlight.has(previewUrl)) {
+    return previewDownloadsInFlight.get(previewUrl);
+  }
+
+  const fullPath = getFullPreviewTrackPath(previewUrl);
+  const task = (async () => {
+    try {
+      if (await exists(fullPath)) {
+        return fullPath;
+      }
+      await downloadAudioOnly(previewUrl, trackTitle, { targetDirectory: "preview" });
+      return (await exists(fullPath)) ? fullPath : null;
+    } catch (_) {
+      await unlink(fullPath).catch(() => {});
+      return null;
+    } finally {
+      previewDownloadsInFlight.delete(previewUrl);
+    }
+  })();
+
+  previewDownloadsInFlight.set(previewUrl, task);
+  return task;
+};
+
+// Self-heal: drop a preview clip so the next ensurePreviewDownloaded re-fetches
+// it (used when a clip plays back as truncated/corrupt).
+export const deletePreviewClip = async (canonicalUrl) => {
+  const previewUrl = getPreviewRemoteUrl(canonicalUrl);
+  if (!previewUrl) return;
+  await unlink(getFullPreviewTrackPath(previewUrl)).catch(() => {});
+};
+
+// Warm every artist's preview clip for a bani in parallel (deduped) as soon as
+// the track set is known, so tapping an artist plays instantly.
+export const prefetchPreviews = async (tracks) => {
+  if (!Array.isArray(tracks) || tracks.length === 0) return;
+
+  if (!legacyPreviewCleanupDone) {
+    legacyPreviewCleanupDone = true;
+    unlink(LEGACY_PREVIEW_AUDIO_DIRECTORY).catch(() => {});
+  }
+
+  const seen = new Set();
+  const queue = [];
+  for (const track of tracks) {
+    const canonical = track?.remoteUrl || track?.audioUrl;
+    const previewUrl = getPreviewRemoteUrl(canonical);
+    if (!previewUrl || !/^https?:\/\//i.test(previewUrl) || seen.has(previewUrl)) continue;
+    seen.add(previewUrl);
+    queue.push({ canonical, title: track?.displayName || "Preview" });
+  }
+  if (queue.length === 0) return;
+
+  await Promise.all(
+    queue.map((item) => ensurePreviewDownloaded(item.canonical, item.title).catch(() => {}))
+  );
 };
 
 const readPrefetchIndex = async () => {

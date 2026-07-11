@@ -98,10 +98,20 @@ let lastScrollFuncTime = 0;
 // treated as a tap.
 let scrolledDuringTouch = false;
 let lastScrollTime = 0;
+// Timestamp of the last programmatic auto-scroll step. Auto-scroll's scrollBy
+// fires scroll events just like a finger drag; without excluding them the tap
+// gate below sees a "recent scroll" every frame and rejects every tap, so the
+// screen can't be tapped while auto-scrolling.
+let lastAutoScrollTime = 0;
 
 const scrollFunc=(e)=> {
-  scrolledDuringTouch = true;
-  lastScrollTime = Date.now();
+  // Only user-driven scrolls disqualify a following touch from being a tap.
+  // A scroll event fires within a frame of the scrollBy that caused it, so a
+  // fresh lastAutoScrollTime means this event is auto-scroll's own motion.
+  if (Date.now() - lastAutoScrollTime > 100) {
+    scrolledDuringTouch = true;
+    lastScrollTime = Date.now();
+  }
   // During auto-scroll, throttle this handler to every 300ms
   // to prevent 60fps RAF from triggering 60 expensive DOM queries/sec
   if (autoScrollSpeed > 0) {
@@ -141,7 +151,14 @@ const scrollFunc=(e)=> {
   if (Date.now() > restoreScrollUntil) {
     var sh = document.documentElement.scrollHeight;
     var ch = window.innerHeight;
-    var maxScroll = sh - ch;
+    // Exclude the artificial bottom inset (body padding-bottom) from the reading
+    // range: it exists only to give the last line room to scroll clear of the
+    // nav/audio chrome, not to represent unread content. Without this, a bani
+    // whose real content fits on one screen becomes 65px "scrollable" and a
+    // stray nudge would report pct 0, undoing its auto-100%; and a longer bani
+    // would reach 100% only after scrolling through the blank inset.
+    var pb = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+    var maxScroll = sh - ch - pb;
     if (maxScroll > 0) {
       var pct = (window.scrollY || window.pageYOffset) / maxScroll;
       if (pct < 0) pct = 0;
@@ -155,11 +172,16 @@ const scrollFunc=(e)=> {
   }
   if (autoScrollSpeed == 0 && Date.now() > syncScrollUntil) {
     let diffY = scrollFunc.y - window.pageYOffset;
-    // Scrolling only ever HIDES the bars — never shows them. Showing is
-    // reserved for an explicit tap (see the tap-detection touch handlers below).
+    // Scroll direction drives the bars: scrolling DOWN hides them, scrolling UP
+    // restores them together. (A tap also toggles — see the touch handlers
+    // below.) The syncScrollUntil guard keeps audio-sync/position-restore
+    // scrolls from flickering the bars.
     if (diffY < -3) {
       // Scroll down
       window.ReactNativeWebView.postMessage("hide");
+    } else if (diffY > 3) {
+      // Scroll up
+      window.ReactNativeWebView.postMessage("show");
     }
   }
   scrollFunc.y = window.pageYOffset;
@@ -265,6 +287,9 @@ const setAutoScroll=()=> {
 
       if (accumulatedScroll >= 0.5) {
         const px = accumulatedScroll;
+        // Mark this as a programmatic scroll so scrollFunc doesn't count the
+        // resulting scroll event as user activity that would block tap-to-toggle.
+        lastAutoScrollTime = Date.now();
         window.scrollBy(0, px);
         accumulatedScroll = 0;
       }
@@ -343,6 +368,9 @@ const resumeAutoScroll = () => {
   }
 };
 ${listener}.addEventListener("touchstart", (e)=> {
+  // Any touch on the reading area is "activity" — restarts the idle countdown
+  // that auto-hides the bars during auto-scroll / audio playback.
+  window.ReactNativeWebView.postMessage("activity");
   if (autoScrollSpeed !== 0) {
     wasAutoScrolling = true;
     clearScrollTimeout();
@@ -404,6 +432,17 @@ ${listener}.addEventListener(
       window.ReactNativeWebView.postMessage("sequenceString-" + sequenceString);
       window.ReactNativeWebView.postMessage("hide");
     }
+    if (message.hasOwnProperty("action") && message.action === "setBottomInset") {
+      // Bottom inset so the last line can scroll clear of the audio player / nav
+      // bar, which overlay the bottom of the WebView viewport when the bars are
+      // visible. Applied as body padding-bottom (in CSS px ~= dp) rather than
+      // baked into the HTML, so toggling audio never reloads/reflows the page.
+      var inset = parseFloat(message.value);
+      if (!isNaN(inset) && inset >= 0) {
+        document.body.style.paddingBottom = inset + "px";
+      }
+      return;
+    }
     if (message.hasOwnProperty("resetHighlight")) {
       clearAllHighlights();
     }
@@ -445,6 +484,24 @@ ${listener}.addEventListener(
           behavior: "auto",
           block: "start",
           inline: "nearest"
+        });
+        // The normal scroll-progress report above is suppressed during
+        // restoreScrollUntil (a restore isn't genuine reading), which also leaves
+        // the visual progress bar empty despite the restored scroll position.
+        // Emit the restored position on a SEPARATE channel so RN fills the bar to
+        // match WITHOUT counting it toward completion. rAF lets the jump settle
+        // so scrollY is accurate.
+        requestAnimationFrame(function () {
+          var sh = document.documentElement.scrollHeight;
+          var ch = window.innerHeight;
+          var pb = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+          var maxScroll = sh - ch - pb;
+          if (maxScroll > 0) {
+            var rpct = (window.scrollY || window.pageYOffset) / maxScroll;
+            if (rpct < 0) rpct = 0;
+            if (rpct > 1) rpct = 1;
+            window.ReactNativeWebView.postMessage("scroll-progress-restore-" + rpct.toFixed(4));
+          }
         });
       }
       return;

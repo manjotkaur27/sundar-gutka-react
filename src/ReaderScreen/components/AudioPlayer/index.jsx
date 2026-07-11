@@ -24,6 +24,7 @@ import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./com
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import useListeningSession from "@common/hooks/useListeningSession";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
+import { prefetchPreviews } from "./utils/audioDownloader";
 
 const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
   const dispatch = useDispatch();
@@ -430,6 +431,18 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     []
   );
 
+  // Warm the 15-second preview clips for this bani's tracks as soon as the set
+  // is known, so tapping an artist plays instantly. Keyed on the track-set
+  // signature so it fires once per bani, not on every re-render.
+  const prefetchedPreviewSigRef = useRef(null);
+  useEffect(() => {
+    if (isTracksLoading || !Array.isArray(tracks) || tracks.length === 0) return;
+    const signature = tracks.map((track) => track?.remoteUrl || track?.audioUrl).join("|");
+    if (prefetchedPreviewSigRef.current === signature) return;
+    prefetchedPreviewSigRef.current = signature;
+    prefetchPreviews(tracks);
+  }, [tracks, isTracksLoading]);
+
   // Memoize audio track dialog to prevent unnecessary re-renders
   const audioTrackDialog = useMemo(() => {
     if (!tracks || tracks.length === 0) {
@@ -477,7 +490,24 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
         isPlaying={isPlaying}
       />
     );
-  }, [tracks, title, baniID, isPlaying, isAudioUnavailableForCurrentLengthOnly, language, baniLength]);
+    // isInitialized / isAudioEnabled MUST be deps: the dialog captures the
+    // addAndPlayTrack/handleTrackSelect closures, which read isInitialized at
+    // capture time. When a bani is reopened the manifest is served from cache so
+    // `tracks` populate BEFORE the player finishes initializing — without these
+    // deps the memo would freeze closures with isInitialized=false and every
+    // preview tap would no-op forever. Recomputing when init completes re-captures
+    // the closures with the correct ready state.
+  }, [
+    tracks,
+    title,
+    baniID,
+    isPlaying,
+    isAudioUnavailableForCurrentLengthOnly,
+    language,
+    baniLength,
+    isInitialized,
+    isAudioEnabled,
+  ]);
 
   // Don't render if TrackPlayer is not initialized
   if (!isInitialized && !isInitializing) {

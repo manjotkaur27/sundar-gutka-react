@@ -3,25 +3,33 @@ import htmlTemplate from "./gutkahtml";
 import script from "./gutkaScript";
 
 export const fontColorForReader = (header, theme, text) => {
-  const isDarkMode = theme.mode === "dark";
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  const getGurmukhiColor = () => {
-    if (isDarkMode) return "#FAF9F6";
-    return header !== 0 ? "#113979" : "#121212";
+  // Header level 1 (and all transliteration) use the accent blue — brightened
+  // in dark mode so it stays legible. Everything else uses the regular primary
+  // text color; header 2/6 are deliberately regular (not blue).
+  const getHeaderColor1 = () => (theme.mode === "dark" ? "#77baff" : "#113979");
+  const getHeaderColor2 = () => theme.colors.primaryText;
+
+  const defaultColor = getHeaderColor2();
+  const gurmukhiMapping = {
+    1: getHeaderColor1(),
+    2: defaultColor,
+    6: defaultColor,
+    default: defaultColor,
   };
 
-  const getTranslationColor = () => {
-    return isDarkMode ? "#8A99AD" : "#4A5568";
+  const colorMapping = {
+    [GURMUKHI]: gurmukhiMapping,
+    [TRANSLITERATION]: getHeaderColor1(),
+    [TRANSLATION]: defaultColor,
   };
 
-  if (text === GURMUKHI) {
-    return getGurmukhiColor();
-  } else if (text === TRANSLATION || text === TRANSLITERATION) {
-    return getTranslationColor();
+  const color = colorMapping[text];
+  if (typeof color === "object") {
+    return color[header] || color.default;
   }
-
-  return isDarkMode ? "#FAF9F6" : "#121212";
+  return color || defaultColor;
 };
 
 export const fontSizeForReader = (fontSizeString, headerLevel, hasTransliteration) => {

@@ -259,7 +259,11 @@ export const audioTrackDialogStyles = (theme) => ({
     zIndex: 1000,
   },
   blurOverlay: {
-    position: "relative",
+    // Absolutely fill the card so the frosted blur sits BEHIND the modal
+    // content. With position:"relative" it collapsed to a zero-height sibling
+    // and never covered anything, leaving the iOS card transparent so the bani
+    // text bled through and collided with the modal text.
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
@@ -276,9 +280,13 @@ export const audioTrackDialogStyles = (theme) => ({
     marginLeft: "auto",
     marginRight: "auto",
     marginBottom: theme.spacing.md_12,
+    // Clip the absolutely-filled BlurView to the card's rounded corners.
+    overflow: "hidden",
   },
   containerIOS: {
-    backgroundColor: "transparent",
+    // Fallback tint under the BlurView so the card is never fully see-through
+    // (e.g. when reduce-transparency is enabled and the blur renders solid).
+    backgroundColor: theme.colors.transparentOverlay,
   },
   containerAndroid: {
     backgroundColor: theme.colors.transparentOverlay,

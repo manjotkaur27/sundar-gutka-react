@@ -10,6 +10,11 @@ import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
+import {
+  ensurePreviewDownloaded,
+  getPreviewRemoteUrl,
+  deletePreviewClip,
+} from "../../utils/audioDownloader";
 
 const PREVIEW_DURATION_MS = 15000;
 const ACTIVE_TRACK_POLL_MS = 150;
@@ -50,9 +55,6 @@ const AudioTrackDialog = ({
   const [previewActiveTrackId, setPreviewActiveTrackId] = useState(null);
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [previewProgress, setPreviewProgress] = useState(0);
-  const [previewRemainingSec, setPreviewRemainingSec] = useState(
-    PREVIEW_DURATION_MS / 1000
-  );
   const previewTimeoutRef = useRef(null);
   const previewStartTimeoutRef = useRef(null);
   const previewIntervalRef = useRef(null);
@@ -170,7 +172,6 @@ const AudioTrackDialog = ({
 
   const resetPreviewProgress = useCallback(() => {
     setPreviewProgress(0);
-    setPreviewRemainingSec(PREVIEW_DURATION_MS / 1000);
   }, []);
 
   /**
@@ -184,15 +185,12 @@ const AudioTrackDialog = ({
       clearPreviewInterval();
       previewStartedAtRef.current = Date.now();
       setPreviewProgress(0);
-      setPreviewRemainingSec(PREVIEW_DURATION_MS / 1000);
 
       previewIntervalRef.current = setInterval(async () => {
         const elapsed = Date.now() - previewStartedAtRef.current;
         const clampedElapsed = Math.min(elapsed, PREVIEW_DURATION_MS);
-        const remainingMs = Math.max(0, PREVIEW_DURATION_MS - clampedElapsed);
 
         setPreviewProgress(clampedElapsed / PREVIEW_DURATION_MS);
-        setPreviewRemainingSec(Math.ceil(remainingMs / 1000));
 
         // Time's up — stop audio from within the same tick that shows 0
         if (clampedElapsed >= PREVIEW_DURATION_MS) {
@@ -360,28 +358,73 @@ const AudioTrackDialog = ({
         // Non-critical — preview audio still plays without notification controls.
       }
 
-      await addAndPlayTrack(
-        track.id,
-        track.audioUrl,
-        notificationTitle || title,
-        track.displayName,
-        track.lyricsUrl,
-        track.trackLengthSec,
-        track.trackSizeMB,
-        true,
-        track.remoteUrl || track.audioUrl
-      );
-
+      // ── Resolve a preloaded 15-second preview clip ───────────────────────
+      // If the trimmed `-preview.m4a` clip is on disk (warmed by prefetchPreviews
+      // on bani open), play it directly — instant start, correct trimmed audio.
+      // Otherwise stream the full track and let the 15s ticker cut it off.
+      const canonicalUrl = track.remoteUrl || track.audioUrl;
+      let previewLocalPath = null;
+      try {
+        previewLocalPath = await ensurePreviewDownloaded(canonicalUrl, track.displayName);
+      } catch (_) {
+        previewLocalPath = null;
+      }
       if (previewSessionRef.current !== sessionId) {
-        // Superseded mid-load — clear the loading flag so the same track can
-        // be previewed again later (otherwise the guard above blocks it).
         setPreviewLoadingTrackId(null);
         return;
       }
 
-      // Wait for audio to start buffering or playing.
-      // M4A containers need longer to parse moov atom + buffer on Android.
-      const playbackStarted = await waitForPlaybackStart(track.id, sessionId);
+      // Add a source and wait for playback. Returns true/false, or null if this
+      // action was superseded (a newer tap/Next) while adding/awaiting.
+      const addAndAwait = async (playUrl, remoteFallback) => {
+        await addAndPlayTrack(
+          track.id,
+          playUrl,
+          notificationTitle || title,
+          track.displayName,
+          track.lyricsUrl,
+          track.trackLengthSec,
+          track.trackSizeMB,
+          true,
+          remoteFallback
+        );
+        if (previewSessionRef.current !== sessionId) return null;
+        // M4A containers need longer to parse moov atom + buffer on Android.
+        return waitForPlaybackStart(track.id, sessionId);
+      };
+
+      let playbackStarted = false;
+      if (previewLocalPath) {
+        const startedLocal = await addAndAwait(
+          previewLocalPath,
+          getPreviewRemoteUrl(canonicalUrl) || canonicalUrl
+        );
+        if (startedLocal === null) {
+          setPreviewLoadingTrackId(null);
+          return;
+        }
+        playbackStarted = startedLocal;
+        if (!playbackStarted) {
+          // The local clip likely wrote truncated — drop it so it re-downloads
+          // clean next time, and fall through to the full-track stream.
+          await deletePreviewClip(canonicalUrl).catch(() => {});
+          try { await stop(); } catch (_) {}
+          try { await reset(); } catch (_) {}
+          if (previewSessionRef.current !== sessionId) {
+            setPreviewLoadingTrackId(null);
+            return;
+          }
+        }
+      }
+
+      if (!playbackStarted) {
+        const startedFull = await addAndAwait(track.audioUrl, canonicalUrl);
+        if (startedFull === null) {
+          setPreviewLoadingTrackId(null);
+          return;
+        }
+        playbackStarted = startedFull;
+      }
 
       if (playbackStarted && previewSessionRef.current === sessionId) {
         clearPreviewStartTimeout();
@@ -438,9 +481,9 @@ const AudioTrackDialog = ({
   const isPreviewRunning = Boolean(
     selectedTrack && previewActiveTrackId && previewActiveTrackId === selectedTrack?.id
   );
-  const nextButtonLabel = isPreviewRunning
-    ? `${STRINGS.NEXT} (${previewRemainingSec}s)`
-    : STRINGS.NEXT;
+  // The button always reads a bare "Next" — no countdown text — even while a
+  // preview is running (the countdown is conveyed by the progress-fill bar).
+  const nextButtonLabel = STRINGS.NEXT;
 
   return (
     <View style={styles.modalWrapper}>
