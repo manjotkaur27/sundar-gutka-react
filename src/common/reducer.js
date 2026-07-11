@@ -444,7 +444,7 @@ const userProfile = createReducer(
   { name: "" },
   {
     [actionTypes.SET_USER_PROFILE]: (state, action) => ({ ...state, ...action.value }),
-  }
+  },
 );
 
 const defaultLayout = () => ({ order: [...DEFAULT_DASHBOARD_ORDER], hidden: [] });
@@ -519,7 +519,7 @@ const todaysNitnem = createReducer(
       selectedBaniIds: action.value?.selectedBaniIds ?? state.selectedBaniIds,
       completed: action.value?.completed ?? state.completed,
     }),
-  }
+  },
 );
 
 const rootReducer = combineReducers({

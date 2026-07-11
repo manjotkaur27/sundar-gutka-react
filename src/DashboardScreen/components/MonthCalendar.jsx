@@ -23,7 +23,7 @@ const getLocalYM = () => {
 const getTodayStr = () => {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(
-    n.getDate()
+    n.getDate(),
   ).padStart(2, "0")}`;
 };
 
@@ -172,7 +172,7 @@ const MonthCalendar = ({ refreshKey }) => {
     () => loadActivity(year, month),
     // refreshKey isn't read above but forces a refetch on screen focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [loadActivity, year, month, refreshKey]
+    [loadActivity, year, month, refreshKey],
   );
   const { loading, error, retry } = useAsyncSection(task);
 
@@ -205,7 +205,7 @@ const MonthCalendar = ({ refreshKey }) => {
         if (g.dx > 40) prevMonth();
         else if (g.dx < -40) nextMonth();
       },
-    })
+    }),
   ).current;
 
   const handleDayPress = useCallback(
@@ -221,7 +221,7 @@ const MonthCalendar = ({ refreshKey }) => {
       setModalDate(dateStr);
       setModalVisible(true);
     },
-    [year, month, activityMap, todayStr]
+    [year, month, activityMap, todayStr],
   );
 
   const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
@@ -233,9 +233,9 @@ const MonthCalendar = ({ refreshKey }) => {
       Object.values(activityMap).filter(
         (r) =>
           (r.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-          (r.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
+          (r.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS,
       ).length,
-    [activityMap]
+    [activityMap],
   );
 
   // #2669d6 = rgb(38,105,214) — the brand blue, ramped by activity level.
@@ -286,7 +286,7 @@ const MonthCalendar = ({ refreshKey }) => {
                   if (!d) return <View key={`e-${ci}`} style={styles.cell} />;
                   const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(
                     2,
-                    "0"
+                    "0",
                   )}`;
                   const row2 = activityMap[dateStr];
                   const level = intensity(row2);

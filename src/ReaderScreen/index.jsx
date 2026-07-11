@@ -84,8 +84,8 @@ const Reader = ({ navigation, route }) => {
 
   // Animated height for the BottomNavigation wrapper — collapses the layout
   // space when the nav hides so no blank gap is left behind
-  const navTotalHeight = theme.components.bottomNavigation.height +
-    (Platform.OS === 'ios' ? insetBottom : 0);
+  const navTotalHeight =
+    theme.components.bottomNavigation.height + (Platform.OS === "ios" ? insetBottom : 0);
   const navHeightAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -105,8 +105,6 @@ const Reader = ({ navigation, route }) => {
   // after screen transitions (Bookmarks → Reader). WKWebView can fire scroll-to-0
   // events both while backgrounded AND during the return transition animation.
   const iPadScrollGuardRef = useRef(false);
-
-
 
   const pauseAudioPlayback = useCallback(async () => {
     try {
@@ -218,7 +216,7 @@ const Reader = ({ navigation, route }) => {
         isPunjabiTranslation,
         isSpanishTranslation,
         theme,
-        isLarivaar
+        isLarivaar,
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",
     };
@@ -358,7 +356,7 @@ const Reader = ({ navigation, route }) => {
         }
       }
     },
-    [dispatch, id, navigation, shouldNavigateBack, isPlayerDragging]
+    [dispatch, id, navigation, shouldNavigateBack, isPlayerDragging],
   );
 
   const handleLoadStart = useCallback(() => {
@@ -452,25 +450,48 @@ const Reader = ({ navigation, route }) => {
         ]}
         onMessage={handleMessage}
       />
-      {isAudioFeatureOn && isAudio && <AudioPlayer baniID={id} title={titleText} notificationTitle={titleUni || titleText} webViewRef={webViewRef} />}
+      {isAudioFeatureOn && isAudio && (
+        <AudioPlayer
+          baniID={id}
+          title={titleText}
+          notificationTitle={titleUni || titleText}
+          webViewRef={webViewRef}
+        />
+      )}
       {isAutoScroll && (
-        <View style={[styles.autoScrollFixedView, { bottom: styles.autoScrollFixedView.bottom + insetBottom, display: isHeader ? "flex" : "none" }]}>
-          <AutoScrollComponent shabadID={id} webViewRef={webViewRef} webViewLoadTick={webViewLoadTick} />
+        <View
+          style={[
+            styles.autoScrollFixedView,
+            {
+              bottom: styles.autoScrollFixedView.bottom + insetBottom,
+              display: isHeader ? "flex" : "none",
+            },
+          ]}
+        >
+          <AutoScrollComponent
+            shabadID={id}
+            webViewRef={webViewRef}
+            webViewLoadTick={webViewLoadTick}
+          />
         </View>
       )}
-
 
       {/* Native scroll progress bar — fixed above BottomNavigation */}
       <View style={styles.scrollProgressTrack}>
         <Animated.View
           style={[
             styles.scrollProgressFill,
-            { width: scrollProgressAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) },
+            {
+              width: scrollProgressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+              }),
+            },
           ]}
         />
       </View>
 
-      <Animated.View style={{ height: navHeightAnim, overflow: 'hidden' }}>
+      <Animated.View style={{ height: navHeightAnim, overflow: "hidden" }}>
         <BottomNavigation
           activeKey={isAudioFeatureOn && isAudio ? "Music" : "Read"}
           context="reader"

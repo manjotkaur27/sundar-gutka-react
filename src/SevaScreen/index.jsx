@@ -258,7 +258,7 @@ const SevaScreen = () => {
         }
       }
     },
-    [isDarkMode, theme]
+    [isDarkMode, theme],
   );
 
   // Keep ref current so the AppState listener always calls the latest closure
@@ -390,7 +390,7 @@ const SevaScreen = () => {
             </Text>
           ) : (
             <Text key={i}>{seg.text}</Text>
-          )
+          ),
         )}
       </Text>
     );

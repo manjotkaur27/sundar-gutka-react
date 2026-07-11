@@ -20,8 +20,16 @@ let lastFrameTime = 0;
 // header messages. Without this, an audio-driven scrollIntoView fires the scroll
 // handler, which mistakes it for a user scroll-down and collapses the nav bar —
 // repeatedly and fast on banis with 1–2 word lines — even after the user tapped
-// to keep it visible.
+// to keep it visible. Audio sync-scroll's resulting scroll-progress messages are
+// intentionally NOT suppressed — listening via synced scroll should count toward
+// completion the same as manual reading.
 let syncScrollUntil = 0;
+// Timestamp until which the "resume where you left off" position-restore jump
+// suppresses scroll-progress reporting specifically. Separate from
+// syncScrollUntil above: that jump must NOT count toward read-completion (it's
+// not the user reading this session, just the WebView re-scrolling to a
+// previously-saved position on load/refocus), whereas audio sync-scroll must.
+let restoreScrollUntil = 0;
 
 // The active (sync-scroll) line is rendered slightly larger than the rest of
 // the bani. We scale each line's font-size — not a CSS transform — so the text
@@ -128,15 +136,18 @@ const scrollFunc=(e)=> {
     window.ReactNativeWebView.postMessage("scroll-elementId-null");
   }
 
-  // ── Scroll progress — bridge message on every scroll tick ───────────
-  var sh = document.documentElement.scrollHeight;
-  var ch = window.innerHeight;
-  var maxScroll = sh - ch;
-  if (maxScroll > 0) {
-    var pct = (window.scrollY || window.pageYOffset) / maxScroll;
-    if (pct < 0) pct = 0;
-    if (pct > 1) pct = 1;
-    window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
+  // ── Scroll progress — bridge message on every scroll tick, except during a
+  // position-restore jump (see restoreScrollUntil) which isn't genuine reading ──
+  if (Date.now() > restoreScrollUntil) {
+    var sh = document.documentElement.scrollHeight;
+    var ch = window.innerHeight;
+    var maxScroll = sh - ch;
+    if (maxScroll > 0) {
+      var pct = (window.scrollY || window.pageYOffset) / maxScroll;
+      if (pct < 0) pct = 0;
+      if (pct > 1) pct = 1;
+      window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
+    }
   }
 
   if (typeof scrollFunc.y == "undefined") {
@@ -425,8 +436,11 @@ ${listener}.addEventListener(
         }
       }
       if (element) {
-        // Programmatic position-restore — suppress the show/hide nav toggle.
+        // Programmatic position-restore — suppress the show/hide nav toggle
+        // AND (separately) the scroll-progress completion tracking, since this
+        // jump reflects a PREVIOUS session's position, not genuine reading now.
         syncScrollUntil = Date.now() + 700;
+        restoreScrollUntil = Date.now() + 700;
         element.scrollIntoView({
           behavior: "auto",
           block: "start",

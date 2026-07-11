@@ -15,7 +15,7 @@ import useBaniLookup from "./useBaniLookup";
 const todayStr = () => {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(
-    n.getDate()
+    n.getDate(),
   ).padStart(2, "0")}`;
 };
 
@@ -56,6 +56,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   primaryBtnText: { color: "#fff", fontSize: 13, fontWeight: "600", flexShrink: 1 },
+  secondaryBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  secondaryBtnText: { fontSize: 13, flexShrink: 1 },
 });
 
 // Builds a filled "rounded annulus sector" — the progress fill as its own
@@ -171,6 +183,24 @@ Check.propTypes = {
   accent: PropTypes.string.isRequired,
   muted: PropTypes.string.isRequired,
 };
+
+// Bare checkmark (no ring) for the "Mark done" button — distinct from the
+// filled-circle Check used per-bani in the grid above.
+const CheckIcon = ({ color }) => (
+  <Svg
+    width={16}
+    height={16}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <Polyline points="20 6 9 17 4 12" />
+  </Svg>
+);
+CheckIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const PlayIcon = ({ color }) => (
   <Svg width={13} height={13} viewBox="0 0 24 24" fill={color}>
@@ -289,7 +319,7 @@ const TodaysNitnem = ({ refreshKey }) => {
         params: { id: b.id, title: b.gurmukhi, titleUni: b.gurmukhiUni },
       });
     },
-    [baniMap, dispatch, navigation]
+    [baniMap, dispatch, navigation],
   );
 
   // English spells the count out ("two banis left"); other languages keep the
@@ -412,6 +442,22 @@ const TodaysNitnem = ({ refreshKey }) => {
                       .trim()
                       .replace(/·\s*$/, "")
                   : STRINGS.CONTINUE}
+              </CustomText>
+            </Pressable>
+            {/* Bulk mark-done for Nitnem completed outside the app — reuses the
+                same bulk merge the 95%-scroll auto-detection writes through. */}
+            <Pressable
+              style={[styles.secondaryBtn, { borderColor: separator }]}
+              onPress={() => dispatch(actions.markNitnemAutoDone(today, selectedBaniIds))}
+            >
+              <CheckIcon color={accentBlue} />
+              <CustomText
+                style={[styles.secondaryBtnText, { color: accentTextColor, fontFamily: boldFont }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {STRINGS.MARK_DONE}
               </CustomText>
             </Pressable>
           </View>

@@ -3,9 +3,9 @@
 // is a Vercel *preview* deploy whose hash changes on every backend deploy.
 // For local backend dev, temporarily set this to "http://localhost:3500"
 // (and run `adb reverse tcp:3500 tcp:3500`).
-// const KHALIS_API_BASE =
-//   "https://khalis-users-api-git-new-apis-divyanshugarg36s-projects.vercel.app";
-const KHALIS_API_BASE = "https://laboring-expenses-award.ngrok-free.dev";
+const KHALIS_API_BASE =
+  "https://khalis-users-api-git-new-apis-divyanshugarg36s-projects.vercel.app";
+// const KHALIS_API_BASE = "https://laboring-expenses-award.ngrok-free.dev";
 
 export default {
   DB: "gutka_v01",

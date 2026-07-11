@@ -60,12 +60,34 @@ const useReadingSession = ({ baniId, baniTitle, navigation, scrollPercentRef }) 
     startTimeRef.current = Date.now();
   }, []);
 
-  // focus → start, blur → save (covers navigate-away and navigate-back)
+  // A session is flushed on FOUR distinct signals because no single one fires
+  // reliably across every way the user can leave the Reader. saveSession is
+  // idempotent (it nulls startTimeRef on the first call), so overlapping
+  // triggers still record at most one session — never a double count.
+  //
+  //  • focus         → start the timer when the screen becomes active.
+  //  • beforeRemove  → the canonical "this screen is being popped off the
+  //                    stack" event, dispatched synchronously by the navigation
+  //                    action itself BEFORE the native screen is frozen/detached.
+  //                    This is what fixes the footer "All Banis" button: it
+  //                    leaves via navigation.popToTop(), and with the native
+  //                    stack + react-native-screens that can detach the outgoing
+  //                    Reader abruptly, so the plain "blur"/unmount saves below
+  //                    were racing the teardown and getting dropped intermittently
+  //                    (— the read "sometimes" didn't count). beforeRemove fires
+  //                    reliably for back button, back arrow, swipe-back AND
+  //                    popToTop, so every exit path now flushes.
+  //  • blur          → still needed for the push-ON-TOP case (Reader → Settings/
+  //                    Bookmarks), where the Reader is NOT removed from the stack
+  //                    so beforeRemove does not fire, but reading has paused.
+  //  • unmount       → final belt-and-suspenders fallback.
   useEffect(() => {
     const unsubFocus = navigation.addListener("focus", startSession);
+    const unsubBeforeRemove = navigation.addListener("beforeRemove", saveSession);
     const unsubBlur = navigation.addListener("blur", saveSession);
     return () => {
       unsubFocus();
+      unsubBeforeRemove();
       unsubBlur();
     };
   }, [navigation, startSession, saveSession]);
