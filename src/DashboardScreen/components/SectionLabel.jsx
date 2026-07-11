@@ -8,12 +8,17 @@ import useDashboardTheme from "./dashboardTheme";
 // optional right-aligned action (e.g. "Edit banis", "Shuffle"). `color`
 // overrides the default mutedText for sections with their own client-specified
 // heading accent (e.g. Reminders).
-const SectionLabel = ({ title, right, color }) => {
-  const { mutedText } = useDashboardTheme();
+// React 19 ignores defaultProps on function components, so `uppercase` must
+// default via a parameter default (not defaultProps) or it reads as undefined
+// (falsy) and every heading silently drops to Title Case.
+const SectionLabel = ({ title, right = null, color = null, titleStyle = null, uppercase = true }) => {
+  const { mutedText, isDark } = useDashboardTheme();
+  // Client-specified section-title accent in dark mode (matches the header date line).
+  const defaultColor = isDark ? "#a1bee7" : mutedText;
   return (
     <View style={styles.row}>
-      <CustomText style={[styles.title, { color: color || mutedText }]}>
-        {title.toUpperCase()}
+      <CustomText style={[styles.title, { color: color || defaultColor }, titleStyle]}>
+        {uppercase ? title.toUpperCase() : title}
       </CustomText>
       {right ? <View style={styles.right}>{right}</View> : null}
     </View>
@@ -24,9 +29,9 @@ SectionLabel.propTypes = {
   title: PropTypes.string.isRequired,
   right: PropTypes.node,
   color: PropTypes.string,
+  titleStyle: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
+  uppercase: PropTypes.bool,
 };
-
-SectionLabel.defaultProps = { right: null, color: null };
 
 const styles = StyleSheet.create({
   row: {

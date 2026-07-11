@@ -46,7 +46,11 @@ const useListeningSession = ({ baniId, baniTitle, isPlaying, currentPlayingId, a
 
     if (durationSeconds <= 0) return;
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Local YYYY-MM-DD (not UTC) — see useReadingSession for the rationale.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")}`;
     enqueueAnalyticsWrite(async () => {
       try {
         await Promise.all([

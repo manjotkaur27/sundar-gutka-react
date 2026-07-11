@@ -51,11 +51,19 @@ const APP_TILES = [
 ];
 
 const ExploreGurbani = ({ refreshKey }) => {
-  const { isDark, accentBlue, gold, primaryText, mutedText } = useDashboardTheme();
+  const { isDark, accentBlue, gold, mutedText, theme } = useDashboardTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { nameOf } = useBaniLookup();
   const iconBg = isDark ? "rgba(255,255,255,0.08)" : "#eef2fb";
+  // Tile titles match the streak count / username navy.
+  const titleColor = isDark ? "#ffffffff" : "#00397e";
+  // Tile icons (search / read / listen) go white in dark mode for contrast on the navy card.
+  const iconColor = isDark ? "#fff" : accentBlue;
+  // Explicit SemiBold (no fontWeight) — same convention as the header name/streak
+  // count, so the titles render the real SemiBold glyph instead of a fake-bold
+  // (fontWeight + custom TTF) or Regular fallback that looks like a different font.
+  const titleFont = theme.typography.fonts.balooPaajiSemiBold;
 
   const [lastRead, setLastRead] = useState(null);
   const [lastListened, setLastListened] = useState(null);
@@ -107,9 +115,9 @@ const ExploreGurbani = ({ refreshKey }) => {
         style={({ pressed }) => pressed && styles.pressed}
       >
         <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-          {icon === "book" ? <BookIcon color={accentBlue} /> : <HeadphonesIcon color={accentBlue} />}
+          {icon === "book" ? <BookIcon color={iconColor} /> : <HeadphonesIcon color={iconColor} />}
         </View>
-        <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={2}>
+        <CustomText style={[styles.title, { color: titleColor, fontFamily: titleFont }]} numberOfLines={2}>
           {nameOf(item.bani_id) || item.bani_title || `Bani ${item.bani_id}`}
         </CustomText>
         <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>{label}</CustomText>
@@ -170,7 +178,7 @@ const ExploreGurbani = ({ refreshKey }) => {
               <View style={styles.iconRow}>
                 <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
                   {t.icon === "search" ? (
-                    <SearchIcon color={accentBlue} />
+                    <SearchIcon color={iconColor} />
                   ) : (
                     <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
                   )}
@@ -181,7 +189,7 @@ const ExploreGurbani = ({ refreshKey }) => {
                   </View>
                 ) : null}
               </View>
-              <CustomText style={[styles.title, { color: primaryText }]} numberOfLines={2}>
+              <CustomText style={[styles.title, { color: titleColor, fontFamily: titleFont }]} numberOfLines={2}>
                 {t.title}
               </CustomText>
               <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>
@@ -200,14 +208,14 @@ ExploreGurbani.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   row: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
-  tile: { width: 150, padding: 16 },
+  tile: { width: 128, paddingHorizontal: 16, paddingVertical: 20 },
   pressed: { opacity: 0.75 },
   iconRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   iconBox: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: 14 },
   iconImg: { width: 32, height: 32 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  title: { fontSize: 14, fontWeight: "600" },
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: 900, letterSpacing: 0.5 },
+  title: { fontSize: 16, lineHeight: 18 },
   subtitle: { fontSize: 12, marginTop: 3 },
   tileSkeleton: { width: "100%", height: 88 },
 });

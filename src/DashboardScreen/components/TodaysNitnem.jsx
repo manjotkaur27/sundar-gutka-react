@@ -28,8 +28,8 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   subtitle: { fontSize: 17 },
   ringCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
-  ringNum: { fontSize: 15 },
-  ringLabel: { fontSize: 10 },
+  ringNum: { fontSize: 15, lineHeight: 17, textAlign: "center" },
+  ringLabel: { fontSize: 10, lineHeight: 11, marginTop: -1, textAlign: "center" },
   listDivider: { height: 1, marginVertical: 16 },
   // ~8 rows visible (4 per column) then scrolls within the card.
   gridScroll: { maxHeight: 184 },
@@ -115,7 +115,7 @@ const buildRoundedArcPath = (cx, cy, r, stroke, startDeg, endDeg, capR) => {
 
 const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFont }) => {
   const size = 64;
-  const stroke = 7;
+  const stroke = 9;
   const r = (size - stroke) / 2;
   const cx = size / 2;
   const cy = size / 2;
@@ -137,7 +137,7 @@ const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFon
       </Svg>
       <View style={StyleSheet.absoluteFill}>
         <View style={styles.ringCenter}>
-          <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont }]}>
+          <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont,  }]}>
             {done}/{total}
           </CustomText>
           <CustomText style={[styles.ringLabel, { color: labelColor }]}>banis</CustomText>

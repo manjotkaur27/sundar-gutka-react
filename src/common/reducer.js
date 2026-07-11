@@ -440,6 +440,28 @@ const DEFAULT_DASHBOARD_ORDER = [
 // persisted layout on upgrade — e.g. the old standalone randomShabad/vaak).
 const VALID_DASHBOARD_SECTIONS = new Set(Object.values(constant.DASHBOARD_SECTIONS));
 
+// Re-insert any sections missing from a persisted order AT their default position
+// — right after the nearest preceding default-neighbour that's present — instead
+// of appending them to the end. This keeps a re-added section (e.g. Explore after
+// a key change/upgrade) in its designed slot (right after Nitnem) rather than
+// sinking it to the bottom of the dashboard.
+const withMissingAtDefaultPos = (order) => {
+  const result = [...order];
+  DEFAULT_DASHBOARD_ORDER.forEach((key, defaultIdx) => {
+    if (result.includes(key)) return;
+    let insertAt = result.length;
+    for (let i = defaultIdx - 1; i >= 0; i -= 1) {
+      const pos = result.indexOf(DEFAULT_DASHBOARD_ORDER[i]);
+      if (pos !== -1) {
+        insertAt = pos + 1;
+        break;
+      }
+    }
+    result.splice(insertAt, 0, key);
+  });
+  return result;
+};
+
 const userProfile = createReducer(
   { name: "" },
   {
@@ -457,17 +479,15 @@ const dashboardLayout = createReducer(defaultLayout(), {
     const persisted = action.payload?.dashboardLayout;
     if (!persisted?.order) return state; // fresh install → keep default
     const cleaned = persisted.order.filter((k) => VALID_DASHBOARD_SECTIONS.has(k));
-    const missing = DEFAULT_DASHBOARD_ORDER.filter((k) => !cleaned.includes(k));
     return {
-      order: [...cleaned, ...missing],
+      order: withMissingAtDefaultPos(cleaned),
       hidden: (persisted.hidden ?? []).filter((k) => VALID_DASHBOARD_SECTIONS.has(k)),
     };
   },
   [actionTypes.SET_DASHBOARD_LAYOUT]: (state, action) => {
     const next = { ...state, ...action.value };
-    // Self-heal: ensure any newly added sections are appended to a persisted order.
-    const missing = DEFAULT_DASHBOARD_ORDER.filter((k) => !next.order.includes(k));
-    return { order: [...next.order, ...missing], hidden: next.hidden ?? [] };
+    // Self-heal: ensure any newly added sections land in their default slot.
+    return { order: withMissingAtDefaultPos(next.order), hidden: next.hidden ?? [] };
   },
   [actionTypes.RESET_DASHBOARD_LAYOUT]: () => defaultLayout(),
 });

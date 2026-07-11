@@ -37,10 +37,10 @@ const DashboardHeader = ({ onMenuPress, refreshKey }) => {
   const nameFont = theme.typography.fonts.balooPaajiSemiBold;
 
   // Username: brand blue in light mode, off-white in dark.
-  const nameColor = isDark ? "#E8EEF7" : "#133a78";
+  const nameColor = isDark ? "#ffffffff" : "#00397e";
   // Text below the name (date line) and the avatar's "U" initial each get their
   // own client-specified accents, distinct from the generic mutedText/nameColor.
-  const belowNameColor = isDark ? "#6E84A9" : "#9AA8C4";
+  const belowNameColor = isDark ? "#a1bee7ff" : "#9AA8C4";
   const avatarTextColor = isDark ? "#5A99FD" : "#113979";
 
   const dateLine = useMemo(() => {
@@ -71,18 +71,35 @@ const DashboardHeader = ({ onMenuPress, refreshKey }) => {
     };
   }, [refreshKey]);
 
-  const bg = isDark ? "#050D1B" : "#F4F7FC";
+  const bg = isDark ? "#031329" : "#F4F7FC";
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 8, backgroundColor: bg }]}>
-      <CustomText style={[styles.salutation, { color: gold }]}>
+      <CustomText
+        style={[
+          styles.salutation,
+          { color: gold, fontFamily: theme.typography.fonts.gurbaniHeavy },
+        ]}
+      >
         ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
       </CustomText>
 
       <View style={styles.row}>
         <View style={styles.nameBlock}>
           <CustomText
-            style={[styles.name, { color: nameColor, fontFamily: nameFont }]}
+            style={[
+              styles.name,
+              {
+                color: nameColor,
+                fontFamily: nameFont,
+                // Faux-bold: BalooPaaji ships only Regular + SemiBold and a named
+                // TTF ignores fontWeight, so thicken the strokes with a same-color
+                // shadow. Replace with a real Bold Baloo face if one is bundled.
+                textShadowColor: nameColor,
+                textShadowOffset: { width: 0.5, height: 0 },
+                textShadowRadius: 0.4,
+              },
+            ]}
             numberOfLines={1}
           >
             {DEFAULT_NAME}
@@ -143,7 +160,6 @@ const styles = StyleSheet.create({
   },
   salutation: {
     fontSize: 12,
-    fontWeight: "700",
     marginBottom: 10,
   },
   row: {
@@ -157,10 +173,12 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 23,
+    
   },
   date: {
     fontSize: 13,
     lineHeight: 18,
+    fontWeight: 650,
     marginTop: 2,
   },
   syncLine: {
@@ -190,7 +208,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: 700,
   },
 });
 

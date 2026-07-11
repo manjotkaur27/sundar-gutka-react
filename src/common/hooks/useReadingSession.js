@@ -29,7 +29,13 @@ const useReadingSession = ({ baniId, baniTitle, navigation, scrollPercentRef }) 
     // the user actually scrolled to during this specific session.
     const completed = (scrollPercentRef?.current ?? 0) >= COMPLETION_SCROLL_PERCENT;
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Local YYYY-MM-DD (not toISOString, which is UTC) so the day — and the
+    // year boundary the "In Nitnem this year" total resets on — is the user's
+    // local day, matching how the dashboard reads dates back.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")}`;
     enqueueAnalyticsWrite(async () => {
       try {
         await Promise.all([

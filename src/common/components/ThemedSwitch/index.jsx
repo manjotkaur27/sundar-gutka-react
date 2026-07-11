@@ -16,7 +16,14 @@ const ON_TRACK_DARK = "#6FA0E0";
 const THUMB_COLOR = "#FFFFFF";
 const THUMB_BORDER = "rgba(0,0,0,0.1)";
 
-const ThemedSwitch = ({ value, onValueChange, disabled, offThumbColor }) => {
+const ThemedSwitch = ({
+  value,
+  onValueChange,
+  disabled,
+  offThumbColor,
+  onTrackColor,
+  offTrackColor,
+}) => {
   const { theme } = useTheme();
   const progress = useRef(new Animated.Value(value ? 1 : 0)).current;
 
@@ -29,8 +36,9 @@ const ThemedSwitch = ({ value, onValueChange, disabled, offThumbColor }) => {
   }, [value, progress]);
 
   const isDark = theme.mode === "dark";
-  const offColor = isDark ? OFF_TRACK_DARK : OFF_TRACK_LIGHT;
-  const onColor = isDark ? ON_TRACK_DARK : ON_TRACK_LIGHT;
+  // Track colors default to the theme values but can be overridden per-usage.
+  const offColor = offTrackColor || (isDark ? OFF_TRACK_DARK : OFF_TRACK_LIGHT);
+  const onColor = onTrackColor || (isDark ? ON_TRACK_DARK : ON_TRACK_LIGHT);
 
   const trackBackgroundColor = progress.interpolate({
     inputRange: [0, 1],
@@ -89,12 +97,16 @@ ThemedSwitch.propTypes = {
   onValueChange: PropTypes.func,
   disabled: PropTypes.bool,
   offThumbColor: PropTypes.string,
+  onTrackColor: PropTypes.string,
+  offTrackColor: PropTypes.string,
 };
 
 ThemedSwitch.defaultProps = {
   onValueChange: undefined,
   disabled: false,
   offThumbColor: null,
+  onTrackColor: null,
+  offTrackColor: null,
 };
 
 export default ThemedSwitch;

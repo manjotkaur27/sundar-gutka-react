@@ -31,11 +31,11 @@ ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 const HUKAMNAMA_URL = "https://www.sikhitothemax.org/hukamnama";
 
 const TodaysVaak = ({ refreshKey, embedded }) => {
-  const { accentBlue, gold, primaryText, mutedText, separator, isDark } = useDashboardTheme();
-  // Client-specified Punjabi/English split — light mode only; dark keeps the
-  // existing primaryText/mutedText pairing.
-  const gurmukhiColor = isDark ? primaryText : "#5A99FD";
-  const translationColor = isDark ? mutedText : "#5D6F8F";
+  const { accentBlue, gold, mutedText, separator, theme } = useDashboardTheme();
+  // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
+  const gurmukhiColor = "#fff";
+  const translationColor = "#c9ced5ff";
+  const gurmukhiFont = theme.typography.fonts.gurbaniHeavy;
   const [vaak, setVaak] = useState(null);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -101,14 +101,14 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
       )}
       {/* Hukamnama date — shown in IST (the day rolls over at Sri Darbar Sahib). */}
       {vaak?.dateLabel ? (
-        <CustomText style={[styles.dateLine, { color: mutedText }]}>
+        <CustomText style={[styles.dateLine, { color: translationColor }]}>
           {`${vaak.dateLabel} · IST`}
         </CustomText>
       ) : null}
       {/* dailyVaak.js already filters the heading verse out and picks exactly
           2 lines, matching Random Shabad's short preview. */}
       {(vaak?.lines ?? []).map((line, i) => (
-        <CustomText key={i} style={[styles.gurmukhi, { color: gurmukhiColor }]}>
+        <CustomText key={i} style={[styles.gurmukhi, { color: gurmukhiColor, fontFamily: gurmukhiFont }]}>
           {line}
         </CustomText>
       ))}
@@ -120,7 +120,7 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
 
       {showFooter ? (
         <>
-          <View style={[styles.footerDivider, { backgroundColor: separator }]} />
+          <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
             <CustomText style={[styles.meta, { color: mutedText }]}>
               {[vaak.ang ? `Ang ${vaak.ang}` : null, vaak.raag || null].filter(Boolean).join(" · ")}
@@ -132,10 +132,10 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
               hitSlop={6}
               accessibilityRole="button"
             >
-              <CustomText style={[styles.readText, { color: accentBlue }]}>
+              <CustomText style={[styles.readText, { color: gurmukhiColor }]}>
                 {STRINGS.READ_HUKAMNAMA}
               </CustomText>
-              <ChevronRight color={accentBlue} />
+              <ChevronRight color={gurmukhiColor} />
             </Pressable>
           </View>
         </>
@@ -173,7 +173,6 @@ const styles = StyleSheet.create({
   },
   gurmukhi: {
     fontSize: 19,
-    fontWeight: "500",
     textAlign: "center",
     marginBottom: 6,
     lineHeight: 31,
@@ -192,7 +191,7 @@ const styles = StyleSheet.create({
   readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
   // No fontWeight — matches the "Ang · Raag" meta text beside it (Baloo Paaji
   // Regular via CustomText's default resolution) instead of the bold brand font.
-  readText: { fontSize: 14 },
+  readText: { fontSize: 14, fontWeight: "600" },
   skeletonInner: { alignItems: "center", gap: 10, paddingVertical: 6 },
   lineSkeletonWide: { width: "80%", height: 18 },
   lineSkeletonNarrow: { width: "55%", height: 18 },

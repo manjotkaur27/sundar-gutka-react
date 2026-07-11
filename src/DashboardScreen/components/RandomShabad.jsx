@@ -47,11 +47,11 @@ const ChevronRight = ({ color }) => (
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
 const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
-  const { isDark, accentBlue, gold, primaryText, mutedText, separator } = useDashboardTheme();
-  // Client-specified Punjabi/English split — light mode only; dark keeps the
-  // existing primaryText/mutedText pairing.
-  const gurmukhiColor = isDark ? primaryText : "#5A99FD";
-  const translationColor = isDark ? mutedText : "#5D6F8F";
+  const { isDark, accentBlue, gold, mutedText, separator, theme } = useDashboardTheme();
+  // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
+  const gurmukhiColor = "#fff";
+  const translationColor = "#c9ced5ff";
+  const gurmukhiFont = theme.typography.fonts.gurbaniHeavy;
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const [shabad, setShabad] = useState(null);
 
@@ -104,7 +104,7 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
 
       {!loading && !error
         ? (shabad?.lines ?? []).map((line, i) => (
-            <CustomText key={i} style={[styles.gurmukhi, { color: gurmukhiColor }]}>
+            <CustomText key={i} style={[styles.gurmukhi, { color: gurmukhiColor, fontFamily: gurmukhiFont }]}>
               {line}
             </CustomText>
           ))
@@ -117,7 +117,7 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
 
       {!loading && !error && showFooter ? (
         <>
-          <View style={[styles.footerDivider, { backgroundColor: separator }]} />
+          <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
             <CustomText style={[styles.meta, { color: mutedText }]}>
               {[shabad.ang ? `Ang ${shabad.ang}` : null, shabad.raag || null]
@@ -131,10 +131,10 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
                 openInAppBrowser(`https://www.sikhitothemax.org/shabad?id=${shabad.shabadId}`)
               }
             >
-              <CustomText style={[styles.readText, { color: accentBlue }]}>
+              <CustomText style={[styles.readText, { color: gurmukhiColor }]}>
                 {STRINGS.READ_SHABAD}
               </CustomText>
-              <ChevronRight color={accentBlue} />
+              <ChevronRight color={gurmukhiColor} />
             </Pressable>
           </View>
         </>
@@ -172,7 +172,6 @@ const styles = StyleSheet.create({
   lineSkeletonNarrow: { width: "55%", height: 18 },
   gurmukhi: {
     fontSize: 19,
-    fontWeight: "500",
     textAlign: "center",
     marginBottom: 6,
     lineHeight: 31,
@@ -189,9 +188,8 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   meta: { fontSize: 13 },
   readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
-  // No fontWeight — matches the "Ang · Raag" meta text beside it (Baloo Paaji
-  // Regular via CustomText's default resolution) instead of the bold brand font.
-  readText: { fontSize: 14 },
+  readText: { fontSize: 14, fontWeight: 600
+   },
   shuffleBtn: {
     flexDirection: "row",
     alignItems: "center",

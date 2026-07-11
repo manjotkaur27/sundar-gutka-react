@@ -18,7 +18,7 @@ const darkTheme = {
     baniDB: "#eaa040",
     shadow: "#fff",
     highlightTuk: "#77baff",
-    activeView: "#051C41",
+    activeView: "#062346",
     inactiveView: "#041126",
     componentColor: "#fefefe",
     enabledText: "#2581df",

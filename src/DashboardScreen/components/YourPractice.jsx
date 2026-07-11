@@ -3,7 +3,7 @@ import { View, StyleSheet } from "react-native";
 import Svg, { Path, Circle, Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS } from "@common";
-import { getAllTimeTotals } from "../../database/analytics";
+import { getAllTimeTotals, getYearActivityTotals } from "../../database/analytics";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import SectionError from "./SectionError";
@@ -74,7 +74,19 @@ const HeroStat = ({
 }) => (
   <View style={styles.hero}>
     {icon === "book" ? <BookIcon color={accent} /> : <ClockIcon color={accent} />}
-    <CustomText style={[styles.heroValue, { color: numColor, fontFamily: numFont }]}>
+    <CustomText
+      style={[
+        styles.heroValue,
+        {
+          color: numColor,
+          fontFamily: numFont,
+          // Faux-bold to match the username / streak count (custom TTF ignores fontWeight).
+          textShadowColor: numColor,
+          textShadowOffset: { width: 0.5, height: 0 },
+          textShadowRadius: 0.4,
+        },
+      ]}
+    >
       {value}
     </CustomText>
     <CustomText style={[styles.heroLabel, { color: labelColor, fontFamily: labelFont }]}>
@@ -118,18 +130,29 @@ const YourPractice = ({ refreshKey }) => {
   const { isDark, accentBlue, primaryText, mutedText, theme } = useDashboardTheme();
   const numFont = theme.typography.fonts.balooPaajiSemiBold;
   const labelFont = theme.typography.fonts.balooPaaji;
-  // Client-specified accents for the hero numbers/labels — light mode only;
-  // dark keeps the existing primaryText.
-  const heroNumColor = isDark ? primaryText : "#113879";
+  // Hero numbers match the username / streak count exactly (color + faux-bold).
+  const heroNumColor = isDark ? "#ffffffff" : "#00397e";
   const heroLabelColor = isDark ? primaryText : "#5E7090";
+  // Book/clock icon tint — light blue in dark mode, accent in light.
+  const iconColor = isDark ? "#a1bee7ff" : accentBlue;
   const [data, setData] = useState(null);
 
   const task = useCallback(async () => {
     // Baseline (restored once, survives reinstall) + live (this install only) —
     // see getAllTimeTotals for why the raw live-only queries alone reset to 0
     // right after a reinstall.
-    const totals = await getAllTimeTotals();
-    setData(totals);
+    // banisCompleted is all-time; the hours are scoped to the current LOCAL year
+    // (resets at the user's New Year), so fetch both.
+    const year = new Date().getFullYear();
+    const [totals, yearTotals] = await Promise.all([
+      getAllTimeTotals(),
+      getYearActivityTotals(String(year)),
+    ]);
+    setData({
+      banisCompleted: totals.banisCompleted,
+      yearReadingSeconds: yearTotals.total_reading_seconds,
+      yearListeningSeconds: yearTotals.total_listening_seconds,
+    });
     // refreshKey isn't read above but forces a refetch on screen focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
@@ -137,8 +160,8 @@ const YourPractice = ({ refreshKey }) => {
   const { loading, error, retry } = useAsyncSection(task);
 
   const completed = data ? data.banisCompleted : 0;
-  const readSecs = data?.readingSeconds ?? 0;
-  const listenSecs = data?.listeningSeconds ?? 0;
+  const readSecs = data?.yearReadingSeconds ?? 0;
+  const listenSecs = data?.yearListeningSeconds ?? 0;
   const nitnemHrs = Math.floor((readSecs + listenSecs) / 3600);
   // Still tracked in the background — see the commented-out mini-stats block below.
   // const readStat = fmtHrs(readSecs);
@@ -176,7 +199,7 @@ const YourPractice = ({ refreshKey }) => {
                 value={completed.toLocaleString()}
                 label={STRINGS.BANIS_COMPLETED}
                 sub={STRINGS.ALL_TIME}
-                accent={accentBlue}
+                accent={iconColor}
                 numColor={heroNumColor}
                 labelColor={heroLabelColor}
                 mutedText={mutedText}
@@ -190,7 +213,7 @@ const YourPractice = ({ refreshKey }) => {
                 value={`${nitnemHrs}h`}
                 label={STRINGS.IN_NITNEM}
                 sub={STRINGS.THIS_YEAR}
-                accent={accentBlue}
+                accent={iconColor}
                 numColor={heroNumColor}
                 labelColor={heroLabelColor}
                 mutedText={mutedText}
@@ -254,8 +277,8 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   heroBox: { flex: 1, padding: 18 },
   hero: { flex: 1, gap: 5 },
-  heroValue: { fontSize: 26, marginTop: 6 },
-  heroLabel: { fontSize: 13 },
+  heroValue: { fontSize: 39, marginTop: -5 },
+  heroLabel: { fontSize: 13, marginTop: -15 },
   heroSub: { fontSize: 11 },
   heroSkeleton: { width: "70%", height: 40, alignSelf: "flex-start" },
   errorBox: { flex: 1, padding: 18 },

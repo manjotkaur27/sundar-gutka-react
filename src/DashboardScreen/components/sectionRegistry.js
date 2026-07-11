@@ -15,7 +15,9 @@ const S = constant.DASHBOARD_SECTIONS;
 // component and a human label (for the layout editor). Order of this map is the
 // canonical default order, mirrored by DEFAULT_DASHBOARD_ORDER in reducer.js.
 export const SECTION_REGISTRY = {
-  [S.STREAK]: { Component: StreakCard, labelKey: "DAY_STREAK" },
+  // Explicit label (not STRINGS.DAY_STREAK, which is lowercase "day streak" for
+  // the StreakCard's "12 day streak" line) so the layout editor reads "Day Streak".
+  [S.STREAK]: { Component: StreakCard, labelKey: null, label: "Day Streak" },
   [S.NITNEM]: { Component: TodaysNitnem, labelKey: "TODAYS_NITNEM" },
   [S.EXPLORE]: { Component: ExploreGurbani, labelKey: null, label: "Explore Gurbani" },
   [S.PRACTICE]: { Component: YourPractice, labelKey: "YOUR_PRACTICE" },

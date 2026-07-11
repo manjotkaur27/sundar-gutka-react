@@ -19,6 +19,7 @@ export {
   updateSummary,
   getReadingListeningTotals,
   getDailyActivityTotals,
+  getYearActivityTotals,
   getAllTimeTotals,
   markSynced,
   clearAllAnalyticsData,

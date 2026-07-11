@@ -49,6 +49,26 @@ const SunIcon = ({ color }) => (
 );
 SunIcon.propTypes = { color: PropTypes.string.isRequired };
 
+// Arrow rising from the horizon (Amrit Vela / dawn) — mirror of the sunset icon.
+const SunriseIcon = ({ color }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Line x1="12" y1="12" x2="12" y2="2" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Polyline
+      points="8 6 12 2 16 6"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+    <Line x1="5" y1="17" x2="19" y2="17" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Circle cx="8" cy="19.5" r="1" fill={color} />
+    <Circle cx="12" cy="19.5" r="1" fill={color} />
+    <Circle cx="16" cy="19.5" r="1" fill={color} />
+  </Svg>
+);
+SunriseIcon.propTypes = { color: PropTypes.string.isRequired };
+
 // Arrow descending onto the ground/horizon (evening).
 const SunsetIcon = ({ color }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -78,7 +98,7 @@ MoonIcon.propTypes = { color: PropTypes.string.isRequired };
 
 // No outer ring — just the plus glyph (client asked for the circle removed).
 const PlusCircle = ({ color }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
     <Line x1="12" y1="8" x2="12" y2="16" stroke={color} strokeWidth="2" strokeLinecap="round" />
     <Line x1="8" y1="12" x2="16" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
   </Svg>
@@ -107,7 +127,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 14,
   },
-  addText: { fontSize: 14, fontWeight: "600" },
+  addText: { fontSize: 13, fontWeight: "600" },
 });
 
 const hourOf = (time) => moment(time, ["h:mm A", "H:mm"]).hour();
@@ -127,22 +147,22 @@ const labelForTime = (time) => {
 // own icon color and chip background so the three rows read distinctly.
 const kindForTime = (time) => {
   const hour = hourOf(time);
-  if (Number.isNaN(hour) || (hour >= 6 && hour < 16)) return "sun";
-  if (hour >= 16 && hour < 20) return "sunset";
-  return "night";
+  if (Number.isNaN(hour)) return "sun";
+  if (hour >= 3 && hour < 6) return "sunrise"; // Amrit Vela
+  if (hour >= 6 && hour < 16) return "sun"; // Morning / afternoon
+  if (hour >= 16 && hour < 20) return "sunset"; // Evening
+  return "night"; // Night (20:00–03:00)
 };
 
-const ICON_FOR_KIND = { sun: SunIcon, sunset: SunsetIcon, night: MoonIcon };
+const ICON_FOR_KIND = { sunrise: SunriseIcon, sun: SunIcon, sunset: SunsetIcon, night: MoonIcon };
 
 const buildIconStyles = (isDark, accentBlue, mutedText, gold) => ({
+  // Amrit Vela (dawn) shares the warm gold tint with the daytime sun.
+  sunrise: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
   sun: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
   sunset: { color: accentBlue, bg: isDark ? "rgba(38,105,214,0.14)" : "#E3ECFB" },
   night: { color: mutedText, bg: isDark ? "rgba(255,255,255,0.06)" : "#ECEEF2" },
 });
-
-// Client-specified reminder accents — the "+ Reminder" affordance is the same
-// blue in both modes; everything else below is scoped light/dark.
-const ADD_REMINDER_COLOR = "#5A98FC";
 
 const RemindersCard = () => {
   const { isDark, accentBlue, gold, primaryText, mutedText, separator } = useDashboardTheme();
@@ -152,8 +172,13 @@ const RemindersCard = () => {
   const iconStyles = buildIconStyles(isDark, accentBlue, mutedText, gold);
   const sectionColor = isDark ? "#566684" : "#8D9FBD";
   const titleColor = isDark ? primaryText : "#0F3677";
-  const timeColor = isDark ? "#566684" : "#8D9FBD";
-  const offThumbColor = isDark ? "#5A98FC" : null;
+  const timeColor = isDark ? "#a1bee7ff" : "#8D9FBD";
+  // Dark-mode reminder toggle: bright-blue ON track, navy OFF track + navy thumb.
+  const offThumbColor = isDark ? "#33456A" : null;
+  const onTrackColor = isDark ? "#5A8DEF" : null;
+  const offTrackColor = isDark ? "#1B2B47" : null;
+  // "Add a reminder" matches the "Edit banis" link (light blue in dark, accent in light).
+  const addColor = isDark ? "#5A99FD" : accentBlue;
 
   const isReminders = useSelector((state) => state.isReminders);
   const reminderBanis = useSelector((state) => state.reminderBanis);
@@ -258,6 +283,8 @@ const RemindersCard = () => {
                     value={isReminders && !!r.enabled}
                     onValueChange={(v) => toggleItem(r.key, v)}
                     offThumbColor={offThumbColor}
+                    onTrackColor={onTrackColor}
+                    offTrackColor={offTrackColor}
                   />
                 </View>
                 {i < reminders.length - 1 ? (
@@ -275,8 +302,8 @@ const RemindersCard = () => {
             onPress={() => navigation.navigate("ReminderOptions")}
             hitSlop={6}
           >
-            <PlusCircle color={ADD_REMINDER_COLOR} />
-            <CustomText style={[styles.addText, { color: ADD_REMINDER_COLOR }]}>
+            <PlusCircle color={addColor} />
+            <CustomText style={[styles.addText, { color: addColor }]}>
               {STRINGS.ADD_REMINDER}
             </CustomText>
           </Pressable>

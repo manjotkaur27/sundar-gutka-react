@@ -245,6 +245,24 @@ export const getDailyActivityTotals = async () => {
   return rows[0] ?? { total_reading_seconds: 0, total_listening_seconds: 0 };
 };
 
+// Reading/listening seconds for a single year, scoped by the daily_activity date
+// prefix (YYYY). Dates are written in the user's LOCAL time (see the session
+// hooks), so `${new Date().getFullYear()}` gives a total that resets at the
+// user's local New Year. There is no all-time baseline here on purpose — the
+// frozen summary baseline is not year-decomposable, so the per-year figure comes
+// straight from the day-by-day breakdown.
+export const getYearActivityTotals = async (year) => {
+  const result = await runQuery(
+    `SELECT
+      COALESCE(SUM(reading_seconds), 0)   AS total_reading_seconds,
+      COALESCE(SUM(listening_seconds), 0) AS total_listening_seconds
+     FROM daily_activity WHERE date LIKE ?`,
+    [`${year}-%`]
+  );
+  const rows = rowsToArray(result);
+  return rows[0] ?? { total_reading_seconds: 0, total_listening_seconds: 0 };
+};
+
 // ─── Privacy ──────────────────────────────────────────────────────────────────
 
 export const clearAllAnalyticsData = async () => {

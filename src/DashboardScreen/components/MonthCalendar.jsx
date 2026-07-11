@@ -110,7 +110,7 @@ DayMarker.propTypes = {
 };
 DayMarker.defaultProps = { fillColor: null, todayColor: null, missedColor: null };
 
-const MISSED_COLOR = "rgba(150,150,150,0.45)";
+const MISSED_COLOR = "rgba(150, 150, 150, 0.12)";
 
 // Heatmap bucket 0..4 from total activity seconds.
 const intensity = (row) => {
@@ -125,7 +125,10 @@ const intensity = (row) => {
 };
 
 const MonthCalendar = ({ refreshKey }) => {
-  const { accentBlue, mutedText, isDark } = useDashboardTheme();
+  const { accentBlue, mutedText, isDark, theme } = useDashboardTheme();
+  // Real SemiBold glyph for today's number (heavier than the Regular the other
+  // days use). fontWeight alone does nothing on these custom TTFs.
+  const numFont = theme.typography.fonts.balooPaajiSemiBold;
   const todayStr = getTodayStr();
   const curYM = getLocalYM();
 
@@ -245,6 +248,10 @@ const MonthCalendar = ({ refreshKey }) => {
     return `rgba(38,105,214,${opacity})`;
   };
 
+  // Today is always a light-blue fill + accent ring (not the activity heat fill),
+  // so it reads as a distinct "today" marker regardless of how active the day is.
+  const todayFill = isDark ? "rgba(90,153,253,0.22)" : "rgba(38,105,214,0.15)";
+
   return (
     <View style={styles.wrap}>
       <View style={styles.card} {...panResponder.panHandlers}>
@@ -253,7 +260,10 @@ const MonthCalendar = ({ refreshKey }) => {
             {monthYearLabel}
           </CustomText>
           <CustomText style={[styles.daysCount, { color: mutedText }]}>
-            {STRINGS.formatString(STRINGS.DAYS_THIS_MONTH, { count: activeDaysCount })}
+            {STRINGS.formatString(
+              activeDaysCount === 1 ? STRINGS.DAY_THIS_MONTH : STRINGS.DAYS_THIS_MONTH,
+              { count: activeDaysCount }
+            )}
           </CustomText>
         </View>
 
@@ -299,19 +309,26 @@ const MonthCalendar = ({ refreshKey }) => {
                       <View style={styles.dayCircle}>
                         <DayMarker
                           size={CIRCLE}
-                          fillColor={level > 0 ? heatColor(level) : null}
+                          fillColor={isToday ? todayFill : level > 0 ? heatColor(level) : null}
                           todayColor={isToday ? accentBlue : null}
                           missedColor={missed ? MISSED_COLOR : null}
                         />
                         <CustomText
                           style={[
                             styles.dayNum,
-                            // White on a filled heat cell (incl. today); otherwise accent/muted.
-                            // Same font weight as every other day so today doesn't stand out oddly.
+                            // Today always uses the accent (matches its ring/border colour);
+                            // otherwise white on a filled heat cell, accent on a light one, muted else.
                             {
-                              color:
-                                level >= 2 ? "#fff" : isToday || level > 0 ? accentBlue : mutedText,
+                              color: isToday
+                                ? accentBlue
+                                : level >= 2
+                                  ? "#fff"
+                                  : level > 0
+                                    ? accentBlue
+                                    : mutedText,
                             },
+                            // Today reads bolder via the real SemiBold face.
+                            isToday && { fontFamily: numFont },
                           ]}
                         >
                           {d}

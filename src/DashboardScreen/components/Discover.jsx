@@ -19,9 +19,11 @@ const Discover = ({ refreshKey }) => {
   // Client-specified accents — main card texts / secondary card texts, light
   // mode only; dark keeps the existing primaryText/mutedText pairing. The
   // upcoming "days away" number instead gets its own dark-mode value.
-  const cardMainColor = isDark ? primaryText : "#113979";
+  // Hero values (featured word + days-away count) match the "This week" / month
+  // title color exactly.
+  const cardMainColor = isDark ? primaryText : "#113879";
   const cardSecondaryColor = isDark ? mutedText : "#97A5C2";
-  const upcomingNumColor = isDark ? "#EBF1FB" : "#113979";
+  const upcomingNumColor = isDark ? "#ffffffff" : "#113879";
   const [word, setWord] = useState(null);
   const [event, setEvent] = useState(null);
 
@@ -64,7 +66,17 @@ const Discover = ({ refreshKey }) => {
           {!wordSection.loading && !wordSection.error ? (
             <>
               <CustomText
-                style={[styles.word, { color: cardMainColor, fontFamily: gurbaniFont }]}
+                style={[
+                  styles.word,
+                  {
+                    color: cardMainColor,
+                    fontFamily: gurbaniFont,
+                    // Faux-bold to match the streak count / practice numbers.
+                    textShadowColor: cardMainColor,
+                    textShadowOffset: { width: 0.5, height: 0 },
+                    textShadowRadius: 0.4,
+                  },
+                ]}
                 numberOfLines={1}
               >
                 {word?.gurmukhi ?? "—"}
@@ -99,7 +111,14 @@ const Discover = ({ refreshKey }) => {
               <CustomText
                 style={[
                   styles.bigNum,
-                  { color: upcomingNumColor, fontFamily: theme.typography.fonts.balooPaajiSemiBold },
+                  {
+                    color: upcomingNumColor,
+                    fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+                    // Faux-bold to match the streak count / practice numbers.
+                    textShadowColor: upcomingNumColor,
+                    textShadowOffset: { width: 0.5, height: 0 },
+                    textShadowRadius: 0.4,
+                  },
                 ]}
               >
                 {event ? event.daysAway : "—"}
@@ -136,8 +155,8 @@ const styles = StyleSheet.create({
   // instead of being clipped by a locked square height.
   card: { flex: 1, padding: 16 },
   cardTag: { fontSize: 10, fontWeight: "600", letterSpacing: 0.8, marginBottom: 6 },
-  word: { fontSize: 22, lineHeight: 28 },
-  bigNum: { fontSize: 22, lineHeight: 26 },
+  word: { fontSize: 20, lineHeight: 26 },
+  bigNum: { fontSize: 20, lineHeight: 24 },
   translit: { fontSize: 12, marginTop: 2 },
   meaning: { fontSize: 12, marginTop: 6, lineHeight: 16 },
   eventName: { fontSize: 12, fontWeight: "600", marginTop: 5, lineHeight: 15 },

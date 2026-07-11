@@ -28,7 +28,9 @@ const last7 = () => {
 };
 
 const WeekChart = ({ refreshKey }) => {
-  const { isDark, accentBlue, mutedText } = useDashboardTheme();
+  const { isDark, mutedText } = useDashboardTheme();
+  // Highlighted (today) bar + label color.
+  const barColor = isDark ? "#429aff" : "#006bde";
   const [bars, setBars] = useState([]);
   const [avg, setAvg] = useState(0);
 
@@ -62,6 +64,9 @@ const WeekChart = ({ refreshKey }) => {
     <View>
       <SectionLabel
         title={STRINGS.THIS_WEEK}
+        color={isDark ? "#FFFFFF" : "#113879"}
+        uppercase={false}
+        titleStyle={{ fontSize: 20, fontWeight: "600", letterSpacing: 0 }}
         right={
           <CustomText style={[styles.avg, { color: mutedText }]}>
             {STRINGS.formatString(STRINGS.AVG_PER_DAY, { count: avg })}
@@ -90,13 +95,13 @@ const WeekChart = ({ refreshKey }) => {
                         styles.bar,
                         {
                           height: `${Math.max(6, b.ratio * 100)}%`,
-                          backgroundColor: b.isToday ? accentBlue : inactiveBar,
+                          backgroundColor: b.isToday ? barColor : inactiveBar,
                         },
                       ]}
                     />
                   </View>
                   <CustomText
-                    style={[styles.barLabel, { color: b.isToday ? accentBlue : mutedText }]}
+                    style={[styles.barLabel, { color: b.isToday ? barColor : mutedText }]}
                   >
                     {b.letter}
                   </CustomText>

@@ -121,11 +121,11 @@ const hasAnyActivity = (row) =>
 const StreakCard = ({ refreshKey }) => {
   const { mutedText, accentBlue, gold, separator, isDark, theme } = useDashboardTheme();
   // Streak number matches the username: brand blue (light) / off-white (dark).
-  const numColor = isDark ? "#E8EEF7" : "#133a78";
-  const dayStreakColor = isDark ? "#6D83A9" : "#5E7090";
+  const numColor = isDark ? "#ffffffff" : "#00397e";
+  const dayStreakColor = isDark ? "#a1bee7ff" : "#5E7090";
   // Text below the streak count — same client-specified accent as the date
   // line under the username in DashboardHeader.
-  const belowStreakColor = isDark ? "#6E84A9" : "#9AA8C4";
+  const belowStreakColor = isDark ? "#a1bee7ff" : "#9AA8C4";
   // Explicit fontFamily (no fontWeight alongside it) — these are custom TTFs, not
   // system fonts, so pairing them with a numeric fontWeight makes Android
   // synthesize a fake bold/medium and silently fall back off the real glyph.
@@ -236,11 +236,25 @@ const StreakCard = ({ refreshKey }) => {
         <View style={styles.streakText}>
           {/* Nested inline Text keeps the number + label on one shared baseline. */}
           <CustomText style={styles.streakLine}>
-            <CustomText style={[styles.bigNum, { color: numColor, fontFamily: numFont }]}>
+            <CustomText
+              style={[
+                styles.bigNum,
+                {
+                  color: numColor,
+                  fontFamily: numFont,
+                  // Faux-bold: Baloo ships only Regular + SemiBold and a named TTF
+                  // ignores fontWeight, so thicken with a same-color shadow (matches
+                  // the header name treatment).
+                  textShadowColor: numColor,
+                  textShadowOffset: { width: 0.6, height: 0 },
+                  textShadowRadius: 0.5,
+                },
+              ]}
+            >
               {current}
             </CustomText>
             <CustomText style={[styles.dayStreak, { color: dayStreakColor, fontFamily: numFont }]}>
-              {` ${STRINGS.DAY_STREAK}`}
+              {`   ${STRINGS.DAY_STREAK}`}
             </CustomText>
           </CustomText>
           <CustomText style={[styles.sub, { color: belowStreakColor }]} numberOfLines={1}>
@@ -301,6 +315,7 @@ const StreakCard = ({ refreshKey }) => {
                     borderColor: mutedText,
                     borderWidth: 1.5,
                     borderStyle: "dashed",
+                    opacity: 0.2
                   },
                 !s.done && s.isFuture && { borderColor: separator, borderWidth: 1.5 },
                 !s.done && s.isToday && { borderColor: gold, borderWidth: 2 },

@@ -39,8 +39,8 @@ const ShabadVaak = ({ refreshKey }) => {
 
   const inactiveBg = isDark ? "rgba(255,255,255,0.06)" : "#eef2fb";
   const goldTint = isDark ? "rgba(210,144,48,0.16)" : "#FBF1E2";
-  // Client-specified card color for Today's Vaak / Random Shabad, dark mode only.
-  const cardBgOverride = isDark ? { backgroundColor: "#0D2143" } : null;
+  // Client-specified navy card for Today's Vaak / Random Shabad.
+  const cardBgOverride = { backgroundColor: isDark ? "#062346" : "#042f67" };
   const tabs = [
     { id: "vaak", label: STRINGS.TODAYS_VAAK },
     { id: "shabad", label: STRINGS.RANDOM_SHABAD },
@@ -63,7 +63,7 @@ const ShabadVaak = ({ refreshKey }) => {
                   accessibilityState={{ selected: active }}
                 >
                   <CustomText style={[styles.tabText, { color: active ? gold : mutedText }]}>
-                    {t.label}
+                    {t.label.toUpperCase()}
                   </CustomText>
                 </Pressable>
               );
