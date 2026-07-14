@@ -6,14 +6,13 @@ import { toggleScreenAwake, toggleAutoScroll } from "@common/actions";
 import { stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle, showInfoToast, ThemedSwitch } from "@common";
+import { STRINGS, ListItemTitle, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const AutoScroll = () => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
-  const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
   const dispatch = useDispatch();
   const { AUTO_SCROLL } = STRINGS;
   return (

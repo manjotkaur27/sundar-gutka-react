@@ -8,7 +8,7 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { pauseTrack, stopTrack, resetPlayer } from "@common/TrackPlayerUtils";
 import { HomeIcon, SettingsIcon, MusicIcon, ReadIcon } from "@common/icons";
-import { CustomText, actions, constant, STRINGS, showErrorToast, showInfoToast } from "@common";
+import { CustomText, actions, constant, STRINGS, showErrorToast } from "@common";
 import createStyles from "./style";
 
 const { INTERNET_CHECK_URL } = constant;
@@ -74,10 +74,6 @@ const BottomNavigation = ({ activeKey, visible = true }) => {
       clearTimeout(timeoutId);
     }
   }, []);
-
-  const wait = (ms) => new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 
   // Helper function to get current route name
   const getCurrentRouteName = useCallback(() => {

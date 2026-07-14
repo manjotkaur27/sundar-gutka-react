@@ -28,10 +28,7 @@ import {
 } from "../../hooks";
 import { audioControlBarStyles } from "../../style";
 import checkLyricsFileAvailable from "../../utils/checkLRC";
-import {
-  getSequenceFromPosition,
-  getPositionFromSequence,
-} from "../../utils/getSequenceFromPosition";
+import { getSequenceFromPosition } from "../../utils/getSequenceFromPosition";
 import ActionComponents from "../ActionComponent";
 import AudioSettingsModal from "../AudioSettingsModal";
 import DownloadBadge from "../DownloadBadge";
@@ -320,7 +317,7 @@ const AudioControlBar = ({
       sanitizeDuration(currentProgress?.duration) || sanitizeDuration(currentTrack?.trackLengthSec);
     const closePosition = sanitizePosition(currentProgress?.position, closeDuration);
 
-    if (currentTrack?.id && closePosition != null) {
+    if (currentTrack?.id) {
       // Save sequence along with position
       let sequence = null;
       if (currentTrack?.lyricsUrl) {
@@ -497,7 +494,7 @@ const AudioControlBar = ({
       const unmountDuration =
         sanitizeDuration(currentProgress?.duration) || sanitizeDuration(currentTrack?.trackLengthSec);
       const unmountPosition = sanitizePosition(currentProgress?.position, unmountDuration);
-      if (trackId && unmountPosition != null) {
+      if (trackId) {
         if (
           baniLengthChangedRef.current &&
           constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID))
