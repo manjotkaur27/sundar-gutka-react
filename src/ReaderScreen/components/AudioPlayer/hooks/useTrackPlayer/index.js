@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Platform } from "react-native";
 import { exists, stat } from "react-native-fs";
 import TrackPlayer, { usePlaybackState, useProgress, State } from "react-native-track-player";
 import { useSelector } from "react-redux";
@@ -13,7 +12,6 @@ import {
   getTrackPlayerState,
 } from "@common/TrackPlayerUtils";
 import { logError, logMessage } from "@common";
-import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
 import {
   downloadAudioOnly,
   getFullPrefetchTrackPath,
@@ -21,6 +19,7 @@ import {
   touchPrefetchTrack,
   prunePrefetchCache,
 } from "../../utils/audioDownloader";
+import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
 
 const useTrackPlayer = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -94,10 +93,7 @@ const useTrackPlayer = () => {
       wasPlayingBeforeBufferRef.current = true;
     } else if (playbackState?.state === State.Paused) {
       wasPlayingBeforeBufferRef.current = false;
-    } else if (
-      playbackState?.state === State.Stopped ||
-      playbackState?.state === State.None
-    ) {
+    } else if (playbackState?.state === State.Stopped || playbackState?.state === State.None) {
       // If play() was explicitly called within the last 2000ms, ignore this
       // stale Stop/None event coming from the pre-play reset() command!
       if (Date.now() - explicitPlayTriggeredAtRef.current > 2000) {
@@ -124,9 +120,9 @@ const useTrackPlayer = () => {
   // atom parsing before ExoPlayer can begin buffering audio data. A 500ms
   // watchdog fires during initial load and interferes with the state machine.
   useEffect(() => {
-    if (!isInitialized || !isAudio || !isAudioFeatureOn) return;
-    if (playbackState?.state !== State.Buffering) return;
-    if (!wasPlayingBeforeBufferRef.current) return;
+    if (!isInitialized || !isAudio || !isAudioFeatureOn) return undefined;
+    if (playbackState?.state !== State.Buffering) return undefined;
+    if (!wasPlayingBeforeBufferRef.current) return undefined;
 
     const timer = setTimeout(() => {
       TrackPlayer.play().catch(() => {});
@@ -142,10 +138,14 @@ const useTrackPlayer = () => {
       }
       try {
         await stopTrack();
-      } catch (_) {}
+      } catch (_e) {
+        /* intentional no-op */
+      }
       try {
         await resetPlayer();
-      } catch (_) {}
+      } catch (_e) {
+        /* intentional no-op */
+      }
       currentTrackIdRef.current = null;
       setIsPlaying(false);
     };
@@ -266,11 +266,14 @@ const useTrackPlayer = () => {
 
         // Capture playing state via native API (React state is stale in async).
         // Used by both seek paths to auto-resume after the seek settles.
+        // eslint-disable-next-line no-await-in-loop
         const playbackStateNow = await TrackPlayer.getPlaybackState().catch(() => null);
         const wasPlaying =
           playbackStateNow?.state === State.Playing ||
-          (playbackStateNow?.state === State.Buffering && wasPlayingBeforeBufferRef.current === true);
+          (playbackStateNow?.state === State.Buffering &&
+            wasPlayingBeforeBufferRef.current === true);
 
+        // eslint-disable-next-line no-await-in-loop
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack) {
           return;
@@ -291,36 +294,42 @@ const useTrackPlayer = () => {
 
           let localPath = null;
           try {
+            // eslint-disable-next-line no-await-in-loop
             if (await exists(fullDownloadedPath)) {
+              // eslint-disable-next-line no-await-in-loop
               const fileStat = await stat(fullDownloadedPath);
               if (expectedBytes <= 0 || Number(fileStat.size) >= expectedBytes * 0.9) {
                 localPath = fullDownloadedPath;
               }
             }
+            // eslint-disable-next-line no-await-in-loop
             if (!localPath && (await exists(prefetchPath))) {
+              // eslint-disable-next-line no-await-in-loop
               const fileStat = await stat(prefetchPath);
               if (expectedBytes <= 0 || Number(fileStat.size) >= expectedBytes * 0.9) {
                 localPath = prefetchPath;
+                // eslint-disable-next-line no-await-in-loop
                 await touchPrefetchTrack(remoteUrl).catch(() => {});
               }
             }
-          } catch (_) {
+          } catch (_e) {
             // exists/stat failure is non-fatal; fall through to plain remote seek.
           }
 
           if (localPath) {
             try {
-
+              // eslint-disable-next-line no-await-in-loop
               const nativeProgressBeforeSwap = await TrackPlayer.getProgress().catch(() => null);
               const nativeDuration = Number(nativeProgressBeforeSwap?.duration);
               const metaDuration = Number(activeTrack?.duration);
-              const knownDuration =
-                Number.isFinite(nativeDuration) && nativeDuration > 0
-                  ? nativeDuration
-                  : Number.isFinite(metaDuration) && metaDuration > 0
-                  ? metaDuration
-                  : null;
-
+              let knownDuration;
+              if (Number.isFinite(nativeDuration) && nativeDuration > 0) {
+                knownDuration = nativeDuration;
+              } else if (Number.isFinite(metaDuration) && metaDuration > 0) {
+                knownDuration = metaDuration;
+              } else {
+                knownDuration = null;
+              }
               const maxSeekable = knownDuration != null ? Math.max(0, knownDuration - 0.5) : null;
               const safePosition =
                 maxSeekable != null
@@ -328,13 +337,17 @@ const useTrackPlayer = () => {
                   : Math.max(0, targetPosition);
 
               // Reload with local file — this is fast (disk I/O, no network).
+              // eslint-disable-next-line no-await-in-loop
               await TrackPlayer.reset();
+              // eslint-disable-next-line no-await-in-loop
               await addTrack({
                 ...activeTrack,
                 url: formatUrlForTrackPlayer(localPath),
               });
+              // eslint-disable-next-line no-await-in-loop
               await TrackPlayer.seekTo(safePosition);
               if (wasPlaying) {
+                // eslint-disable-next-line no-await-in-loop
                 await playTrack();
               }
               // Update the ref so subsequent operations know the track is local.
@@ -357,7 +370,7 @@ const useTrackPlayer = () => {
           });
         }
 
-        // --- Original remote seek path (fallback or already-local track) ---
+        // eslint-disable-next-line no-await-in-loop
         const nativeProgress = await TrackPlayer.getProgress().catch(() => null);
 
         const nativeDuration = Number(nativeProgress?.duration);
@@ -379,11 +392,13 @@ const useTrackPlayer = () => {
             ? Math.min(Math.max(0, targetPosition), maxSeekable)
             : Math.max(0, targetPosition);
 
+        // eslint-disable-next-line no-await-in-loop
         await TrackPlayer.seekTo(safePosition);
         // Android (and occasionally iOS) transitions to Paused after seekTo
         // even when the track was playing before the seek. Auto-resume so the
         // user never has to spam the play button.
         if (wasPlaying) {
+          // eslint-disable-next-line no-await-in-loop
           await playTrack();
         }
       }

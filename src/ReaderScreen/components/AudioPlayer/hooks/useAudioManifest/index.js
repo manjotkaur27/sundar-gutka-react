@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { DocumentDirectoryPath, exists, stat, unlink } from "react-native-fs";
 import { useSelector, useDispatch } from "react-redux";
-import { actions, logError, STRINGS } from "@common";
 import constant from "@common/constant";
+import { actions, logError, STRINGS } from "@common";
 import { fetchManifest } from "@service";
 
 const ALLOWED_ARTIST_IDS = [4, 8, 9];
@@ -18,7 +18,7 @@ const CANONICAL_ARTIST_NAMES = {
 };
 
 // Base URL for all audio assets — served via the Azure Front Door CDN.
-const _BLOB = constant.AUDIO_BASE_URL;
+const BLOB_BASE_URL = constant.AUDIO_BASE_URL;
 
 /**
  * Emergency manifests cover all supported banis for all 3 artists.
@@ -29,25 +29,106 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   2: {
     status: "success",
     data: [
-      { bani_id: 2, track_id: 1002, track_url: `${_BLOB}/BhaiJarnailSingh/JapjiSahib.m4a`, track_length_seconds: 985.547, track_size_mb: 15.39, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/japji-sahib.json` },
-      { bani_id: 2, track_id: 2002, track_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.m4a`, track_length_seconds: 1156, track_size_mb: 17.94, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JapjiSahib.json` },
-      { bani_id: 2, track_id: 3002, track_url: `${_BLOB}/GianiGurdevSingh/JapjiSahib.m4a`, track_length_seconds: 1257, track_size_mb: 19.69, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/JapjiSahib.json` },
+      {
+        bani_id: 2,
+        track_id: 1002,
+        track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/JapjiSahib.m4a`,
+        track_length_seconds: 985.547,
+        track_size_mb: 15.39,
+        artist_name: "Bhai Jarnail Singh",
+        artist_id: 4,
+        lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/japji-sahib.json`,
+      },
+      {
+        bani_id: 2,
+        track_id: 2002,
+        track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/JapjiSahib.m4a`,
+        track_length_seconds: 1156,
+        track_size_mb: 17.94,
+        artist_name: "Bibi Indermohan Kaur",
+        artist_id: 8,
+        lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/JapjiSahib.json`,
+      },
+      {
+        bani_id: 2,
+        track_id: 3002,
+        track_url: `${BLOB_BASE_URL}/GianiGurdevSingh/JapjiSahib.m4a`,
+        track_length_seconds: 1257,
+        track_size_mb: 19.69,
+        artist_name: "Giani Gurdev Singh",
+        artist_id: 9,
+        lyrics_url: `${BLOB_BASE_URL}/GianiGurdevSingh/JapjiSahib.json`,
+      },
     ],
   },
   4: {
     status: "success",
     data: [
-      { bani_id: 4, track_id: 1004, track_url: `${_BLOB}/BhaiJarnailSingh/JaapSahib.m4a`, track_length_seconds: 987, track_size_mb: 15.36, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/jaap-sahib.json` },
-      { bani_id: 4, track_id: 2004, track_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.m4a`, track_length_seconds: 1170, track_size_mb: 18.18, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/JaapSahib.json` },
-      { bani_id: 4, track_id: 3004, track_url: `${_BLOB}/GianiGurdevSingh/JaapSahib.m4a`, track_length_seconds: 1281, track_size_mb: 20.06, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/JaapSahib.json` },
+      {
+        bani_id: 4,
+        track_id: 1004,
+        track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/JaapSahib.m4a`,
+        track_length_seconds: 987,
+        track_size_mb: 15.36,
+        artist_name: "Bhai Jarnail Singh",
+        artist_id: 4,
+        lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/jaap-sahib.json`,
+      },
+      {
+        bani_id: 4,
+        track_id: 2004,
+        track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/JaapSahib.m4a`,
+        track_length_seconds: 1170,
+        track_size_mb: 18.18,
+        artist_name: "Bibi Indermohan Kaur",
+        artist_id: 8,
+        lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/JaapSahib.json`,
+      },
+      {
+        bani_id: 4,
+        track_id: 3004,
+        track_url: `${BLOB_BASE_URL}/GianiGurdevSingh/JaapSahib.m4a`,
+        track_length_seconds: 1281,
+        track_size_mb: 20.06,
+        artist_name: "Giani Gurdev Singh",
+        artist_id: 9,
+        lyrics_url: `${BLOB_BASE_URL}/GianiGurdevSingh/JaapSahib.json`,
+      },
     ],
   },
   6: {
     status: "success",
     data: [
-      { bani_id: 6, track_id: 1006, track_url: `${_BLOB}/BhaiJarnailSingh/Saviye.m4a`, track_length_seconds: 207, track_size_mb: 3.23, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/saviye.json` },
-      { bani_id: 6, track_id: 2006, track_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.m4a`, track_length_seconds: 227, track_size_mb: 3.52, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/TavParsadSwayiye.json` },
-      { bani_id: 6, track_id: 3006, track_url: `${_BLOB}/GianiGurdevSingh/TavParsadSwayiye.m4a`, track_length_seconds: 237, track_size_mb: 3.71, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/TavParsadSwayiye.json` },
+      {
+        bani_id: 6,
+        track_id: 1006,
+        track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/Saviye.m4a`,
+        track_length_seconds: 207,
+        track_size_mb: 3.23,
+        artist_name: "Bhai Jarnail Singh",
+        artist_id: 4,
+        lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/saviye.json`,
+      },
+      {
+        bani_id: 6,
+        track_id: 2006,
+        track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/TavParsadSwayiye.m4a`,
+        track_length_seconds: 227,
+        track_size_mb: 3.52,
+        artist_name: "Bibi Indermohan Kaur",
+        artist_id: 8,
+        lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/TavParsadSwayiye.json`,
+      },
+      {
+        bani_id: 6,
+        track_id: 3006,
+        track_url: `${BLOB_BASE_URL}/GianiGurdevSingh/TavParsadSwayiye.m4a`,
+        track_length_seconds: 237,
+        track_size_mb: 3.71,
+        artist_name: "Giani Gurdev Singh",
+        artist_id: 9,
+        lyrics_url: `${BLOB_BASE_URL}/GianiGurdevSingh/TavParsadSwayiye.json`,
+      },
     ],
   },
   9: (baniLength) => {
@@ -74,7 +155,16 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       return {
         status: "success",
         data: [
-          { bani_id: 9, track_id: 2009, track_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.m4a`, track_length_seconds: 268, track_size_mb: 4.16, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/ChaupaiSahib.json` },
+          {
+            bani_id: 9,
+            track_id: 2009,
+            track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/ChaupaiSahib.m4a`,
+            track_length_seconds: 268,
+            track_size_mb: 4.16,
+            artist_name: "Bibi Indermohan Kaur",
+            artist_id: 8,
+            lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/ChaupaiSahib.json`,
+          },
         ],
       };
     }
@@ -83,17 +173,62 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     return {
       status: "success",
       data: [
-        { bani_id: 9, track_id: 1009, track_url: `${_BLOB}/BhaiJarnailSingh/ChaupaiSahib.m4a`, track_length_seconds: 317, track_size_mb: 4.94, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/chopai-sahib.json` },
-        { bani_id: 9, track_id: 3009, track_url: `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.m4a`, track_length_seconds: 378, track_size_mb: 5.86, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/ChaupaiSahib.json` },
+        {
+          bani_id: 9,
+          track_id: 1009,
+          track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/ChaupaiSahib.m4a`,
+          track_length_seconds: 317,
+          track_size_mb: 4.94,
+          artist_name: "Bhai Jarnail Singh",
+          artist_id: 4,
+          lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/chopai-sahib.json`,
+        },
+        {
+          bani_id: 9,
+          track_id: 3009,
+          track_url: `${BLOB_BASE_URL}/GianiGurdevSingh/ChaupaiSahib.m4a`,
+          track_length_seconds: 378,
+          track_size_mb: 5.86,
+          artist_name: "Giani Gurdev Singh",
+          artist_id: 9,
+          lyrics_url: `${BLOB_BASE_URL}/GianiGurdevSingh/ChaupaiSahib.json`,
+        },
       ],
     };
   },
   10: {
     status: "success",
     data: [
-      { bani_id: 10, track_id: 1010, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib.m4a`, track_length_seconds: 784, track_size_mb: 12.18, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib.json` },
-      { bani_id: 10, track_id: 2010, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.m4a`, track_length_seconds: 869, track_size_mb: 13.48, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib.json` },
-      { bani_id: 10, track_id: 3010, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.m4a`, track_length_seconds: 994, track_size_mb: 15.52, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib.json` },
+      {
+        bani_id: 10,
+        track_id: 1010,
+        track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/AnandSahib.m4a`,
+        track_length_seconds: 784,
+        track_size_mb: 12.18,
+        artist_name: "Bhai Jarnail Singh",
+        artist_id: 4,
+        lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/anand-sahib.json`,
+      },
+      {
+        bani_id: 10,
+        track_id: 2010,
+        track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/AnandSahib.m4a`,
+        track_length_seconds: 869,
+        track_size_mb: 13.48,
+        artist_name: "Bibi Indermohan Kaur",
+        artist_id: 8,
+        lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/AnandSahib.json`,
+      },
+      {
+        bani_id: 10,
+        track_id: 3010,
+        track_url: `${BLOB_BASE_URL}/GianiGurdevSingh/AnandSahib.m4a`,
+        track_length_seconds: 994,
+        track_size_mb: 15.52,
+        artist_name: "Giani Gurdev Singh",
+        artist_id: 9,
+        lyrics_url: `${BLOB_BASE_URL}/GianiGurdevSingh/AnandSahib.json`,
+      },
     ],
   },
   // Anand Sahib 6 Paudi — pauris 1–5 + pauri 40 (last) trimmed from bani 10 audio.
@@ -101,9 +236,36 @@ const EMERGENCY_MANIFEST_BY_BANI = {
   1000: {
     status: "success",
     data: [
-      { bani_id: 1000, track_id: 11000, track_url: `${_BLOB}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 150.977, track_size_mb: 2.34, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/anand-sahib-6-pauri.json` },
-      { bani_id: 1000, track_id: 21000, track_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`, track_length_seconds: 142.631, track_size_mb: 2.19, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/AnandSahib-6-pauri.json` },
-      { bani_id: 1000, track_id: 31000, track_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`, track_length_seconds: 182.856, track_size_mb: 2.84, artist_name: "Giani Gurdev Singh", artist_id: 9, lyrics_url: `${_BLOB}/GianiGurdevSingh/AnandSahib-6-pauri.json` },
+      {
+        bani_id: 1000,
+        track_id: 11000,
+        track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/AnandSahib-6-pauri.m4a`,
+        track_length_seconds: 150.977,
+        track_size_mb: 2.34,
+        artist_name: "Bhai Jarnail Singh",
+        artist_id: 4,
+        lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/anand-sahib-6-pauri.json`,
+      },
+      {
+        bani_id: 1000,
+        track_id: 21000,
+        track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/AnandSahib-6-pauri.m4a`,
+        track_length_seconds: 142.631,
+        track_size_mb: 2.19,
+        artist_name: "Bibi Indermohan Kaur",
+        artist_id: 8,
+        lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/AnandSahib-6-pauri.json`,
+      },
+      {
+        bani_id: 1000,
+        track_id: 31000,
+        track_url: `${BLOB_BASE_URL}/GianiGurdevSingh/AnandSahib-6-pauri.m4a`,
+        track_length_seconds: 182.856,
+        track_size_mb: 2.84,
+        artist_name: "Giani Gurdev Singh",
+        artist_id: 9,
+        lyrics_url: `${BLOB_BASE_URL}/GianiGurdevSingh/AnandSahib-6-pauri.json`,
+      },
     ],
   },
   21: (baniLength) => {
@@ -124,8 +286,26 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     return {
       status: "success",
       data: [
-        { bani_id: 21, track_id: 1021, track_url: `${_BLOB}/BhaiJarnailSingh/RehrasSahib-trimmed.m4a`, track_length_seconds: 1328.845, track_size_mb: 20.52, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/Rehras-sahib-trimmed.json` },
-        { bani_id: 21, track_id: 2021, track_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.m4a`, track_length_seconds: 1145, track_size_mb: 17.77, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/RehrasSahib.json` },
+        {
+          bani_id: 21,
+          track_id: 1021,
+          track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/RehrasSahib-trimmed.m4a`,
+          track_length_seconds: 1328.845,
+          track_size_mb: 20.52,
+          artist_name: "Bhai Jarnail Singh",
+          artist_id: 4,
+          lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/Rehras-sahib-trimmed.json`,
+        },
+        {
+          bani_id: 21,
+          track_id: 2021,
+          track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/RehrasSahib.m4a`,
+          track_length_seconds: 1145,
+          track_size_mb: 17.77,
+          artist_name: "Bibi Indermohan Kaur",
+          artist_id: 8,
+          lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/RehrasSahib.json`,
+        },
       ],
     };
   },
@@ -134,7 +314,7 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     // Short/Medium: seq 32-86
     // Long: seq 1-86
     // XL: seq 1-146 (No artist has recorded up to 146)
-    
+
     // Original (no-suffix) files only — no trimmed variants.
     // Indermohan's original covers Short/Medium (seq 33–86).
     // BJS original covers Long (seq 1–86).
@@ -149,7 +329,16 @@ const EMERGENCY_MANIFEST_BY_BANI = {
       return {
         status: "success",
         data: [
-          { bani_id: 23, track_id: 2023, track_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.m4a`, track_length_seconds: 239, track_size_mb: 3.70, artist_name: "Bibi Indermohan Kaur", artist_id: 8, lyrics_url: `${_BLOB}/IndermohanKaurUK/KirtanSohaila.json` },
+          {
+            bani_id: 23,
+            track_id: 2023,
+            track_url: `${BLOB_BASE_URL}/IndermohanKaurUK/KirtanSohaila.m4a`,
+            track_length_seconds: 239,
+            track_size_mb: 3.7,
+            artist_name: "Bibi Indermohan Kaur",
+            artist_id: 8,
+            lyrics_url: `${BLOB_BASE_URL}/IndermohanKaurUK/KirtanSohaila.json`,
+          },
         ],
       };
     }
@@ -158,7 +347,16 @@ const EMERGENCY_MANIFEST_BY_BANI = {
     return {
       status: "success",
       data: [
-        { bani_id: 23, track_id: 1023, track_url: `${_BLOB}/BhaiJarnailSingh/KirtanSohaila-trimmed.m4a`, track_length_seconds: 325.858, track_size_mb: 5.03, artist_name: "Bhai Jarnail Singh", artist_id: 4, lyrics_url: `${_BLOB}/BhaiJarnailSingh/kirtan-sohaila-trimmed.json` },
+        {
+          bani_id: 23,
+          track_id: 1023,
+          track_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/KirtanSohaila-trimmed.m4a`,
+          track_length_seconds: 325.858,
+          track_size_mb: 5.03,
+          artist_name: "Bhai Jarnail Singh",
+          artist_id: 4,
+          lyrics_url: `${BLOB_BASE_URL}/BhaiJarnailSingh/kirtan-sohaila-trimmed.json`,
+        },
       ],
     };
   },
@@ -188,10 +386,10 @@ const isAllowedArtist = ({ artistID, displayName, trackUrl }) => {
 // Module-level cache for raw API responses.
 // Re-navigating to the same bani within a session reuses the cached response
 // instead of firing another network round-trip.
-const _manifestApiCache = new Map();
+const manifestApiCache = new Map();
 
-export const __resetManifestApiCacheForTests = () => {
-  _manifestApiCache.clear();
+export const resetManifestApiCacheForTests = () => {
+  manifestApiCache.clear();
 };
 
 const useAudioManifest = (baniID) => {
@@ -206,6 +404,7 @@ const useAudioManifest = (baniID) => {
   const audioManifest = useSelector((state) => state.audioManifest);
   // Gate manifest fetch on redux-persist rehydration — prevents re-downloading
   // tracks that are already on disk but whose manifest hasn't been restored yet.
+  // eslint-disable-next-line no-underscore-dangle
   const isRehydrated = useSelector((state) => state._persist?.rehydrated);
 
   // Map API manifest data to our track format
@@ -227,11 +426,14 @@ const useAudioManifest = (baniID) => {
       )
       .map((item) => {
         const hasExplicitLyricsUrl = Object.prototype.hasOwnProperty.call(item, "lyrics_url");
-        const lyricsUrl = hasExplicitLyricsUrl
-          ? item.lyrics_url
-          : item.track_url
-          ? item.track_url.replace(/\.m4a$/i, ".json")
-            : null;
+        let lyricsUrl;
+        if (hasExplicitLyricsUrl) {
+          lyricsUrl = item.lyrics_url;
+        } else if (item.track_url) {
+          lyricsUrl = item.track_url.replace(/\.m4a$/i, ".json");
+        } else {
+          lyricsUrl = null;
+        }
 
         return {
           id: item.track_id,
@@ -326,7 +528,12 @@ const useAudioManifest = (baniID) => {
       );
 
       if (corruptIds1.size > 0) {
-        dispatch(actions.setAudioManifest(baniID, (audioManifest[baniID] || []).filter((t) => !corruptIds1.has(String(t.id)))));
+        dispatch(
+          actions.setAudioManifest(
+            baniID,
+            (audioManifest[baniID] || []).filter((t) => !corruptIds1.has(String(t.id)))
+          )
+        );
       }
       // Filter out any missing/broken downloads
       return validatedDownloads.filter((track) => track !== null);
@@ -345,8 +552,7 @@ const useAudioManifest = (baniID) => {
         // remoteUrl doesn't match the currently expected URL, the local file
         // belongs to a different length — ignore it and stream the correct one.
         const remoteUrlMatches =
-          !downloadedTrack?.remoteUrl ||
-          downloadedTrack.remoteUrl === apiTrack.audioUrl;
+          !downloadedTrack?.remoteUrl || downloadedTrack.remoteUrl === apiTrack.audioUrl;
         const validDownloadedTrack = downloadedTrack && remoteUrlMatches ? downloadedTrack : null;
 
         const fullLocalPath = validDownloadedTrack
@@ -363,7 +569,8 @@ const useAudioManifest = (baniID) => {
           try {
             hasAudio = await exists(fullLocalPath);
             if (hasAudio) {
-              const expectedBytes = (validDownloadedTrack.trackSizeMB || apiTrack.trackSizeMB || 0) * 1024 * 1024;
+              const expectedBytes =
+                (validDownloadedTrack.trackSizeMB || apiTrack.trackSizeMB || 0) * 1024 * 1024;
               if (expectedBytes > 0) {
                 const fileStat = await stat(fullLocalPath);
                 if (Number(fileStat.size) < expectedBytes * 0.9) {
@@ -392,7 +599,8 @@ const useAudioManifest = (baniID) => {
             ...apiTrack,
             audioUrl: fullLocalPath,
             // If local lyrics are missing, keep remote lyricsUrl for sync-scroll.
-            lyricsUrl: validDownloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : apiTrack.lyricsUrl,
+            lyricsUrl:
+              validDownloadedTrack.lyricsUrl && hasLyrics ? lyricsUrlPath : apiTrack.lyricsUrl,
             remoteUrl: apiTrack.audioUrl,
             isLocallyDownloaded: true,
           };
@@ -408,7 +616,12 @@ const useAudioManifest = (baniID) => {
     );
 
     if (corruptIds2.size > 0) {
-      dispatch(actions.setAudioManifest(baniID, (audioManifest[baniID] || []).filter((t) => !corruptIds2.has(String(t.id)))));
+      dispatch(
+        actions.setAudioManifest(
+          baniID,
+          (audioManifest[baniID] || []).filter((t) => !corruptIds2.has(String(t.id)))
+        )
+      );
     }
 
     return mergedTracks;
@@ -424,12 +637,12 @@ const useAudioManifest = (baniID) => {
     //  1. Saved user preference (defaultAudio) — primary source
     //  2. Currently playing track — used when baniLength changes while audio
     //     is active; ensures currentPlaying gets the new-length URL instantly
-    const preferredArtistId =
-      defaultAudio[baniID]?.artistID != null
-        ? defaultAudio[baniID].artistID.toString()
-        : currentPlaying?.artistID != null
-        ? currentPlaying.artistID.toString()
-        : null;
+    let preferredArtistId = null;
+    if (defaultAudio[baniID]?.artistID != null) {
+      preferredArtistId = defaultAudio[baniID].artistID.toString();
+    } else if (currentPlaying?.artistID != null) {
+      preferredArtistId = currentPlaying.artistID.toString();
+    }
 
     if (preferredArtistId) {
       const defaultTrack = trackList.find(
@@ -453,7 +666,7 @@ const useAudioManifest = (baniID) => {
       // Cache is keyed by baniID+baniLength so a length change always triggers
       // a fresh fetch (different track/lyrics URLs may be needed).
       const cacheKey = `${baniID}:${baniLength}`;
-      const cachedManifest = _manifestApiCache.get(cacheKey);
+      const cachedManifest = manifestApiCache.get(cacheKey);
       const hasNonEmptyCachedData =
         cachedManifest && Array.isArray(cachedManifest.data) && cachedManifest.data.length > 0;
 
@@ -462,7 +675,7 @@ const useAudioManifest = (baniID) => {
       } else {
         manifest = await fetchManifest(baniID);
         if (manifest && Array.isArray(manifest.data) && manifest.data.length > 0) {
-          _manifestApiCache.set(cacheKey, manifest);
+          manifestApiCache.set(cacheKey, manifest);
         }
       }
 
@@ -487,7 +700,8 @@ const useAudioManifest = (baniID) => {
       // Merge downloaded tracks with API tracks if available
       if (downloadedTracks && downloadedTracks.length > 0) {
         const mappedDataLength = mappedData ? mappedData.length : 0;
-        const isExplicitlyEmpty = constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID)) && mappedDataLength === 0;
+        const isExplicitlyEmpty =
+          constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID)) && mappedDataLength === 0;
         if (!isExplicitlyEmpty) {
           mappedData = await mergeDownloadedTracks(mappedData || [], downloadedTracks);
         }

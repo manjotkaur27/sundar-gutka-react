@@ -19,9 +19,7 @@ const useHeader = (navigation) => {
       backgroundColor={styles.headerStyle?.backgroundColor}
       titleColor={styles.headerTitleStyle?.color}
       titleStyle={{ fontFamily: theme.typography.fonts.balooPaajiSemiBold }}
-      leftComponent={
-        <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />
-      }
+      leftComponent={<BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />}
     />
   );
 

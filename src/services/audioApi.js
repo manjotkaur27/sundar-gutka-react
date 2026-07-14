@@ -14,11 +14,7 @@ const GURDEV_ARTIST_NAME = "Giani Gurdev Singh";
 
 // Keywords used by the filter gate
 const ALLOWED_ARTIST_NAME_KEYWORDS = ["jarnail", "indermohan", "gurdev"];
-const ALLOWED_ARTIST_URL_KEYWORDS = [
-  "bhaijarnailsingh",
-  "indermohankauruk",
-  "gianigurdevsingh",
-];
+const ALLOWED_ARTIST_URL_KEYWORDS = ["bhaijarnailsingh", "indermohankauruk", "gianigurdevsingh"];
 
 // ─── Saviye (bani 6) Jarnail track override ──────────────────────────────────
 const SAVIYE_BANI_ID = 6;
@@ -198,7 +194,7 @@ const INDERMOHAN_TRACKS_BY_BANI = {
       track_id: 2021,
       track_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.m4a`,
       track_length_seconds: 1145,
-      track_size_mb: 17.80,
+      track_size_mb: 17.8,
       artist_name: INDERMOHAN_ARTIST_NAME,
       artist_id: INDERMOHAN_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/IndermohanKaurUK/RehrasSahib.json`,
@@ -264,7 +260,7 @@ const GURDEV_TRACKS_BY_BANI = {
       track_id: 3009,
       track_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.m4a`,
       track_length_seconds: 378,
-      track_size_mb: 5.90,
+      track_size_mb: 5.9,
       artist_name: GURDEV_ARTIST_NAME,
       artist_id: GURDEV_ARTIST_ID,
       lyrics_url: `${BLOB_BASE}/GianiGurdevSingh/ChaupaiSahib.json`,
@@ -355,15 +351,11 @@ const mergeStaticTracksForBani = (baniId, tracks, staticMap) => {
  */
 const getInjectedManifestForBani = (baniId) => {
   const numericId = Number(baniId);
-  const jarnailTracks = (JARNAIL_TRACKS_BY_BANI[numericId] || []).map(
-    attachLyricsUrlIfAvailable
-  );
+  const jarnailTracks = (JARNAIL_TRACKS_BY_BANI[numericId] || []).map(attachLyricsUrlIfAvailable);
   const indermohanTracks = (INDERMOHAN_TRACKS_BY_BANI[numericId] || []).map(
     attachLyricsUrlIfAvailable
   );
-  const gurdevTracks = (GURDEV_TRACKS_BY_BANI[numericId] || []).map(
-    attachLyricsUrlIfAvailable
-  );
+  const gurdevTracks = (GURDEV_TRACKS_BY_BANI[numericId] || []).map(attachLyricsUrlIfAvailable);
 
   const allTracks = [...jarnailTracks, ...indermohanTracks, ...gurdevTracks];
 

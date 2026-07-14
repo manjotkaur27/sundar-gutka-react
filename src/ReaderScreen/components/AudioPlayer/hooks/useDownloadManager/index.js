@@ -4,7 +4,13 @@ import { stopDownload, unlink, exists, stat } from "react-native-fs";
 import { logError, trackTrackDownload } from "@common";
 import { downloadTrack, getFullLocalTrackPath } from "../../utils/audioDownloader";
 
-const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloaded, baniID, baniTitle) => {
+const useDownloadManager = (
+  currentPlaying,
+  addTrackToManifest,
+  isTrackDownloaded,
+  baniID,
+  baniTitle
+) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   // Ref-based in-flight guard: prevents a second download from starting if
@@ -76,7 +82,11 @@ const useDownloadManager = (currentPlaying, addTrackToManifest, isTrackDownloade
         }
       }, 5 * 60 * 1000);
 
-      const result = await downloadTrack(currentPlaying.audioUrl, currentPlaying.displayName, currentPlaying.trackSizeMB);
+      const result = await downloadTrack(
+        currentPlaying.audioUrl,
+        currentPlaying.displayName,
+        currentPlaying.trackSizeMB
+      );
       clearTimeout(watchdog);
       downloadJobIdRef.current = null;
 

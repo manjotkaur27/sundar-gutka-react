@@ -4,7 +4,11 @@ import { persistReducer, persistStore } from "redux-persist";
 import crashlyticsMiddleware from "./middleware/crashlytics";
 import reducer from "./reducer";
 
-const persistConfig = { key: "root", storage: AsyncStorage, blacklist: ["navigation", "baniList", "audioManifest"] };
+const persistConfig = {
+  key: "root",
+  storage: AsyncStorage,
+  blacklist: ["navigation", "baniList", "audioManifest"],
+};
 const persistedReducer = persistReducer(persistConfig, reducer);
 
 const configure = () => {
@@ -17,7 +21,12 @@ const configure = () => {
         immutableCheck: __DEV__,
         serializableCheck: {
           // redux-persist dispatches non-serializable functions during persist/flush
-          ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'persist/FLUSH', 'persist/REGISTER'],
+          ignoredActions: [
+            "persist/PERSIST",
+            "persist/REHYDRATE",
+            "persist/FLUSH",
+            "persist/REGISTER",
+          ],
         },
       }).concat(crashlyticsMiddleware),
   });

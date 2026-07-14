@@ -71,7 +71,12 @@ describe("BottomNavigation", () => {
 
   afterEach(async () => {
     // Flush microtasks to allow the mocked fetch checkInternetConnection to resolve and set component state safely inside act boundaries
-    await waitFor(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    await waitFor(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 0);
+        })
+    );
   });
 
   test("renders four buttons with correct accessibility labels", () => {

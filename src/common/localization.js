@@ -610,7 +610,8 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_heavy: "Gourbani Akhar Lourde",
     gurbani_akhar_think: "Gourbani Akhar Épaisse",
     baloo_paaji: "Baloo Paaji",
-    baloo_paaji_warning: "Certains caractères peuvent ne pas s'afficher correctement avec cette police.",
+    baloo_paaji_warning:
+      "Certains caractères peuvent ne pas s'afficher correctement avec cette police.",
     HIDE_STATUS_BAR: "Cacher la barre d'état",
     hindi: "Langue hindou",
     iGurbani: "iGurbani",
@@ -795,7 +796,8 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_heavy: "Gourbani Akhar Grasso",
     gurbani_akhar_think: "Gourbani Akhar Spesso",
     baloo_paaji: "Baloo Paaji",
-    baloo_paaji_warning: "Alcuni caratteri potrebbero non essere visualizzati correttamente con questo font.",
+    baloo_paaji_warning:
+      "Alcuni caratteri potrebbero non essere visualizzati correttamente con questo font.",
     HIDE_STATUS_BAR: "Nascondere la barra di stato",
     hindi: "Lingua hindi",
     iGurbani: "iGurbani",

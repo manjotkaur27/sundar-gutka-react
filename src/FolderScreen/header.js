@@ -25,9 +25,7 @@ const Header = ({ navigation, title }) => {
         fontSize: theme.typography.sizes.xxl,
         fontWeight: theme.typography.weights.normal,
       }}
-      leftComponent={
-        <BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />
-      }
+      leftComponent={<BackIconComponent size={30} color={theme.staticColors.WHITE_COLOR} />}
       rightComponent={
         <SettingsIconComponent
           handleSettingsPress={handleSettingsPress}

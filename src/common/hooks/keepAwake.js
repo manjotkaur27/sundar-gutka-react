@@ -23,7 +23,7 @@ const useKeepAwake = () => {
 
   // Release lock when backgrounded, re-acquire when foregrounded
   useEffect(() => {
-    if (!isScreenAwake) return; // no-op if keep-awake is disabled
+    if (!isScreenAwake) return undefined; // no-op if keep-awake is disabled
 
     const handleAppStateChange = (nextState) => {
       if (nextState === "active") {

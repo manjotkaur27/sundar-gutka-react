@@ -5,12 +5,12 @@ import { logError, logMessage } from "./index";
 // evaluates. When the native module is null (stale APK / hot-reload mismatch)
 // that IIFE throws and prevents AppRegistry.registerComponent from ever running,
 // crashing the entire app before it starts.
-let _rntp = null;
+let rntp = null;
 const loadRNTP = () => {
-  if (!_rntp) {
-    _rntp = require("react-native-track-player"); // eslint-disable-line
+  if (!rntp) {
+    rntp = require("react-native-track-player"); // eslint-disable-line
   }
-  return _rntp;
+  return rntp;
 };
 
 // Singleton service to manage TrackPlayer initialization

@@ -19,9 +19,7 @@ const useHeader = (navigation) => {
       backgroundColor={headerStyle?.backgroundColor}
       titleColor={headerTitleStyle?.color}
       titleStyle={{ fontFamily: headerTitleStyle?.fontFamily }}
-      leftComponent={
-        <BackIconComponent size={30} color={theme.colors.primaryText} />
-      }
+      leftComponent={<BackIconComponent size={30} color={theme.colors.primaryText} />}
     />
   );
 

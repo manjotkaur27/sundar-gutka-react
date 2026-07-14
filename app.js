@@ -4,7 +4,6 @@ import ErrorBoundary from "react-native-error-boundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
 import Toast from "react-native-toast-message";
-import toastConfig from "./src/common/toastConfig";
 import { Provider } from "react-redux";
 import notifee, { EventType } from "@notifee/react-native";
 import { PersistGate } from "redux-persist/integration/react";
@@ -18,6 +17,7 @@ import {
   navigateTo,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
+import toastConfig from "./src/common/toastConfig";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
 import Navigation from "./src/navigation";
 
@@ -64,6 +64,7 @@ const App = () => {
     }
 
     runSetup().catch(logError);
+    return undefined;
   }, []);
 
   useEffect(() => {

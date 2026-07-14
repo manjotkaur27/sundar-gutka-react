@@ -152,8 +152,7 @@ const createStyles = (theme) => ({
     bottom: 0,
     height: 5,
     overflow: "hidden",
-    backgroundColor:
-      theme.mode === "dark" ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)",
+    backgroundColor: theme.mode === "dark" ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)",
   },
   scrollProgressFill: {
     height: "100%",

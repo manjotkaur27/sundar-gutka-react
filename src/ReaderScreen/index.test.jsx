@@ -590,12 +590,9 @@ describe("Reader", () => {
     mockState.isAutoScroll = true;
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
-    const webview = getByTestId("webview");
-    act(() => {
-      webview.props.onTouchStart();
-    });
-
-    expect(getByTestId("auto-scroll-component")).toBeTruthy();
+    // The auto-scroll controls mount with the header hidden (display: none until
+    // the header bar is shown), so include hidden elements in the query.
+    expect(getByTestId("auto-scroll-component", { includeHiddenElements: true })).toBeTruthy();
   });
 
   it("restores saved position on mount", async () => {

@@ -4,7 +4,7 @@ import React from "react";
 import { render, waitFor, act } from "@testing-library/react-native";
 import { setMockState, getMockDispatch } from "@common/test-utils/mocks/react-redux";
 // eslint-disable-next-line import/order
-import useAudioManifest, { __resetManifestApiCacheForTests } from "./index";
+import useAudioManifest, { resetManifestApiCacheForTests } from "./index";
 // Mock dependencies
 jest.mock("react-native-fs", () => ({
   DocumentDirectoryPath: "/mock/document/path",
@@ -48,7 +48,7 @@ describe("useAudioManifest", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    __resetManifestApiCacheForTests();
+    resetManifestApiCacheForTests();
     setMockState({
       defaultAudio: {},
       audioManifest: {},
@@ -975,11 +975,7 @@ describe("useAudioManifest", () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   describe("canonical artist names — API variants are rewritten to approved display names", () => {
-    const CANONICAL_NAMES = [
-      "Bhai Jarnail Singh",
-      "Bibi Indermohan Kaur",
-      "Giani Gurdev Singh",
-    ];
+    const CANONICAL_NAMES = ["Bhai Jarnail Singh", "Bibi Indermohan Kaur", "Giani Gurdev Singh"];
 
     it("canonicalizes artist_id=4 regardless of API artist_name", async () => {
       fetchManifest.mockResolvedValueOnce({
@@ -997,7 +993,12 @@ describe("useAudioManifest", () => {
 
       let hookResult;
       const { unmount } = render(
-        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+        <TestComponent
+          baniID="2"
+          onResult={(r) => {
+            hookResult = r;
+          }}
+        />
       );
       await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
 
@@ -1021,7 +1022,12 @@ describe("useAudioManifest", () => {
 
       let hookResult;
       const { unmount } = render(
-        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+        <TestComponent
+          baniID="2"
+          onResult={(r) => {
+            hookResult = r;
+          }}
+        />
       );
       await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
 
@@ -1045,7 +1051,12 @@ describe("useAudioManifest", () => {
 
       let hookResult;
       const { unmount } = render(
-        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+        <TestComponent
+          baniID="2"
+          onResult={(r) => {
+            hookResult = r;
+          }}
+        />
       );
       await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
 
@@ -1056,15 +1067,41 @@ describe("useAudioManifest", () => {
     it("all track displayNames from API are canonical", async () => {
       fetchManifest.mockResolvedValueOnce({
         data: [
-          { track_id: 1, artist_id: 4, track_url: "https://example.com/t1.m4a", artist_name: "Jarnail", track_length_seconds: 300, track_size_mb: 5 },
-          { track_id: 2, artist_id: 8, track_url: "https://example.com/t2.m4a", artist_name: "Indermohan Kaur UK", track_length_seconds: 250, track_size_mb: 4 },
-          { track_id: 3, artist_id: 9, track_url: "https://example.com/t3.m4a", artist_name: "Gurdev", track_length_seconds: 400, track_size_mb: 6 },
+          {
+            track_id: 1,
+            artist_id: 4,
+            track_url: "https://example.com/t1.m4a",
+            artist_name: "Jarnail",
+            track_length_seconds: 300,
+            track_size_mb: 5,
+          },
+          {
+            track_id: 2,
+            artist_id: 8,
+            track_url: "https://example.com/t2.m4a",
+            artist_name: "Indermohan Kaur UK",
+            track_length_seconds: 250,
+            track_size_mb: 4,
+          },
+          {
+            track_id: 3,
+            artist_id: 9,
+            track_url: "https://example.com/t3.m4a",
+            artist_name: "Gurdev",
+            track_length_seconds: 400,
+            track_size_mb: 6,
+          },
         ],
       });
 
       let hookResult;
       const { unmount } = render(
-        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+        <TestComponent
+          baniID="2"
+          onResult={(r) => {
+            hookResult = r;
+          }}
+        />
       );
       await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
 
@@ -1078,15 +1115,41 @@ describe("useAudioManifest", () => {
     it("no two tracks share a non-canonical duplicate name variant", async () => {
       fetchManifest.mockResolvedValueOnce({
         data: [
-          { track_id: 1, artist_id: 4, track_url: "https://example.com/t1.m4a", artist_name: "Bhai Jarnail Singh", track_length_seconds: 300, track_size_mb: 5 },
-          { track_id: 2, artist_id: 8, track_url: "https://example.com/t2.m4a", artist_name: "Bibi Indermohan Kaur", track_length_seconds: 250, track_size_mb: 4 },
-          { track_id: 3, artist_id: 9, track_url: "https://example.com/t3.m4a", artist_name: "Giani Gurdev Singh", track_length_seconds: 400, track_size_mb: 6 },
+          {
+            track_id: 1,
+            artist_id: 4,
+            track_url: "https://example.com/t1.m4a",
+            artist_name: "Bhai Jarnail Singh",
+            track_length_seconds: 300,
+            track_size_mb: 5,
+          },
+          {
+            track_id: 2,
+            artist_id: 8,
+            track_url: "https://example.com/t2.m4a",
+            artist_name: "Bibi Indermohan Kaur",
+            track_length_seconds: 250,
+            track_size_mb: 4,
+          },
+          {
+            track_id: 3,
+            artist_id: 9,
+            track_url: "https://example.com/t3.m4a",
+            artist_name: "Giani Gurdev Singh",
+            track_length_seconds: 400,
+            track_size_mb: 6,
+          },
         ],
       });
 
       let hookResult;
       const { unmount } = render(
-        <TestComponent baniID="2" onResult={(r) => { hookResult = r; }} />
+        <TestComponent
+          baniID="2"
+          onResult={(r) => {
+            hookResult = r;
+          }}
+        />
       );
       await waitFor(() => expect(hookResult?.isTracksLoading).toBe(false));
 

@@ -10,8 +10,8 @@ import {
   writeFile,
 } from "react-native-fs";
 import { logError, logMessage } from "@common";
-import { checkIsJsonRemoteExists } from "./checkHelper";
 import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
+import { checkIsJsonRemoteExists } from "./checkHelper";
 
 /**
  * Audio Downloader Utility
@@ -157,6 +157,91 @@ export const getFullPreviewTrackPath = (previewUrl) => {
 // corrupt the file). A tap landing mid-prefetch simply awaits the ongoing one.
 const previewDownloadsInFlight = new Map();
 
+export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
+  const { skipDirectorySetup = false, targetDirectory = "main", expectedSizeMB = 0 } = options;
+  let baseDirectory;
+  if (targetDirectory === "prefetch") {
+    baseDirectory = PREFETCH_AUDIO_DIRECTORY;
+  } else if (targetDirectory === "preview") {
+    baseDirectory = PREVIEW_AUDIO_DIRECTORY;
+  } else {
+    baseDirectory = AUDIO_DIRECTORY;
+  }
+  const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(
+    url,
+    baseDirectory
+  );
+
+  if (!skipDirectorySetup) {
+    await ensureArtistDirectory(artistName, baseDirectory);
+  }
+
+  const audioFileExists = await exists(fullAudioPath);
+  if (audioFileExists) {
+    const expectedBytes = expectedSizeMB > 0 ? expectedSizeMB * 1024 * 1024 : 0;
+    if (expectedBytes > 0) {
+      const existingFileStat = await stat(fullAudioPath);
+      if (Number(existingFileStat.size) < expectedBytes * 0.9) {
+        await unlink(fullAudioPath).catch(() => {});
+      } else {
+        logMessage(`Audio already downloaded: ${fileName}`);
+        return {
+          relativePath: audioRelativePath,
+          alreadyExists: true,
+          downloaded: false,
+          jobId: null,
+        };
+      }
+    } else {
+      logMessage(`Audio already downloaded: ${fileName}`);
+      return {
+        relativePath: audioRelativePath,
+        alreadyExists: true,
+        downloaded: false,
+        jobId: null,
+      };
+    }
+  }
+
+  // progressDivider: 20 — fire the progress callback only once per ~5 % of file size
+  // instead of on every bytes chunk, keeping the JS thread free on low-end devices.
+  const audioDownloadTask = downloadFile({
+    fromUrl: url,
+    toFile: fullAudioPath,
+    progressDivider: 20,
+    begin: () => {
+      logMessage(`Audio download started for: ${trackTitle}`);
+    },
+  });
+
+  const { jobId } = audioDownloadTask;
+  const audioResult = await audioDownloadTask.promise;
+
+  // ── Strict validation: reject anything that isn't a clean 200 download ──
+  if (audioResult.statusCode !== 200) {
+    // Delete partial/error file so exists() never returns true for a corrupt file.
+    await unlink(fullAudioPath).catch(() => {});
+    throw new Error(`Audio download failed with HTTP ${audioResult.statusCode}`);
+  }
+
+  const finalAudioExists = await exists(fullAudioPath);
+  if (!finalAudioExists) {
+    throw new Error("Audio download completed but file was not created on disk");
+  }
+
+  // Size sanity check — a valid M4A bani audio file is always well over 100KB.
+  // A file under 100KB means the download was truncated (server closed early,
+  // network drop, DOZE killed the connection, etc.) or the moov atom is missing.
+  const fileStat = await stat(fullAudioPath);
+  if (Number(fileStat.size) < 100000) {
+    await unlink(fullAudioPath).catch(() => {});
+    throw new Error(`Downloaded file too small: ${fileStat.size} bytes — likely corrupt/truncated`);
+  }
+
+  logMessage(`Audio download completed: ${fileName} (${fileStat.size} bytes)`);
+  return { relativePath: audioRelativePath, alreadyExists: false, downloaded: true, jobId };
+};
+
 /**
  * Ensure the 15-second preview clip for a track is cached on disk. Returns the
  * local file path if available (already cached or freshly downloaded), or null
@@ -234,15 +319,15 @@ export const prefetchPreviews = async (tracks) => {
 
   const seen = new Set();
   const queue = [];
-  for (const track of tracks) {
+  tracks.forEach((track) => {
     const canonical = track?.remoteUrl || track?.audioUrl;
     const previewUrl = getPreviewRemoteUrl(canonical);
     if (!previewUrl || !/^https?:\/\//i.test(previewUrl) || seen.has(previewUrl)) {
-      continue;
+      return;
     }
     seen.add(previewUrl);
     queue.push({ canonical, title: track?.displayName || "Preview" });
-  }
+  });
 
   if (queue.length === 0) {
     return;
@@ -267,79 +352,6 @@ export const getFullLocalJsonPath = (url) => {
   const { artistName, fileName } = generateFilename(url);
   const jsonFileName = fileName.replace(/\.[^/.]+$/, ".json");
   return `${AUDIO_DIRECTORY}/${artistName}/${jsonFileName}`;
-};
-
-export const downloadAudioOnly = async (url, trackTitle, options = {}) => {
-  const { skipDirectorySetup = false, targetDirectory = "main", expectedSizeMB = 0 } = options;
-  const baseDirectory =
-    targetDirectory === "prefetch"
-      ? PREFETCH_AUDIO_DIRECTORY
-      : targetDirectory === "preview"
-      ? PREVIEW_AUDIO_DIRECTORY
-      : AUDIO_DIRECTORY;
-  const { artistName, fileName, fullAudioPath, audioRelativePath } = buildTrackPaths(
-    url,
-    baseDirectory
-  );
-
-  if (!skipDirectorySetup) {
-    await ensureArtistDirectory(artistName, baseDirectory);
-  }
-
-  const audioFileExists = await exists(fullAudioPath);
-  if (audioFileExists) {
-    const expectedBytes = expectedSizeMB > 0 ? expectedSizeMB * 1024 * 1024 : 0;
-    if (expectedBytes > 0) {
-      const existingFileStat = await stat(fullAudioPath);
-      if (Number(existingFileStat.size) < expectedBytes * 0.9) {
-        await unlink(fullAudioPath).catch(() => {});
-      } else {
-        logMessage(`Audio already downloaded: ${fileName}`);
-        return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false, jobId: null };
-      }
-    } else {
-      logMessage(`Audio already downloaded: ${fileName}`);
-      return { relativePath: audioRelativePath, alreadyExists: true, downloaded: false, jobId: null };
-    }
-  }
-
-  // progressDivider: 20 — fire the progress callback only once per ~5 % of file size
-  // instead of on every bytes chunk, keeping the JS thread free on low-end devices.
-  const audioDownloadTask = downloadFile({
-    fromUrl: url,
-    toFile: fullAudioPath,
-    progressDivider: 20,
-    begin: () => {
-      logMessage(`Audio download started for: ${trackTitle}`);
-    },
-  });
-
-  const jobId = audioDownloadTask.jobId;
-  const audioResult = await audioDownloadTask.promise;
-
-  // ── Strict validation: reject anything that isn't a clean 200 download ──
-  if (audioResult.statusCode !== 200) {
-    // Delete partial/error file so exists() never returns true for a corrupt file.
-    await unlink(fullAudioPath).catch(() => {});
-    throw new Error(`Audio download failed with HTTP ${audioResult.statusCode}`);
-  }
-
-  const finalAudioExists = await exists(fullAudioPath);
-  if (!finalAudioExists) {
-    throw new Error("Audio download completed but file was not created on disk");
-  }
-
-  // Size sanity check — a valid M4A bani audio file is always well over 100KB.
-  // A file under 100KB means the download was truncated (server closed early,
-  // network drop, DOZE killed the connection, etc.) or the moov atom is missing.
-  const fileStat = await stat(fullAudioPath);
-  if (Number(fileStat.size) < 100000) {
-    await unlink(fullAudioPath).catch(() => {});
-    throw new Error(`Downloaded file too small: ${fileStat.size} bytes — likely corrupt/truncated`);
-  }
-
-  logMessage(`Audio download completed: ${fileName} (${fileStat.size} bytes)`);
-  return { relativePath: audioRelativePath, alreadyExists: false, downloaded: true, jobId };
 };
 
 const readPrefetchIndex = async () => {
@@ -414,26 +426,27 @@ export const prunePrefetchCache = async (maxTracks = 5) => {
     const keepSet = new Set(verifiedEntries.slice(0, maxTracks).map(([fullPath]) => fullPath));
 
     const nextIndex = {};
+    // eslint-disable-next-line no-restricted-syntax
     for (const [fullPath, ts] of verifiedEntries) {
       if (keepSet.has(fullPath)) {
         nextIndex[fullPath] = ts;
-        continue;
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await unlink(fullPath).catch(() => {});
       }
-      // eslint-disable-next-line no-await-in-loop
-      await unlink(fullPath).catch(() => {});
     }
 
     // Clean up empty artist directories if any were left behind.
     const children = await readDir(PREFETCH_AUDIO_DIRECTORY).catch(() => []);
+    // eslint-disable-next-line no-restricted-syntax
     for (const entry of children) {
-      if (!entry.isDirectory || !entry.isDirectory()) {
-        continue;
-      }
-      // eslint-disable-next-line no-await-in-loop
-      const subItems = await readDir(entry.path).catch(() => []);
-      if (subItems.length === 0) {
+      if (entry.isDirectory && entry.isDirectory()) {
         // eslint-disable-next-line no-await-in-loop
-        await unlink(entry.path).catch(() => {});
+        const subItems = await readDir(entry.path).catch(() => []);
+        if (subItems.length === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await unlink(entry.path).catch(() => {});
+        }
       }
     }
 
@@ -518,7 +531,10 @@ export const downloadTrack = async (url, trackTitle, expectedSizeMB = 0) => {
 
     await ensureArtistDirectory(artistName);
 
-    const audioResult = await downloadAudioOnly(url, trackTitle, { skipDirectorySetup: true, expectedSizeMB });
+    const audioResult = await downloadAudioOnly(url, trackTitle, {
+      skipDirectorySetup: true,
+      expectedSizeMB,
+    });
     const lyricsResult = await downloadLyricsOnly(url, trackTitle, { skipDirectorySetup: true });
     const lyricsAvailable = !lyricsResult.remoteMissing;
     const lyricsSatisfied = lyricsAvailable

@@ -146,7 +146,14 @@ const trackBaniListenCompletion = async (baniID, title, artist, positionSec, tra
     const position = safeInt(positionSec);
     const length = safeInt(trackLengthSec);
     const pct = length > 0 ? Math.min(100, Math.round((position / length) * 100)) : 0;
-    const tier = pct >= 90 ? "completed" : pct >= 40 ? "half" : "partial";
+    let tier;
+    if (pct >= 90) {
+      tier = "completed";
+    } else if (pct >= 40) {
+      tier = "half";
+    } else {
+      tier = "partial";
+    }
     await logEvent(analytics, "bani_listen_completion", {
       bani_id: safeStr(baniID),
       bani_title: safeStr(title),
@@ -208,7 +215,14 @@ const trackAudioLinkRequest = async (baniTitle, baniID, baniLength) => {
 const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollEnabled) => {
   try {
     const pct = Math.min(100, Math.max(0, safeInt(scrollPercent)));
-    const tier = pct >= 90 ? "complete" : pct >= 40 ? "half" : "partial";
+    let tier;
+    if (pct >= 90) {
+      tier = "complete";
+    } else if (pct >= 40) {
+      tier = "half";
+    } else {
+      tier = "partial";
+    }
     await logEvent(analytics, "scroll_progress", {
       bani_id: safeStr(baniID),
       bani_title: safeStr(baniTitle),

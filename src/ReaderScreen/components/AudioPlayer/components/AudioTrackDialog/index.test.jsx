@@ -2,9 +2,11 @@
 /* eslint-disable react/jsx-props-no-spreading */
 
 import React from "react";
-import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
-import AudioTrackDialog from "./index";
 import TrackPlayer from "react-native-track-player";
+
+import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
+
+import AudioTrackDialog from "./index";
 
 // -------------------- MOCKS --------------------
 
@@ -12,6 +14,10 @@ let mockState = { fontFace: "TestFont" };
 
 jest.mock("react-redux", () => ({
   useSelector: (selector) => selector(mockState),
+}));
+
+jest.mock("@react-navigation/native", () => ({
+  useIsFocused: () => true,
 }));
 
 jest.mock("@common/context", () => ({
