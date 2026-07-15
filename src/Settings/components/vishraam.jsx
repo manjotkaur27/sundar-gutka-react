@@ -1,10 +1,11 @@
 import React, { useState } from "react";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import { setVishraamOption, toggleVishraam, setVishraamSource } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 import { BottomSheetComponent, ListItemComponent } from "./comon";
 import { getVishraamSource, getVishraamOption } from "./comon/strings";
@@ -25,11 +26,13 @@ const VishraamComponent = () => {
   return (
     <>
       <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Icon color={theme.colors.primaryText} name="pause" size={30} />
+        <View style={styles.iconContainerStyle}>
+          <Icon color={theme.colors.primaryText} name="pause" size={26} />
+        </View>
         <ListItem.Content>
           <ListItemTitle title={STRINGS.show_vishraams} style={styles.listItemTitle} />
         </ListItem.Content>
-        <Switch value={isVishraam} onValueChange={(value) => dispatch(toggleVishraam(value))} />
+        <ThemedSwitch value={isVishraam} onValueChange={(value) => dispatch(toggleVishraam(value))} />
       </ListItem>
 
       {isVishraam && (

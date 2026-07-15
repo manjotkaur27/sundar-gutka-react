@@ -1,5 +1,5 @@
 import constant from "../constant";
-import { trackSettingEvent, trackAudioEvent, trackArtist } from "../firebase/analytics";
+import { trackSettingEvent, trackBaniArtistDefault } from "../firebase/analytics";
 import STRINGS from "../localization";
 import * as actionTypes from "./actionTypes";
 
@@ -45,24 +45,31 @@ export const toggleAudio = (value) => {
   return { type: actionTypes.TOGGLE_AUDIO, value };
 };
 
+export const toggleAudioFeatureEnabled = (value) => {
+  trackSettingEvent(constant.AUDIO, value);
+  return { type: actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED, value };
+};
+
 export const toggleAudioAutoPlay = (value) => {
-  trackAudioEvent(constant.AUDIO_AUTO_PLAY, value);
+  trackSettingEvent(constant.AUDIO_AUTO_PLAY, value);
   return { type: actionTypes.TOGGLE_AUDIO_AUTO_PLAY, value };
 };
 
 export const toggleAudioSyncScroll = (value) => {
-  trackAudioEvent(constant.AUDIO_SYNC_SCROLL, value);
+  trackSettingEvent(constant.AUDIO_SYNC_SCROLL, value);
   return { type: actionTypes.TOGGLE_AUDIO_SYNC_SCROLL, value };
 };
 
 export const setDefaultAudio = (audio, shabadId) => {
-  trackArtist(shabadId, audio.displayName);
+  if (audio?.displayName) {
+    trackBaniArtistDefault(shabadId, audio.displayName);
+  }
   const value = { [shabadId]: audio };
   return { type: actionTypes.SET_DEFAULT_AUDIO, value };
 };
 
 export const setAudioPlaybackSpeed = (value) => {
-  trackAudioEvent("audioPlaybackSpeed", value);
+  trackSettingEvent("audioPlaybackSpeed", value);
   return { type: actionTypes.SET_AUDIO_PLAYBACK_SPEED, value };
 };
 
@@ -170,8 +177,8 @@ export const setBaniList = (value) => {
   return { type: actionTypes.SET_BANI_LIST, value };
 };
 
-export const setPosition = (pos, shabadID) => {
-  const value = { [shabadID]: pos };
+export const setPosition = (elementId, shabadID, sequence = null) => {
+  const value = { [shabadID]: { elementId, sequence } };
   return { type: actionTypes.SET_SAVE_POSITION, value };
 };
 

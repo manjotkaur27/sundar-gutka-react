@@ -5,7 +5,6 @@ import notifee, {
   AndroidImportance,
   AuthorizationStatus,
 } from "@notifee/react-native";
-import moment from "moment";
 import { FallBack } from "./components";
 import constant from "./constant";
 import { logError, logMessage } from "./firebase/crashlytics";
@@ -40,6 +39,20 @@ const checkBroadcastPermission = async () => {
   return true; // Not applicable on iOS
 };
 
+/**
+ * Parse a time string like "h:m A" (e.g. "9:30 AM") into a future timestamp (ms).
+ * Uses native Date instead of moment.js to avoid bundling that large library (~270 KB).
+ */
+const parseTimeString = (timeStr) => {
+  const [timePart, meridiem] = timeStr.trim().split(" ");
+  const [hoursRaw, minutes] = timePart.split(":").map(Number);
+  let hours = hoursRaw % 12;
+  if (meridiem && meridiem.toUpperCase() === "PM") hours += 12;
+  const now = new Date();
+  const result = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+  return result.getTime();
+};
+
 export const createReminder = async (notification, sound) => {
   const channelName =
     sound !== constant.DEFAULT.toLowerCase() ? sound.split(".")[0] : constant.SOUND.toLowerCase();
@@ -53,10 +66,10 @@ export const createReminder = async (notification, sound) => {
     },
   };
 
-  const currentTime = moment().valueOf();
-  let notificationTime = moment(notification.time, "h:m A").valueOf();
+  const currentTime = Date.now();
+  let notificationTime = parseTimeString(notification.time);
   if (notificationTime < currentTime) {
-    notificationTime = moment(notification.time, "h:m A").add(1, "days").valueOf();
+    notificationTime += 24 * 60 * 60 * 1000; // add one day in milliseconds
   }
   const trigger = {
     type: TriggerType.TIMESTAMP,
@@ -89,12 +102,14 @@ export const createReminder = async (notification, sound) => {
     FallBack();
   }
 };
+
 export const resetBadgeCount = async () => {
   await notifee.setBadgeCount(0);
 };
 
+// NET-04: Return the scheduled notification IDs so callers can use them
 export const getScheduleNotifications = async () => {
-  await notifee.getTriggerNotificationIds();
+  return notifee.getTriggerNotificationIds();
 };
 
 export const removeAllDeliveredNotifications = async () => {
@@ -163,10 +178,11 @@ export const checkPermissions = async () => {
   return isAllowed;
 };
 
+// FEAT-04: Use ic_launcher_foreground (not background_splash) for the correct Android notification icon
 export const displayNotification = async () => {
   await notifee.displayNotification({
     title: "Test Notification",
     body: "This is a test notification.",
-    android: { channelId: constant.SOUND, smallIcon: "background_splash" },
+    android: { channelId: constant.SOUND, smallIcon: "ic_launcher_foreground" },
   });
 };

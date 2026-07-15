@@ -193,6 +193,31 @@ Run tests with:
 yarn test
 ```
 
+## 🎵 Audio Assets (M4A)
+
+All audio files used in this app are in **M4A format** (AAC 128kbps inside an MP4 container). M4A is required over MP3 because ExoPlayer on Android can seek accurately within M4A files using the container's built-in index — this is what makes sync scroll work correctly on Android. MP3 seeking is estimate-based and causes progressive drift.
+
+### Creating M4A Files
+
+To convert a source audio file to the correct M4A format:
+
+```bash
+ffmpeg -y -i input.mp3 -codec:a aac -b:a 128k -map_metadata 0 -movflags +faststart output.m4a
+```
+
+- `-codec:a aac` — encodes audio as AAC inside an MP4 container
+- `-b:a 128k` — 128kbps constant bitrate
+- `-movflags +faststart` — moves the MP4 index (`moov` atom) to the front of the file so ExoPlayer can begin streaming instantly with a single HTTP request. **This flag is mandatory** — without it, streaming triggers multiple network round-trips before playback can start
+- `-map_metadata 0` — preserves original metadata tags
+
+### Important Notes
+
+- **Never use MP3** — ExoPlayer's inaccurate seeking on MP3 breaks sync scroll on Android
+- **Always include `-movflags +faststart`** — skipping it will cause buffering on stream seek
+- **File naming**: Use PascalCase (e.g. `JapjiSahib.m4a`, not `japji-sahib.m4a`)
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

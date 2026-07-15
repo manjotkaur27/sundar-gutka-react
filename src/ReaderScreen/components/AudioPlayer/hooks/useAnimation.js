@@ -13,10 +13,10 @@ const useAnimation = (isSettingsModalOpen, isMoreTracksModalOpen, isMinimized) =
 
     Animated.parallel([
       Animated.timing(modalHeight, {
-        toValue: shouldShow ? 200 : 0,
+        toValue: shouldShow ? 300 : 0,
         duration: 300,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false, // Height requires useNativeDriver: false
+        useNativeDriver: false, // maxHeight requires useNativeDriver: false
       }),
       Animated.timing(modalOpacity, {
         toValue: shouldShow ? 1 : 0,

@@ -39,13 +39,20 @@ const createStyles = (theme) => ({
     color: theme.colors.audioTitleText,
   },
   joinMailingListButton: {
-    padding: theme.spacing.md_12,
-    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md_12,
+  },
+  joinMailingListContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.xs,
   },
   joinMailingListText: {
-    color: theme.colors.audioTitleText,
-    fontSize: theme.typography.sizes.xxl,
+    color: theme.colors.primary,
+    fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
+    textDecorationLine: "underline",
   },
 });
 export default createStyles;

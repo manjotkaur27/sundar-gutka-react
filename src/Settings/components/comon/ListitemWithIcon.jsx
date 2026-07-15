@@ -1,4 +1,5 @@
 import React from "react";
+import { View } from "react-native";
 import { ListItem, Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -15,7 +16,9 @@ const ListItemWithIcon = ({ iconName, title, navigate, navigationTarget }) => {
       bottomDivider
       onPress={() => navigate(navigationTarget)}
     >
-      <Icon name={iconName} size={30} color={theme.colors.primaryText} />
+      <View style={styles.iconContainerStyle}>
+        <Icon name={iconName} size={26} color={theme.colors.primaryText} />
+      </View>
       <ListItem.Content>
         <ListItemTitle title={title} style={styles.listItemTitle} />
       </ListItem.Content>

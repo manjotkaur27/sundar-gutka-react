@@ -2,8 +2,9 @@
 /* eslint-disable react/jsx-props-no-spreading */
 
 import React from "react";
+import TrackPlayer from "react-native-track-player";
 
-import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 
 import AudioTrackDialog from "./index";
 
@@ -13,6 +14,10 @@ let mockState = { fontFace: "TestFont" };
 
 jest.mock("react-redux", () => ({
   useSelector: (selector) => selector(mockState),
+}));
+
+jest.mock("@react-navigation/native", () => ({
+  useIsFocused: () => true,
 }));
 
 jest.mock("@common/context", () => ({
@@ -92,8 +97,9 @@ jest.mock("@react-native-community/blur", () => {
 
 jest.mock("../ScrollViewComponent", () => {
   const { View, Pressable, Text } = require("react-native");
-  return ({ tracks, handleSelectTrack }) => (
+  return ({ tracks, handleSelectTrack, previewLoadingTrackId }) => (
     <View testID="tracks-list">
+      <Text testID="preview-loading-id">{previewLoadingTrackId || ""}</Text>
       {tracks.map((track) => (
         <Pressable
           key={track.id}
@@ -113,18 +119,18 @@ const defaultTracks = [
   {
     id: "track-1",
     displayName: "Track One",
-    audioUrl: "https://example.com/track-1.mp3",
+    audioUrl: "https://example.com/track-1.m4a",
     lyricsUrl: "https://example.com/track-1.json",
-    remoteUrl: "https://example.com/track-1.mp3",
+    remoteUrl: "https://example.com/track-1.m4a",
     trackLengthSec: 100,
     trackSizeMB: 2.5,
   },
   {
     id: "track-2",
     displayName: "Track Two",
-    audioUrl: "https://example.com/track-2.mp3",
+    audioUrl: "https://example.com/track-2.m4a",
     lyricsUrl: "https://example.com/track-2.json",
-    remoteUrl: "https://example.com/track-2.mp3",
+    remoteUrl: "https://example.com/track-2.m4a",
     trackLengthSec: 120,
     trackSizeMB: 3.1,
   },
@@ -140,6 +146,7 @@ const createProps = (overrides = {}) => ({
   isLoading: false,
   addAndPlayTrack: jest.fn(() => Promise.resolve()),
   stop: jest.fn(() => Promise.resolve()),
+  reset: jest.fn(() => Promise.resolve()),
   isPlaying: false,
   ...overrides,
 });
@@ -148,6 +155,8 @@ describe("AudioTrackDialog", () => {
   const { Linking } = require("react-native");
   beforeEach(() => {
     jest.clearAllMocks();
+    TrackPlayer.getActiveTrack.mockResolvedValue(null);
+    TrackPlayer.getPlaybackState.mockResolvedValue({ state: "paused" });
     mockState = { fontFace: "TestFont" };
     jest.spyOn(Linking, "openURL").mockImplementation(() => Promise.resolve());
   });
@@ -174,7 +183,7 @@ describe("AudioTrackDialog", () => {
       expect(props.addAndPlayTrack).toHaveBeenCalledWith(
         defaultTracks[0].id,
         defaultTracks[0].audioUrl,
-        defaultTracks[0].displayName,
+        "Gutka",
         defaultTracks[0].displayName,
         defaultTracks[0].lyricsUrl,
         defaultTracks[0].trackLengthSec,
@@ -182,6 +191,41 @@ describe("AudioTrackDialog", () => {
         true,
         defaultTracks[0].remoteUrl || defaultTracks[0].audioUrl
       );
+    });
+  });
+
+  it("shows row loading signal while preview is starting", async () => {
+    let resolvePreview;
+    const previewPromise = new Promise((resolve) => {
+      resolvePreview = resolve;
+    });
+    const props = createProps({
+      addAndPlayTrack: jest.fn(() => previewPromise),
+    });
+    const { getByTestId } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-1"));
+
+    await waitFor(() => {
+      expect(getByTestId("preview-loading-id").props.children).toBe("track-1");
+    });
+
+    await act(async () => {
+      resolvePreview();
+    });
+  });
+
+  it("shows countdown label while preview is playing", async () => {
+    TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[0].id });
+    TrackPlayer.getPlaybackState.mockResolvedValue({ state: "playing" });
+
+    const props = createProps({ isPlaying: true });
+    const { getByTestId, getByText } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-1"));
+
+    await waitFor(() => {
+      expect(getByText(/Next \(\d+s\)/)).toBeTruthy();
     });
   });
 
@@ -198,7 +242,8 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(getByTestId("track-track-1"));
 
     await waitFor(() => {
-      expect(props.stop).toHaveBeenCalledTimes(1);
+      expect(props.stop).toHaveBeenCalled();
+      expect(props.reset).toHaveBeenCalled();
       expect(props.addAndPlayTrack).toHaveBeenCalledTimes(1);
     });
   });
@@ -222,10 +267,34 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(getByTestId("track-track-2"));
 
     const playButton = getByTestId("play-button");
-    fireEvent.press(playButton);
+    await act(async () => {
+      fireEvent.press(playButton);
+    });
 
     await waitFor(() => {
       expect(props.handleTrackSelect).toHaveBeenCalledWith(defaultTracks[1]);
+    });
+  });
+
+  it("shows loading state on Next while opening full player", async () => {
+    let resolveNext;
+    const nextPromise = new Promise((resolve) => {
+      resolveNext = resolve;
+    });
+    const props = createProps({
+      handleTrackSelect: jest.fn(() => nextPromise),
+    });
+    const { getByTestId, getByText } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-2"));
+    fireEvent.press(getByTestId("play-button"));
+
+    await waitFor(() => {
+      expect(getByText("Opening Player...")).toBeTruthy();
+    });
+
+    await act(async () => {
+      resolveNext();
     });
   });
 
@@ -237,5 +306,48 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(closeButton);
 
     expect(props.onCloseTrackModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("plays another track when a new track is selected while preview is playing", async () => {
+    TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[0].id });
+    TrackPlayer.getPlaybackState.mockResolvedValue({ state: "playing" });
+
+    const props = createProps({ isPlaying: true });
+    const { getByTestId } = render(<AudioTrackDialog {...props} />);
+
+    fireEvent.press(getByTestId("track-track-1"));
+
+    await waitFor(() => {
+      expect(props.addAndPlayTrack).toHaveBeenCalledWith(
+        defaultTracks[0].id,
+        defaultTracks[0].audioUrl,
+        "Gutka",
+        defaultTracks[0].displayName,
+        defaultTracks[0].lyricsUrl,
+        defaultTracks[0].trackLengthSec,
+        defaultTracks[0].trackSizeMB,
+        true,
+        defaultTracks[0].remoteUrl || defaultTracks[0].audioUrl
+      );
+    });
+
+    TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[1].id });
+    fireEvent.press(getByTestId("track-track-2"));
+
+    await waitFor(() => {
+      expect(props.stop).toHaveBeenCalled();
+      expect(props.reset).toHaveBeenCalled();
+      expect(props.addAndPlayTrack).toHaveBeenCalledWith(
+        defaultTracks[1].id,
+        defaultTracks[1].audioUrl,
+        "Gutka",
+        defaultTracks[1].displayName,
+        defaultTracks[1].lyricsUrl,
+        defaultTracks[1].trackLengthSec,
+        defaultTracks[1].trackSizeMB,
+        true,
+        defaultTracks[1].remoteUrl || defaultTracks[1].audioUrl
+      );
+    });
   });
 });

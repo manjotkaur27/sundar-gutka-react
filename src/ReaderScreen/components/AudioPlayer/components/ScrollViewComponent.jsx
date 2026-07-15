@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, Pressable } from "react-native";
+import { View, Pressable, ActivityIndicator } from "react-native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
@@ -12,20 +12,13 @@ const ScrollViewComponent = ({
   selectedTrack = null,
   playingTrack = null,
   isPlaying = false,
+  previewLoadingTrackId = null,
   handleSelectTrack,
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(audioTrackDialogStyles);
   return (
-    <ScrollView
-      style={styles.trackList}
-      contentContainerStyle={styles.trackListContent}
-      showsVerticalScrollIndicator
-      scrollEnabled
-      nestedScrollEnabled
-      keyboardShouldPersistTaps="handled"
-      bounces={false}
-    >
+    <View style={styles.trackList}>
       {tracks.map((track) => (
         <Pressable
           key={track.id}
@@ -53,7 +46,16 @@ const ScrollViewComponent = ({
             {track.displayName}
           </CustomText>
 
-          {playingTrack && playingTrack.id === track.id && isPlaying ? (
+          {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
+            <ActivityIndicator
+              size="small"
+              color={
+                selectedTrack && selectedTrack.id === track.id
+                  ? theme.staticColors.WHITE_COLOR
+                  : theme.colors.audioPlayer
+              }
+            />
+          ) : playingTrack && playingTrack.id === track.id && isPlaying ? (
             <StopIcon
               size={30}
               color={
@@ -74,7 +76,7 @@ const ScrollViewComponent = ({
           )}
         </Pressable>
       ))}
-    </ScrollView>
+    </View>
   );
 };
 
@@ -82,6 +84,7 @@ ScrollViewComponent.defaultProps = {
   selectedTrack: null,
   playingTrack: null,
   isPlaying: false,
+  previewLoadingTrackId: null,
 };
 
 ScrollViewComponent.propTypes = {
@@ -100,6 +103,7 @@ ScrollViewComponent.propTypes = {
     displayName: PropTypes.string.isRequired,
   }),
   isPlaying: PropTypes.bool,
+  previewLoadingTrackId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   handleSelectTrack: PropTypes.func.isRequired,
 };
 

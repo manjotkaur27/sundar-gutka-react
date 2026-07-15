@@ -1,10 +1,11 @@
 import React from "react";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { ListItem, Avatar, Icon, Switch } from "@rneui/themed";
+import { ListItem, Avatar, Icon } from "@rneui/themed";
 import { toggleLarivaar, toggleLarivaarAssist } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const LarivaarComponent = () => {
@@ -18,19 +19,23 @@ const LarivaarComponent = () => {
   return (
     <>
       <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-        <Avatar source={larivaarIcon} avatarStyle={styles.avatarStyle} />
+        <View style={styles.iconContainerStyle}>
+          <Avatar source={larivaarIcon} avatarStyle={styles.avatarStyle} />
+        </View>
         <ListItem.Content>
           <ListItemTitle title={STRINGS.larivaar} style={styles.listItemTitle} />
         </ListItem.Content>
-        <Switch value={isLarivaar} onValueChange={(value) => dispatch(toggleLarivaar(value))} />
+        <ThemedSwitch value={isLarivaar} onValueChange={(value) => dispatch(toggleLarivaar(value))} />
       </ListItem>
       {isLarivaar && (
         <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-          <Icon name="opacity" size={30} color={theme.colors.primaryText} />
+          <View style={styles.iconContainerStyle}>
+            <Icon name="opacity" size={26} color={theme.colors.primaryText} />
+          </View>
           <ListItem.Content>
             <ListItemTitle title={STRINGS.larivaar_assist} style={styles.listItemTitle} />
           </ListItem.Content>
-          <Switch
+          <ThemedSwitch
             value={isLarivaarAssist}
             onValueChange={(value) => dispatch(toggleLarivaarAssist(value))}
           />

@@ -27,10 +27,12 @@ target 'SundarGutka' do
   pod 'FirebaseABTesting', :modular_headers => true
   config = use_native_modules!
 
+  use_frameworks! :linkage => :static
 
   use_react_native!(
     :path => config[:reactNativePath],
-  
+    :hermes_enabled => true,
+    :new_arch_enabled => false,
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
@@ -40,8 +42,13 @@ target 'SundarGutka' do
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
+      :mac_catalyst_enabled => false, 
       # :ccache_enabled => true
     )
+    installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    end
+  end
   end
 end

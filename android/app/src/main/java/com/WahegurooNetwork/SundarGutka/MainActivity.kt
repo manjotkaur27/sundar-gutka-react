@@ -10,6 +10,9 @@ import android.view.KeyEvent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : ReactActivity() {
  
@@ -21,8 +24,33 @@ class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
       SplashScreen.show(this)
-      super.onCreate(null);
-    }
+      super.onCreate(null)
+      // Lay out content edge-to-edge so the window draws behind system bars.
+      WindowCompat.setDecorFitsSystemWindows(window, false)
+  }
+
+  /**
+   * Called every time the window regains/loses focus. We re-apply sticky-immersive
+   * flags here so they survive notification shade pulls, lock/unlock cycles, etc.
+   */
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+      super.onWindowFocusChanged(hasFocus)
+      if (hasFocus) {
+          hideSystemBars()
+      }
+  }
+
+  /**
+   * Set BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE so the system bars (status bar +
+   * gesture navigation bar) are hidden by default and reappear transiently when
+   * the user swipes from an edge, then auto-hide again without any app interaction.
+   */
+  private fun hideSystemBars() {
+      val controller = WindowInsetsControllerCompat(window, window.decorView)
+      controller.systemBarsBehavior =
+          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      controller.hide(WindowInsetsCompat.Type.systemBars())
+  }
  
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]

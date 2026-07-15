@@ -38,7 +38,7 @@ const theme = createReducer(constant.Default, {
   [actionTypes.SET_THEME]: (state, action) => action.value,
 });
 
-const isStatusBar = createReducer(false, {
+const isStatusBar = createReducer(true, {
   [actionTypes.TOGGLE_STATUS_BAR]: (state, action) => action.value,
 });
 
@@ -48,17 +48,28 @@ const isScreenAwake = createReducer(true, {
 
 const isAutoScroll = createReducer(false, {
   [actionTypes.TOGGLE_AUTO_SCROLL]: (state, action) => action.value,
+  // Auto-cancel when Audio turns ON (either runtime or feature toggle)
+  [actionTypes.TOGGLE_AUDIO]: (state, action) => (action.value ? false : state),
+  [actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED]: (state, action) => (action.value ? false : state),
 });
 
 const isAudio = createReducer(false, {
   [actionTypes.TOGGLE_AUDIO]: (state, action) => action.value,
+  // Auto-cancel when AutoScroll turns ON
+  [actionTypes.TOGGLE_AUTO_SCROLL]: (state, action) => (action.value ? false : state),
+});
+
+const isAudioFeatureEnabled = createReducer(true, {
+  [actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED]: (state, action) => action.value,
+  // Auto-disable Audio feature when AutoScroll turns ON
+  [actionTypes.TOGGLE_AUTO_SCROLL]: (state, action) => (action.value ? false : state),
 });
 
 const isAudioAutoPlay = createReducer(false, {
   [actionTypes.TOGGLE_AUDIO_AUTO_PLAY]: (state, action) => action.value,
 });
 
-const isAudioSyncScroll = createReducer(false, {
+const isAudioSyncScroll = createReducer(true, {
   [actionTypes.TOGGLE_AUDIO_SYNC_SCROLL]: (state, action) => action.value,
 });
 
@@ -186,6 +197,13 @@ const defaultAudio = (state = {}, action) => {
   switch (action.type) {
     case actionTypes.SET_DEFAULT_AUDIO:
       return { ...state, ...action.value };
+    case actionTypes.SET_BANI_LENGTH: {
+      const newState = { ...state };
+      constant.BANI_IDS_WITH_LENGTH_VARIANTS.forEach((id) => {
+        delete newState[id];
+      });
+      return newState;
+    }
     default:
       return state;
   }
@@ -228,6 +246,13 @@ const audioProgress = (state = {}, action) => {
       delete newState[baniId];
       return newState;
     }
+    case actionTypes.SET_BANI_LENGTH: {
+      const newState = { ...state };
+      constant.BANI_IDS_WITH_LENGTH_VARIANTS.forEach((id) => {
+        delete newState[id];
+      });
+      return newState;
+    }
     default:
       return state;
   }
@@ -246,6 +271,7 @@ const rootReducer = combineReducers({
   theme,
   isAutoScroll,
   isAudio,
+  isAudioFeatureEnabled,
   isAudioAutoPlay,
   isAudioSyncScroll,
   audioPlaybackSpeed,

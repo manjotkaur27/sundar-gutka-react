@@ -3,6 +3,7 @@
 /* eslint-env jest */
 
 import React from "react";
+import TrackPlayer from "react-native-track-player";
 
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 
@@ -24,15 +25,11 @@ jest.mock("react-redux", () => ({
 }));
 
 // Mock navigation
-let blurCallback;
-
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({
-    addListener: (event, cb) => {
-      if (event === "blur") blurCallback = cb;
-      return jest.fn(); // unsubscribe
-    },
+    addListener: () => jest.fn(), // unsubscribe
   }),
+  useIsFocused: () => true,
 }));
 
 // Mock theme + styles
@@ -223,9 +220,9 @@ jest.mock("../ScrollViewComponent", () => {
 const defaultCurrentTrack = {
   id: "track-1",
   displayName: "Test Track",
-  audioUrl: "file:///track-1.mp3",
+  audioUrl: "file:///track-1.m4a",
   lyricsUrl: "file:///track-1.lrc",
-  remoteUrl: "https://example.com/track-1.mp3",
+  remoteUrl: "https://example.com/track-1.m4a",
   trackLengthSec: 120,
   trackSizeMB: 5,
 };
@@ -258,6 +255,7 @@ const createProps = (overrides = {}) => ({
   isInitialized: true,
   addAndPlayTrack: jest.fn(),
   play: jest.fn(),
+  onReopenPreviewModal: jest.fn(),
   ...overrides,
 });
 
@@ -274,7 +272,6 @@ const renderComponent = async (props) => {
 describe("AudioControlBar", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    blurCallback = undefined;
     mockCheckLyricsFileAvailable.mockResolvedValue(false);
     mockGetSequenceFromPosition.mockResolvedValue(null);
     mockGetPositionFromSequence.mockResolvedValue(null);
@@ -313,6 +310,15 @@ describe("AudioControlBar", () => {
     });
 
     expect(props.handlePlayPause).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens preview chooser when Audios action is pressed", async () => {
+    const props = createProps();
+    const { getByTestId } = await renderComponent(props);
+
+    fireEvent.press(getByTestId("action-More Tracks"));
+
+    expect(props.onReopenPreviewModal).toHaveBeenCalled();
   });
 
   it("shows PauseIcon when isPlaying is true", async () => {
@@ -438,21 +444,7 @@ describe("AudioControlBar", () => {
         defaultProgress.position
       );
       expect(mockSetAudioProgress).toHaveBeenCalledWith("bani-1", "track-1", 10, null);
-      expect(props.reset).toHaveBeenCalledTimes(1);
     });
-  });
-
-  it("pauses audio when navigation blur event fires", async () => {
-    const props = createProps();
-    await renderComponent(props);
-
-    expect(typeof blurCallback).toBe("function");
-
-    await act(async () => {
-      await blurCallback();
-    });
-
-    expect(props.pause).toHaveBeenCalledTimes(1);
   });
 
   it("calls addAndPlayTrack when initialized with a valid currentPlaying", async () => {
@@ -472,7 +464,7 @@ describe("AudioControlBar", () => {
     expect(props.addAndPlayTrack).toHaveBeenCalledWith(
       defaultCurrentTrack.id,
       defaultCurrentTrack.audioUrl,
-      defaultCurrentTrack.displayName,
+      defaultCurrentTrack.artist,
       defaultCurrentTrack.displayName,
       defaultCurrentTrack.lyricsUrl,
       defaultCurrentTrack.trackLengthSec,
@@ -527,7 +519,51 @@ describe("AudioControlBar", () => {
     expect(props.play).toHaveBeenCalledTimes(1);
   });
 
-  it("checks lyrics availability and toggles sync scroll via dispatch", async () => {
+  it("resumes same active track when re-opened and autoplay is enabled", async () => {
+    mockState.isAudioAutoPlay = true;
+    TrackPlayer.getActiveTrack.mockResolvedValueOnce({
+      id: "track-1",
+      url: "file:///track-1.m4a",
+      remoteUrl: "https://example.com/track-1.m4a",
+    });
+
+    const props = createProps({
+      isInitialized: true,
+      play: jest.fn().mockResolvedValue(undefined),
+      addAndPlayTrack: jest.fn().mockResolvedValue(undefined),
+    });
+
+    await renderComponent(props);
+
+    await waitFor(() => {
+      expect(props.play).toHaveBeenCalledTimes(1);
+      expect(props.addAndPlayTrack).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps same active track paused when re-opened and autoplay is disabled", async () => {
+    mockState.isAudioAutoPlay = false;
+    TrackPlayer.getActiveTrack.mockResolvedValueOnce({
+      id: "track-1",
+      url: "file:///track-1.m4a",
+      remoteUrl: "https://example.com/track-1.m4a",
+    });
+
+    const props = createProps({
+      isInitialized: true,
+      play: jest.fn().mockResolvedValue(undefined),
+      addAndPlayTrack: jest.fn().mockResolvedValue(undefined),
+    });
+
+    await renderComponent(props);
+
+    await waitFor(() => {
+      expect(props.play).not.toHaveBeenCalled();
+      expect(props.addAndPlayTrack).not.toHaveBeenCalled();
+    });
+  });
+
+  it("checks lyrics availability when track changes", async () => {
     mockCheckLyricsFileAvailable.mockResolvedValue(true);
     mockState.isAudioSyncScroll = true;
 
@@ -541,39 +577,20 @@ describe("AudioControlBar", () => {
       },
       { timeout: 1000 }
     );
-
-    await waitFor(
-      () => {
-        expect(mockToggleAudioSyncScroll).toHaveBeenCalledWith(true);
-        expect(mockDispatch).toHaveBeenCalledWith(
-          expect.objectContaining({ type: "TOGGLE_AUDIO_SYNC_SCROLL" })
-        );
-      },
-      { timeout: 1000 }
-    );
   });
 
-  it("opens AudioSettingsModal and closes MoreTracks modal when toggling actions", async () => {
+  it("opens AudioSettingsModal after Audios action triggers preview callback", async () => {
     const props = createProps();
     const { getByTestId, queryByTestId } = await renderComponent(props);
 
-    await waitFor(() => {
-      // Open More Tracks first
-      fireEvent.press(getByTestId("action-More Tracks"));
-    });
+    fireEvent.press(getByTestId("action-More Tracks"));
+    expect(props.onReopenPreviewModal).toHaveBeenCalled();
+    expect(queryByTestId("tracks-list")).toBeNull();
 
-    await waitFor(() => {
-      expect(getByTestId("tracks-list")).toBeTruthy();
-    });
-
-    // Now open Audio Settings – should close More Tracks
-    await waitFor(() => {
-      fireEvent.press(getByTestId("action-Audio Settings"));
-    });
+    fireEvent.press(getByTestId("action-Audio Settings"));
 
     await waitFor(() => {
       expect(getByTestId("audio-settings-modal")).toBeTruthy();
-      expect(queryByTestId("tracks-list")).toBeNull();
     });
   });
 
@@ -607,18 +624,16 @@ describe("AudioControlBar", () => {
       expect(props.onCloseTrackModal).toHaveBeenCalledTimes(1);
     });
 
-    it("shows ChevronDownIcon when isMoreTracksModalOpen is true", async () => {
+    it("keeps CloseIcon visible when Audios action is pressed", async () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      // Open More Tracks modal
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-More Tracks"));
-      });
+      fireEvent.press(getByTestId("action-More Tracks"));
 
       await waitFor(() => {
-        expect(getByTestId("chevron-down-icon")).toBeTruthy();
-        expect(queryByTestId("close-icon")).toBeNull();
+        expect(props.onReopenPreviewModal).toHaveBeenCalled();
+        expect(getByTestId("close-icon")).toBeTruthy();
+        expect(queryByTestId("chevron-down-icon")).toBeNull();
       });
     });
 
@@ -637,60 +652,14 @@ describe("AudioControlBar", () => {
       });
     });
 
-    it("closes both modals when ChevronDownIcon is pressed", async () => {
+    it("shows ChevronDownIcon when Settings modal is open", async () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      // Open More Tracks modal first
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-More Tracks"));
-      });
-
-      await waitFor(() => {
-        expect(getByTestId("tracks-list")).toBeTruthy();
-        expect(getByTestId("chevron-down-icon")).toBeTruthy();
-      });
-
-      // Press ChevronDownIcon to close modals
-      await waitFor(() => {
-        const chevronIcon = getByTestId("chevron-down-icon");
-        const chevronButton = chevronIcon.parent;
-        if (chevronButton && chevronButton.props.onPress) {
-          fireEvent.press(chevronButton);
-        } else {
-          fireEvent.press(chevronIcon);
-        }
-      });
-
-      // Both modals should be closed
-      await waitFor(() => {
-        expect(queryByTestId("tracks-list")).toBeNull();
-        expect(queryByTestId("audio-settings-modal")).toBeNull();
-        expect(getByTestId("close-icon")).toBeTruthy();
-      });
-    });
-
-    it("shows ChevronDownIcon when Settings modal is open (after More Tracks closes)", async () => {
-      const props = createProps();
-      const { getByTestId, queryByTestId } = await renderComponent(props);
-
-      // Open More Tracks modal first
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-More Tracks"));
-      });
-
-      await waitFor(() => {
-        expect(getByTestId("tracks-list")).toBeTruthy();
-      });
-
-      // Open Audio Settings modal (should close More Tracks due to useEffect)
-      await waitFor(() => {
-        fireEvent.press(getByTestId("action-Audio Settings"));
-      });
+      fireEvent.press(getByTestId("action-Audio Settings"));
 
       await waitFor(() => {
         expect(getByTestId("audio-settings-modal")).toBeTruthy();
-        expect(queryByTestId("tracks-list")).toBeNull(); // More Tracks should be closed
         expect(getByTestId("chevron-down-icon")).toBeTruthy();
         expect(queryByTestId("close-icon")).toBeNull();
       });

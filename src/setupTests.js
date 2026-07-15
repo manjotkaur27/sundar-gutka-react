@@ -46,3 +46,71 @@ jest.mock("react-native-fs", () => ({
   readDir: jest.fn(() => Promise.resolve([])),
   stat: jest.fn(() => Promise.resolve({ isFile: () => true, size: 0 })),
 }));
+
+// Mock react-native-track-player to avoid ESM/native module parsing in Jest
+jest.mock("react-native-track-player", () => ({
+  __esModule: true,
+  default: {
+    setupPlayer: jest.fn(() => Promise.resolve()),
+    setRepeatMode: jest.fn(() => Promise.resolve()),
+    updateOptions: jest.fn(() => Promise.resolve()),
+    add: jest.fn(() => Promise.resolve()),
+    play: jest.fn(() => Promise.resolve()),
+    pause: jest.fn(() => Promise.resolve()),
+    stop: jest.fn(() => Promise.resolve()),
+    reset: jest.fn(() => Promise.resolve()),
+    seekTo: jest.fn(() => Promise.resolve()),
+    getState: jest.fn(() => Promise.resolve("paused")),
+    getActiveTrack: jest.fn(() => Promise.resolve(null)),
+    getPlaybackState: jest.fn(() => Promise.resolve({ state: "paused" })),
+    getProgress: jest.fn(() => Promise.resolve({ position: 0, duration: 0, buffered: 0 })),
+    getPosition: jest.fn(() => Promise.resolve(0)),
+    getDuration: jest.fn(() => Promise.resolve(0)),
+  },
+  Capability: {
+    Play: "Play",
+    Pause: "Pause",
+    SkipToNext: "SkipToNext",
+    SkipToPrevious: "SkipToPrevious",
+    Stop: "Stop",
+    SeekTo: "SeekTo",
+  },
+  RepeatMode: {
+    Off: "Off",
+  },
+  AppKilledPlaybackBehavior: {
+    StopPlaybackAndRemoveNotification: "StopPlaybackAndRemoveNotification",
+  },
+  Event: {
+    RemoteDuck: "remote-duck",
+    PlaybackTrackChanged: "playback-track-changed",
+    PlaybackQueueEnded: "playback-queue-ended",
+    RemotePlay: "remote-play",
+    RemotePause: "remote-pause",
+    RemoteNext: "remote-next",
+    RemotePrevious: "remote-previous",
+    RemoteStop: "remote-stop",
+    RemoteSeek: "remote-seek",
+  },
+  State: {
+    Playing: "playing",
+    Paused: "paused",
+  },
+  useProgress: jest.fn(() => ({ position: 0, duration: 0, buffered: 0 })),
+}));
+
+// Mock AsyncStorage
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock")
+);
+
+// Mock react-native-safe-area-context
+jest.mock("react-native-safe-area-context", () => {
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaConsumer: jest.fn(({ children }) => children(inset)),
+    useSafeAreaInsets: jest.fn(() => inset),
+    useSafeAreaFrame: jest.fn(() => ({ x: 0, y: 0, width: 390, height: 844 })),
+  };
+});

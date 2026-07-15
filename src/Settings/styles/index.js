@@ -44,6 +44,12 @@ const createStyles = (theme) => ({
     backgroundColor: theme.colors.surface,
   },
   avatarStyle: { width: "100%", height: "100%", resizeMode: "contain" },
+  iconContainerStyle: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   viewWrapper: {
     justifyContent: "center",
     marginTop: "auto",

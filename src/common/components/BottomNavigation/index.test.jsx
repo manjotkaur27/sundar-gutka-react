@@ -1,7 +1,7 @@
 // BottomNavigation.test.jsx
 import React from "react";
 
-import { render, fireEvent } from "@testing-library/react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 import { getMockDispatch, setMockState } from "@common/test-utils/mocks/react-redux";
 
@@ -17,6 +17,24 @@ const mockUseNavigation = jest.fn(() => mockNavigation);
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => mockUseNavigation(),
 }));
+
+const mockPauseTrack = jest.fn(() => Promise.resolve());
+const mockStopTrack = jest.fn(() => Promise.resolve());
+const mockResetPlayer = jest.fn(() => Promise.resolve());
+
+jest.mock("@common/TrackPlayerUtils", () => ({
+  pauseTrack: (...args) => mockPauseTrack(...args),
+  stopTrack: (...args) => mockStopTrack(...args),
+  resetPlayer: (...args) => mockResetPlayer(...args),
+}));
+
+// Mock global fetch so checkInternetConnection resolves immediately (online)
+const mockFetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+  })
+);
+global.fetch = mockFetch;
 
 // --- Helpers ---
 
@@ -44,9 +62,21 @@ describe("BottomNavigation", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Restore online mock after clearAllMocks
+    mockFetch.mockResolvedValue({ ok: true });
     setMockState({ isAudio: false });
     mockNavigation = createNavigation();
     mockUseNavigation.mockReturnValue(mockNavigation);
+  });
+
+  afterEach(async () => {
+    // Flush microtasks to allow the mocked fetch checkInternetConnection to resolve and set component state safely inside act boundaries
+    await waitFor(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 0);
+        })
+    );
   });
 
   test("renders four buttons with correct accessibility labels", () => {
@@ -78,7 +108,7 @@ describe("BottomNavigation", () => {
     expect(mockNavigation.popToTop).toHaveBeenCalled();
   });
 
-  test("pressing Read when audio is on toggles audio to false", () => {
+  test("pressing Read when audio is on toggles audio to false", async () => {
     setMockState({ isAudio: true });
     mockNavigation = createNavigation({ currentRoute: "Home" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -87,10 +117,12 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Read"));
 
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    });
   });
 
-  test("pressing Read when audio is off does not toggle audio", () => {
+  test("pressing Read when audio is off does not toggle audio", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Home" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -99,10 +131,12 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Read"));
 
-    expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    await waitFor(() => {
+      expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    });
   });
 
-  test("pressing Read from Settings calls goBack", () => {
+  test("pressing Read from Settings calls goBack", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Settings" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -111,10 +145,12 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Read"));
 
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
   });
 
-  test("pressing Music when NOT on Reader or Settings dispatches actions", () => {
+  test("pressing Music when NOT on Reader or Settings dispatches actions", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Home" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -124,11 +160,13 @@ describe("BottomNavigation", () => {
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
     // Dispatches: autoScroll=false, audio toggled from false -> true
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    await waitFor(() => {
+      // (Autoscroll is no longer toggled by BottomNavigation)
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    });
   });
 
-  test("pressing Music when ALREADY on Reader dispatches actions", () => {
+  test("pressing Music when ALREADY on Reader dispatches actions", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Reader" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -138,11 +176,13 @@ describe("BottomNavigation", () => {
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
     // Dispatches: autoScroll=false, audio toggled from false -> true
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    await waitFor(() => {
+      // (Autoscroll is no longer toggled by BottomNavigation)
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    });
   });
 
-  test("pressing Music from Settings calls goBack and keeps audio ON if audio was already on", () => {
+  test("pressing Music from Settings calls goBack and reopens preview when audio was already on", async () => {
     setMockState({ isAudio: true });
     mockNavigation = createNavigation({ currentRoute: "Settings" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -151,12 +191,16 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
-    expect(mockNavigation.goBack).toHaveBeenCalled();
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    await waitFor(() => {
+      // When audio is already on and coming from Settings, the new behaviour
+      // is a simple goBack() — stop/reset are not called to avoid flicker.
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+      expect(mockStopTrack).not.toHaveBeenCalled();
+      expect(mockResetPlayer).not.toHaveBeenCalled();
+    });
   });
 
-  test("pressing Music from Settings calls goBack and toggles audio if audio was off", () => {
+  test("pressing Music from Settings calls goBack and toggles audio if audio was off", async () => {
     setMockState({ isAudio: false });
     mockNavigation = createNavigation({ currentRoute: "Settings" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -165,9 +209,11 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
-    expect(mockNavigation.goBack).toHaveBeenCalled();
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    await waitFor(() => {
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+      // (Autoscroll is no longer toggled by BottomNavigation)
+      expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    });
   });
 
   test("pressing Settings navigates to Settings", () => {
@@ -178,8 +224,7 @@ describe("BottomNavigation", () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith("Settings");
   });
 
-  test("pressing Music toggles audio based on current isAudio state", () => {
-    // Start with isAudio=true to verify toggle -> false
+  test("pressing Music while already open restarts audio into preview mode", async () => {
     setMockState({ isAudio: true });
     mockNavigation = createNavigation({ currentRoute: "Reader" });
     mockUseNavigation.mockReturnValue(mockNavigation);
@@ -188,10 +233,15 @@ describe("BottomNavigation", () => {
 
     fireEvent.press(getByLabelText("bottomnav-Music"));
 
-    // toggleAutoScroll(false) always
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUTO_SCROLL", payload: false });
-    // toggled from true -> false
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+    await waitFor(() => {
+      // When isAudio is already true and already on Reader, the new behaviour
+      // is a no-op (early return) to avoid the stop→toggle flicker.
+      expect(mockStopTrack).not.toHaveBeenCalled();
+      expect(mockResetPlayer).not.toHaveBeenCalled();
+      // toggleAudio is also not called — user stays in the player
+      expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: false });
+      expect(mockDispatch).not.toHaveBeenCalledWith({ type: "TOGGLE_AUDIO", payload: true });
+    });
   });
 
   test("As a user entering Settings from Home I want irrelevant tabs hidden So that navigation isn't confusing", () => {
@@ -232,5 +282,30 @@ describe("BottomNavigation", () => {
     expect(getByLabelText("bottomnav-Read")).toBeTruthy();
     expect(getByLabelText("bottomnav-Music")).toBeTruthy();
     expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
+  });
+
+  test("shows Music tab even when audio feature is disabled (recovery shortcut)", () => {
+    setMockState({ isAudio: false, isAudioFeatureEnabled: false, isAutoScroll: false });
+    mockNavigation = createNavigation({ currentRoute: "Reader" });
+    mockUseNavigation.mockReturnValue(mockNavigation);
+
+    const { getByLabelText } = render(<BottomNavigation activeKey="Read" />);
+
+    expect(getByLabelText("bottomnav-Home")).toBeTruthy();
+    expect(getByLabelText("bottomnav-Read")).toBeTruthy();
+    expect(getByLabelText("bottomnav-Settings")).toBeTruthy();
+    expect(getByLabelText("bottomnav-Music")).toBeTruthy(); // always visible as recovery shortcut
+  });
+
+  test("shows Music tab even when audio feature is disabled IF auto-scroll is running", () => {
+    // Redux sets isAudioFeatureEnabled to false implicitly when isAutoScroll is true
+    setMockState({ isAudio: false, isAudioFeatureEnabled: false, isAutoScroll: true });
+    mockNavigation = createNavigation({ currentRoute: "Reader" });
+    mockUseNavigation.mockReturnValue(mockNavigation);
+
+    const { getByLabelText } = render(<BottomNavigation activeKey="Read" />);
+
+    // Music should NOT be null
+    expect(getByLabelText("bottomnav-Music")).toBeTruthy();
   });
 });

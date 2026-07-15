@@ -52,6 +52,7 @@ const useHeader = (baniListData, navigation, selector) => {
       headerStyle: {
         backgroundColor: theme.colors.headerVariant,
       },
+      headerBackVisible: false,
       headerLeft,
       headerRight: () => (baniListData.length > 0 ? headerRight() : null),
     });

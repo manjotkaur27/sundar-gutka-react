@@ -324,9 +324,8 @@ export const getBookmarksForID = (baniId, length, language) => {
       .then((db) => {
         db.transaction((tx) => {
           tx.executeSql(
-            `SELECT ID, BaniShabadID, Seq, Gurmukhi, GurmukhiUni, Transliterations, TukGurmukhi, TukGurmukhiUni, TukTransliterations FROM Banis_Bookmarks WHERE Bani = ${baniId} AND BaniShabadID in (SELECT ID from mv_Banis_Shabad where Bani = ${baniId} AND ${baniLength} = 1)` +
-              ` ORDER BY Seq ASC;`,
-            [],
+            `SELECT ID, BaniShabadID, Seq, Gurmukhi, GurmukhiUni, Transliterations, TukGurmukhi, TukGurmukhiUni, TukTransliterations FROM Banis_Bookmarks WHERE Bani = ? AND BaniShabadID in (SELECT ID from mv_Banis_Shabad where Bani = ? AND ${baniLength} = 1) ORDER BY Seq ASC;`,
+            [baniId, baniId],
             (_tx, results) => {
               const totalResults = Array.from({ length: results.rows.length }, (_, i) => {
                 const row = results.rows.item(i);

@@ -1,4 +1,5 @@
 import { exists } from "react-native-fs";
+import BUNDLED_LYRICS from "../assets/lyrics/bundledLyrics";
 import { checkIsRemote, extractFilePath } from "./urlHelper";
 
 const checkLyricsFileAvailable = async (lyricsUrl = null) => {
@@ -13,6 +14,10 @@ const checkLyricsFileAvailable = async (lyricsUrl = null) => {
     const isRemote = checkIsRemote(lyricsUrl);
 
     if (isRemote) {
+      if (Object.prototype.hasOwnProperty.call(BUNDLED_LYRICS, lyricsUrl)) {
+        return true;
+      }
+
       // Use HEAD request for efficiency (only checks if file exists without downloading)
       const response = await fetch(lyricsUrl, { method: "HEAD" });
       return response.ok;

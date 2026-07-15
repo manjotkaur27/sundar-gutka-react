@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { AppState } from "react-native";
 import ErrorBoundary from "react-native-error-boundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
@@ -8,18 +9,33 @@ import notifee, { EventType } from "@notifee/react-native";
 import { PersistGate } from "redux-persist/integration/react";
 import {
   createStore,
+  STRINGS,
   logError,
   initializeCrashlytics,
   FallBack,
   resetBadgeCount,
   navigateTo,
-  initializePerformanceMonitoring,
 } from "@common";
 import ThemeProvider from "./src/common/context/ThemeProvider";
+import toastConfig from "./src/common/toastConfig";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
 import Navigation from "./src/navigation";
 
 const { store, persistor } = createStore();
+
+/**
+ * After redux-persist rehydrates the store, sync the localization library
+ * with the persisted language. Without this, STRINGS stays on the default
+ * locale (English) because redux-persist's REHYDRATE action does not
+ * trigger the setLanguage action creator where STRINGS.setLanguage() lives.
+ */
+const handleBeforeLift = () => {
+  const { language } = store.getState();
+  if (language) {
+    STRINGS.setLanguage(language);
+  }
+};
+
 const App = () => {
   useEffect(() => {
     // Code to run on component mount
@@ -27,11 +43,28 @@ const App = () => {
   }, []); // The empty array causes this effect to only run on mount
 
   useEffect(() => {
-    (async () => {
-      await initializePerformanceMonitoring();
+    const runSetup = async () => {
       await initializeCrashlytics();
       await TrackPlayerSetup();
-    })();
+    };
+
+    // Guard against OS-initiated background cold starts (service revival, FCM,
+    // Bluetooth events). startForeground() is blocked in background-restricted
+    // states on Android 12+, so we must not call setupPlayer() until the app is
+    // actually in the foreground. On a normal launcher tap AppState is already
+    // 'active' and we run immediately with no overhead.
+    if (AppState.currentState !== "active") {
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+          sub.remove();
+          runSetup().catch(logError);
+        }
+      });
+      return () => sub.remove();
+    }
+
+    runSetup().catch(logError);
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -51,12 +84,12 @@ const App = () => {
 
   return (
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
+      <PersistGate loading={null} persistor={persistor} onBeforeLift={handleBeforeLift}>
         <ThemeProvider>
           <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
             <SafeAreaProvider>
               <Navigation />
-              <Toast />
+              <Toast config={toastConfig} />
             </SafeAreaProvider>
           </ErrorBoundary>
         </ThemeProvider>

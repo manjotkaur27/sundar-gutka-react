@@ -1,46 +1,48 @@
 import { useEffect, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { trackArtistListeningDuration } from "@common";
+import { trackBaniListen } from "@common";
 
 /**
- * Custom hook to track artist listening duration
- * Tracks actual listening time using timestamps, independent of seeking behavior
+ * Tracks actual listening time per artist using wall-clock timestamps.
+ * Independent of seeking — only counts time the audio was genuinely playing.
  *
- * @param {boolean} isPlaying - Whether audio is currently playing
- * @param {Object} currentPlaying - Current track object with displayName (artist name) and id
+ * @param {string|number} baniID
+ * @param {string} baniTitle
+ * @param {boolean} isPlaying
+ * @param {Object} currentPlaying - track object with displayName, id, trackLengthSec
  */
-const useArtistListeningDuration = (baniID, isPlaying, currentPlaying) => {
+const useArtistListeningDuration = (baniID, baniTitle, isPlaying, currentPlaying) => {
   const navigation = useNavigation();
   const trackedArtistRef = useRef(null);
   const trackedTrackIdRef = useRef(null);
   const playStartTimeRef = useRef(null);
 
-  // Extract primitive values to avoid unnecessary effect runs from object reference changes
-  // React compares these primitive values by value, not by reference
   const currentArtist = currentPlaying?.displayName;
   const currentTrackId = currentPlaying?.id;
+  const currentTrackLengthSec = currentPlaying?.trackLengthSec;
 
-  // Helper function to calculate and track duration
   const trackDuration = async () => {
     if (trackedArtistRef.current && playStartTimeRef.current) {
-      const finalDuration = Math.floor((Date.now() - playStartTimeRef.current) / 1000);
-      if (finalDuration > 0) {
-        try {
-          await trackArtistListeningDuration(baniID, trackedArtistRef.current, finalDuration);
-        } catch (error) {
-          // Silently fail - analytics should never crash the app
-          // Event is still queued by Firebase even if await fails
-        }
-      }
+      // Clear refs synchronously before the async call so concurrent callers
+      // (blur listener + isPlaying→false effect) can't both pass this guard.
+      const startTime = playStartTimeRef.current;
+      const artist = trackedArtistRef.current;
       playStartTimeRef.current = null;
       trackedArtistRef.current = null;
       trackedTrackIdRef.current = null;
+      const finalDuration = Math.floor((Date.now() - startTime) / 1000);
+      if (finalDuration > 0) {
+        try {
+          await trackBaniListen(baniID, baniTitle, artist, finalDuration, currentTrackLengthSec);
+        } catch (_) {
+          // Silently fail — analytics must never crash the app
+        }
+      }
     }
   };
 
-  // Track artist listening duration
   useEffect(() => {
-    // If artist or track changed, track the previous artist's duration
+    // If artist or track changed, flush the previous session
     if (
       trackedArtistRef.current &&
       playStartTimeRef.current &&
@@ -51,9 +53,8 @@ const useArtistListeningDuration = (baniID, isPlaying, currentPlaying) => {
       })();
     }
 
-    // Start tracking new artist when playback starts
+    // Start tracking when playback begins for a new artist/track
     if (currentArtist && currentTrackId && isPlaying) {
-      // If this is a new artist or track, initialize tracking
       if (
         trackedArtistRef.current !== currentArtist ||
         trackedTrackIdRef.current !== currentTrackId
@@ -64,7 +65,7 @@ const useArtistListeningDuration = (baniID, isPlaying, currentPlaying) => {
       }
     }
 
-    // Track duration when playback stops
+    // Flush when playback stops
     if (!isPlaying && trackedArtistRef.current && playStartTimeRef.current) {
       (async () => {
         await trackDuration();
@@ -72,25 +73,21 @@ const useArtistListeningDuration = (baniID, isPlaying, currentPlaying) => {
     }
   }, [isPlaying, currentArtist, currentTrackId, baniID]);
 
-  // Track when user navigates away from screen
+  // Flush when user navigates away
   useEffect(() => {
     const unsubscribe = navigation.addListener("blur", () => {
-      // Track artist listening duration when leaving screen
       if (trackedArtistRef.current && playStartTimeRef.current) {
-        // Use IIFE to handle async in event listener
         (async () => {
           await trackDuration();
         })();
       }
     });
-
     return unsubscribe;
   }, [navigation]);
 
-  // Track on component unmount
+  // Flush on unmount
   useEffect(() => {
     return () => {
-      // Track artist listening duration before unmounting
       if (trackedArtistRef.current && playStartTimeRef.current) {
         (async () => {
           await trackDuration();

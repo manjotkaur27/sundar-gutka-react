@@ -20,6 +20,21 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       background-color: ${backColor};
       word-break: break-word;
       margin-top:50px;
+      /* Clear the bottom-nav overlay (65px nav + 5px progress bar) so the last
+         verse is never hidden behind the bars when the chrome is shown. */
+      padding-bottom: 90px;
+    }
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: ${theme.colors.primary};
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
     }
     @font-face {
       font-family: '${constant.GURBANI_AKHAR_TRUE}';
@@ -34,9 +49,9 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
 }');
     }
     @font-face {
-      font-family: '${constant.GURBANI_AKAR_THICK_TRUE}';
-      src: url('${getFontFaceURL(constant.GURBANI_AKAR_THICK_TRUE)}') format('truetype'),local('${
-  constant.GURBANI_AKAR_THICK_TRUE
+      font-family: '${constant.GURBANI_AKHAR_THICK_TRUE}';
+      src: url('${getFontFaceURL(constant.GURBANI_AKHAR_THICK_TRUE)}') format('truetype'),local('${
+  constant.GURBANI_AKHAR_THICK_TRUE
 }');
     }
     @font-face {
@@ -62,11 +77,11 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
       padding: 0.2em;
       font-family: '${fontFace}', '${constant.GURBANI_AKHAR_HEAVY_TRUE}', '${
   constant.GURBANI_AKHAR_TRUE
-}', '${constant.GURBANI_AKAR_THICK_TRUE}', '${constant.ANMOL_LIPI}';
+}', '${constant.GURBANI_AKHAR_THICK_TRUE}', '${constant.ANMOL_LIPI}';
     }
     .transliteration, .translation {
       padding: 0.2em;
-      font-family: '${theme.typography.fonts.balooPaaji}';
+      font-family: '${constant.BALOO_PAAJI}';
     }
     * {
       -webkit-user-select: none;

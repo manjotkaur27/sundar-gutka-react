@@ -1,0 +1,74 @@
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+index afa6b0f..6fe93c5 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+@@ -94,8 +94,20 @@ class MusicService : HeadlessJsTaskService() {
+     private var compactCapabilities: List<Capability> = emptyList()
+ 
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
++        // OS-initiated revival with a null intent (START_STICKY restart after process kill)
++        // arrives in a background-restricted state on Android 12+ where startForeground()
++        // is blocked. Abort cleanly rather than crashing with ForegroundServiceStartNotAllowedException.
++        if (intent == null) {
++            stopSelf(startId)
++            return START_NOT_STICKY
++        }
++        try {
++            startAndStopEmptyNotificationToAvoidANR()
++        } catch (e: Exception) {
++            stopSelf(startId)
++            return START_NOT_STICKY
++        }
+         startTask(getTaskConfig(intent))
+-        startAndStopEmptyNotificationToAvoidANR()
+         return START_STICKY
+     }
+ 
+@@ -105,24 +117,31 @@ class MusicService : HeadlessJsTaskService() {
+      * information see https://github.com/doublesymmetry/react-native-track-player/issues/1666
+      */
+     private fun startAndStopEmptyNotificationToAvoidANR() {
+-        val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-            notificationManager.createNotificationChannel(
+-                NotificationChannel(getString(TrackPlayerR.string.rntp_temporary_channel_id), getString(TrackPlayerR.string.rntp_temporary_channel_name), NotificationManager.IMPORTANCE_LOW)
+-            )
+-        }
++        try {
++            val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++                notificationManager.createNotificationChannel(
++                    NotificationChannel(getString(TrackPlayerR.string.rntp_temporary_channel_id), getString(TrackPlayerR.string.rntp_temporary_channel_name), NotificationManager.IMPORTANCE_LOW)
++                )
++            }
+ 
+-        val notificationBuilder = NotificationCompat.Builder(this, getString(TrackPlayerR.string.rntp_temporary_channel_id))
+-            .setPriority(PRIORITY_LOW)
+-            .setCategory(Notification.CATEGORY_SERVICE)
+-            .setSmallIcon(ExoPlayerR.drawable.exo_notification_small_icon)
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+-            notificationBuilder.foregroundServiceBehavior = NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE
++            val notificationBuilder = NotificationCompat.Builder(this, getString(TrackPlayerR.string.rntp_temporary_channel_id))
++                .setPriority(PRIORITY_LOW)
++                .setCategory(Notification.CATEGORY_SERVICE)
++                .setSmallIcon(ExoPlayerR.drawable.exo_notification_small_icon)
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++                notificationBuilder.foregroundServiceBehavior = NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE
++            }
++            val notification = notificationBuilder.build()
++            startForeground(EMPTY_NOTIFICATION_ID, notification)
++            @Suppress("DEPRECATION")
++            stopForeground(true)
++        } catch (e: Exception) {
++            // ForegroundServiceStartNotAllowedException (Android 12+) or any other FGS
++            // restriction — the OS state does not permit starting a foreground service here.
++            // Abort the service cleanly instead of crashing.
++            stopSelf()
+         }
+-        val notification = notificationBuilder.build()
+-        startForeground(EMPTY_NOTIFICATION_ID, notification)
+-        @Suppress("DEPRECATION")
+-        stopForeground(true)
+     }
+ 
+     @MainThread

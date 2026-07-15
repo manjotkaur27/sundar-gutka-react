@@ -16,7 +16,7 @@ const useBaniList = () => {
     try {
       if (prevLanguageRef.current !== transliterationLanguage || baniList.length === 0) {
         const transliteratedList = await getBaniList(transliterationLanguage);
-        const orderedData = orderedBani(transliteratedList, baniOrder);
+        const orderedData = orderedBani(transliteratedList, baniOrder, transliterationLanguage);
         dispatch(actions.setBaniList(orderedData));
         setBaniListData(orderedData);
       } else {

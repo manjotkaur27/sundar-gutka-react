@@ -22,6 +22,7 @@ jest.mock("react-redux", () => ({
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
+  addListener: jest.fn().mockImplementation(() => () => {}),
 };
 
 // Mock route
@@ -211,6 +212,10 @@ jest.mock("@common", () => ({
     return <View testID="status-bar" {...props} />;
   },
   useBackHandler: jest.fn(),
+  showInfoToast: jest.fn(),
+  STRINGS: {},
+  trackScrollProgress: jest.fn(),
+  trackNavBar: jest.fn(),
 }));
 
 // Mock components
@@ -585,7 +590,9 @@ describe("Reader", () => {
     mockState.isAutoScroll = true;
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
-    expect(getByTestId("auto-scroll-component")).toBeTruthy();
+    // The auto-scroll controls mount with the header hidden (display: none until
+    // the header bar is shown), so include hidden elements in the query.
+    expect(getByTestId("auto-scroll-component", { includeHiddenElements: true })).toBeTruthy();
   });
 
   it("restores saved position on mount", async () => {

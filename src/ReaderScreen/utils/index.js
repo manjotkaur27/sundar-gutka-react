@@ -5,13 +5,13 @@ import script from "./gutkaScript";
 export const fontColorForReader = (header, theme, text) => {
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  const getHeaderColor1 = () => theme.colors.primaryHeaderVariant;
+  const getHeaderColor1 = () => (theme.mode === "dark" ? "#77baff" : "#113979");
   const getHeaderColor2 = () => theme.colors.primaryText;
 
   const defaultColor = getHeaderColor2();
   const gurmukhiMapping = {
     1: getHeaderColor1(),
-    2: getHeaderColor1(),
+    2: defaultColor,
     6: defaultColor,
     default: defaultColor,
   };
@@ -88,8 +88,8 @@ export const loadHTML = (
       .map((item) => {
         const textAlignMap = {
           0: "left",
-          1: "left",
-          2: "left",
+          1: "center",
+          2: "center",
         };
 
         let textAlign = textAlignMap[item.header];

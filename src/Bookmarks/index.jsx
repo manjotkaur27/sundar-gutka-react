@@ -1,6 +1,8 @@
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { BaniList, actions, StatusBarComponent, SafeArea, useTheme } from "@common";
+import { BaniList, actions, StatusBarComponent, SafeArea, useTheme, STRINGS } from "@common";
+import { AppBar, BackIconComponent } from "@common/components";
 import useBookmarks from "./hooks/useBookmarks";
 import useHeader from "./hooks/useHeader";
 import constant from "../common/constant";
@@ -45,9 +47,24 @@ const Bookmarks = ({ navigation, route }) => {
   });
 
   return (
-    <SafeArea backgroundColor={theme.colors.surface}>
-      <StatusBarComponent backgroundColor={theme.colors.surface} />
-      <BaniList data={formattedData} onPress={onPress} isFolderScreen />
+    <SafeArea backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface}>
+      <StatusBarComponent backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface} />
+      <AppBar
+        title={STRINGS.bookmarks}
+        backgroundColor={theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : theme.colors.surface}
+        titleColor={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK}
+        titleStyle={{
+          fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+          fontSize: theme.typography.sizes.xxl,
+          fontWeight: theme.typography.weights.normal,
+        }}
+        leftComponent={
+          <BackIconComponent size={30} color={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK} />
+        }
+      />
+      <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
+        <BaniList data={formattedData} onPress={onPress} isFolderScreen />
+      </View>
     </SafeArea>
   );
 };

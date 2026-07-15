@@ -1,16 +1,15 @@
 import React, { useEffect } from "react";
-import { View, ScrollView, Pressable } from "react-native";
+import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { Switch } from "@rneui/themed";
 import PropTypes from "prop-types";
 import { toggleAudioAutoPlay, toggleAudioSyncScroll, setAudioPlaybackSpeed } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlusIcon, MinusIcon } from "@common/icons";
-import { STRINGS, CustomText } from "@common";
+import { STRINGS, CustomText, ThemedSwitch } from "@common";
 import { audioSettingModalStyles } from "../style";
 
-const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
+const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(audioSettingModalStyles);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
@@ -57,20 +56,15 @@ const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
             <View style={styles.modalContainer}>
               <CustomText style={styles.settingItemTitle}>{setting.title}</CustomText>
               <View style={styles.settingHelperTextContainer}>
-                {setting.disabled && !isLyricsAvailable ? (
+                {setting.disabled && !isLyricsAvailable && !isLyricsChecking ? (
                   <CustomText style={styles.settingHelperText}>
                     {STRINGS.SYNC_UNAVAILABLE}
                   </CustomText>
+                ) : setting.disabled && isLyricsChecking ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
                 ) : (
-                  <Switch
+                  <ThemedSwitch
                     value={setting.defaultValue}
-                    ios_backgroundColor={theme.staticColors.SWITCH_BACKGROUND_COLOR}
-                    trackColor={{
-                      false: theme.staticColors.SWITCH_THUMB_COLOR,
-                      true: theme.colors.primary,
-                    }}
-                    thumbColor={setting.defaultValue ? theme.staticColors.WHITE_COLOR : "#f4f3f4"}
-                    style={styles.switchStyle}
                     onValueChange={setting.onValueChange}
                     disabled={setting.disabled}
                   />
@@ -84,19 +78,23 @@ const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
           <CustomText style={styles.settingItemTitle}>{STRINGS.PLAYBACK_SPEED}</CustomText>
           <View right style={styles.speedControlContainer}>
             <Pressable
-              onPress={() => handleSpeedChange(audioPlaybackSpeed + 0.1)}
-              disabled={audioPlaybackSpeed > 1.6}
+              style={styles.speedControlButton}
+              hitSlop={8}
+              onPress={() => handleSpeedChange(audioPlaybackSpeed - 0.1)}
+              disabled={audioPlaybackSpeed <= 0.5}
             >
-              <PlusIcon size={24} color={theme.colors.audioSettingsModalText} />
+              <MinusIcon size={24} color={theme.colors.audioSettingsModalText} />
             </Pressable>
             <CustomText style={styles.settingItemTitle}>
               {audioPlaybackSpeed.toFixed(1)}x
             </CustomText>
             <Pressable
-              onPress={() => handleSpeedChange(audioPlaybackSpeed - 0.1)}
-              disabled={audioPlaybackSpeed <= 0.5}
+              style={styles.speedControlButton}
+              hitSlop={8}
+              onPress={() => handleSpeedChange(audioPlaybackSpeed + 0.1)}
+              disabled={audioPlaybackSpeed > 1.6}
             >
-              <MinusIcon size={24} color={theme.colors.audioSettingsModalText} />
+              <PlusIcon size={24} color={theme.colors.audioSettingsModalText} />
             </Pressable>
           </View>
         </View>
@@ -107,6 +105,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, setRate }) => {
 
 AudioSettingsModal.propTypes = {
   isLyricsAvailable: PropTypes.bool.isRequired,
+  isLyricsChecking: PropTypes.bool,
   setRate: PropTypes.func.isRequired,
 };
 

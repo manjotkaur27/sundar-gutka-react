@@ -108,5 +108,8 @@
       }
     }
   ],
-  "plugins": ["prettier", "react-native"]
+  "plugins": ["prettier", "react-native", "react-hooks"],
+  "globals": {
+    "__DEV__": "readonly"
+  }
 }

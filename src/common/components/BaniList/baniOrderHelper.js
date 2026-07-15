@@ -1,3 +1,5 @@
+import constant from "../../constant";
+import defaultBaniOrder from "../../defaultBaniOrder";
 import { validateBaniOrder } from "../../helpers";
 
 const findBaniById = (baniList, id) => baniList.find((item) => item.id === id);
@@ -9,7 +11,36 @@ const extractBaniDetails = (baniItem) => {
     gurmukhiUni: baniItem.gurmukhiUni,
   };
 };
-const orderedBani = (baniList, baniOrder) => {
+
+// Build a lookup map from gurmukhi key → canonical folder definition (with hi/ur/ipa fields)
+const defaultFolderMap = defaultBaniOrder.baniOrder
+  .filter((item) => item.folder)
+  .reduce((acc, item) => {
+    acc[item.gurmukhi] = item;
+    return acc;
+  }, {});
+
+/**
+ * Returns the correct folder display name based on the selected transliteration language.
+ * Always reads from defaultBaniOrder so new translations are picked up even for
+ * users whose baniOrder was persisted before the translations were added.
+ */
+const getFolderTranslit = (element, language) => {
+  // Look up canonical definition from defaultBaniOrder by gurmukhi key
+  const canonical = defaultFolderMap[element.gurmukhi] || element;
+  switch (language) {
+    case constant.HINDI:
+      return canonical.hi || canonical.translit;
+    case constant.SHAHMUKHI:
+      return canonical.ur || canonical.translit;
+    case constant.IPA:
+      return canonical.ipa || canonical.translit;
+    default:
+      return canonical.translit;
+  }
+};
+
+const orderedBani = (baniList, baniOrder, language) => {
   const order = validateBaniOrder(baniOrder);
   // Safeguard if `baniOrder` is missing or if `baniOrder.baniOrder` is not an array
   if (!order?.baniOrder?.length) {
@@ -38,7 +69,7 @@ const orderedBani = (baniList, baniOrder) => {
           ? {
               gurmukhiUni: element.gurmukhiUni,
               gurmukhi: element.gurmukhi,
-              translit: element.translit,
+              translit: getFolderTranslit(element, language),
               folder,
             }
           : null;

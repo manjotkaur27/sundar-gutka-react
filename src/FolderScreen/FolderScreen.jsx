@@ -1,18 +1,21 @@
 import React from "react";
 import { View } from "react-native";
+import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
-import { BaniList, constant, StatusBarComponent, SafeArea } from "@common";
+import { BaniList, constant, StatusBarComponent, SafeArea, actions } from "@common";
 import Header from "./header";
 
 const FolderScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
+  const dispatch = useDispatch();
   const { navigate } = navigation;
   const { data, title } = route.params.params;
 
   const onPress = (row) => {
     const { item } = row;
     const { id, gurmukhi } = item;
+    dispatch(actions.toggleAudio(false));
     navigate(constant.READER, {
       key: `Reader-${id}`,
       params: { id, title: gurmukhi },

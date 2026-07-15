@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { StatusBar, ScrollView } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
@@ -37,7 +37,7 @@ import useHeader from "./hooks/useHeader";
 import createStyles from "./styles";
 
 const Settings = ({ navigation }) => {
-  useHeader(navigation);
+  const appBar = useHeader(navigation);
   useBackHandler();
   const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvailable);
 
@@ -45,19 +45,14 @@ const Settings = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { displayOptionsText, end } = styles;
-  const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS } = STRINGS;
+  const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO } = STRINGS;
   const language = useSelector((state) => state.language);
   const { about, databaseUpdate } = STRINGS;
-  useEffect(() => {
-    navigation.setOptions({
-      title: STRINGS.settings,
-      headerTitleStyle: styles.headerTitleStyle,
-    });
-  }, [language]);
 
   return (
     <SafeArea backgroundColor={theme.colors.surface} edges={["left", "right"]}>
       <StatusBarComponent backgroundColor={theme.colors.surface} />
+      {appBar}
 
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <ScrollView>
@@ -72,6 +67,8 @@ const Settings = ({ navigation }) => {
         <HideStatusBar />
         <AutoScroll />
         <KeepAwake />
+        {/* Audio Player */}
+        <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
         <Audio />
         {/* Bani Options */}
         <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>

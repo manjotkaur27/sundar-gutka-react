@@ -9,6 +9,7 @@ import {
   BottomNavigation,
   SafeArea,
   StatusBarComponent,
+  ThemedSwitch,
 } from "./components";
 import orderedBani from "./components/BaniList/baniOrderHelper";
 import constant from "./constant";
@@ -17,19 +18,19 @@ import defaultBaniOrder from "./defaultBaniOrder";
 import {
   allowTracking,
   trackReaderEvent,
+  trackNavBar,
   trackSettingEvent,
   trackReminderEvent,
   trackAudioEvent,
-  trackArtistListeningDuration,
-  trackArtist,
+  trackBaniOpen,
+  trackBaniListen,
+  trackBaniListenCompletion,
+  trackBaniArtistDefault,
+  trackTrackDownload,
+  trackAudioLinkRequest,
+  trackScrollProgress,
 } from "./firebase/analytics";
 import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
-import {
-  initializePerformanceMonitoring,
-  startPerformanceTrace,
-  stopTrace,
-  resetTrace,
-} from "./firebase/performance";
 import baseFontSize, { validateBaniOrder } from "./helpers";
 import useKeepAwake from "./hooks/keepAwake";
 import useBackHandler from "./hooks/useBackHandler";
@@ -66,6 +67,7 @@ export {
   initializeCrashlytics,
   allowTracking,
   trackReaderEvent,
+  trackNavBar,
   trackAudioEvent,
   trackReminderEvent,
   trackSettingEvent,
@@ -87,10 +89,6 @@ export {
   navigationRef,
   defaultBaniOrder,
   validateBaniOrder,
-  initializePerformanceMonitoring,
-  startPerformanceTrace,
-  stopTrace,
-  resetTrace,
   ensureDbExists,
   checkForBaniDBUpdate,
   REMOTE_DB_URL,
@@ -111,6 +109,12 @@ export {
   useThemedStyles,
   ListItemTitle,
   useBackHandler,
-  trackArtistListeningDuration,
-  trackArtist,
+  trackBaniOpen,
+  trackBaniListen,
+  trackBaniListenCompletion,
+  trackBaniArtistDefault,
+  trackTrackDownload,
+  trackAudioLinkRequest,
+  trackScrollProgress,
+  ThemedSwitch,
 };

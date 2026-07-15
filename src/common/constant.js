@@ -91,12 +91,16 @@ export default {
   PORTRAIT: "PORTRAIT",
   LANDSCAPE: "LANDSCAPE",
   REMOTE_DB_URL: "https://banidb.blob.core.windows.net/database",
+  // Audio + lyrics assets are served via the Azure Front Door CDN
+  // (origin: banidb.blob.core.windows.net). The database stays on the raw blob.
+  AUDIO_BASE_URL: "https://gurbani-audios-c4abhzghhnccd5gj.z01.azurefd.net/audios",
   BASIC_AUTH_USERNAME: "admin",
   BASIC_AUTH_PASSWORD: "",
   REMOTE_AUDIO_API_URL:
     "https://sttm-audio-api-v2.salmonriver-80392db4.eastus.azurecontainerapps.io/v1",
   CHOPAYI_SAHIB_ID: 9,
   REHRAAS_SAHIB_ID: 21,
+  BANI_IDS_WITH_LENGTH_VARIANTS: [9, 21, 23],
   MAST_SABH_MAST_TUKK: "smwpq msqu suB msqu",
   MAST_SABH_MAST_TUKK_UNI: "ਸਮਾਪਤ ਮਸਤੁ ਸੁਭ ਮਸਤੁ",
   MINIMUM_BOTTOM_PADDING: 35,
@@ -105,4 +109,6 @@ export default {
     title: "gur mMqR",
     titleUni: "ਗੁਰ ਮੰਤ੍ਰ",
   },
+  INTERNET_CHECK_URL: "https://www.gstatic.com/generate_204",
+  ICON_SIZE_SMALL: 18,
 };

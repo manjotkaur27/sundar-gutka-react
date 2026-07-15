@@ -164,6 +164,9 @@ export const audioControlBarStyles = (theme) => ({
     justifyContent: "center",
     alignItems: "center",
   },
+  playButtonLoadingSpinner: {
+    minWidth: 30,
+  },
   progressContainer: {
     flex: 1,
     marginTop: 2,
@@ -173,12 +176,15 @@ export const audioControlBarStyles = (theme) => ({
     position: "relative",
     justifyContent: "center",
   },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.xs,
+  },
   timestamp: {
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fonts.balooPaaji,
-    right: 0,
-    position: "absolute",
-    bottom: 25,
     fontWeight: theme.typography.weights.normal,
   },
   seekLoadingOverlay: {
@@ -203,11 +209,15 @@ export const audioTrackDialogStyles = (theme) => ({
     zIndex: 1000,
   },
   blurOverlay: {
-    position: "relative",
+    // Absolutely fill the card so the frosted blur sits BEHIND the modal content
+    // (title, track list). With position:"relative" it collapsed to a zero-height
+    // sibling and never covered anything, leaving the iOS card transparent so the
+    // bani text bled through and collided with the modal text.
+    position: "absolute",
+    top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    top: 0,
     borderRadius: theme.borderRadius.md,
   },
   container: {
@@ -220,9 +230,13 @@ export const audioTrackDialogStyles = (theme) => ({
     marginLeft: "auto",
     marginRight: "auto",
     marginBottom: theme.spacing.md_12,
+    // Clip the absolutely-filled BlurView to the card's rounded corners.
+    overflow: "hidden",
   },
   containerIOS: {
-    backgroundColor: "transparent",
+    // Fallback tint under the BlurView so the card is never fully see-through
+    // (e.g. when reduce-transparency is enabled and the blur renders as a solid).
+    backgroundColor: theme.colors.transparentOverlay,
   },
   containerAndroid: {
     backgroundColor: theme.colors.transparentOverlay,
@@ -237,6 +251,7 @@ export const audioTrackDialogStyles = (theme) => ({
     right: theme.spacing.md,
     zIndex: 10,
   },
+
   welcomeText: {
     fontFamily: constant.BALOO_PAAJI_SEMI_BOLD,
     fontSize: theme.typography.sizes.xxl,
@@ -248,6 +263,14 @@ export const audioTrackDialogStyles = (theme) => ({
     fontSize: theme.typography.sizes.lg,
     textAlign: "center",
     color: theme.colors.audioTitleText,
+  },
+  previewHintText: {
+    marginTop: theme.spacing.xs,
+    fontFamily: constant.BALOO_PAAJI,
+    fontSize: theme.typography.sizes.md,
+    textAlign: "center",
+    color: theme.colors.audioTitleText,
+    opacity: 0.85,
   },
   trackList: {
     maxHeight: 200,
@@ -288,8 +311,11 @@ export const audioTrackDialogStyles = (theme) => ({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-end",
-    minWidth: 120,
+    // Fixed width so the button does not resize when the countdown text
+    // changes (e.g. "Next (30s)" → "Next (9s)" drops a character).
+    minWidth: 150,
     zIndex: 1,
+    overflow: "hidden",
   },
   playButtonText: {
     color: theme.staticColors.WHITE_COLOR,
@@ -297,9 +323,25 @@ export const audioTrackDialogStyles = (theme) => ({
     fontWeight: theme.typography.weights.semibold,
     marginRight: theme.spacing.md,
     fontFamily: theme.typography.fonts.balooPaaji,
+    fontVariant: ["tabular-nums"],
+  },
+  nextLoadingSpinner: {
+    marginRight: theme.spacing.sm,
   },
   playButtonDisabled: {
     opacity: 0.5,
+  },
+  previewProgressTrack: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  previewProgressFill: {
+    height: "100%",
+    backgroundColor: theme.staticColors.WHITE_COLOR,
   },
 });
 
@@ -404,6 +446,12 @@ export const audioSettingModalStyles = (theme) => ({
     alignItems: "center",
     justifyContent: "center",
     gap: theme.spacing.md,
+  },
+  speedControlButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   modalContainer: {

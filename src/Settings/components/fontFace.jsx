@@ -1,13 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import STRINGS from "@common/localization";
 import { setFontFace } from "@common/actions";
+import { constant, showInfoToast } from "@common";
 import { BottomSheetComponent, ListItemComponent } from "./comon";
 import { getFontFaces } from "./comon/strings";
 
 const FontFaceComponent = () => {
   const [isVisible, toggleVisible] = useState(false);
   const fontFace = useSelector((state) => state.fontFace);
+  const prevFontFaceRef = useRef(fontFace);
+
+  useEffect(() => {
+    if (fontFace === constant.BALOO_PAAJI && prevFontFaceRef.current !== constant.BALOO_PAAJI) {
+      showInfoToast(STRINGS.baloo_paaji_warning);
+    }
+    prevFontFaceRef.current = fontFace;
+  }, [fontFace]);
   const fontFaceIcon = require("../../../images/fontfaceicon.png");
   const FONT_FACES = getFontFaces(STRINGS);
   return (

@@ -1,10 +1,11 @@
 import React from "react";
+import { View } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { ListItem, Icon, Switch } from "@rneui/themed";
+import { ListItem, Icon } from "@rneui/themed";
 import { toggleStatusBar } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, ThemedSwitch } from "@common";
 import createStyles from "../styles";
 
 const StatusBar = () => {
@@ -16,14 +17,16 @@ const StatusBar = () => {
 
   return (
     <ListItem bottomDivider containerStyle={styles.containerNightStyles}>
-      {!isStatusBar && (
-        <Icon color={theme.colors.primaryText} name="visibility-off" type="material" />
-      )}
-      {isStatusBar && <Icon color={theme.colors.primaryText} name="visibility" type="material" />}
+      <View style={styles.iconContainerStyle}>
+        {isStatusBar && (
+          <Icon color={theme.colors.primaryText} name="visibility-off" type="material" size={26} />
+        )}
+        {!isStatusBar && <Icon color={theme.colors.primaryText} name="visibility" type="material" size={26} />}
+      </View>
       <ListItem.Content>
         <ListItemTitle title={HIDE_STATUS_BAR} style={styles.listItemTitle} />
       </ListItem.Content>
-      <Switch value={isStatusBar} onValueChange={(value) => dispatch(toggleStatusBar(value))} />
+      <ThemedSwitch value={isStatusBar} onValueChange={(value) => dispatch(toggleStatusBar(value))} />
     </ListItem>
   );
 };
