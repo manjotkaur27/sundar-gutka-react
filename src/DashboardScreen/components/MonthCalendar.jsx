@@ -11,7 +11,15 @@ import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-const CIRCLE = 36;
+// Fallback only — the real circle size is derived from the measured grid width
+// (see `circle` below) so 7 columns always fit, on a small phone or a tablet.
+const CIRCLE_FALLBACK = 36;
+const CIRCLE_MIN = 26;
+const CIRCLE_MAX = 40;
+// Breathing room between the drawn shape and the SVG's own boundary. Without it
+// a stroke/fill whose edge lands exactly on the viewport edge gets clipped by
+// subpixel rounding — that was the "notched"/half-drawn circles.
+const EDGE_PAD = 1.5;
 
 const hasAnyActivity = (row) =>
   !!row && ((row.reading_seconds ?? 0) > 0 || (row.listening_seconds ?? 0) > 0);
@@ -23,7 +31,7 @@ const getLocalYM = () => {
 const getTodayStr = () => {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(
-    n.getDate(),
+    n.getDate()
   ).padStart(2, "0")}`;
 };
 
@@ -46,11 +54,11 @@ const buildWeekRows = (year, month) => {
 // day" marker has to be an actual stroked circle instead. Used standalone
 // only for the small legend swatch below.
 const DashedCircle = ({ size, color, strokeWidth, dash }) => (
-  <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+  <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
     <Circle
       cx={size / 2}
       cy={size / 2}
-      r={size / 2 - strokeWidth / 2}
+      r={size / 2 - strokeWidth / 2 - 0.5}
       stroke={color}
       strokeWidth={strokeWidth}
       strokeDasharray={dash}
@@ -66,23 +74,39 @@ DashedCircle.propTypes = {
 };
 DashedCircle.defaultProps = { strokeWidth: 1.5, dash: "4 3" };
 
-// Every ring/fill state for a day cell (heat fill, today's accent ring,
-// missed dashed ring) drawn in one SVG sharing a single cx/cy/r. Drawing the
-// "today" ring as a separate View `borderWidth` (as before) put it on a
-// different box than the absolute-fill SVG — an absolutely-positioned child
-// filling top/left/right/bottom:0 sits at the parent's padding edge, inside
-// the border, so the fill ends up inset from the ring instead of flush with
-// it. One SVG for everything sidesteps that mismatch entirely.
+// Every ring/fill state for a day cell (heat fill, today's accent ring, missed
+// dashed ring) drawn in one SVG sharing a single cx/cy — so the fill and the
+// rings are always concentric.
+//
+// Two things here are load-bearing and easy to regress:
+//  1. NO StyleSheet.absoluteFill. absoluteFill sets top/left/right/bottom:0,
+//     which stretches the SVG's LAYOUT box to the parent while the width/height
+//     props define its internal viewport. When those two disagree the shapes get
+//     clipped/offset — that produced the notched, half-drawn circles. The SVG is
+//     positioned at top/left 0 at exactly its own size instead, and a viewBox
+//     pins the coordinate space so it renders identically at any pixel density.
+//  2. Everything is inset by EDGE_PAD (and rings by half their stroke on top of
+//     that), so no shape's edge ever lands exactly on the viewport boundary,
+//     where subpixel rounding would shave it off.
 const DayMarker = ({ size, fillColor, todayColor, missedColor }) => {
-  const ringR = size / 2 - 1;
+  const c = size / 2;
+  const fillR = c - EDGE_PAD;
+  const missedR = c - EDGE_PAD - 1.5 / 2;
+  const todayR = c - EDGE_PAD - 2 / 2;
   return (
-    <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-      {fillColor ? <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={fillColor} /> : null}
+    <Svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      style={styles.dayMarkerSvg}
+      pointerEvents="none"
+    >
+      {fillColor ? <Circle cx={c} cy={c} r={fillR} fill={fillColor} /> : null}
       {missedColor ? (
         <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={ringR}
+          cx={c}
+          cy={c}
+          r={missedR}
           stroke={missedColor}
           strokeWidth={1.5}
           strokeDasharray="4 3"
@@ -90,14 +114,7 @@ const DayMarker = ({ size, fillColor, todayColor, missedColor }) => {
         />
       ) : null}
       {todayColor ? (
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={ringR}
-          stroke={todayColor}
-          strokeWidth={2}
-          fill="none"
-        />
+        <Circle cx={c} cy={c} r={todayR} stroke={todayColor} strokeWidth={2} fill="none" />
       ) : null}
     </Svg>
   );
@@ -137,6 +154,10 @@ const MonthCalendar = ({ refreshKey }) => {
   const [activityMap, setActivityMap] = useState({});
   const [modalDate, setModalDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  // Measured width of the grid, so the day circle can be sized to the column it
+  // actually has to fit in. A hard-coded 36 overflowed its cell on narrow phones
+  // (7 columns share the card width) and looked lost on wide ones.
+  const [gridWidth, setGridWidth] = useState(0);
   // Defaults to false (suppressed) until the summary resolves — a brand-new
   // user must never see "missed" marks for days before they installed the
   // app, even briefly. An existing user just sees them pop in a beat later.
@@ -175,7 +196,7 @@ const MonthCalendar = ({ refreshKey }) => {
     () => loadActivity(year, month),
     // refreshKey isn't read above but forces a refetch on screen focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [loadActivity, year, month, refreshKey],
+    [loadActivity, year, month, refreshKey]
   );
   const { loading, error, retry } = useAsyncSection(task);
 
@@ -208,7 +229,7 @@ const MonthCalendar = ({ refreshKey }) => {
         if (g.dx > 40) prevMonth();
         else if (g.dx < -40) nextMonth();
       },
-    }),
+    })
   ).current;
 
   const handleDayPress = useCallback(
@@ -224,7 +245,7 @@ const MonthCalendar = ({ refreshKey }) => {
       setModalDate(dateStr);
       setModalVisible(true);
     },
-    [year, month, activityMap, todayStr],
+    [year, month, activityMap, todayStr]
   );
 
   const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
@@ -236,10 +257,19 @@ const MonthCalendar = ({ refreshKey }) => {
       Object.values(activityMap).filter(
         (r) =>
           (r.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-          (r.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS,
+          (r.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
       ).length,
-    [activityMap],
+    [activityMap]
   );
+
+  // Circle sized to the column it must fit inside (7 across), clamped so it
+  // stays tappable on a small phone and doesn't balloon on a tablet. Falls back
+  // to the old fixed size for the very first frame, before onLayout reports.
+  const circle = useMemo(() => {
+    if (!gridWidth) return CIRCLE_FALLBACK;
+    const column = gridWidth / 7;
+    return Math.round(Math.max(CIRCLE_MIN, Math.min(CIRCLE_MAX, column - 6)));
+  }, [gridWidth]);
 
   // #2669d6 = rgb(38,105,214) — the brand blue, ramped by activity level.
   const heatColor = (level) => {
@@ -254,7 +284,11 @@ const MonthCalendar = ({ refreshKey }) => {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.card} {...panResponder.panHandlers}>
+      <View
+        style={styles.card}
+        onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}
+        {...panResponder.panHandlers}
+      >
         <View style={styles.header}>
           <CustomText style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113879" }]}>
             {monthYearLabel}
@@ -280,7 +314,9 @@ const MonthCalendar = ({ refreshKey }) => {
               <View key={ri} style={styles.weekRow}>
                 {Array.from({ length: 7 }).map((_c, ci) => (
                   <View key={ci} style={styles.cell}>
-                    <SkeletonBlock style={styles.daySkeleton} />
+                    <SkeletonBlock
+                      style={{ width: circle, height: circle, borderRadius: circle / 2 }}
+                    />
                   </View>
                 ))}
               </View>
@@ -296,7 +332,7 @@ const MonthCalendar = ({ refreshKey }) => {
                   if (!d) return <View key={`e-${ci}`} style={styles.cell} />;
                   const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(
                     2,
-                    "0",
+                    "0"
                   )}`;
                   const row2 = activityMap[dateStr];
                   const level = intensity(row2);
@@ -306,9 +342,9 @@ const MonthCalendar = ({ refreshKey }) => {
                   const missed = isPast && level === 0 && hasEverBeenActive;
                   return (
                     <Pressable key={d} style={styles.cell} onPress={() => handleDayPress(d)}>
-                      <View style={styles.dayCircle}>
+                      <View style={[styles.dayCircle, { width: circle, height: circle }]}>
                         <DayMarker
-                          size={CIRCLE}
+                          size={circle}
                           fillColor={isToday ? todayFill : level > 0 ? heatColor(level) : null}
                           todayColor={isToday ? accentBlue : null}
                           missedColor={missed ? MISSED_COLOR : null}
@@ -322,10 +358,10 @@ const MonthCalendar = ({ refreshKey }) => {
                               color: isToday
                                 ? accentBlue
                                 : level >= 2
-                                  ? "#fff"
-                                  : level > 0
-                                    ? accentBlue
-                                    : mutedText,
+                                ? "#fff"
+                                : level > 0
+                                ? accentBlue
+                                : mutedText,
                             },
                             // Today reads bolder via the real SemiBold face.
                             isToday && { fontFamily: numFont },
@@ -394,19 +430,22 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: "row", marginBottom: 4 },
   cell: { flex: 1, alignItems: "center", paddingVertical: 2 },
   dayLabel: { fontSize: 12, fontWeight: "500", paddingVertical: 4 },
+  // Deliberately NO borderRadius: this View is only a centering box — the circle
+  // itself is drawn by DayMarker's SVG. A borderRadius here makes Android mask
+  // the SVG child to the rounded shape and shave its edges. Width/height are
+  // applied inline from the responsive `circle` size.
   dayCircle: {
-    width: CIRCLE,
-    height: CIRCLE,
-    borderRadius: CIRCLE / 2,
     alignItems: "center",
     justifyContent: "center",
   },
+  // Matches DayMarker's own width/height exactly (NOT absoluteFill — see the
+  // comment on DayMarker for why that clipped the circles).
+  dayMarkerSvg: { position: "absolute", top: 0, left: 0 },
   dayNum: { fontSize: 13 },
   legend: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14 },
   legendText: { fontSize: 11 },
   legendBox: { width: 14, height: 14, borderRadius: 4 },
-  legendDot: { width: 14, height: 14, borderRadius: 7, marginLeft: 8 },
-  daySkeleton: { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2 },
+  legendDot: { width: 14, height: 14, marginLeft: 8 },
 });
 
 export default MonthCalendar;

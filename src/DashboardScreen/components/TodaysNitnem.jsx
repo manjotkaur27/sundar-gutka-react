@@ -15,7 +15,7 @@ import useBaniLookup from "./useBaniLookup";
 const todayStr = () => {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(
-    n.getDate(),
+    n.getDate()
   ).padStart(2, "0")}`;
 };
 
@@ -113,10 +113,16 @@ const buildRoundedArcPath = (cx, cy, r, stroke, startDeg, endDeg, capR) => {
   ].join(" ");
 };
 
+// EDGE_PAD keeps the ring's OUTER edge strictly inside the SVG viewport. Without
+// it r = (size - stroke) / 2 puts that edge at exactly size/2 — flush with the
+// boundary — and subpixel rounding shaved a chunk off, which is why the ring
+// rendered as a broken "C" instead of a closed circle.
+const RING_EDGE_PAD = 1.5;
+
 const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFont }) => {
   const size = 64;
   const stroke = 9;
-  const r = (size - stroke) / 2;
+  const r = (size - stroke) / 2 - RING_EDGE_PAD;
   const cx = size / 2;
   const cy = size / 2;
   const pct = total > 0 ? done / total : 0;
@@ -128,7 +134,9 @@ const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFon
 
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Svg width={size} height={size}>
+      {/* viewBox pins the coordinate space so the ring renders identically at
+          any pixel density / font scale. */}
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Circle cx={cx} cy={cy} r={r} stroke={track} strokeWidth={stroke} fill="none" />
         {pct >= 1 ? (
           <Circle cx={cx} cy={cy} r={r} stroke={accent} strokeWidth={stroke} fill="none" />
@@ -137,7 +145,7 @@ const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFon
       </Svg>
       <View style={StyleSheet.absoluteFill}>
         <View style={styles.ringCenter}>
-          <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont,  }]}>
+          <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont }]}>
             {done}/{total}
           </CustomText>
           <CustomText style={[styles.ringLabel, { color: labelColor }]}>banis</CustomText>
@@ -319,7 +327,7 @@ const TodaysNitnem = ({ refreshKey }) => {
         params: { id: b.id, title: b.gurmukhi, titleUni: b.gurmukhiUni },
       });
     },
-    [baniMap, dispatch, navigation],
+    [baniMap, dispatch, navigation]
   );
 
   // English spells the count out ("two banis left"); other languages keep the

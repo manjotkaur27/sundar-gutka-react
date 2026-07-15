@@ -1,18 +1,27 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { View, Pressable, Animated, PanResponder, useWindowDimensions } from "react-native";
-import { useSelector, useDispatch } from "react-redux";
 import Svg, { Circle } from "react-native-svg";
+import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { setPlayerDragging } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlayIcon, PauseIcon } from "@common/icons";
 import { CustomText } from "@common";
-import { setPlayerDragging } from "@common/actions";
 import { minimizePlayerStyles } from "../style";
 
 const COLLAPSE_DELAY_MS = 5000;
 // Must match theme.spacing.xl_20 (= 20) used in styles.container's right anchor.
 const RIGHT_ANCHOR = 20;
+// Everything in the expanded pill that is NOT the text panel, in px:
+//   container paddingHorizontal (spacing.md = 8) x2  = 16
+//   progress circle                                  = 28
+//   textContainer paddingLeft 7 + paddingRight (sm=4)= 11
+const PILL_CHROME = 55;
+// Breathing room left between the pill and each screen edge.
+const VIEWPORT_MARGIN = 16;
+// Never collapse the text panel to nothing, even on a tiny viewport.
+const MIN_TEXT_WIDTH = 80;
 
 const MinimizePlayer = ({
   setIsMinimized,
@@ -80,6 +89,14 @@ const MinimizePlayer = ({
     handlePlayPause();
     if (isExpanded) armCollapse();
   };
+
+  // Widest the text panel may be before the expanded pill would run off-screen.
+  // The pill is deliberately content-sized (so a short name doesn't leave a gap),
+  // but with NO cap a long artist name simply overflowed the viewport on narrow
+  // devices — the same unbounded-content bug the Seva page had. This bound only
+  // bites when the name genuinely doesn't fit; on a normal phone the full name
+  // still shows untruncated, and beyond it numberOfLines={1} ellipsizes.
+  const maxTextWidth = Math.max(MIN_TEXT_WIDTH, screenW - VIEWPORT_MARGIN * 2 - PILL_CHROME);
 
   // ── CSS anchor side ───────────────────────────────────────────────────────
   // When the pill is on the LEFT half we switch the container from
@@ -254,7 +271,9 @@ const MinimizePlayer = ({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={theme.mode === "dark" ? "rgba(255,255,255,0.22)" : theme.staticColors.TERTIARY_COLOR}
+            stroke={
+              theme.mode === "dark" ? "rgba(255,255,255,0.22)" : theme.staticColors.TERTIARY_COLOR
+            }
             strokeWidth={strokeWidth}
             fill="transparent"
           />
@@ -287,7 +306,7 @@ const MinimizePlayer = ({
         pointerEvents={isExpanded ? "auto" : "none"}
         style={[
           styles.textWrap,
-          { opacity: isExpanded ? 1 : 0 },
+          { opacity: isExpanded ? 1 : 0, maxWidth: maxTextWidth },
           // Collapse to width 0 instantly when not expanded. Before the text is
           // measured (textWidth == null) we leave width unset so it lays out at
           // its natural size for the one-time onLayout measurement.
@@ -295,7 +314,15 @@ const MinimizePlayer = ({
         ]}
       >
         <Pressable
-          style={[styles.textContainer, textWidth != null && { width: textWidth }]}
+          // maxWidth is applied BEFORE the measurement below, so the width
+          // onLayout reports is already viewport-safe and everything derived
+          // from it (the pill width, and the drag-release clamp's `delta`)
+          // stays within bounds too.
+          style={[
+            styles.textContainer,
+            { maxWidth: maxTextWidth },
+            textWidth != null && { width: textWidth },
+          ]}
           onPress={() => setIsMinimized(false)}
           onLayout={(e) => {
             if (textWidth == null) {

@@ -70,9 +70,28 @@ const SevaScreen = () => {
   const isDarkMode = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const titleWidth = screenWidth - 48;
-  const headlineFontSize = Math.round(Math.min(72, Math.max(52, screenWidth * 0.16)));
-  const vPad = Math.round(screenHeight * 0.07);
+
+  // ─── Responsive metrics ─────────────────────────────────────────────────────
+  // Every size below is derived from the viewport and then CLAMPED, so the page
+  // scales smoothly between a small phone and a tablet instead of flipping
+  // between layouts. Horizontal padding is computed once here and reused for the
+  // content AND the headline canvas, so the title always aligns with the text
+  // beneath it (previously the title used a separate screenWidth-48 canvas).
+  const hPad = Math.round(Math.max(16, Math.min(28, screenWidth * 0.064)));
+  const contentWidth = screenWidth - hPad * 2;
+  // Fixed vertical rhythm between sections — replaces the old space-between,
+  // which stretched/collapsed the gaps depending on the device height.
+  const gap = Math.round(Math.min(24, Math.max(14, screenHeight * 0.02)));
+  const vPad = Math.round(Math.min(36, Math.max(18, screenHeight * 0.04)));
+  // The big "$NN" is bound by height as well as width, so a short device gets a
+  // smaller figure instead of a 72px number that squeezes out everything else.
+  const amountFontSize = Math.round(
+    Math.min(72, Math.max(44, Math.min(screenWidth * 0.17, screenHeight * 0.085)))
+  );
+  const amountLineHeight = Math.round(amountFontSize * 1.2);
+  // Starting size for the dark-mode headline; it also carries
+  // adjustsFontSizeToFit, so it shrinks itself if a translation is long.
+  const headlineFontSize = Math.round(Math.min(64, Math.max(34, screenWidth * 0.155)));
   const dispatch = useDispatch();
   const navigation = useNavigation();
 
@@ -258,7 +277,7 @@ const SevaScreen = () => {
         }
       }
     },
-    [isDarkMode, theme],
+    [isDarkMode, theme]
   );
 
   // Keep ref current so the AppState listener always calls the latest closure
@@ -354,13 +373,80 @@ const SevaScreen = () => {
   };
 
   const content = config?.content ?? {};
-  const hPad = Math.max(16, Math.min(28, screenWidth * 0.064));
+
+  // ─── Clip-proof gradient headline (light mode) ──────────────────────────────
+  // SVG <Text> has no adjustsFontSizeToFit, so it cannot shrink itself — the old
+  // fixed 52px floor on a fixed screenWidth-48 canvas meant the Gurmukhi title
+  // simply overflowed and got sliced on narrower screens. Instead we draw the
+  // text at a constant size inside a viewBox and let react-native-svg scale that
+  // whole box down to the available width (preserveAspectRatio). The per-glyph
+  // advance below is deliberately a GENEROUS estimate: over-estimating only
+  // renders the title slightly smaller, which is the safe failure mode —
+  // under-estimating would clip it again.
+  const headlineText = content.headline ?? "";
+  const HEADLINE_BASE_FONT = 72;
+  const headlineBoxW = Math.max(headlineText.length * HEADLINE_BASE_FONT * 0.62, 1);
+  const headlineBoxH = HEADLINE_BASE_FONT * 1.35;
+  const headlineSvgW = Math.min(contentWidth, headlineBoxW);
+  const headlineSvgH = (headlineSvgW / headlineBoxW) * headlineBoxH;
 
   // Tax messaging differs by donor country: US donations are tax-deductible;
   // donations from outside the US are not. Country comes from the backend Seva
   // config (defaults to "US" when unknown).
   const isUSDonor = (config?.country ?? "US").toUpperCase() === "US";
   const taxMessage = isUSDonor ? content.taxMessage : content.nonUsTaxMessage;
+
+  // Dark mode uses a plain Text (which can adjustsFontSizeToFit itself). Light
+  // mode needs the blue gradient, which only SVG can paint — and SVG <Text>
+  // cannot auto-shrink, so it is scaled via the viewBox instead (see above).
+  // Renders nothing at all if the backend sent no headline.
+  const renderHeadline = () => {
+    if (!headlineText) return null;
+    if (isDarkMode) {
+      return (
+        <CustomText
+          style={[
+            styles.headline,
+            {
+              fontSize: headlineFontSize,
+              lineHeight: headlineFontSize * 1.4,
+              width: contentWidth,
+            },
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {headlineText}
+        </CustomText>
+      );
+    }
+    return (
+      <Svg
+        width={headlineSvgW}
+        height={headlineSvgH}
+        viewBox={`0 0 ${headlineBoxW} ${headlineBoxH}`}
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <Defs>
+          <SvgLinearGradient id="headlineGrad" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#113979" stopOpacity="1" />
+            <Stop offset="1" stopColor="#1F69DF" stopOpacity="1" />
+          </SvgLinearGradient>
+        </Defs>
+        <SvgText
+          fill="url(#headlineGrad)"
+          fontSize={HEADLINE_BASE_FONT}
+          fontWeight="800"
+          fontFamily="BalooPaaji2-SemiBold"
+          textAnchor="middle"
+          x={headlineBoxW / 2}
+          y={HEADLINE_BASE_FONT}
+        >
+          {headlineText}
+        </SvgText>
+      </Svg>
+    );
+  };
 
   const renderDescription = () => {
     const text = content.description || "";
@@ -390,7 +476,7 @@ const SevaScreen = () => {
             </Text>
           ) : (
             <Text key={i}>{seg.text}</Text>
-          ),
+          )
         )}
       </Text>
     );
@@ -457,44 +543,14 @@ const SevaScreen = () => {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.container, { paddingHorizontal: hPad, paddingTop: vPad }]}>
+        <View
+          style={[
+            styles.container,
+            { paddingHorizontal: hPad, paddingTop: vPad, paddingBottom: vPad, gap },
+          ]}
+        >
           {/* Title */}
-          {isDarkMode ? (
-            <CustomText
-              style={[
-                styles.headline,
-                {
-                  fontSize: headlineFontSize,
-                  lineHeight: headlineFontSize * 1.4,
-                  width: titleWidth,
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {content.headline}
-            </CustomText>
-          ) : (
-            <Svg height={headlineFontSize + 20} width={titleWidth}>
-              <Defs>
-                <SvgLinearGradient id="headlineGrad" x1="0" y1="0" x2="1" y2="0">
-                  <Stop offset="0" stopColor="#113979" stopOpacity="1" />
-                  <Stop offset="1" stopColor="#1F69DF" stopOpacity="1" />
-                </SvgLinearGradient>
-              </Defs>
-              <SvgText
-                fill="url(#headlineGrad)"
-                fontSize={headlineFontSize}
-                fontWeight="800"
-                fontFamily="BalooPaaji2-SemiBold"
-                textAnchor="middle"
-                x={titleWidth / 2}
-                y={headlineFontSize + 4}
-              >
-                {content.headline}
-              </SvgText>
-            </Svg>
-          )}
+          {renderHeadline()}
 
           {/* Description */}
           {renderDescription()}
@@ -508,12 +564,27 @@ const SevaScreen = () => {
           >
             <View style={styles.amountContainer}>
               <View style={styles.amountRow}>
-                <CustomText style={styles.currency}>$</CustomText>
+                {/* amountFontSize/amountLineHeight are viewport-derived (see the
+                    metrics block above) so the figure shrinks on short screens
+                    instead of squeezing the rest of the page. The "$" and the
+                    digits must share the SAME size + lineHeight to stay on one
+                    baseline — keep them in lockstep. */}
+                <CustomText
+                  style={[
+                    styles.currency,
+                    { fontSize: amountFontSize, lineHeight: amountLineHeight },
+                  ]}
+                >
+                  $
+                </CustomText>
                 {isOtherSelected ? (
                   <View style={styles.amountInputWrap}>
                     <TextInput
                       ref={otherAmountInputRef}
-                      style={styles.amountDisplay}
+                      style={[
+                        styles.amountDisplay,
+                        { fontSize: amountFontSize, lineHeight: amountLineHeight },
+                      ]}
                       value={customAmount}
                       onChangeText={handleCustomAmountChange}
                       keyboardType="numeric"
@@ -522,7 +593,11 @@ const SevaScreen = () => {
                     />
                     {customAmount === "" && (
                       <CustomText
-                        style={[styles.amountDisplay, styles.amountPlaceholder]}
+                        style={[
+                          styles.amountDisplay,
+                          styles.amountPlaceholder,
+                          { fontSize: amountFontSize, lineHeight: amountLineHeight },
+                        ]}
                         pointerEvents="none"
                       >
                         0
@@ -530,7 +605,14 @@ const SevaScreen = () => {
                     )}
                   </View>
                 ) : (
-                  <CustomText style={styles.amountDisplay}>{displayAmount}</CustomText>
+                  <CustomText
+                    style={[
+                      styles.amountDisplay,
+                      { fontSize: amountFontSize, lineHeight: amountLineHeight },
+                    ]}
+                  >
+                    {displayAmount}
+                  </CustomText>
                 )}
               </View>
               {frequency !== "One Time" && (
@@ -557,6 +639,9 @@ const SevaScreen = () => {
                       !isOtherSelected &&
                       styles.amountButtonTextSelected,
                   ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
                 >
                   ${amount}
                 </CustomText>
@@ -566,11 +651,17 @@ const SevaScreen = () => {
               style={[styles.amountButton, isOtherSelected && styles.amountButtonSelected]}
               onPress={() => handleAmountSelect(null, true)}
             >
+              {/* "Other" is the longest label and the one that used to wrap onto
+                  its own line on narrow screens — shrink-to-fit keeps the row
+                  intact in every locale. */}
               <CustomText
                 style={[
                   styles.amountButtonText,
                   isOtherSelected && styles.amountButtonTextSelected,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
               >
                 {STRINGS.SEVA_OTHER}
               </CustomText>

@@ -488,9 +488,11 @@ export const minimizePlayerStyles = (theme) => ({
     // metrics vary across devices/locales. Circle (28px) + paddingVertical*2 (8px) = 36px;
     // 44px gives a comfortable touch target with a small visual top/bottom margin.
     height: 44,
-    // No width cap — the pill sizes to its content so the FULL artist name always
-    // shows (no "Bibi Indermohan K..." truncation), expanding the pill as needed.
-    // The drag-release clamp (MinimizePlayer) keeps it within the viewport.
+    // The pill sizes to its content, so a short artist name never leaves a gap
+    // and a normal-length one ("Bibi Indermohan Kaur") still shows in FULL — no
+    // truncation. It is not unbounded, though: MinimizePlayer caps the text panel
+    // to the viewport (maxTextWidth), so a long name on a narrow device can no
+    // longer push the pill off-screen. The drag-release clamp handles position.
     borderRadius: theme.borderRadius.xl,
     // Symmetric horizontal padding only — this keeps the COLLAPSED pill a perfect
     // 44x44 circle (28 icon + 8+8). The right breathing room after the artist name
@@ -543,6 +545,15 @@ export const minimizePlayerStyles = (theme) => ({
     // gives the same ~12px gap, just without widening the collapsed pill.
     paddingRight: theme.spacing.sm,
   },
+  // includeFontPadding:false on BOTH lines is load-bearing, not cosmetic. Android
+  // otherwise reserves extra ascent/descent padding inside each Text; with the
+  // tight lineHeights below that padding is proportionally large and asymmetric,
+  // so the glyphs sit off-centre inside their own line box. The pill's
+  // alignItems:"center" then centres the BOX correctly while the visible text
+  // still looks pushed up/down — which is exactly the "not vertically centred"
+  // bug. Stripping the font padding makes the line box hug the glyphs, so
+  // centring the box centres what you actually see. (Same fix as the Seva
+  // amount's currency/amountDisplay.)
   timestamp: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.sm,
@@ -551,15 +562,21 @@ export const minimizePlayerStyles = (theme) => ({
     lineHeight: theme.typography.sizes.sm + 2,
     color: theme.colors.audioTitleText,
     opacity: 0.7,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   artistName: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
-    // Tight line box with a small negative margin: pulls the name up close to the
-    // timestamp but leaves a tiny breathing gap between the two (was -4).
+    // Tight line box, pulled up so the two lines read as one block. The negative
+    // margin was -3.5, which closed the gap entirely and made the timestamp and
+    // the name look stuck together; -1.5 gives back ~2px of breathing room
+    // without letting the pair drift apart. Do not push this below ~-2 again.
     lineHeight: theme.typography.sizes.md + 2,
     color: theme.colors.audioTitleText,
-    marginTop: -3.5,
+    marginTop: -1.5,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
 });
 

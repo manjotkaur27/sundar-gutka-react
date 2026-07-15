@@ -8,15 +8,23 @@ const createStyles = (theme) => {
       flex: 1,
       backgroundColor: isDarkMode ? "#041126" : "#FFF8E7",
     },
+    // flexGrow + center is the standard RN idiom: content is vertically centered
+    // when it is SHORTER than the viewport, and scrolls normally when it is
+    // taller. Crucially it never stretches the gaps between children.
     scrollContent: {
       flexGrow: 1,
+      justifyContent: "center",
     },
+    // Spacing is an explicit `gap` (set responsively by the screen), NOT
+    // justifyContent: "space-between". space-between distributes LEFTOVER space,
+    // so the gaps grew on tall devices and collapsed to zero on short ones —
+    // that was the whole "spacing differs per device / everything is cramped"
+    // bug. A fixed gap renders identically everywhere and simply scrolls when
+    // there isn't room.
     container: {
-      flex: 1,
-      paddingVertical: 24,
+      width: "100%",
       backgroundColor: isDarkMode ? "#041126" : "#FFF8E7",
       alignItems: "center",
-      justifyContent: "space-between",
     },
     header: {
       backgroundColor: theme.colors.primary,
@@ -139,21 +147,27 @@ const createStyles = (theme) => {
       textAlign: "center",
       marginTop: 2,
     },
+    // Always ONE row on every device. The old flexWrap + minWidth:70 pushed
+    // "Other" onto its own line on narrower screens but not wider ones — the
+    // most visible per-device inconsistency. Equal flex:1 columns divide
+    // whatever width is available, so the row is identical everywhere.
     amountButtons: {
       flexDirection: "row",
       justifyContent: "center",
-      gap: 12,
-      flexWrap: "wrap",
+      gap: 10,
       width: "100%",
     },
     amountButton: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+      flex: 1,
+      minWidth: 0,
+      paddingHorizontal: 6,
+      paddingVertical: 12,
       borderRadius: 8,
       borderWidth: 2,
       borderColor: isDarkMode ? "#2D3748" : "#CBD5E0",
       backgroundColor: "transparent",
-      minWidth: 70,
+      alignItems: "center",
+      justifyContent: "center",
     },
     amountButtonSelected: {
       backgroundColor: isDarkMode ? theme.colors.primary : "#2C5282",
