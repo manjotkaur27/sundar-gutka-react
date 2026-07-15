@@ -12,6 +12,10 @@ let scrollMultiplier = 1.5;
 let isScrolling;
 let isManuallyScrolling = false;
 let lastHighlightedElement = null;
+// The node currently carrying .sync-enlarged (a .pline span in paragraph mode,
+// a content-item div in line mode). Tracked separately from
+// lastHighlightedElement so a line change WITHIN one paragraph still scrolls.
+let lastEnlargedTarget = null;
 let highlightTimeout = null;
 let hasReachedEnd = false;
 let accumulatedScroll = 0;
@@ -32,38 +36,40 @@ let syncScrollUntil = 0;
 let restoreScrollUntil = 0;
 
 // The active (sync-scroll) line is rendered slightly larger than the rest of
-// the bani. We scale each line's font-size — not a CSS transform — so the text
-// re-wraps naturally within its container and never clips. This works
-// identically for gurmukhi, transliteration, translations, paragraph mode,
-// larivaar and vishraam spans. Each child's original size is snapshotted in a
-// data attribute and restored on every un-highlight path.
-const HIGHLIGHT_SCALE = 1.25;
-
-const enlargeElement = (element) => {
-  if (!element) return;
-  const items = element.querySelectorAll('.content-item');
-  for (let i = 0; i < items.length; i++) {
-    const el = items[i];
-    if (el.dataset.origFontSize === undefined) {
-      const cur = parseFloat(window.getComputedStyle(el).fontSize);
-      if (cur > 0) {
-        el.dataset.origFontSize = cur;
-        el.style.fontSize = (cur * HIGHLIGHT_SCALE) + 'px';
-      }
-    }
+// the bani via the .sync-enlarged class — the scale itself lives in CSS
+// (gutkahtml.js), derived from each line's own base size, so the text still
+// re-wraps naturally and never clips. Class toggling is deliberate: the
+// previous implementation read getComputedStyle(...).fontSize and wrote the
+// value back as absolute px, and under Android's textZoom (computed =
+// specified × system font scale) every highlight/restore cycle multiplied the
+// line by the font scale — lines drifted permanently smaller (scale < 100%)
+// or larger (> 100%). A class add/remove has no read-back, so it cannot
+// drift, and any stale state is removable by a document-wide sweep.
+const clearEnlarged = () => {
+  const prev = document.querySelectorAll('.sync-enlarged');
+  for (let i = 0; i < prev.length; i++) {
+    prev[i].classList.remove('sync-enlarged');
   }
 };
 
-const restoreElementSize = (element) => {
-  if (!element) return;
-  const items = element.querySelectorAll('.content-item');
-  for (let i = 0; i < items.length; i++) {
-    const el = items[i];
-    if (el.dataset.origFontSize !== undefined) {
-      el.style.fontSize = el.dataset.origFontSize + 'px';
-      delete el.dataset.origFontSize;
-    }
+// Enlarge ONLY the sung Gurmukhi line: the verse's own .pline span inside a
+// merged paragraph (db.js wraps each verse when merging), else the main
+// gurmukhi content-item. The div is targeted by data-type, NOT the .gurmukhi
+// class — the Punjabi translation div shares that class for its font.
+// Transliteration/translation lines never enlarge.
+const setEnlarged = (element, sequenceNumber, isParagraphMode) => {
+  clearEnlarged();
+  if (!element) return null;
+  let target = isParagraphMode
+    ? element.querySelector('.pline[data-pseq="' + sequenceNumber + '"]')
+    : null;
+  if (!target) {
+    target = element.querySelector('.content-item[data-type="gurmukhi"]');
   }
+  if (target) {
+    target.classList.add('sync-enlarged');
+  }
+  return target;
 };
 
 const clearAllHighlights = () => {
@@ -71,8 +77,11 @@ const clearAllHighlights = () => {
     clearTimeout(highlightTimeout);
     highlightTimeout = null;
   }
+  // Sweep the whole document, independent of lastHighlightedElement
+  // bookkeeping — no line can survive a reset enlarged.
+  clearEnlarged();
+  lastEnlargedTarget = null;
   if (lastHighlightedElement) {
-    restoreElementSize(lastHighlightedElement);
     lastHighlightedElement.style.backgroundColor = lastHighlightedElement.dataset.origBg || '';
     lastHighlightedElement.style.width = lastHighlightedElement.dataset.origWidth || '';
     lastHighlightedElement.style.margin = lastHighlightedElement.dataset.origMargin || '';
@@ -540,28 +549,15 @@ ${listener}.addEventListener(
           highlightTimeout = null;
         }
         
-        // Remove highlight from previous element if different
+        // Remove highlight from previous element if different (its enlarged
+        // line is cleared by the sweep inside setEnlarged below)
         if (lastHighlightedElement && !isSameElement) {
-          restoreElementSize(lastHighlightedElement);
           lastHighlightedElement.style.backgroundColor = lastHighlightedElement.dataset.origBg || '';
           lastHighlightedElement.style.width = lastHighlightedElement.dataset.origWidth || '';
           lastHighlightedElement.style.margin = lastHighlightedElement.dataset.origMargin || '';
           lastHighlightedElement.style.transition = '';
         }
-        
-        // Only scroll if it's a different element
-        if (!isSameElement) {
-          // Programmatic sync-scroll — suppress scrollFunc's show/hide so the
-          // nav bar the user chose to keep visible isn't collapsed by it.
-          syncScrollUntil = Date.now() + 700;
-          const behavior = message.behavior === "smooth" ? "smooth" : "auto";
-          gurmukhiDiv.scrollIntoView({
-            behavior: behavior,
-            block: "center",
-            inline: "nearest"
-          });
-        }
-        
+
         // Only snapshot original styles the first time this element is highlighted.
         // Re-highlighting the same element (e.g. multiple sequences in one paragraph)
         // must NOT overwrite origBg — it would capture the highlight colour and make
@@ -589,15 +585,34 @@ ${listener}.addEventListener(
           element.style.marginRight = "0";
         }
 
-        // Enlarge the active line (idempotent for the same element / paragraph)
-        enlargeElement(element);
+        // Enlarge ONLY the sung line — BEFORE scrolling, so the centering math
+        // sees the final (highlighted + enlarged) layout.
+        const enlarged = setEnlarged(element, sequenceNumber, isParagraphMode);
+        const scrollTarget = enlarged || gurmukhiDiv;
+
+        // Scroll whenever the SUNG LINE changes — including line changes within
+        // one merged paragraph (.pline target). The old element-level check
+        // centered a long paragraph once and later lines could sit off-screen.
+        if (scrollTarget !== lastEnlargedTarget) {
+          // Programmatic sync-scroll — suppress scrollFunc's show/hide so the
+          // nav bar the user chose to keep visible isn't collapsed by it.
+          syncScrollUntil = Date.now() + 700;
+          const behavior = message.behavior === "smooth" ? "smooth" : "auto";
+          scrollTarget.scrollIntoView({
+            behavior: behavior,
+            block: "center",
+            inline: "nearest"
+          });
+        }
+        lastEnlargedTarget = scrollTarget;
 
         // Store current element
         lastHighlightedElement = element;
 
         // Remove highlight after timeout
         highlightTimeout = setTimeout(()=> {
-          restoreElementSize(element);
+          clearEnlarged();
+          lastEnlargedTarget = null;
           element.style.backgroundColor = originalBackgroundColor;
           element.style.width = originalWidth;
           element.style.margin = originalMargin;

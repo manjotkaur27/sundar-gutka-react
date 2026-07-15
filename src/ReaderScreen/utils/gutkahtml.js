@@ -83,6 +83,20 @@ const htmlTemplate = (backColor, fontFace, content, theme) => `<!DOCTYPE html>
     * {
       -webkit-user-select: none;
     }
+    /* Active sync-scroll line, toggled as a class by gutkaScript.js. The scale
+       lives ONLY here, derived in CSS from the line's own base size (--fs on
+       content-items, inherited size for .pline paragraph spans). Class-based on
+       purpose: the old JS read getComputedStyle and wrote absolute px back, and
+       under Android's textZoom (computed = specified × system font scale) that
+       multiplied the line by the font scale on EVERY highlight/restore cycle —
+       lines drifted permanently smaller (scale < 100%) or larger (> 100%).
+       !important so the rule beats the baked inline font-size. */
+    .content-item.sync-enlarged {
+      font-size: calc(var(--fs) * 1.25) !important;
+    }
+    .pline.sync-enlarged {
+      font-size: 125% !important;
+    }
     .center{
       text-align:center
     }

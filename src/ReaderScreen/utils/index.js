@@ -62,12 +62,22 @@ export const createDiv = (
     type === constant.GURMUKHI.toLowerCase() || punjabiTranslation !== ""
       ? constant.GURMUKHI.toLowerCase()
       : type;
+  // data-type carries the semantic role: the Punjabi translation div shares the
+  // gurmukhi CSS CLASS (for its font), so class alone can't identify the main
+  // Gurmukhi line — the sync-scroll enlargement targets [data-type="gurmukhi"].
+  // The size is baked as the --fs custom property (font-size: var(--fs)) so the
+  // .sync-enlarged CSS rule can derive the enlarged size as calc(var(--fs) * scale)
+  // without any JS px bookkeeping.
   return `
-    <div class="content-item ${fontClass} ${textAlign}" style="font-size: ${fontSizeForReader(
+    <div class="content-item ${fontClass} ${textAlign}" data-type="${type}" style="--fs: ${fontSizeForReader(
     fontSize,
     header,
     type === constant.TRANSLITERATION.toLowerCase() || type === constant.TRANSLATION.toLowerCase()
-  )}px; font-family: ${fontFace}; color: ${fontColorForReader(header, theme, type.toUpperCase())};">
+  )}px; font-size: var(--fs); font-family: ${fontFace}; color: ${fontColorForReader(
+    header,
+    theme,
+    type.toUpperCase()
+  )};">
       ${content}
     </div>
   `;

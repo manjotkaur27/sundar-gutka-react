@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { View, Pressable, Animated, PanResponder, useWindowDimensions } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
@@ -11,17 +11,14 @@ import { CustomText } from "@common";
 import { minimizePlayerStyles } from "../style";
 
 const COLLAPSE_DELAY_MS = 5000;
-// Must match theme.spacing.xl_20 (= 20) used in styles.container's right anchor.
-const RIGHT_ANCHOR = 20;
-// Everything in the expanded pill that is NOT the text panel, in px:
-//   container paddingHorizontal (spacing.md = 8) x2  = 16
-//   progress circle                                  = 28
-//   textContainer paddingLeft 7 + paddingRight (sm=4)= 11
-const PILL_CHROME = 55;
-// Breathing room left between the pill and each screen edge.
-const VIEWPORT_MARGIN = 16;
-// Never collapse the text panel to nothing, even on a tiny viewport.
-const MIN_TEXT_WIDTH = 80;
+// Reference width the pill's original fixed-px dimensions (44 height, 28
+// circle, 20 right margin, etc.) were tuned against. Every pill dimension
+// below scales off the CURRENT device's width relative to this baseline,
+// clamped so a small phone never shrinks the touch target below usable and a
+// tablet never blows the floating pill up to a comical size.
+const BASE_WIDTH = 380;
+const MIN_SCALE = 0.92;
+const MAX_SCALE = 1.25;
 
 const MinimizePlayer = ({
   setIsMinimized,
@@ -38,6 +35,53 @@ const MinimizePlayer = ({
   const styles = useThemedStyles(minimizePlayerStyles);
   const { width: screenW, height: screenH } = useWindowDimensions();
   const dispatch = useDispatch();
+
+  // ── Responsive metrics ────────────────────────────────────────────────────
+  // Every pill dimension derives from this single scale so nothing can drift
+  // out of sync across devices — the previous fixed-px constants were
+  // hand-summed and only ever correct for one specific screen width.
+  const scale = useMemo(
+    () => Math.min(MAX_SCALE, Math.max(MIN_SCALE, screenW / BASE_WIDTH)),
+    [screenW]
+  );
+  const metrics = useMemo(() => {
+    const paddingHorizontal = Math.round(theme.spacing.md * scale);
+    const rightAnchor = Math.round(theme.spacing.xl_20 * scale);
+    const textPaddingLeft = Math.round(7 * scale);
+    const textPaddingRight = Math.round(theme.spacing.sm * scale);
+    const circleSize = Math.round(28 * scale);
+    // Everything in the expanded pill that is NOT the text panel: the
+    // container's horizontal padding (both sides) + the progress circle +
+    // the text panel's own left/right padding — derived from the same scaled
+    // values used to build the pill itself, so it can never drift out of sync.
+    const pillChrome = paddingHorizontal * 2 + circleSize + textPaddingLeft + textPaddingRight;
+    return {
+      pillHeight: Math.round(44 * scale),
+      circleSize,
+      strokeWidth: Math.max(2.5, Math.round(3 * scale)),
+      paddingHorizontal,
+      rightAnchor,
+      textPaddingLeft,
+      textPaddingRight,
+      iconSize: Math.round(18 * scale),
+      viewportMargin: Math.round(16 * scale),
+      minTextWidth: Math.round(80 * scale),
+      pillChrome,
+      // Drag-release bounds (see onPanResponderRelease below). Percentage of
+      // screen HEIGHT, not the width-based `scale` — a bottom safe strip
+      // should stay proportionally similar whether the device is a short
+      // phone or a tall tablet.
+      dragSideMargin: Math.round(8 * scale),
+      dragBottomMargin: Math.min(110, Math.max(64, Math.round(screenH * 0.05))),
+      dragStripHeight: Math.min(260, Math.max(130, Math.round(screenH * 0.16))),
+    };
+  }, [scale, screenH, theme.spacing.md, theme.spacing.xl_20, theme.spacing.sm]);
+  // The PanResponder below is created ONCE (useRef) and must never close over
+  // `metrics` directly — that would freeze the first render's values forever
+  // (e.g. across an orientation change). Route through a ref, same pattern as
+  // dimsRef/textWidthRef further down.
+  const metricsRef = useRef(metrics);
+  metricsRef.current = metrics;
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
   const tapTick = useSelector((state) => state.readerTapTick);
@@ -96,11 +140,14 @@ const MinimizePlayer = ({
   // devices — the same unbounded-content bug the Seva page had. This bound only
   // bites when the name genuinely doesn't fit; on a normal phone the full name
   // still shows untruncated, and beyond it numberOfLines={1} ellipsizes.
-  const maxTextWidth = Math.max(MIN_TEXT_WIDTH, screenW - VIEWPORT_MARGIN * 2 - PILL_CHROME);
+  const maxTextWidth = Math.max(
+    metrics.minTextWidth,
+    screenW - metrics.viewportMargin * 2 - metrics.pillChrome
+  );
 
   // ── CSS anchor side ───────────────────────────────────────────────────────
   // When the pill is on the LEFT half we switch the container from
-  //   right: RIGHT_ANCHOR  (grows leftward on expand — text overflows left edge)
+  //   right: metrics.rightAnchor  (grows leftward on expand — text overflows left edge)
   // to
   //   left: leftAnchor     (grows rightward on expand — text opens toward centre)
   //
@@ -154,9 +201,16 @@ const MinimizePlayer = ({
 
         viewRef.current?.measureInWindow((x, y, w, h) => {
           const { w: sw, h: sh } = dimsRef.current;
-          const SIDE = 8;
-          const TOP = 50;
-          const BOTTOM = 80;
+          const {
+            dragSideMargin: SIDE,
+            dragBottomMargin: BOTTOM,
+            dragStripHeight,
+          } = metricsRef.current;
+          // Confine the release position to a strip near the bottom of the
+          // screen: the pill can be slid left/right but never dragged up over
+          // the reading area — the whole point of a floating control is to
+          // stay out of the way of the text underneath it.
+          const TOP = sh - BOTTOM - dragStripHeight;
 
           const newIsOnLeft = x + w / 2 < sw / 2;
 
@@ -191,8 +245,8 @@ const MinimizePlayer = ({
               setLeftAnchor(finalAbsX - lastOffset.current.x);
             } else if (!newIsOnLeft && isOnLeftRef.current) {
               // LEFT → RIGHT: resync pan.x with the right anchor.
-              //   visual = (sw - RIGHT_ANCHOR - w) + newPanX = finalAbsX
-              const newPanX = finalAbsX - (sw - RIGHT_ANCHOR - w);
+              //   visual = (sw - rightAnchor - w) + newPanX = finalAbsX
+              const newPanX = finalAbsX - (sw - metricsRef.current.rightAnchor - w);
               pan.x.setValue(newPanX);
               lastOffset.current = { x: newPanX, y: lastOffset.current.y };
               isOnLeftRef.current = false;
@@ -237,9 +291,8 @@ const MinimizePlayer = ({
   const progressValue =
     durationSeconds > 0 ? Math.min(Math.max(progressSeconds / durationSeconds, 0), 1) : 0;
 
-  const size = 28;
-  const strokeWidth = 3;
-  const radius = (size - strokeWidth) / 2;
+  const { circleSize, strokeWidth } = metrics;
+  const radius = (circleSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - progressValue * circumference;
 
@@ -248,6 +301,16 @@ const MinimizePlayer = ({
   // (toward the screen centre) as the text panel expands. The pill background
   // and shadow always cover the full pill width in both modes.
   const anchorStyle = isOnLeft ? { right: undefined, left: leftAnchor } : null;
+  // Pill geometry that scales with `metrics` — placed here (not in
+  // style.js) because it must react to the current screen size, while the
+  // base styles are theme-only. See the "Responsive metrics" section above.
+  const responsiveContainerStyle = {
+    height: metrics.pillHeight,
+    borderRadius: metrics.pillHeight,
+    paddingHorizontal: metrics.paddingHorizontal,
+    bottom: Math.round(10 * scale),
+    right: metrics.rightAnchor,
+  };
 
   return (
     <Animated.View
@@ -255,6 +318,7 @@ const MinimizePlayer = ({
       pointerEvents={pointerEvents}
       style={[
         styles.container,
+        responsiveContainerStyle,
         anchorStyle,
         opacityStyle,
         { transform: pan.getTranslateTransform() },
@@ -262,14 +326,17 @@ const MinimizePlayer = ({
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...panResponder.panHandlers}
     >
-      <Pressable style={styles.progressContainer} onPress={onPlayPausePress}>
-        <Svg width={size} height={size} style={styles.svgContainer}>
+      <Pressable
+        style={[styles.progressContainer, { width: circleSize, height: circleSize }]}
+        onPress={onPlayPausePress}
+      >
+        <Svg width={circleSize} height={circleSize} style={styles.svgContainer}>
           {/* Track ring: matches bani-reads progress bar background.
               In dark mode the white-grey sits cleanly on the dark pill;
               in light mode the existing TERTIARY_COLOR (#EEE) is correct. */}
           <Circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={circleSize / 2}
+            cy={circleSize / 2}
             r={radius}
             stroke={
               theme.mode === "dark" ? "rgba(255,255,255,0.22)" : theme.staticColors.TERTIARY_COLOR
@@ -279,8 +346,8 @@ const MinimizePlayer = ({
           />
           {/* Fill ring: primary (same as bani-reads fill) */}
           <Circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={circleSize / 2}
+            cy={circleSize / 2}
             r={radius}
             stroke={theme.colors.primary}
             strokeWidth={strokeWidth}
@@ -288,16 +355,16 @@ const MinimizePlayer = ({
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            transform={`rotate(-90 ${circleSize / 2} ${circleSize / 2})`}
           />
         </Svg>
         {/* Icon color matches the full player's play/pause in both modes:
             audioTitleText = white-ish (#BED2F2) in dark, brand blue in light. */}
         <View style={styles.playPauseButton}>
           {isPlaying ? (
-            <PauseIcon size={18} color={theme.colors.audioTitleText} />
+            <PauseIcon size={metrics.iconSize} color={theme.colors.audioTitleText} />
           ) : (
-            <PlayIcon size={18} color={theme.colors.audioTitleText} />
+            <PlayIcon size={metrics.iconSize} color={theme.colors.audioTitleText} />
           )}
         </View>
       </Pressable>
@@ -320,7 +387,11 @@ const MinimizePlayer = ({
           // stays within bounds too.
           style={[
             styles.textContainer,
-            { maxWidth: maxTextWidth },
+            {
+              maxWidth: maxTextWidth,
+              paddingLeft: metrics.textPaddingLeft,
+              paddingRight: metrics.textPaddingRight,
+            },
             textWidth != null && { width: textWidth },
           ]}
           onPress={() => setIsMinimized(false)}
