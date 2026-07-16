@@ -33,6 +33,7 @@ jest.mock("@react-navigation/native", () => ({
 }));
 
 // Mock theme + styles
+const mockUseNetwork = jest.fn(() => ({ isOffline: false }));
 jest.mock("@common/context", () => ({
   __esModule: true,
   default: () => ({
@@ -49,6 +50,7 @@ jest.mock("@common/context", () => ({
       },
     },
   }),
+  useNetwork: () => mockUseNetwork(),
 }));
 
 jest.mock("@common/hooks/useThemedStyles", () => {
@@ -87,15 +89,6 @@ jest.mock("@miblanchard/react-native-slider", () => {
   return { Slider };
 });
 
-// Mock NetInfo
-jest.mock("@react-native-community/netinfo", () => ({
-  __esModule: true,
-  default: {
-    fetch: jest.fn(() => Promise.resolve({ isConnected: true, type: 'wifi' })),
-    addEventListener: jest.fn(() => jest.fn()),
-  },
-}));
-
 // Mock BlurView
 jest.mock("@react-native-community/blur", () => {
   const { View } = require("react-native");
@@ -105,35 +98,25 @@ jest.mock("@react-native-community/blur", () => {
 
 // Mock @common
 export const STRINGS = {
-  MORE_TRACKS: "More Tracks",
-  TRACKS: "Tracks",
+  MUSIC: "Audio",
   AUDIO_SETTINGS: "Audio Settings",
   OPTIONS: "Options",
+  please_choose_a_track: "Please choose a track for",
 };
 
 jest.mock("@common", () => {
   const { Text } = require("react-native");
   return {
     STRINGS: {
-      MORE_TRACKS: "More Tracks",
-      TRACKS: "Tracks",
+      MUSIC: "Audio",
       AUDIO_SETTINGS: "Audio Settings",
       OPTIONS: "Options",
-      WIFI_ONLY_ALERT_TITLE: "Wi-Fi Only",
-      WIFI_ONLY_ALERT_BODY: "Downloads are set to Wi-Fi only.",
-      WIFI_ONLY_GO_SETTINGS: "Open Settings",
-      WIFI_ONLY_USE_MOBILE_DATA: "Use mobile data",
-      MOBILE_DATA_ALERT_TITLE: "Using Mobile Data",
-      MOBILE_DATA_ALERT_BODY: "You're about to download {title} ({size}) over mobile data.",
-      MOBILE_DATA_DOWNLOAD_ANYWAY: "Download Anyway",
-      DOWNLOAD_STARTED: "Download started",
+      please_choose_a_track: "Please choose a track for",
       ok: "OK",
       cancel: "Cancel",
     },
     CustomText: (props) => <Text {...props} />,
     logError: jest.fn(),
-    showConfirm: jest.fn(),
-    showInfoToast: jest.fn(),
     Coachmark: ({ children }) => children,
     ExplorePromptCallout: () => null,
     PLAYER_STEPS: [],
@@ -161,8 +144,6 @@ jest.mock("@common/actions", () => ({
   setAudioProgress: (...args) => mockSetAudioProgress(...args),
   toggleAudioSyncScroll: (...args) => mockToggleAudioSyncScroll(...args),
   setPlayerDragging: (...args) => mockSetPlayerDragging(...args),
-  enqueueDownload: jest.fn((payload) => ({ type: "ENQUEUE_DOWNLOAD", payload })),
-  toggleDownloadWifiOnly: jest.fn((value) => ({ type: "TOGGLE_DOWNLOAD_WIFI_ONLY", value })),
 }));
 
 // Mock icons (just simple text)
@@ -295,7 +276,6 @@ const createProps = (overrides = {}) => ({
   isInitialized: true,
   addAndPlayTrack: jest.fn(),
   play: jest.fn(),
-  onReopenPreviewModal: jest.fn(),
   ...overrides,
 });
 
@@ -354,13 +334,17 @@ describe("AudioControlBar", () => {
     expect(props.handlePlayPause).toHaveBeenCalledTimes(1);
   });
 
-  it("opens preview chooser when Audios action is pressed", async () => {
+  it("shows the inline reciter list when Audios action is pressed", async () => {
     const props = createProps();
-    const { getByTestId } = await renderComponent(props);
+    const { getByTestId, queryByTestId } = await renderComponent(props);
 
-    fireEvent.press(getByTestId("action-Tracks"));
+    expect(queryByTestId("tracks-list")).toBeNull();
 
-    expect(props.onReopenPreviewModal).toHaveBeenCalled();
+    fireEvent.press(getByTestId("action-Audio"));
+
+    await waitFor(() => {
+      expect(getByTestId("tracks-list")).toBeTruthy();
+    });
   });
 
   it("shows PauseIcon when isPlaying is true", async () => {
@@ -621,18 +605,20 @@ describe("AudioControlBar", () => {
     );
   });
 
-  it("opens AudioSettingsModal after Audios action triggers preview callback", async () => {
+  it("switches from the inline reciter list to AudioSettingsModal when Options is pressed", async () => {
     const props = createProps();
     const { getByTestId, queryByTestId } = await renderComponent(props);
 
-    fireEvent.press(getByTestId("action-Tracks"));
-    expect(props.onReopenPreviewModal).toHaveBeenCalled();
-    expect(queryByTestId("tracks-list")).toBeNull();
+    fireEvent.press(getByTestId("action-Audio"));
+    await waitFor(() => {
+      expect(getByTestId("tracks-list")).toBeTruthy();
+    });
 
     fireEvent.press(getByTestId("action-Options"));
 
     await waitFor(() => {
       expect(getByTestId("audio-settings-modal")).toBeTruthy();
+      expect(queryByTestId("tracks-list")).toBeNull();
     });
   });
 
@@ -666,16 +652,16 @@ describe("AudioControlBar", () => {
       expect(props.onCloseTrackModal).toHaveBeenCalledTimes(1);
     });
 
-    it("keeps CloseIcon visible when Audios action is pressed", async () => {
+    it("shows ChevronDownIcon when the inline reciter list is open", async () => {
       const props = createProps();
       const { getByTestId, queryByTestId } = await renderComponent(props);
 
-      fireEvent.press(getByTestId("action-Tracks"));
+      fireEvent.press(getByTestId("action-Audio"));
 
       await waitFor(() => {
-        expect(props.onReopenPreviewModal).toHaveBeenCalled();
-        expect(getByTestId("close-icon")).toBeTruthy();
-        expect(queryByTestId("chevron-down-icon")).toBeNull();
+        expect(getByTestId("tracks-list")).toBeTruthy();
+        expect(getByTestId("chevron-down-icon")).toBeTruthy();
+        expect(queryByTestId("close-icon")).toBeNull();
       });
     });
 

@@ -172,6 +172,42 @@ const audioManifest = (state = {}, action) => {
   }
 };
 
+// Audio catalog cache — the persisted offline copy of the backend /audios
+// manifest, keyed by baniId. Each entry holds the RAW length-grouped API
+// response ({ groups, baniName, fetchedAt }); the length-group selection that
+// turns it into a playable track list happens at read time (see
+// selectTracksForBani), so a single cache entry serves every bani length. This
+// replaces the former hardcoded EMERGENCY_MANIFEST — it is the app's only
+// offline audio source, populated by useAudioCatalogSync + per-bani lazy fetch.
+// Persisted (intentionally NOT in the store.js blacklist).
+const audioCatalog = (state = {}, action) => {
+  switch (action.type) {
+    case actionTypes.SET_AUDIO_CATALOG_ENTRY:
+      return {
+        ...state,
+        [action.payload.baniId]: action.payload.entry,
+      };
+    case actionTypes.CLEAR_AUDIO_CATALOG:
+      return {};
+    default:
+      return state;
+  }
+};
+
+// Bookkeeping for the eager catalog prefetch: when it last completed a full
+// sweep and the app version that ran it, so the sweep only re-runs on a fresh
+// install, an app update, or once the TTL has elapsed. Persisted.
+const audioCatalogMeta = (state = {}, action) => {
+  switch (action.type) {
+    case actionTypes.SET_AUDIO_CATALOG_META:
+      return { ...state, ...action.payload };
+    case actionTypes.CLEAR_AUDIO_CATALOG:
+      return {};
+    default:
+      return state;
+  }
+};
+
 const autoScrollSpeedObj = (state = {}, action) => {
   switch (action.type) {
     case actionTypes.SET_AUTO_SCROLL_SPEED:
@@ -587,6 +623,8 @@ const rootReducer = combineReducers({
   isHeaderFooter,
   isDatabaseUpdateAvailable,
   audioManifest,
+  audioCatalog,
+  audioCatalogMeta,
   audioProgress,
   currentBani,
   readerTapTick,

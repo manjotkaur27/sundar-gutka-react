@@ -1,8 +1,8 @@
-// Function to fetch JSON file content
+// Function to fetch JSON lyrics content, disk-cache-first.
 
 import { readFile } from "react-native-fs";
 import { checkIsRemote, extractFilePath } from "./urlHelper";
-import { getBundledLyrics } from "../assets/lyrics/bundledLyrics";
+import { ensureLyricsCached, readCachedLyrics } from "./lyricsCache";
 
 // Module-level cache: avoids re-fetching the same LRC data when switching back
 // to a previously played track in the same session.
@@ -46,26 +46,43 @@ const fetchLRCData = async (jsonUrl) => {
     return _lrcCache.get(jsonUrl);
   }
 
-  // Bundled-first: if this track is shipped with the app, return it immediately
-  // — zero network requests, zero disk I/O, works fully offline. Matched on the
-  // artist/file path, so any host (blob/CDN/local) resolves to the bundle.
-  const bundled = getBundledLyrics(jsonUrl);
-  if (bundled) {
-    const data = normalizeLrcRows(bundled);
-    _lrcCache.set(jsonUrl, data);
-    return data;
-  }
-
   try {
     const isRemote = checkIsRemote(jsonUrl);
     let data;
+
     if (isRemote) {
+      // ── Disk-cache-first ──────────────────────────────────────────────────
+      // A previously-viewed (or eagerly-prefetched) track's lyrics live on disk
+      // and are read with zero network — full offline sync-scroll. On a miss,
+      // fetch once from the CDN, persist to the cache, then read it back so the
+      // next open (even offline) is instant.
+      const cached = await readCachedLyrics(jsonUrl);
+      if (cached) {
+        data = normalizeLrcRows(cached);
+        _lrcCache.set(jsonUrl, data);
+        return data;
+      }
+
+      const localPath = await ensureLyricsCached(jsonUrl);
+      if (localPath) {
+        const persisted = await readCachedLyrics(jsonUrl);
+        if (persisted) {
+          data = normalizeLrcRows(persisted);
+          _lrcCache.set(jsonUrl, data);
+          return data;
+        }
+      }
+
+      // Last resort (e.g. the cache write failed) — fetch directly so playback
+      // still syncs this session, even if it couldn't be persisted for offline.
       const response = await fetch(jsonUrl);
       data = await response.json();
     } else {
+      // Local file — a downloaded track's companion JSON on disk.
       const filePath = extractFilePath(jsonUrl);
       data = JSON.parse(await readFile(filePath, "utf8"));
     }
+
     data = normalizeLrcRows(data);
     _lrcCache.set(jsonUrl, data);
     return data;

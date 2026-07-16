@@ -10,6 +10,7 @@
  * the native SQLite layer into the test.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isOnline } from "./connectivity";
 import { getDailyVaak } from "./dailyVaak";
 import emergency from "./emergencyShabads.json";
@@ -50,8 +51,14 @@ const mockFetchOnce = (payload, ok = true) => {
   global.fetch = jest.fn().mockResolvedValue({ ok, json: async () => payload });
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  // getDailyVaak caches today's result in AsyncStorage (dailyCache.js). The
+  // community AsyncStorage jest mock is a real in-memory store that persists
+  // across `it()` blocks in the same file, so without clearing it here, the
+  // first successful getDailyVaak call poisons every later test with its
+  // cached result regardless of that test's own fetch mock.
+  await AsyncStorage.clear();
 });
 
 describe("emergencyShabads.json integrity", () => {
@@ -123,7 +130,9 @@ describe("getDailyVaak error handling", () => {
     isOnline.mockResolvedValue(true);
     mockFetchOnce({ shabads: [apiShabadPayload] });
     const res = await getDailyVaak({ requireOnline: true });
-    expect(res._source).toBe("api");
+    // BaniDB is the primary source (see dailyVaak.js's design comment) — it
+    // answers first here, so the configured backend is never even called.
+    expect(res._source).toBe("banidb");
     expect(res.lines).toHaveLength(2);
     expect(res.source).toBe("Sri Darbar Sahib");
   });
@@ -143,14 +152,17 @@ describe("getDailyVaak error handling", () => {
     expect(res.shabadId).toBe(42);
   });
 
-  it("falls back to BaniDB when the configured backend is unreachable", async () => {
+  it("falls back to the configured backend when BaniDB is unreachable", async () => {
     isOnline.mockResolvedValue(true);
     global.fetch = jest
       .fn()
-      .mockRejectedValueOnce(new Error("backend down")) // configured backend
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ shabads: [apiShabadPayload] }) }); // BaniDB
+      .mockRejectedValueOnce(new Error("banidb down")) // BaniDB (primary)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ shabads: [apiShabadPayload] }) }); // configured backend, answering with a raw BaniDB-shaped payload
     const res = await getDailyVaak({ requireOnline: true });
-    expect(res._source).toBe("api");
+    // The backend's payload has no top-level `lines`, so parseVaak falls through
+    // to the same BaniDB-shape mapping — which always tags "banidb" regardless
+    // of which URL actually answered.
+    expect(res._source).toBe("banidb");
     expect(res.lines).toHaveLength(2);
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });

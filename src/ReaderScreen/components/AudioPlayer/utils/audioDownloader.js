@@ -11,7 +11,6 @@ import {
 } from "react-native-fs";
 import { logError, logMessage } from "@common";
 import { checkIsJsonRemoteExists } from "./checkHelper";
-import { hasBundledLyrics } from "../assets/lyrics/bundledLyrics";
 
 // Downloads live in app-internal storage (DocumentDirectoryPath) — the single
 // canonical location. It's always available at app-init, so the resolved path
@@ -437,20 +436,16 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
     };
   }
 
-  // ── 2. Bundle lookup — if bundled, we know it's on Azure; skip HEAD ───────
-  // ── 3. HEAD fallback — only for future tracks not yet in the bundle ───────
-  const isBundled = hasBundledLyrics(jsonUrl);
-  if (!isBundled) {
-    const jsonRemoteExists = await checkIsJsonRemoteExists(jsonUrl);
-    if (!jsonRemoteExists) {
-      logMessage(`Lyrics not available for download, skipping: ${jsonFileName}`);
-      return {
-        relativePath: jsonRelativePath,
-        alreadyExists: false,
-        downloaded: false,
-        remoteMissing: true,
-      };
-    }
+  // ── 2. HEAD check — skip the download if the remote JSON doesn't exist ────
+  const jsonRemoteExists = await checkIsJsonRemoteExists(jsonUrl);
+  if (!jsonRemoteExists) {
+    logMessage(`Lyrics not available for download, skipping: ${jsonFileName}`);
+    return {
+      relativePath: jsonRelativePath,
+      alreadyExists: false,
+      downloaded: false,
+      remoteMissing: true,
+    };
   }
 
   const jsonDownloadTask = downloadFile({

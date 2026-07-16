@@ -589,6 +589,7 @@ const Reader = ({ navigation, route }) => {
             title={titleText}
             notificationTitle={titleUni || titleText}
             webViewRef={webViewRef}
+            isNavBarVisible={isHeader}
           />
         </Animated.View>
       )}

@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
-import NetInfo from "@react-native-community/netinfo";
 import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
 
 import PropTypes from "prop-types";
-import { setAudioProgress, enqueueDownload, toggleDownloadWifiOnly } from "@common/actions";
-import useTheme from "@common/context";
+import { setAudioProgress } from "@common/actions";
+import useTheme, { useNetwork } from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   MusicNoteIcon,
@@ -19,14 +18,11 @@ import {
   PauseIcon,
   ChevronDownIcon,
   ExpandCollapseIcon,
-  DownloadIcon,
 } from "@common/icons";
 import {
   STRINGS,
   CustomText,
   logError,
-  showConfirm,
-  showInfoToast,
 } from "@common";
 import {
   useAnimation,
@@ -40,7 +36,6 @@ import {
   getSequenceFromPosition,
   getPositionFromSequence,
 } from "../../utils/getSequenceFromPosition";
-import { getLocalTrackPath } from "../../utils/audioDownloader";
 import ActionComponents from "../ActionComponent";
 import AudioSettingsModal from "../AudioSettingsModal";
 import DownloadButton from "../DownloadButton";
@@ -71,12 +66,13 @@ const AudioControlBar = ({
   addAndPlayTrack,
   play,
   isPlayerActionLoading,
-  onReopenPreviewModal,
   skipNextLoadRef,
+  isNavBarVisible = false,
 }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
   const styles = useThemedStyles(audioControlBarStyles);
+  const fontFace = useSelector((state) => state.fontFace);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);
   // Instant swap between the full player and the mini pill — no crossfade
@@ -84,6 +80,11 @@ const AudioControlBar = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
   const [isLyricsChecking, setIsLyricsChecking] = useState(true);
+  // Single source of truth (NetworkProvider) — gates tapping a non-downloaded
+  // reciter in the inline Audios list while offline, same guard AudioTrackDialog
+  // already uses, so a tap can never leave playback stuck trying to stream with
+  // no network.
+  const { isOffline } = useNetwork();
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const baniLength = useSelector((state) => state.baniLength);
   const progressRef = useRef(progress);
@@ -121,58 +122,6 @@ const AudioControlBar = ({
   useArtistListeningDuration(baniID, title, isPlaying, currentPlaying);
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-
-  // ── Bulk "Download all" (this bani's track versions) ───────────────────────
-  const downloadRegistry = useSelector((s) => s.downloadRegistry);
-  const downloadQueue = useSelector((s) => s.downloadQueue);
-  const downloadWifiOnly = useSelector((s) => s.downloadWifiOnly);
-  const tracksToDownload = useMemo(
-    () => (tracks || []).filter((t) => {
-      if (!t?.audioUrl) return false;
-      const tk = getLocalTrackPath(t.audioUrl);
-      return !downloadRegistry[tk] && !downloadQueue[tk];
-    }),
-    [tracks, downloadRegistry, downloadQueue]
-  );
-  const enqueueAll = useCallback(() => {
-    if (tracksToDownload.length === 0) return;
-    tracksToDownload.forEach((t) => {
-      dispatch(enqueueDownload({
-        trackKey: getLocalTrackPath(t.audioUrl),
-        audioUrl: t.remoteUrl || t.audioUrl,
-        displayName: t.displayName,
-        baniTitle: title,
-        baniNameUni: notificationTitle || title,
-        baniId: baniID,
-        sizeMB: t.trackSizeMB,
-      }));
-    });
-    // One toast for the whole batch — the engine shows a single "complete" toast
-    // when they all finish.
-    showInfoToast(STRINGS.DOWNLOAD_STARTED);
-  }, [tracksToDownload, title, notificationTitle, baniID, dispatch]);
-
-  const handleDownloadAll = useCallback(async () => {
-    if (tracksToDownload.length === 0) return;
-    const net = await NetInfo.fetch();
-    // Wi-Fi-only is ON and we're on cellular — offer to use mobile data, which
-    // turns the setting off and proceeds. Positive `=== 'cellular'` test avoids
-    // misfiring on VPN/ethernet/unknown.
-    if (downloadWifiOnly && net.type === 'cellular') {
-      showConfirm({
-        title: STRINGS.WIFI_ONLY_ALERT_TITLE,
-        message: STRINGS.WIFI_ONLY_ALERT_BODY,
-        cancelText: STRINGS.cancel,
-        confirmText: STRINGS.WIFI_ONLY_USE_MOBILE_DATA,
-        onConfirm: () => {
-          dispatch(toggleDownloadWifiOnly(false));
-          enqueueAll();
-        },
-      });
-      return;
-    }
-    enqueueAll();
-  }, [tracksToDownload, downloadWifiOnly, enqueueAll, dispatch]);
 
   // Auto-resume on screen focus: when the user navigates back to the audio
   // screen (via device back button, back arrow, or tab re-tap from Settings/
@@ -403,10 +352,10 @@ const AudioControlBar = ({
 
   const actionComponents = [
     {
-      selector: false,
-      toggle: onReopenPreviewModal,
+      selector: isMoreTracksModalOpen,
+      toggle: setIsMoreTracksModalOpen,
       Icon: MusicNoteIcon,
-      text: STRINGS.TRACKS,
+      text: STRINGS.MUSIC,
     },
     {
       selector: isSettingsModalOpen,
@@ -415,6 +364,17 @@ const AudioControlBar = ({
       text: STRINGS.OPTIONS,
     },
   ];
+
+  // Switching reciters from the inline Audios list closes the list back down —
+  // the same "pick and collapse" behaviour a chooser is expected to have,
+  // instead of leaving it open over the newly-selected track.
+  const handleInlineTrackSelect = useCallback(
+    (track) => {
+      setIsMoreTracksModalOpen(false);
+      handleTrackSelect(track);
+    },
+    [handleTrackSelect]
+  );
 
   const actionItems =
     isMoreTracksModalOpen || isSettingsModalOpen
@@ -641,6 +601,7 @@ const AudioControlBar = ({
           duration={sliderMax > 0 ? formatTime(sliderMax) : "0:00"}
           displayName={currentPlaying?.displayName || ""}
           isDragging={isPlayerDragging}
+          isNavBarVisible={isNavBarVisible}
         />
       )}
       {!isMinimized && (
@@ -699,26 +660,23 @@ const AudioControlBar = ({
 
           {isMoreTracksModalOpen && (
             <View style={styles.moreTracksModalContainer}>
-              {tracksToDownload.length > 0 && (
-                <Pressable
-                  style={styles.downloadAllButton}
-                  onPress={handleDownloadAll}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <DownloadIcon size={18} color={theme.colors.primary} />
-                  <CustomText style={[styles.downloadAllText, { color: theme.colors.primary }]}>
-                    {STRINGS.DOWNLOAD_ALL} ({tracksToDownload.length})
-                  </CustomText>
-                </Pressable>
-              )}
+              <CustomText style={styles.moreTracksHeaderText}>
+                {STRINGS.please_choose_a_track}{" "}
+                <CustomText style={{ fontFamily: fontFace }}>{title}</CustomText>
+              </CustomText>
               <ScrollViewComponent
                 tracks={tracks}
                 selectedTrack={currentPlaying}
-                handleSelectTrack={handleTrackSelect}
+                playingTrack={currentPlaying}
+                isPlaying={isPlaying}
+                isOffline={isOffline}
+                handleSelectTrack={handleInlineTrackSelect}
               />
             </View>
           )}
         </Animated.View>
+
+        {isMoreTracksModalOpen && <View style={styles.separator} />}
 
         {/* Main Playback Section */}
         <View style={[styles.mainSection]}>
@@ -846,8 +804,8 @@ AudioControlBar.propTypes = {
   addAndPlayTrack: PropTypes.func.isRequired,
   play: PropTypes.func.isRequired,
   isPlayerActionLoading: PropTypes.bool,
-  onReopenPreviewModal: PropTypes.func.isRequired,
   skipNextLoadRef: PropTypes.shape({ current: PropTypes.bool }),
+  isNavBarVisible: PropTypes.bool,
 };
 
 export default AudioControlBar;

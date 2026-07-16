@@ -27,3 +27,18 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// react-native-inappbrowser-reborn declares androidx.annotation:annotation as a
+// dynamic "1.5.+" range. Resolving a range requires Gradle to query a repo's
+// version list (not just fetch a pinned artifact), and that lookup hits the
+// legacy oss.sonatype.org snapshots host, which is unreliable/being
+// decommissioned and frequently 504s. Every other module in this project already
+// resolves this dependency to 1.6.0 via a constraint, so force that same version
+// everywhere and skip the flaky range lookup entirely.
+allprojects {
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.annotation:annotation:1.6.0"
+        }
+    }
+}

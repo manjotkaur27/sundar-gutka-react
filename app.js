@@ -27,6 +27,7 @@ import NetworkProvider from "./src/common/context/NetworkProvider";
 import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
 import Navigation from "./src/navigation";
 import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
+import useAudioCatalogSync from "./src/common/services/useAudioCatalogSync";
 import useStorageMigration from "./src/common/hooks/useStorageMigration";
 import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
 import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
@@ -51,6 +52,7 @@ const handleBeforeLift = () => {
 // Mounts Redux-dependent background services inside the Provider tree.
 const GlobalServices = () => {
   useGlobalDownloadManager();
+  useAudioCatalogSync();
   useStorageMigration();
   useOfflinePlaybackGuard();
   usePauseAudioOnExit();

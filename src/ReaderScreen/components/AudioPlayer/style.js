@@ -106,20 +106,13 @@ export const audioControlBarStyles = (theme) => ({
     marginTop: theme.spacing.lg,
     zIndex: 20,
   },
-  downloadAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.md,
+  moreTracksHeaderText: {
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: theme.typography.sizes.lg,
+    textAlign: "center",
+    color: theme.colors.audioTitleText,
     marginBottom: theme.spacing.sm,
   },
-  downloadAllText: {
-    fontFamily: theme.typography.fonts.balooPaaji,
-    fontSize: theme.typography.sizes.md,
-    fontWeight: theme.typography.weights.semibold,
-  },
-
   timestampWithColor: {
     color: theme.colors.audioPlayer,
   },
@@ -289,7 +282,13 @@ export const audioTrackDialogStyles = (theme) => ({
     backgroundColor: theme.colors.transparentOverlay,
   },
   containerAndroid: {
-    backgroundColor: theme.colors.transparentOverlay,
+    // Android has no BlurView compositing over this card (that's iOS-only, see
+    // above), so the 0.95-alpha transparentOverlay left the card genuinely
+    // see-through — invisible over normal content but visible as a translucent
+    // strip wherever it overlapped the system nav bar when not hidden. Use a
+    // fully opaque surface on Android, matching the same fix already applied to
+    // AudioControlBar's mainContainer for the identical reason.
+    backgroundColor: theme.colors.surface,
   },
   header: {
     alignItems: "center",
@@ -347,6 +346,15 @@ export const audioTrackDialogStyles = (theme) => ({
   trackList: {
     maxHeight: 200,
     zIndex: 1,
+  },
+  trackSectionHeader: {
+    fontFamily: theme.typography.fonts.balooPaaji,
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.audioTitleText,
+    opacity: 0.6,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
   },
   // Reserves a thin lane on the right so the native scroll indicator floats
   // in the gap next to each pill instead of drawing on top of it.

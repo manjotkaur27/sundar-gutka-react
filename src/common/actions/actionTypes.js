@@ -45,6 +45,13 @@ export const SET_CURRENT_BANI = "SET_CURRENT_BANI";
 // Manifest actions
 export const SET_AUDIO_MANIFEST = "SET_AUDIO_MANIFEST";
 
+// Audio catalog cache — the persisted offline copy of the backend /audios
+// manifest, keyed by baniId. Populated by the eager catalog sync and per-bani
+// lazy refresh; read as the offline source for the audio player.
+export const SET_AUDIO_CATALOG_ENTRY = "SET_AUDIO_CATALOG_ENTRY";
+export const SET_AUDIO_CATALOG_META = "SET_AUDIO_CATALOG_META";
+export const CLEAR_AUDIO_CATALOG = "CLEAR_AUDIO_CATALOG";
+
 // Audio progress actions
 export const SET_AUDIO_PROGRESS = "SET_AUDIO_PROGRESS";
 export const CLEAR_AUDIO_PROGRESS = "CLEAR_AUDIO_PROGRESS";

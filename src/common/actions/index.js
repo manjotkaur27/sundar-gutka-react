@@ -209,6 +209,26 @@ export const setAudioManifest = (baniId, tracks) => {
   };
 };
 
+// Audio catalog cache actions
+// entry: { groups, baniName, fetchedAt } — the raw length-grouped API response
+// for one bani plus the time it was fetched. Stored verbatim so length-group
+// selection can happen at read time (one cache entry serves every bani length).
+export const setAudioCatalogEntry = (baniId, entry) => ({
+  type: actionTypes.SET_AUDIO_CATALOG_ENTRY,
+  payload: { baniId, entry },
+});
+
+// meta: { lastFullSyncAt, appVersion } — bookkeeping for the eager prefetch so
+// it only runs on a fresh install, app update, or once past the TTL.
+export const setAudioCatalogMeta = (meta) => ({
+  type: actionTypes.SET_AUDIO_CATALOG_META,
+  payload: meta,
+});
+
+export const clearAudioCatalog = () => ({
+  type: actionTypes.CLEAR_AUDIO_CATALOG,
+});
+
 // Audio progress actions
 export const setAudioProgress = (baniId, trackId, position, sequence) => {
   return {

@@ -224,7 +224,10 @@ describe("AudioTrackDialog", () => {
     });
   });
 
-  it("shows countdown label while preview is playing", async () => {
+  it("keeps a bare Next label (no countdown text) while preview is playing", async () => {
+    // The button intentionally always reads a bare "Next" — the countdown is
+    // conveyed visually by the progress-fill bar, not by button text (see
+    // nextButtonLabel in index.jsx).
     TrackPlayer.getActiveTrack.mockResolvedValue({ id: defaultTracks[0].id });
     TrackPlayer.getPlaybackState.mockResolvedValue({ state: "playing" });
 
@@ -234,7 +237,7 @@ describe("AudioTrackDialog", () => {
     fireEvent.press(getByTestId("track-track-1"));
 
     await waitFor(() => {
-      expect(getByText(/Next \(\d+s\)/)).toBeTruthy();
+      expect(getByText("Next")).toBeTruthy();
     });
   });
 

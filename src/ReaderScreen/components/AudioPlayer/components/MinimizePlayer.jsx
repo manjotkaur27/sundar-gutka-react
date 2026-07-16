@@ -30,6 +30,7 @@ const MinimizePlayer = ({
   isDragging,
   opacityStyle,
   pointerEvents,
+  isNavBarVisible,
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(minimizePlayerStyles);
@@ -124,6 +125,18 @@ const MinimizePlayer = ({
     }
     setIsExpanded((prev) => !prev);
   }, [tapTick]);
+
+  // When the nav bar + header reappear (scroll up while this circular/pill
+  // player is the active mode), expand alongside them — only on the
+  // hidden→visible transition, so it never re-collapses just because the bars
+  // are already showing.
+  const wasNavBarVisibleRef = useRef(isNavBarVisible);
+  useEffect(() => {
+    if (isNavBarVisible && !wasNavBarVisibleRef.current) {
+      setIsExpanded(true);
+    }
+    wasNavBarVisibleRef.current = isNavBarVisible;
+  }, [isNavBarVisible]);
 
   useEffect(() => {
     textWidthRef.current = textWidth;
@@ -417,6 +430,7 @@ MinimizePlayer.defaultProps = {
   isDragging: false,
   opacityStyle: null,
   pointerEvents: "auto",
+  isNavBarVisible: false,
 };
 
 MinimizePlayer.propTypes = {
@@ -429,14 +443,18 @@ MinimizePlayer.propTypes = {
   isDragging: PropTypes.bool,
   opacityStyle: PropTypes.shape(),
   pointerEvents: PropTypes.string,
+  isNavBarVisible: PropTypes.bool,
 };
 
 const arePropsEqual = (prevProps, nextProps) => {
-  // We must re-render if dragging state, pointerEvents, or opacity reference changes
+  // We must re-render if dragging state, pointerEvents, opacity reference, or
+  // nav-bar visibility changes (the last one drives the expand-on-reveal effect,
+  // which would never see a new value if memo swallowed the re-render).
   if (
     prevProps.isDragging !== nextProps.isDragging ||
     prevProps.pointerEvents !== nextProps.pointerEvents ||
-    prevProps.opacityStyle?.opacity !== nextProps.opacityStyle?.opacity
+    prevProps.opacityStyle?.opacity !== nextProps.opacityStyle?.opacity ||
+    prevProps.isNavBarVisible !== nextProps.isNavBarVisible
   ) {
     return false;
   }

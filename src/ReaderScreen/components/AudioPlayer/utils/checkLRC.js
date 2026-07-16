@@ -1,6 +1,6 @@
 import { exists } from "react-native-fs";
 import { checkIsRemote, extractFilePath } from "./urlHelper";
-import { hasBundledLyrics } from "../assets/lyrics/bundledLyrics";
+import { getCachedLyricsFullPath } from "./lyricsCache";
 
 const checkLyricsFileAvailable = async (lyricsUrl = null) => {
   try {
@@ -14,10 +14,12 @@ const checkLyricsFileAvailable = async (lyricsUrl = null) => {
     const isRemote = checkIsRemote(lyricsUrl);
 
     if (isRemote) {
-      if (hasBundledLyrics(lyricsUrl)) {
+      // Already cached on disk (viewed before or prefetched) → available offline.
+      const cachedPath = getCachedLyricsFullPath(lyricsUrl);
+      if (cachedPath && (await exists(cachedPath))) {
         return true;
       }
-      
+
       // Use HEAD request for efficiency (only checks if file exists without downloading)
       const response = await fetch(lyricsUrl, { method: "HEAD" });
       return response.ok;

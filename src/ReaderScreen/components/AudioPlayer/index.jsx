@@ -26,7 +26,7 @@ import useListeningSession from "@common/hooks/useListeningSession";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 import { prefetchPreviews } from "./utils/audioDownloader";
 
-const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
+const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef, isNavBarVisible = false }) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -329,23 +329,6 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
     }
   };
 
-  const handleReopenPreviewModal = useCallback(async () => {
-    try {
-      await stop();
-    } catch (_) {
-      // Best effort shutdown before returning to preview chooser.
-    }
-    try {
-      await reset();
-    } catch (_) {
-      // Best effort hard reset so no stale queue/notification survives.
-    }
-    // Mark as restored so the autoRestoreView effect doesn't immediately
-    // close the dialog it was just asked to open (first-tap blink fix).
-    setHasAutoRestoredView(true);
-    setShowTrackModal(true);
-  }, [stop, reset]);
-
   const handleTrackSelect = useCallback(
     async (selectedTrack) => {
       try {
@@ -549,8 +532,8 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef }) => {
       addAndPlayTrack={addAndPlayTrack}
       play={play}
       isPlayerActionLoading={isPlayerActionLoading}
-      onReopenPreviewModal={handleReopenPreviewModal}
       skipNextLoadRef={skipNextLoadRef}
+      isNavBarVisible={isNavBarVisible}
     />
   );
 };
@@ -563,6 +546,7 @@ AudioPlayer.propTypes = {
       postMessage: PropTypes.func,
     }),
   }).isRequired,
+  isNavBarVisible: PropTypes.bool,
 };
 
 export default AudioPlayer;

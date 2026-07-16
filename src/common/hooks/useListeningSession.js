@@ -24,7 +24,7 @@ const useListeningSession = ({ baniId, baniTitle, isPlaying, currentPlayingId, a
       if (!hasTrackedStartRef.current) {
         hasTrackedStartRef.current = true;
         logMessage(`audio_play: id=${currentPlayingIdRef.current ?? "unknown"} artist=${artistIdRef.current ?? "unknown"}`);
-        trackAudioStarted(currentPlayingIdRef.current ?? null, baniTitle ?? null, artistIdRef.current ?? null).catch(() => {});
+        trackAudioStarted(currentPlayingIdRef.current ?? null, baniTitle ?? null, artistNameRef.current ?? null).catch(() => {});
       }
       playStartRef.current = Date.now();
     } else {

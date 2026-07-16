@@ -108,9 +108,6 @@ jest.mock("./components", () => {
     AudioControlBar: ({ title, isPlaying, handlePlayPause, handleSeek, ...props }) => (
       <View testID="audio-control-bar" {...props}>
         <Text testID="control-bar-title">{title}</Text>
-        <Pressable testID="audios-button" onPress={props.onReopenPreviewModal}>
-          <Text>Audios</Text>
-        </Pressable>
         <Pressable testID="play-pause-button" onPress={handlePlayPause}>
           <Text>{isPlaying ? "Pause" : "Play"}</Text>
         </Pressable>
@@ -189,10 +186,13 @@ jest.mock("@common", () => ({
     EXTRA_LONG: "EXTRA_LONG",
   },
   logError: jest.fn(),
+  logMessage: jest.fn(),
   trackAudioEvent: jest.fn(),
   trackBaniOpen: jest.fn(),
   trackBaniListenCompletion: jest.fn(),
   trackAudioLinkRequest: jest.fn(),
+  trackAudioStarted: jest.fn(() => Promise.resolve()),
+  trackAudioCompleted: jest.fn(() => Promise.resolve()),
 }));
 
 // Mock Linking
@@ -361,26 +361,6 @@ describe("AudioPlayer", () => {
 
     await waitFor(() => {
       expect(getByTestId("audio-control-bar")).toBeTruthy();
-    });
-  });
-
-  it("returns to preview modal when Audios is pressed in full player", async () => {
-    mockUseAudioManifest.currentPlaying = mockUseAudioManifest.tracks[0];
-    const props = createProps();
-    const { getByTestId, queryByTestId } = render(<AudioPlayer {...props} />);
-
-    await waitFor(() => {
-      expect(getByTestId("audio-control-bar")).toBeTruthy();
-    });
-
-    await act(async () => {
-      fireEvent.press(getByTestId("audios-button"));
-    });
-
-    await waitFor(() => {
-      expect(mockUseTrackPlayer.stop).toHaveBeenCalled();
-      expect(mockUseTrackPlayer.reset).toHaveBeenCalled();
-      expect(queryByTestId("audio-track-dialog")).toBeTruthy();
     });
   });
 
