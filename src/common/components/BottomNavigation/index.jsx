@@ -259,15 +259,19 @@ const BottomNavigation = ({
                         <View
                           style={{
                             position: "absolute",
-                            top: -7,
-                            right: -9,
+                            // A plain dot has no digits to hold, so it is a
+                            // small 10px circle; only the numbered badge needs
+                            // the larger 16px box (and it sits slightly
+                            // further out to clear the icon).
+                            top: item.showDot > 1 ? -7 : -4,
+                            right: item.showDot > 1 ? -9 : -5,
                             backgroundColor: "#E53E3E",
-                            borderRadius: 9,
-                            minWidth: 16,
-                            height: 16,
+                            borderRadius: item.showDot > 1 ? 9 : 5,
+                            minWidth: item.showDot > 1 ? 16 : 10,
+                            height: item.showDot > 1 ? 16 : 10,
                             alignItems: "center",
                             justifyContent: "center",
-                            paddingHorizontal: 2,
+                            paddingHorizontal: item.showDot > 1 ? 2 : 0,
                             borderWidth: 1.2,
                             borderColor: item.key === activeKey ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
                           }}

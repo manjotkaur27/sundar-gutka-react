@@ -75,7 +75,7 @@ const createStyles = (theme) => ({
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     color: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
     textAlign: "center",
-    marginTop: 2,
+    marginTop: 1.2, // 40% less than the original 2px gap to the invocation line above
   },
   // Title stays centred; the settings icon is absolutely positioned on the right
   // (like the folder header's back arrow) so it never shifts the title off-centre.

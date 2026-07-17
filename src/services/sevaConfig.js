@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { constant, logError } from "@common";
 import STRINGS from "../common/localization";
+import { parseSevaContent } from "../SevaScreen/utils/sevaContentParser";
 
 /**
  * Seva configuration service.
@@ -24,6 +25,12 @@ import STRINGS from "../common/localization";
  * @property {Object}      content
  * @property {string}      content.headline
  * @property {string}      content.description
+ * @property {Array<{type: 'html', value: string} | {type: 'slot', name: string}>}
+ *                          content.segments  - Server-driven content, parsed
+ *                          from the backend's raw `content` HTML string via
+ *                          parseSevaContent(). Empty when the backend hasn't
+ *                          populated content yet — SevaScreen renders the
+ *                          native fields below (headline/description/etc.) instead.
  * @property {number[]}    amounts
  * @property {number}      selectedAmount
  * @property {PaymentMode} payment_mode
@@ -62,9 +69,27 @@ const FILLER_CONFIG = {
   showSevaDot: true,
 };
 
+// First-run / no-real-content fallback — used whenever there is no actual
+// backend content to show: a fresh install opened offline before ever
+// reaching the server, a fetch that fails with nothing cached yet, or a
+// server response whose `content` is empty/not populated. Mirrors
+// FILLER_CONFIG.content's headline/description/footer exactly, so a brand
+// new user sees the same page today's native rendering shows, via the same
+// WebView + native-slot path real backend content will use. The moment the
+// backend actually returns a non-empty `content`, that real value replaces
+// this — this is purely a placeholder, never preferred over real data.
+const BUNDLED_DEFAULT_CONTENT = `<h1>ਸੁੰਦਰ ਗੁਟਕਾ</h1>
+<p>Is built by volunteers at <a href="https://khalisfoundation.org/">Khalis Foundation</a>, a non-profit organization that builds software like Sundar Gutka and <a href="https://sikhitothemax.org/">SikhiToTheMax</a>. Khalis helps millions of Sikhs around the world connect with Gurbani. You can be part of this seva as well; serve millions with a single donation.</p>
+<!--SLOT:donate_widget-->
+<!--SLOT:tax_note-->
+<p class="seva-footer"><a href="https://github.com/KhalisFoundation/sundar-gutka-react">Know coding? You can also do seva through open source contributions.</a></p>`;
+
 // Cache only the backend's dynamic bits (not the localized copy, which is rebuilt each
-// call with the current language). Keyed v1 in case the shape changes later.
-const CACHE_KEY = "@seva_config_dynamic_v1";
+// call with the current language). Keyed v2 — v1 didn't carry `content`;
+// bumping the key rather than defensive-coding around old cached shapes, since a
+// one-time cache miss on upgrade just falls through to the native STRINGS fallback
+// until the next successful fetch.
+const CACHE_KEY = "@seva_config_dynamic_v2";
 // The config version the user has acknowledged by OPENING the Seva page. Sent as
 // ?v= so the backend computes redDot = currentVersion − seenVersion. Persisted
 // separately from the cached config so the dot survives background refetches and
@@ -109,6 +134,25 @@ const readSeenVersion = async () => {
   }
 };
 
+// Whether the user has EVER opened the Seva page. Distinct from
+// readSeenVersion() === 0, which cannot tell "never visited" apart from
+// "visited before any version was ever fetched" — both read as 0.
+const hasEverSeenSeva = async () => {
+  try {
+    return (await AsyncStorage.getItem(SEEN_VERSION_KEY)) !== null;
+  } catch (_) {
+    return false;
+  }
+};
+
+// The badge count the backend would compute for a given version, done
+// client-side for the offline/cached path: redDot = version − seenVersion.
+// Mirrors seva.service.ts's `missedVersions` exactly.
+const missedVersionsFor = (version, seenVersion) => {
+  const v = Number(version) || 0;
+  return v > seenVersion ? v - seenVersion : 0;
+};
+
 /** Merge the backend dynamic bits onto the app-local copy → SevaConfig. */
 const buildConfig = (dyn) => ({
   ...FILLER_CONFIG,
@@ -127,6 +171,14 @@ const buildConfig = (dyn) => ({
     footerText: STRINGS.SEVA_FOOTER_TEXT,
     taxMessage: STRINGS.SEVA_TAX_DEDUCTIBLE,
     nonUsTaxMessage: STRINGS.SEVA_NON_US_TAX,
+    // Server-driven content, split into an ordered sequence of HTML
+    // fragments + native slots (donate_widget, tax_note). Falls back to
+    // BUNDLED_DEFAULT_CONTENT whenever there's no real content — no network
+    // yet, nothing cached, or the backend response's content is empty — so a
+    // brand-new offline user still sees the full page instead of a bare
+    // STRINGS-only fallback. Real backend content always wins the moment
+    // it's actually populated.
+    segments: parseSevaContent(dyn?.content || BUNDLED_DEFAULT_CONTENT),
   },
 });
 
@@ -171,20 +223,47 @@ export const getSevaConfig = async () => {
       country: resp?.country,
       payment: resp?.payment,
       redDot: resp?.redDot,
+      content: resp?.content,
     };
     latestVersion = Number(resp?.version) || 0;
     cachedPayment = resp?.payment ?? null;
-    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dyn)).catch(() => {});
-    emitSevaDot(dyn.redDot ?? 0);
-    return buildConfig(dyn);
+    // Persist everything EXCEPT redDot. redDot is DERIVED, not durable: the
+    // server computes it per-request as (version − seenVersion), so a stored
+    // copy goes stale the instant the user opens Seva and seenVersion moves.
+    // Replaying it offline would resurrect a dot the user already cleared —
+    // the cache-read path below recomputes it from durable values instead.
+    const { redDot: _derivedRedDot, ...persistable } = dyn;
+    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(persistable)).catch(() => {});
+
+    // Re-derive the badge from the seen-version as of NOW, rather than trusting
+    // resp.redDot, which the server computed from the `?v=` we sent BEFORE the
+    // round-trip. If the user opened Seva while this request was in flight,
+    // that value is already stale-high and would resurrect the dot they just
+    // cleared. Same formula the backend uses, and the same one the offline
+    // path below uses — one source of truth for the badge.
+    const seenVersionNow = await readSeenVersion();
+    const redDot = missedVersionsFor(resp?.version, seenVersionNow);
+    emitSevaDot(redDot);
+    return buildConfig({ ...dyn, redDot });
   } catch (err) {
     logError(new Error(`getSevaConfig failed: ${err?.message || err}`));
     if (cached) {
       cachedPayment = cached.payment ?? null;
       latestVersion = Number(cached.version) || latestVersion;
-      return buildConfig(cached);
+      // Recompute the badge from the two values that ARE durable — the cached
+      // version and the persisted seen-version — rather than trusting any
+      // redDot the cache may still carry (see the write path above).
+      const seenVersion = await readSeenVersion();
+      return buildConfig({
+        ...cached,
+        redDot: missedVersionsFor(cached.version, seenVersion),
+      });
     }
-    return buildConfig(null);
+    // Nothing was ever fetched, so no version is known and the badge can only
+    // be a guess. Show it to advertise Seva to a brand-new user, but never to
+    // someone who has already opened the page.
+    const everSeen = await hasEverSeenSeva();
+    return buildConfig(everSeen ? { redDot: 0 } : null);
   }
 };
 
