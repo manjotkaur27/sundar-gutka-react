@@ -119,6 +119,17 @@ const DonationWebView = ({ route, navigation }) => {
               setIsLoading(false);
               setHasError(true);
             }}
+            // When the Android System WebView (Chromium) renderer process dies
+            // out-of-process, react-native-webview's native side returns true so
+            // Android does NOT kill our app — but the WebView instance is now dead
+            // and would otherwise sit here blank. Swap it for the error fallback so
+            // the user gets a clear message and can retry instead of a frozen page.
+            // (This cannot catch the in-process/low-memory SIGBUS case, where the
+            // native signal tears down the whole process before any handler runs.)
+            onRenderProcessGone={() => {
+              setIsLoading(false);
+              setHasError(true);
+            }}
             style={{ backgroundColor: theme.colors.surface }}
           />
         )}

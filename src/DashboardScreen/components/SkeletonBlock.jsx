@@ -10,10 +10,19 @@ const SkeletonBlock = ({ style }) => {
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
+    // JS driver (useNativeDriver: false) is deliberate here. Many SkeletonBlocks
+    // render at once across dashboard sections and then unmount together the
+    // instant their data lands. With the native driver, that bulk teardown drops
+    // native animated nodes while the NativeAnimatedModule ConcurrentOperationQueue
+    // may still have a queued connectAnimatedNodes referencing one of them, which
+    // crashes the app ("Animated node with tag (child) [N] does not exist").
+    // A JS-thread opacity pulse never enters the native animated graph, so it
+    // cannot trigger that race — and for a sub-second placeholder it looks
+    // identical. See the connectAnimatedNodes Crashlytics reports.
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: false }),
+        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: false }),
       ])
     );
     loop.start();

@@ -115,6 +115,14 @@ class TrackPlayerService {
         ) {
           this.isInitialized = true;
           logMessage("TrackPlayer already initialized");
+        } else if (error?.code === "android_cannot_setup_player_in_background") {
+          // Android 12+ refused to start the playback foreground service (the app
+          // wasn't in a foreground-service-eligible state). The native side (patched
+          // MusicModule) now rejects instead of crashing — swallow it here so there
+          // is no unhandled rejection; setup stays uninitialised and simply retries
+          // the next time it's requested from the foreground.
+          this.isInitialized = false;
+          logMessage(`TrackPlayer setup deferred (foreground service not allowed): ${error?.message}`);
         } else {
           logError(`TrackPlayer initialization failed: ${error?.message || "Unknown error"}`);
           this.isInitialized = false;

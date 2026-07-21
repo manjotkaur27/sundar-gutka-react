@@ -78,6 +78,14 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
       pulseLoopRef.current = null;
       pulseAnim.setValue(1);
     }
+    // Stop the loop on unmount too. Without this, a component that unmounts while
+    // still 'queued' (e.g. leaving the reader mid-download) leaves the native
+    // pulse loop running against a node that is about to be dropped, feeding the
+    // NativeAnimated "connectAnimatedNodes: node does not exist" crash race.
+    return () => {
+      pulseLoopRef.current?.stop();
+      pulseLoopRef.current = null;
+    };
   }, [status, pulseAnim]);
 
   // ── Tap handlers ───────────────────────────────────────────────────────────

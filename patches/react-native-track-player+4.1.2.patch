@@ -1,3 +1,38 @@
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+index b2409a0..1b2fff5 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+@@ -235,12 +235,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+         )
+ 
+         Intent(context, MusicService::class.java).also { intent ->
+-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                context.startForegroundService(intent)
+-            } else {
+-                context.startService(intent)
++            try {
++                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++                    context.startForegroundService(intent)
++                } else {
++                    context.startService(intent)
++                }
++                context.bindService(intent, this, Context.BIND_AUTO_CREATE)
++            } catch (e: Exception) {
++                // Android 12+ can still throw ForegroundServiceStartNotAllowedException
++                // here even when AppForegroundTracker reports the app as NOT backgrounded
++                // (e.g. mid activity-transition, or after the FGS start grace period).
++                // Reject cleanly so setupPlayer can be retried later instead of crashing
++                // the whole app. https://github.com/doublesymmetry/react-native-track-player/issues/2244
++                playerSetUpPromise = null
++                promise.reject(
++                    "android_cannot_setup_player_in_background",
++                    "Could not start the playback service: ${e.message}"
++                )
+             }
+-            context.bindService(intent, this, Context.BIND_AUTO_CREATE)
+         }
+     }
+ 
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 index afa6b0f..6fe93c5 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
