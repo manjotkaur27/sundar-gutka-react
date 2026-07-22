@@ -1,11 +1,16 @@
 // Khalis backend base URL (Seva + Dashboard APIs).
-// TODO: replace with the STABLE production alias / custom domain. The current value
-// is a Vercel *preview* deploy whose hash changes on every backend deploy.
-// For local backend dev, temporarily set this to "http://localhost:3500"
-// (and run `adb reverse tcp:3500 tcp:3500`).
-// const KHALIS_API_BASE =
-//   "https://khalis-users-api-git-new-apis-divyanshugarg36s-projects.vercel.app";
-const KHALIS_API_BASE = "https://khalis-users-api-git-new-apis-divyanshugarg36s-projects.vercel.app";
+//
+// ── PRODUCTION (Azure Container Apps) ───────────────────────────────────────
+const KHALIS_API_BASE =
+  "https://khalis-user-api.salmonriver-80392db4.eastus.azurecontainerapps.io";
+//
+// ── LOCAL DEV ───────────────────────────────────────────────────────────────
+// To test against the backend running on THIS machine (khalis-users-api → PORT
+// 3500), swap in the line below. On a USB device/emulator run once:
+//   adb reverse tcp:3500 tcp:3500
+// (cleartext to localhost is allowed — see android res/xml/
+// network_security_config.xml). Reset Metro: react-native start --reset-cache.
+// const KHALIS_API_BASE = "http://localhost:3500";
 
 export default {
   DB: "gutka_v01",
@@ -152,6 +157,11 @@ export default {
   // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
   DASHBOARD_API_BASE_URL: KHALIS_API_BASE,
   SEVA_CONFIG_API_URL: `${KHALIS_API_BASE}/seva/config`,
+  // "Seva by other means" pages (public, no auth). Each returns a translated,
+  // constrained HTML content fragment the app renders natively and caches (per
+  // page + language) for offline use. The path segment matches the page key
+  // sent by services/sevaMeans.js.
+  SEVA_MEANS_API_BASE: KHALIS_API_BASE,
   DAILY_VAAK_API_URL: `${KHALIS_API_BASE}/dashboard/daily-vaak`,
   WORD_OF_DAY_API_URL: `${KHALIS_API_BASE}/dashboard/word-of-day`,
   DASHBOARD_SYNC_API_URL: `${KHALIS_API_BASE}/dashboard/cache`, // POST, Bearer JWT

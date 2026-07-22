@@ -101,7 +101,7 @@ const RemindersComponent = ({ navigation }) => {
           <ListItem.Content>
             <ListItemTitle title={STRINGS.set_reminder_options} style={styles.listItemTitle} />
           </ListItem.Content>
-          <ListItem.Chevron />
+          <ListItem.Chevron color={theme.colors.primaryText} />
         </ListItem>
       )}
       {isReminders && (

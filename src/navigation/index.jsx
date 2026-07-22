@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   navigationRef,
   constant,
@@ -12,19 +12,20 @@ import {
 } from "@common";
 import AboutScreen from "../AboutScreen";
 import Bookmarks from "../Bookmarks";
-import ManageDownloads from "../ManageDownloads";
+import BottomNavigation from "../common/components/BottomNavigation";
 import { trackScreenView } from "../common/firebase/analytics";
-import DatabaseUpdateScreen from "../DatabaseUpdate";
 import DashboardScreen from "../DashboardScreen";
+import DatabaseUpdateScreen from "../DatabaseUpdate";
 import EditBaniOrder from "../EditBaniOrder";
 import FolderScreen from "../FolderScreen";
 import HomeScreen from "../HomeScreen";
+import ManageDownloads from "../ManageDownloads";
 import ReaderScreen from "../ReaderScreen";
 import Settings from "../Settings";
+import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
 import SevaScreen from "../SevaScreen";
 import DonationWebView from "../SevaScreen/DonationWebView";
-import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
-import BottomNavigation from "../common/components/BottomNavigation";
+import SevaMeansScreen from "../SevaScreen/SevaMeansScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -39,14 +40,7 @@ const CustomTabBar = (props) => {
 
   if (isHidden) return null;
 
-  return (
-    <BottomNavigation
-      activeKey={activeKey}
-      context="home"
-      visible={true}
-      navigation={navigation}
-    />
-  );
+  return <BottomNavigation activeKey={activeKey} context="home" visible navigation={navigation} />;
 };
 
 // Main tab navigator for Home, Dashboard, Seva, Settings
@@ -88,9 +82,9 @@ const Navigation = () => {
       // Silently fail - performance monitoring should never crash the app
       logError(
         new Error(
-          `Performance trace failed for route: ${
-            state.routes[state.index]?.name || "unknown"
-          } - ${error?.message || "Unknown error"}`
+          `Performance trace failed for route: ${state.routes[state.index]?.name || "unknown"} - ${
+            error?.message || "Unknown error"
+          }`
         )
       );
       trace.current = resetTrace();
@@ -138,11 +132,7 @@ const Navigation = () => {
           }}
         />
         {/* Stack screens - these push with animation */}
-        <Stack.Screen
-          name="Reader"
-          component={ReaderScreen}
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
         <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="FolderScreen" component={FolderScreen} />
         <Stack.Screen
@@ -156,6 +146,11 @@ const Navigation = () => {
           component={DonationWebView}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="SevaMeans"
+          component={SevaMeansScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="ReminderOptions" component={ReminderOptions} />
         <Stack.Screen name="DatabaseUpdate" component={DatabaseUpdateScreen} />
         <Stack.Screen
@@ -163,11 +158,7 @@ const Navigation = () => {
           component={ManageDownloads}
           options={{ headerShown: false }}
         />
-        <Stack.Screen
-          name="Settings"
-          component={Settings}
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="Settings" component={Settings} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

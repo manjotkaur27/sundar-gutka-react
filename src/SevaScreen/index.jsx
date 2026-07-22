@@ -5,6 +5,7 @@ import {
   Pressable,
   TextInput,
   ActivityIndicator,
+  Animated,
   AppState,
   Linking,
   Platform,
@@ -12,28 +13,42 @@ import {
   useWindowDimensions,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
-import Svg, {
-  Defs,
-  LinearGradient as SvgLinearGradient,
-  Stop,
-  Text as SvgText,
-} from "react-native-svg";
 import { useDispatch, useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import PropTypes from "prop-types";
+import { AppBar } from "@common/components";
 import {
   SafeArea,
   StatusBarComponent,
   CustomText,
+  GradientDivider,
   useTheme,
   useThemedStyles,
   STRINGS,
   openInAppBrowser,
   trackSevaEvent,
 } from "@common";
-import { DonateIcon } from "../common/icons";
+import {
+  DonateIcon,
+  CloseIcon,
+  ChevronRight,
+  SevaIcon,
+  HandHeartIcon,
+  MegaphoneIcon,
+  CodeIcon,
+  ClipboardCheckIcon,
+  StarIcon,
+} from "../common/icons";
+import {
+  resolveCurrency,
+  usdToLocal,
+  localToUsd,
+  formatNumber,
+  resolveLocalPresets,
+} from "../services/currency";
 import { getSevaConfig, buildQgivUrl, markSevaSeen } from "../services/sevaConfig";
+import { prewarmSevaMeans } from "../services/sevaMeans";
 import createStyles from "./styles";
 import { parseHtmlBlocks, blockText } from "./utils/parseHtmlBlocks";
 
@@ -66,6 +81,41 @@ const SEVA_STEPS = {
 const SEVA_STEP_NAMES = Object.keys(SEVA_STEPS);
 const stepNameOf = (v) => SEVA_STEP_NAMES[v - 1] || "landing_view";
 
+// "Other ways to do Seva" list items: each server-driven means link
+// (`seva-means:<page>`) maps to a native icon + accent tint. The app supplies
+// the icon/colour/navigation chrome; the backend supplies the text + order.
+const MEANS_META = {
+  social: { Icon: MegaphoneIcon, tint: "#8B7CF6" }, // indigo
+  coding: { Icon: CodeIcon, tint: "#22B8CF" }, // teal
+  qa: { Icon: ClipboardCheckIcon, tint: "#37B24D" }, // green
+  other: { Icon: StarIcon, tint: "#E0A93B" }, // gold
+};
+
+// A blinking text cursor for the custom-amount inline display (the real
+// TextInput is hidden — see the amount card — so the ₹ symbol and the digits
+// can be rendered as one baseline-aligned inline Text).
+const BlinkingCursor = ({ color, fontSize }) => {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 450, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return (
+    <Animated.Text style={{ opacity, color, fontSize, fontFamily: "sans-serif" }}>|</Animated.Text>
+  );
+};
+
+BlinkingCursor.propTypes = {
+  color: PropTypes.string.isRequired,
+  fontSize: PropTypes.number.isRequired,
+};
+
 const SevaScreen = () => {
   const { theme } = useTheme();
   const isDarkMode = theme.mode === "dark";
@@ -75,21 +125,34 @@ const SevaScreen = () => {
   // ─── Responsive metrics ─────────────────────────────────────────────────────
   // Every size below is derived from the viewport and then CLAMPED, so the page
   // scales smoothly between a small phone and a tablet instead of flipping
-  // between layouts. Horizontal padding is computed once here and reused for the
-  // content AND the headline canvas, so the title always aligns with the text
-  // beneath it (previously the title used a separate screenWidth-48 canvas).
+  // between layouts.
   const hPad = Math.round(Math.max(16, Math.min(28, screenWidth * 0.064)));
-  const contentWidth = screenWidth - hPad * 2;
   // Fixed vertical rhythm between sections — replaces the old space-between,
   // which stretched/collapsed the gaps depending on the device height.
   const gap = Math.round(Math.min(24, Math.max(14, screenHeight * 0.02)));
   const vPad = Math.round(Math.min(36, Math.max(18, screenHeight * 0.04)));
-  // The big "$NN" is bound by height as well as width, so a short device gets a
-  // smaller figure instead of a 72px number that squeezes out everything else.
+  // The big amount is bound by height as well as width, so a short device gets a
+  // smaller figure instead of one that squeezes out everything else. Capped
+  // lower than before so the amount BOX is shorter (per SIO-155), and so a large
+  // localised figure (e.g. ₹10,000) plus the inline "/month" still fits one row.
   const amountFontSize = Math.round(
-    Math.min(72, Math.max(44, Math.min(screenWidth * 0.17, screenHeight * 0.085)))
+    Math.min(52, Math.max(34, Math.min(screenWidth * 0.13, screenHeight * 0.062)))
   );
-  const amountLineHeight = Math.round(amountFontSize * 1.2);
+  const amountLineHeight = Math.round(amountFontSize * 1.12);
+  // Donor currency (symbol + display-figure conversion) from the device locale.
+  // The charge itself is always USD via Qgiv — see services/currency.js.
+  const currency = resolveCurrency();
+  // Digits ALWAYS render in Baloo Paaji. Only the currency SYMBOL may need a
+  // different font: Baloo can't draw ₹ correctly, so INR's symbol uses the
+  // system font; every other currency's symbol stays Baloo (they render fine).
+  // Symbol + digits are rendered as inline text spans (see the amount card), so
+  // they share one baseline and align regardless of the symbol's font.
+  const symbolFontFamily =
+    currency.code === "INR" ? "sans-serif" : theme.typography.fonts.balooPaaji;
+  // The system-font ₹ renders TALLER than the Baloo digits at the same size, so
+  // scale the symbol DOWN to match their height. Non-INR symbols are Baloo (same
+  // font as the digits) and already match → scale 1.
+  const symbolFontSize = Math.round(amountFontSize * (currency.code === "INR" ? 0.82 : 1));
   const dispatch = useDispatch();
   const navigation = useNavigation();
 
@@ -131,48 +194,59 @@ const SevaScreen = () => {
     if (v > maxStepRef.current) maxStepRef.current = v;
   }, []);
 
-  // Load config on mount
+  // Prewarm all four "Seva by other means" pages for the current language so a
+  // single online visit to Seva caches every sub-page for later offline use.
   useEffect(() => {
-    let active = true;
-    const fetchConfig = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-        const cfg = await getSevaConfig();
-        if (active) {
-          setConfig(cfg);
-          setSelectedAmount(cfg?.selectedAmount ?? 10);
-        }
-        // The user is now viewing the Seva page — acknowledge the current version
-        // so the tab dot clears now and stays cleared until the backend bumps it.
-        markSevaSeen();
-      } catch (err) {
-        if (active) setError(true);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    fetchConfig();
-    return () => {
-      active = false;
-    };
+    prewarmSevaMeans({ lang: language }).catch(() => {});
   }, [language]);
 
-  // Re-acknowledge the version on every FOCUS, not just on mount. This screen
-  // lives in a bottom-tab navigator, so it stays mounted after the first visit
-  // and the mount effect above never re-runs — meaning a dot that appears
-  // LATER in the same session (backend published a new version while the app
-  // was open) would stay stuck on the tab even while the user is looking at
-  // this very page. markSevaSeen() reads the module-level latestVersion, kept
-  // current by BottomNavigation's own foreground refresh, so it acknowledges
-  // the right version. Kept as its OWN effect so navigation's identity can
-  // never retrigger the config fetch above.
-  useEffect(() => {
-    const unsubscribeFocus = navigation.addListener("focus", () => {
-      markSevaSeen();
-    });
-    return unsubscribeFocus;
-  }, [navigation]);
+  // Sync the Seva config on EVERY open (screen focus) and on language change:
+  //   • Online → re-fetches the latest Seva page from the server every time it's
+  //     opened, so a returning online user always sees current content.
+  //   • Offline, returning user → resolves to the LAST cached (last successfully
+  //     synced) Seva page.
+  //   • Offline, brand-new user → resolves to the bundled fallback.
+  // getSevaConfig implements that network → cache → bundled chain and never
+  // throws. The loading spinner shows ONLY on the very first load; every re-open
+  // refreshes SILENTLY in the background so the currently-shown page never
+  // blanks while it revalidates. markSevaSeen() runs on every focus so the tab's
+  // version dot clears the moment the page is opened.
+  const hasLoadedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const isFirstLoad = !hasLoadedRef.current;
+      (async () => {
+        try {
+          if (isFirstLoad) {
+            setLoading(true);
+            setError(false);
+          }
+          const cfg = await getSevaConfig(language);
+          if (!active) return;
+          setConfig(cfg);
+          if (isFirstLoad) {
+            // Default to the first tier of the resolved LOCAL ladder — backend
+            // per-currency override, else the currency's built-in ladder (INR),
+            // else the backend USD base amounts converted to local. Only on the
+            // first load, so a background re-sync never resets a user's pick.
+            const [defaultLocal] = resolveLocalPresets(currency, cfg?.amounts, cfg?.amountPresets);
+            setSelectedAmount(defaultLocal ?? usdToLocal(10, currency));
+          }
+          hasLoadedRef.current = true;
+          markSevaSeen();
+        } catch (err) {
+          if (active && isFirstLoad) setError(true);
+        } finally {
+          if (active && isFirstLoad) setLoading(false);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [language])
+  );
 
   // Exposure on mount; abandonment on exit if the user never tapped donate.
   // Also tracks whether this is the user's first time opening the Seva screen
@@ -324,9 +398,13 @@ const SevaScreen = () => {
   }, []);
 
   const handleDonate = useCallback(async () => {
-    let finalAmount = isOtherSelected ? parseFloat(customAmount) : selectedAmount;
-    if (isNaN(finalAmount) || finalAmount <= 0) {
-      finalAmount = 10; // Fallback
+    // Both the selected preset and a typed custom amount are in the LOCAL
+    // currency — convert to USD, because Qgiv charges in USD. (See
+    // services/currency.js: figures are localised, the charge is not.)
+    const localAmount = isOtherSelected ? customAmount : selectedAmount;
+    let finalAmount = localToUsd(localAmount, currency);
+    if (Number.isNaN(finalAmount) || finalAmount <= 0) {
+      finalAmount = 10; // Fallback (USD)
     }
 
     hasDonatedRef.current = true;
@@ -334,6 +412,8 @@ const SevaScreen = () => {
     // Last in-app observable step: the Donate tap hands off to Qgiv. This is
     // payment INTENT, not a confirmed donation — Qgiv holds payment truth and
     // the app cannot see it. Every param here is a real, non-empty value.
+    // amount_bucket stays USD-based so the analytics funnel is comparable
+    // across regions regardless of the displayed currency.
     trackSevaEvent("payment_started", {
       provider: "qgiv",
       is_custom: isOtherSelected,
@@ -374,6 +454,7 @@ const SevaScreen = () => {
     isOtherSelected,
     customAmount,
     selectedAmount,
+    currency,
     effectiveDonationType,
     frequency,
     dispatch,
@@ -382,92 +463,117 @@ const SevaScreen = () => {
     markStep,
   ]);
 
-  const handleOpenSource = () => {
-    openBrowserForUrl("https://github.com/KhalisFoundation/sundar-gutka-react");
-  };
-
   const content = config?.content ?? {};
-
-  // ─── Clip-proof gradient headline (light mode) ──────────────────────────────
-  // SVG <Text> has no adjustsFontSizeToFit, so it cannot shrink itself — the old
-  // fixed 52px floor on a fixed screenWidth-48 canvas meant the Gurmukhi title
-  // simply overflowed and got sliced on narrower screens. Instead we draw the
-  // text at a constant size inside a viewBox and let react-native-svg scale that
-  // whole box down to the available width (preserveAspectRatio). The per-glyph
-  // advance below is deliberately a GENEROUS estimate: over-estimating only
-  // renders the title slightly smaller, which is the safe failure mode —
-  // under-estimating would clip it again.
-  const HEADLINE_BASE_FONT = 72;
 
   // Tax messaging differs by donor country: US donations are tax-deductible;
   // donations from outside the US are not. Country comes from the backend Seva
-  // config (defaults to "US" when unknown).
+  // config (defaults to "US" when unknown). BUT when offline with nothing ever
+  // cached (source === "fallback"), the country is a pure guess — so we show NO
+  // tax note at all rather than a possibly-wrong US-specific claim (SIO-155).
+  const isOfflineFallback = config?.source === "fallback";
   const isUSDonor = (config?.country ?? "US").toUpperCase() === "US";
-  const taxMessage = isUSDonor ? content.taxMessage : content.nonUsTaxMessage;
+  let taxMessage = null;
+  if (!isOfflineFallback) {
+    taxMessage = isUSDonor ? content.taxMessage : content.nonUsTaxMessage;
+  }
 
-  // BOTH themes render through this one SVG path so their size, weight and
-  // geometry are identical by construction — only the fill differs (the blue
-  // gradient in light mode, flat white in dark). Dark mode previously used a
-  // separate plain <Text>, whose independent responsive font-size made the
-  // heading render visibly smaller/lighter than light mode's.
-  //
-  // SVG <Text> cannot auto-shrink like RN's adjustsFontSizeToFit, so it is
-  // scaled via the viewBox instead. The per-glyph advance below is
-  // deliberately a GENEROUS estimate: over-estimating only renders the title
-  // slightly smaller, which is the safe failure mode — under-estimating would
-  // clip it. Takes the text as an argument so the same renderer serves both
-  // the native fallback (config.content.headline) and a server-driven <h1>.
-  const renderHeadline = (headlineText) => {
-    if (!headlineText) return null;
-    const headlineBoxW = Math.max(headlineText.length * HEADLINE_BASE_FONT * 0.62, 1);
-    const headlineBoxH = HEADLINE_BASE_FONT * 1.35;
-    const headlineSvgW = Math.min(contentWidth, headlineBoxW);
-    const headlineSvgH = (headlineSvgW / headlineBoxW) * headlineBoxH;
-
+  // One "Other ways to do Seva" row, from a server `seva-means:<page>` link
+  // block. The backend supplies the title (link text) + subtitle (trailing
+  // text) + which page; the app supplies the icon, accent tint, and the native
+  // navigation to the SDUI page — the only non-content pieces.
+  const renderMeansItem = (block, key) => {
+    const linkSeg = block.segments.find((s) => s.link);
+    const subSeg = block.segments.find((s) => !s.link && s.text.trim());
+    const title = linkSeg ? linkSeg.text : blockText(block);
+    const sub = subSeg ? subSeg.text.trim() : "";
+    const page =
+      linkSeg && linkSeg.url && linkSeg.url.startsWith("seva-means:")
+        ? linkSeg.url.slice("seva-means:".length)
+        : null;
+    const meta = MEANS_META[page] || MEANS_META.other;
+    const { Icon } = meta;
     return (
-      <Svg
-        width={headlineSvgW}
-        height={headlineSvgH}
-        viewBox={`0 0 ${headlineBoxW} ${headlineBoxH}`}
-        preserveAspectRatio="xMidYMid meet"
+      <Pressable
+        key={key}
+        style={styles.meansRow}
+        onPress={() => page && navigation.navigate("SevaMeans", { page })}
+        accessibilityRole="button"
+        accessibilityLabel={`seva-means-${page}`}
       >
-        <Defs>
-          <SvgLinearGradient id="headlineGrad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#113979" stopOpacity="1" />
-            <Stop offset="1" stopColor="#1F69DF" stopOpacity="1" />
-          </SvgLinearGradient>
-        </Defs>
-        <SvgText
-          fill={isDarkMode ? theme.staticColors.WHITE_COLOR : "url(#headlineGrad)"}
-          fontSize={HEADLINE_BASE_FONT}
-          fontWeight="800"
-          fontFamily="BalooPaaji2-SemiBold"
-          textAnchor="middle"
-          x={headlineBoxW / 2}
-          y={HEADLINE_BASE_FONT}
-        >
-          {headlineText}
-        </SvgText>
-      </Svg>
+        <View style={[styles.meansIconCircle, { backgroundColor: `${meta.tint}22` }]}>
+          <Icon size={20} color={meta.tint} />
+        </View>
+        <View style={styles.meansTextWrap}>
+          <CustomText style={styles.meansTitle}>{title}</CustomText>
+          {!!sub && <CustomText style={styles.meansSub}>{sub}</CustomText>}
+        </View>
+        <ChevronRight size={20} color={isDarkMode ? "#4A6785" : "#9AA8BD"} />
+      </Pressable>
     );
   };
 
-  // Renders one server-driven `{type:"html"}` segment as real native elements.
-  // Deliberately NOT a WebView: native layout is synchronous and always the
-  // right height, so the page's own ScrollView stays the single scroll surface
-  // (no inner scrollbar, no clipped tail), and the headline keeps its SVG
-  // gradient. Styling comes from the app's themed StyleSheet — the same styles
-  // the native fallback path uses — so light/dark mode keeps working.
+  // Renders one server-driven `{type:"html"}` segment as native elements, using
+  // the backend's class hints to pick the matching style/component. NOT a
+  // WebView — native layout keeps the page's own ScrollView the single scroll
+  // surface, and light/dark theming stays app-owned.
   const renderHtmlSegment = (html, keyPrefix) =>
     parseHtmlBlocks(html).map((block, i) => {
       const key = `${keyPrefix}-block-${i}`;
-      if (block.tag === "h1" || block.tag === "h2" || block.tag === "h3") {
-        return <React.Fragment key={key}>{renderHeadline(blockText(block))}</React.Fragment>;
+      const cls = block.className || "";
+
+      if (cls.includes("seva-means")) return renderMeansItem(block, key);
+
+      if (cls.includes("seva-hero-title")) {
+        // Render each word as its own flex item in a wrapping row so the heart
+        // flows INLINE right after the last word (e.g. "…millions. ♥"), instead
+        // of sitting off to the side of the whole title block.
+        const words = blockText(block).split(/\s+/).filter(Boolean);
+        return (
+          <View key={key} style={styles.heroTitleRow}>
+            {words.map((w, wi) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <CustomText key={`${key}-w-${wi}`} style={styles.heroTitle}>
+                {w}
+              </CustomText>
+            ))}
+            <SevaIcon size={18} color={isDarkMode ? "#4299E1" : "#1F69DF"} />
+          </View>
+        );
       }
-      // The footer sits below the Donate button and is smaller/centred/muted,
-      // unlike the main description — matching the original native page.
-      const isFooter = block.className.includes("seva-footer");
-      const blockStyle = isFooter ? styles.footerText : styles.description;
+      if (cls.includes("seva-section")) {
+        return (
+          <CustomText key={key} style={styles.sectionHeader}>
+            {blockText(block)}
+          </CustomText>
+        );
+      }
+      if (cls.includes("seva-card-title")) {
+        return (
+          <CustomText key={key} style={styles.cardTitle}>
+            {blockText(block)}
+          </CustomText>
+        );
+      }
+      if (cls.includes("seva-card-sub")) {
+        return (
+          <CustomText key={key} style={styles.cardSub}>
+            {blockText(block)}
+          </CustomText>
+        );
+      }
+      // Plain (unclassed) headings → section-header style.
+      if (block.tag === "h1" || block.tag === "h2" || block.tag === "h3") {
+        return (
+          <CustomText key={key} style={styles.sectionHeader}>
+            {blockText(block)}
+          </CustomText>
+        );
+      }
+
+      const isFooter = cls.includes("seva-footer");
+      let blockStyle = styles.description;
+      if (cls.includes("seva-hero-desc")) blockStyle = styles.heroDesc;
+      else if (isFooter) blockStyle = styles.footerText;
       return (
         <Text key={key} style={blockStyle}>
           {block.segments.map((seg, j) =>
@@ -489,39 +595,6 @@ const SevaScreen = () => {
       );
     });
 
-  const renderDescription = () => {
-    const text = content.description || "";
-    const links = content.descriptionLinks || [];
-    if (!links.length) return <Text style={styles.description}>{text}</Text>;
-
-    const positioned = links
-      .map((l) => ({ ...l, index: text.indexOf(l.text) }))
-      .filter((l) => l.index !== -1)
-      .sort((a, b) => a.index - b.index);
-
-    const segments = [];
-    let cursor = 0;
-    positioned.forEach(({ text: linkText, url, index }) => {
-      if (index > cursor) segments.push({ text: text.slice(cursor, index), link: false });
-      segments.push({ text: linkText, url, link: true });
-      cursor = index + linkText.length;
-    });
-    if (cursor < text.length) segments.push({ text: text.slice(cursor), link: false });
-
-    return (
-      <Text style={styles.description}>
-        {segments.map((seg, i) =>
-          seg.link ? (
-            <Text key={i} style={styles.link} onPress={() => openBrowserForUrl(seg.url)}>
-              {seg.text}
-            </Text>
-          ) : (
-            <Text key={i}>{seg.text}</Text>
-          )
-        )}
-      </Text>
-    );
-  };
   const FREQUENCY_LABELS = {
     Monthly: STRINGS.SEVA_MONTHLY,
     Annually: STRINGS.SEVA_ANNUALLY,
@@ -531,11 +604,20 @@ const SevaScreen = () => {
   const getFrequencyLabel = () =>
     frequency === "Annually" ? STRINGS.SEVA_PER_YEAR : STRINGS.SEVA_PER_MONTH;
 
-  // When Other is selected but user hasn't typed yet, show the last preset in the card
-  const displayAmount =
-    isOtherSelected && customAmount ? customAmount : String(selectedAmount ?? "");
+  // The big figure in the card. A custom ("Other") amount is typed in the local
+  // currency, so it's shown as-is; a selected preset is a USD base tier shown as
+  // its localised, grouped display figure (e.g. $10 → "1,000" for ₹). The
+  // currency symbol is rendered separately alongside it.
+  const displayAmount = formatNumber(
+    isOtherSelected && customAmount ? customAmount : selectedAmount ?? 0
+  );
 
-  const amounts = config?.amounts ?? [10, 50, 100];
+  // Preset tiers, in the LOCAL currency, resolved in priority order: a backend
+  // per-currency override (config.amountPresets[code]), else the currency's own
+  // round ladder (INR → ₹100 / ₹1,000 / ₹5,000), else the backend USD base
+  // amounts × rate. selectedAmount + customAmount are LOCAL; both convert to USD
+  // only at donate time (Qgiv charges USD).
+  const amounts = resolveLocalPresets(currency, config?.amounts, config?.amountPresets);
 
   // Extracted so they can render at their `<!--SLOT:donate_widget-->`
   // / `<!--SLOT:tax_note-->` position within server-driven content — or, when
@@ -550,57 +632,56 @@ const SevaScreen = () => {
       <Pressable style={styles.amountCard} onPress={isOtherSelected ? focusOtherAmount : undefined}>
         <View style={styles.amountContainer}>
           <View style={styles.amountRow}>
-            {/* amountFontSize/amountLineHeight are viewport-derived (see the
-                metrics block above) so the figure shrinks on short screens
-                instead of squeezing the rest of the page. The "$" and the
-                digits must share the SAME size + lineHeight to stay on one
-                baseline — keep them in lockstep. */}
+            {/* The figure is ONE inline Text: the currency symbol (its own font —
+                system for ₹, Baloo for the rest), the digits (always Baloo), a
+                blinking cursor while editing, and the inline "/month" — all as
+                spans, so they share ONE text baseline and always align, whatever
+                the symbol's font. In "Other" mode the digits come from state fed
+                by a hidden TextInput (below) that captures the keystrokes. */}
             <CustomText
-              style={[styles.currency, { fontSize: amountFontSize, lineHeight: amountLineHeight }]}
+              style={[
+                styles.amountDisplay,
+                { fontSize: amountFontSize, lineHeight: amountLineHeight },
+              ]}
+              numberOfLines={1}
             >
-              $
-            </CustomText>
-            {isOtherSelected ? (
-              <View style={styles.amountInputWrap}>
-                <TextInput
-                  ref={otherAmountInputRef}
-                  style={[
-                    styles.amountDisplay,
-                    { fontSize: amountFontSize, lineHeight: amountLineHeight },
-                  ]}
-                  value={customAmount}
-                  onChangeText={handleCustomAmountChange}
-                  keyboardType="numeric"
-                  cursorColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
-                  selectionColor={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
-                />
-                {customAmount === "" && (
-                  <CustomText
-                    style={[
-                      styles.amountDisplay,
-                      styles.amountPlaceholder,
-                      { fontSize: amountFontSize, lineHeight: amountLineHeight },
-                    ]}
-                    pointerEvents="none"
-                  >
-                    0
-                  </CustomText>
-                )}
-              </View>
-            ) : (
-              <CustomText
-                style={[
-                  styles.amountDisplay,
-                  { fontSize: amountFontSize, lineHeight: amountLineHeight },
-                ]}
+              {/* letterSpacing adds a few px of trailing space → a small gap
+                  between the symbol and the amount. */}
+              <Text
+                style={{
+                  fontFamily: symbolFontFamily,
+                  fontSize: symbolFontSize,
+                  letterSpacing: 8,
+                }}
               >
-                {displayAmount}
-              </CustomText>
+                {currency.symbol}
+              </Text>
+              {isOtherSelected && customAmount === "" ? (
+                <Text style={styles.amountPlaceholder}>0</Text>
+              ) : (
+                displayAmount
+              )}
+              {isOtherSelected && (
+                <BlinkingCursor
+                  color={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
+                  fontSize={amountFontSize}
+                />
+              )}
+              {frequency !== "One Time" && (
+                <Text style={styles.perMonthSpan}>{` /${getFrequencyLabel()}`}</Text>
+              )}
+            </CustomText>
+            {isOtherSelected && (
+              <TextInput
+                ref={otherAmountInputRef}
+                style={styles.hiddenInput}
+                value={customAmount}
+                onChangeText={handleCustomAmountChange}
+                keyboardType="numeric"
+                caretHidden
+              />
             )}
           </View>
-          {frequency !== "One Time" && (
-            <CustomText style={styles.perMonth}>/{getFrequencyLabel()}</CustomText>
-          )}
         </View>
       </Pressable>
 
@@ -622,9 +703,12 @@ const SevaScreen = () => {
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.75}
+              minimumFontScale={0.7}
             >
-              ${amount}
+              {/* Symbol span (own font) + Baloo digits — inline, baseline-aligned.
+                  `amount` is already the LOCAL figure. */}
+              <Text style={{ fontFamily: symbolFontFamily }}>{currency.symbol}</Text>
+              {formatNumber(amount)}
             </CustomText>
           </Pressable>
         ))}
@@ -701,14 +785,133 @@ const SevaScreen = () => {
   // defensive safety net in case parseSevaContent ever legitimately returns [].
   const segments = config?.content?.segments ?? [];
 
+  const renderSlot = (name, key) => {
+    if (name === "donate_widget") {
+      return <React.Fragment key={key}>{renderDonateWidget()}</React.Fragment>;
+    }
+    if (name === "tax_note") return <React.Fragment key={key}>{renderTaxNote()}</React.Fragment>;
+    return null;
+  };
+
+  // The "donate" card group: a bordered card with an icon header built from the
+  // server card-title/card-sub, then the native donate widget + tax note the
+  // group contains (positioned by the backend via slots).
+  const renderDonateCard = (childSegments, key) => {
+    let cardTitle = "";
+    let cardSub = "";
+    const slots = [];
+    childSegments.forEach((seg) => {
+      if (seg.type === "html") {
+        parseHtmlBlocks(seg.value).forEach((block) => {
+          const cls = block.className || "";
+          if (cls.includes("seva-card-title")) cardTitle = blockText(block);
+          else if (cls.includes("seva-card-sub")) cardSub = blockText(block);
+        });
+      } else if (seg.type === "slot") {
+        slots.push(seg.name);
+      }
+    });
+    return (
+      <View key={key} style={styles.donateCard}>
+        {/* Card header (icon + title/sub) renders only when the server content
+            actually provides a title or subtitle. When both are dropped, the
+            card starts straight at the donate widget — no lone floating icon. */}
+        {(!!cardTitle || !!cardSub) && (
+          <View style={styles.donateCardHeader}>
+            <View style={styles.cardIconCircle}>
+              <HandHeartIcon size={22} color={isDarkMode ? "#7FB6FF" : "#1F69DF"} />
+            </View>
+            <View style={styles.donateCardHeaderText}>
+              {!!cardTitle && <CustomText style={styles.cardTitle}>{cardTitle}</CustomText>}
+              {!!cardSub && <CustomText style={styles.cardSub}>{cardSub}</CustomText>}
+            </View>
+          </View>
+        )}
+        {slots.map((name, idx) => renderSlot(name, `${key}-slot-${idx}`))}
+      </View>
+    );
+  };
+
+  // Renders the full server-driven segment list as the flat page layout,
+  // grouping <!--CARD:...-->…<!--/CARD--> into a card. Server + bundled default
+  // are effectively never empty, so the empty case is only a safety net.
+  const renderSegments = () => {
+    if (!segments.length) {
+      return (
+        <View style={styles.donateCard}>
+          {renderDonateWidget()}
+          {renderTaxNote()}
+        </View>
+      );
+    }
+    const out = [];
+    let i = 0;
+    while (i < segments.length) {
+      const seg = segments[i];
+      if (seg.type === "card_open") {
+        const children = [];
+        i += 1;
+        while (i < segments.length && segments[i].type !== "card_close") {
+          children.push(segments[i]);
+          i += 1;
+        }
+        if (i < segments.length) i += 1; // skip card_close
+        out.push(renderDonateCard(children, `card-${out.length}`));
+      } else if (seg.type === "html") {
+        out.push(
+          <React.Fragment key={`seg-${i}`}>
+            {renderHtmlSegment(seg.value, `seg-${i}`)}
+          </React.Fragment>
+        );
+        i += 1;
+      } else if (seg.type === "slot") {
+        out.push(renderSlot(seg.name, `seg-${i}`));
+        i += 1;
+      } else {
+        i += 1; // stray card_close → skip
+      }
+    }
+    return out;
+  };
+
+  // Regular app bar (SIO-155): plain title + a close (✕) button top-right that
+  // returns to Home / All Banis. Replaces the old in-page "ਸੁੰਦਰ ਗੁਟਕਾ" heading.
+  // The bar background matches the page BODY (dark navy / cream) so there's no
+  // contrasting black strip above the divider.
+  const headerBg = isDarkMode ? "#041126" : "#FFF8E7";
+  const headerFg = isDarkMode ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
+  const renderHeader = () => (
+    <AppBar
+      title={STRINGS.SEVA}
+      backgroundColor={headerBg}
+      titleColor={headerFg}
+      titleStyle={{
+        fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+        // Swapped with the hero: the AppBar "Seva" is now the prominent heading
+        // (26) and the hero line drops to the smaller size (see styles.heroTitle).
+        fontSize: 26,
+        fontWeight: theme.typography.weights.normal,
+      }}
+      rightComponent={
+        <Pressable
+          onPress={() => navigation.navigate("Home")}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="close-seva"
+        >
+          <CloseIcon size={28} color={headerFg} />
+        </Pressable>
+      }
+    />
+  );
+
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeArea
-        backgroundColor={isDarkMode ? "#041126" : theme.colors.surface}
-        edges={["left", "right"]}
-      >
-        <StatusBarComponent />
+      <SafeArea backgroundColor={headerBg}>
+        <StatusBarComponent backgroundColor={headerBg} />
+        {renderHeader()}
+        <GradientDivider />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
@@ -719,11 +922,10 @@ const SevaScreen = () => {
   // ─── Error / offline ──────────────────────────────────────────────────────
   if (error) {
     return (
-      <SafeArea
-        backgroundColor={isDarkMode ? "#041126" : theme.colors.surface}
-        edges={["left", "right"]}
-      >
-        <StatusBarComponent />
+      <SafeArea backgroundColor={headerBg}>
+        <StatusBarComponent backgroundColor={headerBg} />
+        {renderHeader()}
+        <GradientDivider />
         <View style={styles.centered}>
           <CustomText style={styles.description}>{STRINGS.SEVA_LOAD_ERROR}</CustomText>
           <Pressable onPress={() => Linking.openURL("https://khalisfoundation.org/donate")}>
@@ -738,11 +940,10 @@ const SevaScreen = () => {
 
   // ─── Main screen ──────────────────────────────────────────────────────────
   return (
-    <SafeArea
-      backgroundColor={isDarkMode ? "#041126" : theme.colors.surface}
-      edges={["left", "right"]}
-    >
-      <StatusBarComponent />
+    <SafeArea backgroundColor={headerBg}>
+      <StatusBarComponent backgroundColor={headerBg} />
+      {renderHeader()}
+      <GradientDivider />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -751,49 +952,17 @@ const SevaScreen = () => {
         <View
           style={[
             styles.container,
-            { paddingHorizontal: hPad, paddingTop: vPad, paddingBottom: vPad, gap },
+            {
+              paddingHorizontal: hPad,
+              // Tighter top padding — the AppBar + divider already separate the
+              // hero from the top, so the hero ("Support our mission") sits close.
+              paddingTop: Math.round(vPad * 0.4),
+              paddingBottom: vPad,
+              gap,
+            },
           ]}
         >
-          {segments.length > 0 ? (
-            // Server-driven content: HTML fragments render as real native
-            // elements and native slots (donate_widget/tax_note) as their real
-            // components, in exactly the order the backend's content string
-            // places them. Everything is a plain child of the page's own
-            // ScrollView, so the WHOLE page scrolls as one unit when the
-            // content doesn't fit (large font / small screen) — there is no
-            // inner scroll surface and nothing can be clipped.
-            segments.map((seg, i) => {
-              if (seg.type === "html") {
-                return (
-                  <React.Fragment key={`seva-seg-${i}`}>
-                    {renderHtmlSegment(seg.value, `seva-seg-${i}`)}
-                  </React.Fragment>
-                );
-              }
-              if (seg.name === "donate_widget") {
-                return (
-                  <React.Fragment key={`seva-seg-${i}`}>{renderDonateWidget()}</React.Fragment>
-                );
-              }
-              if (seg.name === "tax_note") {
-                return <React.Fragment key={`seva-seg-${i}`}>{renderTaxNote()}</React.Fragment>;
-              }
-              return null;
-            })
-          ) : (
-            // Native fallback — used until the backend content is populated
-            // (or offline first-launch with nothing cached yet). Identical to
-            // the page's original, pre-server-driven-content rendering.
-            <>
-              {renderHeadline(content.headline)}
-              {renderDescription()}
-              {renderDonateWidget()}
-              {renderTaxNote()}
-              <Pressable onPress={handleOpenSource}>
-                <CustomText style={styles.footerText}>{content.footerText}</CustomText>
-              </Pressable>
-            </>
-          )}
+          {renderSegments()}
         </View>
       </ScrollView>
     </SafeArea>

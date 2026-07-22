@@ -22,7 +22,7 @@ const ListItemWithIcon = ({ iconName, title, navigate, navigationTarget }) => {
       <ListItem.Content>
         <ListItemTitle title={title} style={styles.listItemTitle} />
       </ListItem.Content>
-      <ListItem.Chevron />
+      <ListItem.Chevron color={theme.colors.primaryText} />
     </ListItem>
   );
 };

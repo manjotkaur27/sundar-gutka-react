@@ -1,0 +1,227 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { View, ScrollView, Pressable, ActivityIndicator, Text } from "react-native";
+import { useSelector } from "react-redux";
+import PropTypes from "prop-types";
+import { AppBar, BackIconComponent } from "@common/components";
+import {
+  SafeArea,
+  StatusBarComponent,
+  CustomText,
+  GradientDivider,
+  useTheme,
+  useThemedStyles,
+  STRINGS,
+  openInAppBrowser,
+} from "@common";
+import { ChevronRight } from "../common/icons";
+import { getSevaMeansPage } from "../services/sevaMeans";
+import createStyles from "./sevaMeansStyles";
+import { detectSocialBrand, SocialBadge } from "./socialIcons";
+import { parseHtmlBlocks, blockText } from "./utils/parseHtmlBlocks";
+
+/**
+ * A "Seva by other means" page — server-driven UI rendered NATIVELY, mirroring
+ * the Seva page's own content pipeline: the backend returns a constrained HTML
+ * fragment, the app parses it (parseSevaContent → parseHtmlBlocks) and renders
+ * real native, themed elements (no WebView). Content is cached / falls back
+ * offline by services/sevaMeans.js. Only the AppBar/back button are app-native
+ * chrome. Links open in the in-app browser.
+ */
+
+// Route page key → the AppBar title shown before content (and its language) load.
+const TITLE_KEYS = {
+  social: "SEVA_SPREAD_WORD",
+  coding: "SEVA_FOR_CODERS",
+  qa: "SEVA_BY_TESTING",
+  other: "SEVA_OTHER_OPPORTUNITIES",
+};
+
+const SevaMeansScreen = ({ route, navigation }) => {
+  const { theme } = useTheme();
+  const isDark = theme.mode === "dark";
+  const styles = useThemedStyles(createStyles);
+  const language = useSelector((state) => state.language);
+
+  const page = route?.params?.page;
+  // Bar background matches the page body (dark navy / cream), not a black strip.
+  const headerBg = isDark ? "#041126" : "#FFF8E7";
+  const headerFg = isDark ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
+
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [data, setData] = useState(null);
+  const isBrowserOpenRef = useRef(false);
+
+  const fetchPage = useCallback(
+    async (isActive) => {
+      setLoading(true);
+      setFailed(false);
+      const res = await getSevaMeansPage({ page, lang: language });
+      if (isActive && !isActive()) return;
+      if (res?.segments?.length) {
+        setData(res);
+      } else {
+        setFailed(true);
+      }
+      setLoading(false);
+    },
+    [page, language]
+  );
+
+  useEffect(() => {
+    let active = true;
+    fetchPage(() => active);
+    return () => {
+      active = false;
+    };
+  }, [fetchPage]);
+
+  const openBrowserForUrl = useCallback(
+    async (url) => {
+      if (!url || isBrowserOpenRef.current) return;
+      const barColor = isDark ? "#041126" : theme.colors.surface;
+      const controlColor = isDark ? "#FAF9F6" : "#113979";
+      isBrowserOpenRef.current = true;
+      try {
+        await openInAppBrowser(url, { barColor, controlColor });
+      } finally {
+        isBrowserOpenRef.current = false;
+      }
+    },
+    [isDark, theme]
+  );
+
+  // Renders one `{type:"html"}` segment (identical approach to SevaScreen's
+  // renderHtmlSegment) into native Text/View using the fragment's class hints.
+  const renderHtmlSegment = (html, keyPrefix) =>
+    parseHtmlBlocks(html).map((block, i) => {
+      const key = `${keyPrefix}-block-${i}`;
+      const cls = block.className || "";
+      const isHeading = block.tag === "h1" || block.tag === "h2" || block.tag === "h3";
+
+      if (isHeading) {
+        const headingStyle = cls.includes("seva-hero-title")
+          ? styles.heroTitle
+          : styles.sectionHeading;
+        return (
+          <CustomText key={key} style={headingStyle}>
+            {blockText(block)}
+          </CustomText>
+        );
+      }
+
+      let blockStyle = styles.description;
+      if (cls.includes("seva-hero-sub")) blockStyle = styles.heroSub;
+      else if (cls.includes("seva-footer")) blockStyle = styles.footer;
+      else if (cls.includes("seva-intro")) blockStyle = styles.intro;
+
+      const isLinkRow = cls.includes("seva-link");
+      const rowStyle = isLinkRow ? styles.linkRow : null;
+
+      const textEl = (
+        <Text key={key} style={isLinkRow ? styles.linkRowText : blockStyle}>
+          {block.segments.map((seg, j) =>
+            seg.link ? (
+              <Text
+                // eslint-disable-next-line react/no-array-index-key
+                key={j}
+                style={styles.link}
+                onPress={() => openBrowserForUrl(seg.url)}
+              >
+                {seg.text}
+              </Text>
+            ) : (
+              // eslint-disable-next-line react/no-array-index-key
+              <Text key={j}>{seg.text}</Text>
+            )
+          )}
+        </Text>
+      );
+
+      // Link rows get a tappable card wrapper (whole row opens the first link),
+      // with a trailing chevron. Social links (Instagram/Facebook/X/YouTube)
+      // also get a leading brand badge in the platform's colour.
+      if (isLinkRow) {
+        const firstLink = block.segments.find((s) => s.link);
+        const brand = detectSocialBrand(firstLink?.url);
+        return (
+          <Pressable key={key} style={rowStyle} onPress={() => openBrowserForUrl(firstLink?.url)}>
+            {brand && <SocialBadge brand={brand} size={24} dark={isDark} />}
+            <View style={styles.linkRowInner}>{textEl}</View>
+            <ChevronRight size={20} color={isDark ? "#4299E1" : "#113979"} />
+          </Pressable>
+        );
+      }
+      return textEl;
+    });
+
+  const title = data?.title || STRINGS[TITLE_KEYS[page]] || STRINGS.SEVA;
+
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      );
+    }
+    if (failed || !data) {
+      return (
+        <View style={styles.centered}>
+          <CustomText style={styles.description}>{STRINGS.SEVA_MEANS_LOAD_ERROR}</CustomText>
+          <Pressable onPress={() => fetchPage()}>
+            <CustomText style={[styles.link, { marginTop: 12 }]}>{STRINGS.RETRY}</CustomText>
+          </Pressable>
+        </View>
+      );
+    }
+    return (
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {data.segments.map((seg, i) =>
+          seg.type === "html" ? (
+            // eslint-disable-next-line react/no-array-index-key
+            <React.Fragment key={`seg-${i}`}>
+              {renderHtmlSegment(seg.value, `seg-${i}`)}
+            </React.Fragment>
+          ) : null
+        )}
+      </ScrollView>
+    );
+  };
+
+  return (
+    <SafeArea backgroundColor={headerBg}>
+      <StatusBarComponent backgroundColor={headerBg} />
+      <AppBar
+        title={title}
+        backgroundColor={headerBg}
+        titleColor={headerFg}
+        titleStyle={{
+          fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+          fontSize: theme.typography.sizes.xxl,
+          fontWeight: theme.typography.weights.normal,
+        }}
+        leftComponent={
+          <BackIconComponent size={30} color={headerFg} onPress={() => navigation.goBack()} />
+        }
+      />
+      <GradientDivider />
+      <View style={styles.container}>{renderBody()}</View>
+    </SafeArea>
+  );
+};
+
+SevaMeansScreen.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({ page: PropTypes.string }),
+  }).isRequired,
+  navigation: PropTypes.shape({
+    goBack: PropTypes.func,
+  }).isRequired,
+};
+
+export default SevaMeansScreen;

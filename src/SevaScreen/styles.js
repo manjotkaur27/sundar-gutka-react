@@ -8,12 +8,13 @@ const createStyles = (theme) => {
       flex: 1,
       backgroundColor: isDarkMode ? "#041126" : "#FFF8E7",
     },
-    // flexGrow + center is the standard RN idiom: content is vertically centered
-    // when it is SHORTER than the viewport, and scrolls normally when it is
-    // taller. Crucially it never stretches the gaps between children.
+    // flexGrow keeps the background filling the viewport when content is short.
+    // NB: no justifyContent:center — centering shifts the content's origin away
+    // from the scroll offset's 0, which breaks measuring a child's position for
+    // the "scroll an opened accordion into view" logic. Top-aligned is correct
+    // for the accordion layout anyway.
     scrollContent: {
       flexGrow: 1,
-      justifyContent: "center",
     },
     // Spacing is an explicit `gap` (set responsively by the screen), NOT
     // justifyContent: "space-between". space-between distributes LEFTOVER space,
@@ -24,7 +25,8 @@ const createStyles = (theme) => {
     container: {
       width: "100%",
       backgroundColor: isDarkMode ? "#041126" : "#FFF8E7",
-      alignItems: "center",
+      // stretch → hero/section text and cards fill the width and left-align.
+      alignItems: "stretch",
     },
     header: {
       backgroundColor: theme.colors.primary,
@@ -75,11 +77,13 @@ const createStyles = (theme) => {
       textDecorationLine: "underline",
       fontFamily: theme.typography.fonts.balooPaaji,
     },
+    // Shorter box (SIO-155): reduced vertical padding, and "/month" now sits
+    // inline in the row rather than on a second line below.
     amountCard: {
       backgroundColor: isDarkMode ? theme.colors.activeView : "#FAF0D8",
       borderRadius: 16,
-      paddingTop: 10,
-      paddingBottom: 20,
+      paddingTop: 8,
+      paddingBottom: 10,
       paddingHorizontal: 20,
       width: "100%",
       alignItems: "center",
@@ -93,59 +97,46 @@ const createStyles = (theme) => {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
+      width: "100%",
     },
+    // flex-end: the symbol and digits now share ONE font (see amountFontFamily
+    // in index.jsx), so aligning their box bottoms aligns their baselines. The
+    // small "/month" sits at the same bottom edge.
     amountRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-end",
       justifyContent: "center",
+      maxWidth: "100%",
     },
-    currency: {
-      fontSize: 72,
-      // Identical lineHeight + includeFontPadding:false on both the "$" and the
-      // input gives them the same line box and baseline, so centering aligns the
-      // glyphs (not just the boxes). Without this the TextInput's taller box made
-      // the digits float above the "$".
-      lineHeight: 86,
-      fontWeight: "400",
-      fontFamily: theme.typography.fonts.balooPaaji,
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282",
-      includeFontPadding: false,
-      textAlignVertical: "center",
-    },
+    // The amount figure is one inline Text. Digits are ALWAYS Baloo; the symbol
+    // span sets its own fontFamily inline. includeFontPadding:false keeps the
+    // baseline tight so inline spans of different fonts line up.
     amountDisplay: {
-      fontSize: 72,
-      lineHeight: 86,
       fontWeight: "400",
       fontFamily: theme.typography.fonts.balooPaaji,
       color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282",
-      minWidth: 60,
       textAlign: "center",
-      textAlignVertical: "center",
       includeFontPadding: false,
       padding: 0,
     },
-    amountInputWrap: {
-      position: "relative",
-      justifyContent: "center",
-    },
-    // Custom "0" placeholder overlay — Android renders the native hint at a
-    // different vertical offset than typed text, so we draw it as a real Text
-    // (which aligns with the "$" exactly like typed digits do).
+    // Inline "0" placeholder span (muted) — shown before the user types.
     amountPlaceholder: {
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
       color: "#C0CADB",
     },
-    perMonth: {
+    // Inline "/month" span beside the amount (smaller + muted, same baseline).
+    perMonthSpan: {
       fontSize: 18,
-      fontWeight: "400",
       fontFamily: theme.typography.fonts.balooPaaji,
       color: isDarkMode ? "#A0AEC0" : "#718096",
-      textAlign: "center",
-      marginTop: 2,
+    },
+    // The real, offscreen input that captures keystrokes for the custom amount.
+    // The visible figure is the inline Text above; this stays invisible so the
+    // ₹ symbol and digits can be one baseline-aligned inline run.
+    hiddenInput: {
+      position: "absolute",
+      opacity: 0,
+      height: 1,
+      width: 1,
     },
     // Always ONE row on every device. The old flexWrap + minWidth:70 pushed
     // "Other" onto its own line on narrower screens but not wider ones — the
@@ -252,6 +243,121 @@ const createStyles = (theme) => {
       textAlign: "center",
       width: "100%",
       paddingHorizontal: 8,
+      fontFamily: theme.typography.fonts.balooPaaji,
+    },
+    // ─── New server-driven layout (hero + donate card + "other ways" list) ────
+    // Words wrap like inline text; columnGap is the inter-word space and the
+    // heart (last flex item) flows right after the final word. `center` aligns
+    // the heart with the glyphs' vertical centre (flex-end dropped it to the
+    // bottom of the taller line box, below the letters).
+    heroTitleRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      columnGap: 7,
+      rowGap: 2,
+      width: "100%",
+    },
+    heroTitle: {
+      // Swapped with the AppBar "Seva" title: the hero line is now the smaller
+      // of the two (the AppBar is 26).
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: "normal",
+      color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#113979",
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+      includeFontPadding: false,
+    },
+    heroDesc: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: isDarkMode ? "#A9B7C6" : "#4A5568",
+      width: "100%",
+      textAlign: "left",
+      fontFamily: theme.typography.fonts.balooPaaji,
+    },
+    sectionHeader: {
+      fontSize: 18,
+      fontWeight: "normal",
+      color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#113979",
+      width: "100%",
+      textAlign: "left",
+      marginTop: 2,
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+    },
+    // Donate card
+    donateCard: {
+      width: "100%",
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: isDarkMode ? "#1B3A5B" : "#EFE4C6",
+      backgroundColor: isDarkMode ? "#0C2036" : "#FFFDF7",
+      padding: 16,
+      gap: 14,
+    },
+    donateCardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    cardIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: isDarkMode ? "#12294A" : "#EAF1FD",
+    },
+    donateCardHeaderText: {
+      flex: 1,
+    },
+    cardTitle: {
+      fontSize: 17,
+      fontWeight: "normal",
+      color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#113979",
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+    },
+    cardSub: {
+      fontSize: 13.5,
+      lineHeight: 18,
+      color: isDarkMode ? "#8496A9" : "#6B7A90",
+      marginTop: 2,
+      fontFamily: theme.typography.fonts.balooPaaji,
+    },
+    // "Other ways to do Seva" list rows
+    meansRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      width: "100%",
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDarkMode ? "#1B3A5B" : "#EFE4C6",
+      backgroundColor: isDarkMode ? "#0C2036" : "#FFFDF7",
+      paddingVertical: 13,
+      paddingHorizontal: 14,
+    },
+    meansIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    meansTextWrap: {
+      flex: 1,
+    },
+    meansTitle: {
+      fontSize: 15.5,
+      fontWeight: "normal",
+      color: isDarkMode ? theme.staticColors.WHITE_COLOR : "#113979",
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
+    },
+    meansSub: {
+      fontSize: 13,
+      lineHeight: 17,
+      color: isDarkMode ? "#8496A9" : "#6B7A90",
+      marginTop: 2,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     centered: {

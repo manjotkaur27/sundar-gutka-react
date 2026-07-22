@@ -82,4 +82,18 @@ describe("parseSevaContent", () => {
   it("SEVA_SLOT_TYPES contains exactly the two known native slots", () => {
     expect(SEVA_SLOT_TYPES).toEqual(["donate_widget", "tax_note"]);
   });
+
+  it("parses CARD open/close markers around slots into card segments", () => {
+    const result = parseSevaContent(
+      '<h1>Hero</h1><!--CARD:donate--><h2>Title</h2><!--SLOT:donate_widget--><!--/CARD--><h2>Section</h2>'
+    );
+    expect(result).toEqual([
+      { type: "html", value: "<h1>Hero</h1>" },
+      { type: "card_open", name: "donate" },
+      { type: "html", value: "<h2>Title</h2>" },
+      { type: "slot", name: "donate_widget" },
+      { type: "card_close" },
+      { type: "html", value: "<h2>Section</h2>" },
+    ]);
+  });
 });

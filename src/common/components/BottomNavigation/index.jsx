@@ -6,15 +6,15 @@ import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { pauseTrack } from "@common/TrackPlayerUtils";
 import {
-  HomeIcon,
+  ListIcon,
   SettingsIcon,
   MusicIcon,
   ReadIcon,
   DashboardIcon,
   SevaIcon,
 } from "@common/icons";
+import { pauseTrack } from "@common/TrackPlayerUtils";
 import { CustomText, actions, constant, STRINGS, SafeArea } from "@common";
 import { getSevaConfig, subscribeSevaDot } from "../../../services/sevaConfig";
 import createStyles from "./style";
@@ -34,7 +34,7 @@ const BottomNavigation = ({
   const isAudio = useSelector((state) => state.isAudio);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudioFeatureEnabled = useSelector((state) => state.isAudioFeatureEnabled);
-  useSelector((state) => state.language); // re-render on language change so STRINGS labels update
+  const language = useSelector((state) => state.language); // also drives the Seva content language
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
 
   // 0 = no dot, 1 = plain dot, 2+ = numbered badge (see render below).
@@ -77,7 +77,7 @@ const BottomNavigation = ({
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      getSevaConfig()
+      getSevaConfig(language)
         .then((cfg) => {
           if (!cancelled) setSevaDotCount(cfg?.sevaDotCount ?? 0);
         })
@@ -106,11 +106,13 @@ const BottomNavigation = ({
   const homeNavigationItems = [
     {
       key: "Home",
-      icon: HomeIcon,
+      // "All Banis" list tab — a list icon + label instead of the old Home
+      // house icon / "Home" string (the Home tab IS the full Banis list).
+      icon: ListIcon,
       handlePress: () => {
         navigation.navigate("Home");
       },
-      text: STRINGS.HOME,
+      text: STRINGS.ALL_BANIS,
     },
     {
       key: "Dashboard",
@@ -143,7 +145,7 @@ const BottomNavigation = ({
   const readerNavigationItems = [
     {
       key: "Home",
-      icon: HomeIcon,
+      icon: ListIcon,
       handlePress: async () => {
         if (isAudio) {
           await pauseTrack();
@@ -213,8 +215,7 @@ const BottomNavigation = ({
     },
   ];
 
-  const navigationItems =
-    context === "reader" ? readerNavigationItems : homeNavigationItems;
+  const navigationItems = context === "reader" ? readerNavigationItems : homeNavigationItems;
 
   return (
     <Animated.View
@@ -222,17 +223,8 @@ const BottomNavigation = ({
         transform: [{ translateY }],
       }}
     >
-      <SafeArea
-        backgroundColor={theme.colors.primary}
-        edges={["bottom"]}
-        flex={0}
-      >
-        <View
-          style={[
-            styles.container,
-            { paddingBottom: bottomPad }
-          ]}
-        >
+      <SafeArea backgroundColor={theme.colors.primary} edges={["bottom"]} flex={0}>
+        <View style={[styles.container, { paddingBottom: bottomPad }]}>
           <View style={styles.navigationBar}>
             {navigationItems.map((item) => {
               const IconComponent = item.icon;
@@ -273,7 +265,10 @@ const BottomNavigation = ({
                             justifyContent: "center",
                             paddingHorizontal: item.showDot > 1 ? 2 : 0,
                             borderWidth: 1.2,
-                            borderColor: item.key === activeKey ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+                            borderColor:
+                              item.key === activeKey
+                                ? theme.staticColors.WHITE_COLOR
+                                : theme.colors.primary,
                           }}
                         >
                           {/* 1 = plain dot, no text; 2+ = the real count */}

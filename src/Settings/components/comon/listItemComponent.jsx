@@ -30,7 +30,7 @@ const ListItemComponent = ({ icon, title, value, isAvatar, tintIcon, actionConst
           style={[styles.titleInfoStyle]}
         />
       )}
-      <ListItem.Chevron />
+      <ListItem.Chevron color={theme.colors.primaryText} />
     </ListItem>
   );
 };

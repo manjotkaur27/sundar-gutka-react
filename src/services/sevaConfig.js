@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { constant, logError } from "@common";
 import STRINGS from "../common/localization";
 import { parseSevaContent } from "../SevaScreen/utils/sevaContentParser";
+import { buildBundledSevaLayout } from "./sevaBundledContent";
 
 /**
  * Seva configuration service.
@@ -69,20 +70,13 @@ const FILLER_CONFIG = {
   showSevaDot: true,
 };
 
-// First-run / no-real-content fallback — used whenever there is no actual
-// backend content to show: a fresh install opened offline before ever
-// reaching the server, a fetch that fails with nothing cached yet, or a
-// server response whose `content` is empty/not populated. Mirrors
-// FILLER_CONFIG.content's headline/description/footer exactly, so a brand
-// new user sees the same page today's native rendering shows, via the same
-// WebView + native-slot path real backend content will use. The moment the
-// backend actually returns a non-empty `content`, that real value replaces
-// this — this is purely a placeholder, never preferred over real data.
-const BUNDLED_DEFAULT_CONTENT = `<h1>ਸੁੰਦਰ ਗੁਟਕਾ</h1>
-<p>Is built by volunteers at <a href="https://khalisfoundation.org/">Khalis Foundation</a>, a non-profit organization that builds software like Sundar Gutka and <a href="https://sikhitothemax.org/">SikhiToTheMax</a>. Khalis helps millions of Sikhs around the world connect with Gurbani. You can be part of this seva as well; serve millions with a single donation.</p>
-<!--SLOT:donate_widget-->
-<!--SLOT:tax_note-->
-<p class="seva-footer"><a href="https://github.com/KhalisFoundation/sundar-gutka-react">Know coding? You can also do seva through open source contributions.</a></p>`;
+// First-run / no-real-content fallback content is generated per-language by
+// buildBundledSevaLayout (services/sevaBundledContent.js) — a faithful, full
+// mirror of the backend's server-driven layout in all six app languages. Used
+// whenever there is no actual backend content to show: a fresh install opened
+// offline before ever reaching the server, a fetch that fails with nothing
+// cached yet, or a server response whose `content` is empty. The moment the
+// backend returns a non-empty `content`, that real value replaces it.
 
 // Cache only the backend's dynamic bits (not the localized copy, which is rebuilt each
 // call with the current language). Keyed v2 — v1 didn't carry `content`;
@@ -153,12 +147,28 @@ const missedVersionsFor = (version, seenVersion) => {
   return v > seenVersion ? v - seenVersion : 0;
 };
 
-/** Merge the backend dynamic bits onto the app-local copy → SevaConfig. */
-const buildConfig = (dyn) => ({
+/**
+ * Merge the backend dynamic bits onto the app-local copy → SevaConfig.
+ * `source` records where the config came from: "network" (fresh fetch),
+ * "cache" (last good, offline) or "fallback" (never fetched + offline). The
+ * Seva page uses "fallback" to suppress the tax-deductible note — with no net
+ * and nothing cached, the donor's country is unknown, so a US-specific
+ * tax-deductible claim would be a guess (see SIO-155 comment thread).
+ */
+const buildConfig = (dyn, source = "network", lang = "en") => ({
   ...FILLER_CONFIG,
+  source,
   configVersion: dyn?.version != null ? String(dyn.version) : FILLER_CONFIG.configVersion,
   country: dyn?.country || FILLER_CONFIG.country,
   payment_mode: dyn?.payment?.mode || FILLER_CONFIG.payment_mode,
+  // Donation tiers are backend-driven: `amounts` is the USD base ladder (the app
+  // localises it per currency), and `amountPresets` is an optional per-currency
+  // map of LOCAL ladders (e.g. { INR: [100,1000,5000] }). Both fall back to the
+  // app-local defaults when the backend hasn't sent them (offline / old server).
+  amounts:
+    Array.isArray(dyn?.amounts) && dyn.amounts.length ? dyn.amounts : FILLER_CONFIG.amounts,
+  amountPresets:
+    dyn?.amountPresets && typeof dyn.amountPresets === "object" ? dyn.amountPresets : {},
   // Only let the backend control the dot once we actually have a response.
   showSevaDot: dyn ? (dyn.redDot ?? 0) > 0 : FILLER_CONFIG.showSevaDot,
   // Real count for the numbered-badge UI (0 none / 1 plain dot / 2+ shows the
@@ -178,7 +188,7 @@ const buildConfig = (dyn) => ({
     // brand-new offline user still sees the full page instead of a bare
     // STRINGS-only fallback. Real backend content always wins the moment
     // it's actually populated.
-    segments: parseSevaContent(dyn?.content || BUNDLED_DEFAULT_CONTENT),
+    segments: parseSevaContent(dyn?.content || buildBundledSevaLayout(lang)),
   },
 });
 
@@ -203,27 +213,45 @@ const readCache = async () => {
   }
 };
 
+/** Maps the app language state (e.g. "DEFAULT", "en-US", "pa") to an API lang. */
+const langToApi = (lang) => {
+  const l = String(lang || "")
+    .trim()
+    .toLowerCase();
+  if (!l || l === "default") return "en";
+  const primary = l.split(/[-_]/)[0];
+  return ["en", "hi", "pa", "fr", "it", "es"].includes(primary) ? primary : "en";
+};
+
 /**
- * Returns the Seva configuration (backend dynamic bits + app-local copy).
+ * Returns the Seva configuration (backend server-driven content + payment/dot).
+ * @param {string} [langInput] current app language, so the backend returns the
+ *   page content translated to it. Both callers (SevaScreen, BottomNavigation)
+ *   pass the same current language so the cached content stays consistent.
  * @returns {Promise<SevaConfig>}
  */
-export const getSevaConfig = async () => {
+export const getSevaConfig = async (langInput) => {
   const cached = await readCache();
   const url = constant.SEVA_CONFIG_API_URL;
+  const apiLang = langToApi(langInput);
   try {
     if (!url) throw new Error("SEVA_CONFIG_API_URL not set");
     // Send the version the user has SEEN (not merely the last one fetched): the
     // backend returns redDot = currentVersion − seenVersion, so the dot stays up
     // until the user opens the Seva page (markSevaSeen). A background refetch by
-    // the bottom bar must NOT clear it.
+    // the bottom bar must NOT clear it. `lang` drives the server-driven copy.
     const seenVersion = await readSeenVersion();
-    const resp = await fetchJson(`${url}?v=${encodeURIComponent(seenVersion)}`);
+    const resp = await fetchJson(
+      `${url}?v=${encodeURIComponent(seenVersion)}&lang=${encodeURIComponent(apiLang)}`
+    );
     const dyn = {
       version: resp?.version,
       country: resp?.country,
       payment: resp?.payment,
       redDot: resp?.redDot,
       content: resp?.content,
+      amounts: resp?.amounts,
+      amountPresets: resp?.amountPresets,
     };
     latestVersion = Number(resp?.version) || 0;
     cachedPayment = resp?.payment ?? null;
@@ -244,7 +272,7 @@ export const getSevaConfig = async () => {
     const seenVersionNow = await readSeenVersion();
     const redDot = missedVersionsFor(resp?.version, seenVersionNow);
     emitSevaDot(redDot);
-    return buildConfig({ ...dyn, redDot });
+    return buildConfig({ ...dyn, redDot }, "network", apiLang);
   } catch (err) {
     logError(new Error(`getSevaConfig failed: ${err?.message || err}`));
     if (cached) {
@@ -254,16 +282,20 @@ export const getSevaConfig = async () => {
       // version and the persisted seen-version — rather than trusting any
       // redDot the cache may still carry (see the write path above).
       const seenVersion = await readSeenVersion();
-      return buildConfig({
-        ...cached,
-        redDot: missedVersionsFor(cached.version, seenVersion),
-      });
+      return buildConfig(
+        {
+          ...cached,
+          redDot: missedVersionsFor(cached.version, seenVersion),
+        },
+        "cache",
+        apiLang
+      );
     }
     // Nothing was ever fetched, so no version is known and the badge can only
     // be a guess. Show it to advertise Seva to a brand-new user, but never to
     // someone who has already opened the page.
     const everSeen = await hasEverSeenSeva();
-    return buildConfig(everSeen ? { redDot: 0 } : null);
+    return buildConfig(everSeen ? { redDot: 0 } : null, "fallback", apiLang);
   }
 };
 
@@ -280,7 +312,16 @@ export const markSevaSeen = async () => {
     version = Number(cached?.version) || 0;
   }
   try {
-    await AsyncStorage.setItem(SEEN_VERSION_KEY, String(version));
+    // NEVER move the seen-version backwards. Versions only ever increase, so
+    // once a user has acknowledged version X (online OR from cache) they must
+    // not see the dot again until a genuinely newer version appears. If we
+    // can't determine a current version right now (opened offline with no
+    // cache, e.g. after a cache-key bump), keep whatever was already
+    // acknowledged instead of resetting it to 0 — otherwise the dot would
+    // wrongly reappear for a version they've already seen.
+    const prevSeen = await readSeenVersion();
+    const next = Math.max(prevSeen, version);
+    await AsyncStorage.setItem(SEEN_VERSION_KEY, String(next));
   } catch (_) {
     // best-effort; the dot re-clears on the next successful fetch anyway
   }

@@ -67,7 +67,7 @@ const TransliterationComponent = () => {
           <ListItemTitle title={STRINGS.transliteration} style={styles.listItemTitle} />
         </ListItem.Content>
         <CustomText style={styles.titleInfoStyle}>{selectedTitle}</CustomText>
-        <ListItem.Chevron />
+        <ListItem.Chevron color={theme.colors.primaryText} />
       </ListItem>
 
       {isVisible && (

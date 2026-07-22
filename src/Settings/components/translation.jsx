@@ -86,7 +86,7 @@ const TranslationComponent = () => {
           <ListItemTitle title={STRINGS.translations} style={styles.listItemTitle} />
         </ListItem.Content>
         <CustomText style={styles.titleInfoStyle}>{selectedSummary}</CustomText>
-        <ListItem.Chevron />
+        <ListItem.Chevron color={theme.colors.primaryText} />
       </ListItem>
 
       {isVisible && (

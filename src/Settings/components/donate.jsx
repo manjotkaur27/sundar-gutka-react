@@ -24,7 +24,7 @@ const Donate = () => {
       <ListItem.Content>
         <ListItemTitle title={donate} style={styles.listItemTitle} />
       </ListItem.Content>
-      <ListItem.Chevron />
+      <ListItem.Chevron color={theme.colors.primaryText} />
     </ListItem>
   );
 };

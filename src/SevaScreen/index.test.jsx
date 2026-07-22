@@ -32,9 +32,25 @@ const mockNavigation = {
     };
   },
 };
-jest.mock("@react-navigation/native", () => ({
-  useNavigation: () => mockNavigation,
-}));
+jest.mock("@react-navigation/native", () => {
+  const ReactModule = require("react");
+  return {
+    useNavigation: () => mockNavigation,
+    // Runs the focus callback on mount (initial focus) and registers it so a
+    // tab re-visit can be simulated by invoking the captured mockFocusListeners.
+    useFocusEffect: (cb) => {
+      ReactModule.useEffect(() => {
+        const cleanup = cb();
+        mockFocusListeners.push(cb);
+        return () => {
+          const i = mockFocusListeners.indexOf(cb);
+          if (i >= 0) mockFocusListeners.splice(i, 1);
+          if (typeof cleanup === "function") cleanup();
+        };
+      }, [cb]);
+    },
+  };
+});
 
 jest.mock("react-native-linear-gradient", () => {
   const { View } = require("react-native");
@@ -65,18 +81,22 @@ jest.mock("@common", () => {
   const buildTheme = () => ({
     mode: mockThemeMode,
     colors: { primary: "#123456", surface: "#FFFFFF", activeView: "#EEE" },
-    staticColors: { WHITE_COLOR: "#FFFFFF" },
+    staticColors: { WHITE_COLOR: "#FFFFFF", NIGHT_BLACK: "#041126" },
     typography: {
       fonts: { balooPaaji: "BalooPaaji2-Regular", balooPaajiSemiBold: "BalooPaaji2-SemiBold" },
+      sizes: { xxl: 22 },
+      weights: { normal: "400" },
     },
   });
   return {
     SafeArea: (props) => <View {...props} />,
     StatusBarComponent: () => null,
+    GradientDivider: () => null,
     CustomText: (props) => <Text {...props} />,
     useTheme: () => ({ theme: buildTheme() }),
     useThemedStyles: (createStyles) => createStyles(buildTheme()),
     STRINGS: {
+      SEVA: "Seva",
       SEVA_MONTHLY: "Monthly",
       SEVA_ANNUALLY: "Annually",
       SEVA_ONE_TIME: "One Time",
@@ -86,6 +106,12 @@ jest.mock("@common", () => {
       donate: "Donate",
       SEVA_LOAD_ERROR: "Could not load Seva.",
       SEVA_DONATE_DIRECTLY: "Donate directly",
+      SEVA_SUPPORT_HEADER: "Support Sundar Gutka",
+      SEVA_OTHER_MEANS: "Seva by other means",
+      SEVA_SPREAD_WORD: "Seva by spreading the word",
+      SEVA_FOR_CODERS: "Seva for coders",
+      SEVA_BY_TESTING: "Seva by testing our work",
+      SEVA_OTHER_OPPORTUNITIES: "Seva by other opportunities",
     },
     openInAppBrowser: (...args) => mockOpenInAppBrowser(...args),
     trackSevaEvent: (...args) => mockTrackSevaEvent(...args),
@@ -93,10 +119,41 @@ jest.mock("@common", () => {
   };
 });
 
+// Mock the components barrel directly so the real one (which pulls in
+// BaniLengthSelector → firebase ESM) is never loaded in the test.
+jest.mock("@common/components", () => {
+  const { View, Text } = require("react-native");
+  return {
+    AppBar: ({ title, rightComponent }) => (
+      <View>
+        <Text>{title}</Text>
+        {rightComponent}
+      </View>
+    ),
+    BackIconComponent: (props) => <View {...props} />,
+  };
+});
+
 jest.mock("../common/icons", () => {
   const { Text } = require("react-native");
-  return { DonateIcon: (props) => <Text testID="donate-icon" {...props} /> };
+  const Stub = (props) => <Text {...props} />;
+  return {
+    DonateIcon: (props) => <Text testID="donate-icon" {...props} />,
+    CloseIcon: (props) => <Text testID="close-icon" {...props} />,
+    ChevronRight: Stub,
+    SevaIcon: Stub,
+    HandHeartIcon: Stub,
+    MegaphoneIcon: Stub,
+    CodeIcon: Stub,
+    ClipboardCheckIcon: Stub,
+    StarIcon: Stub,
+  };
 });
+
+jest.mock("../services/sevaMeans", () => ({
+  prewarmSevaMeans: jest.fn(() => Promise.resolve()),
+  SEVA_MEANS_PAGE_KEYS: ["social", "coding", "qa", "other"],
+}));
 
 jest.mock("../services/sevaConfig", () => ({
   getSevaConfig: jest.fn(),
@@ -141,43 +198,60 @@ describe("SevaScreen", () => {
     mockFocusListeners.length = 0;
   });
 
-  it("renders the native fallback markup when content.segments is empty", async () => {
+  it("renders the donate widget + tax note as a safety net when segments are empty", async () => {
     getSevaConfig.mockResolvedValue(nativeFallbackConfig);
 
-    const { getByText } = render(<SevaScreen />);
+    const { getByTestId, getByText } = render(<SevaScreen />);
 
-    await waitFor(() => {
-      expect(getByText("Test description")).toBeTruthy();
-    });
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
     expect(getByText("US tax message")).toBeTruthy();
-    expect(getByText("Know coding footer")).toBeTruthy();
   });
 
-  it("renders server-driven html segments as real native text, with the donate widget and tax note at their slot positions", async () => {
+  it("renders the server-driven layout: hero, donate card, tax note, section header and means item", async () => {
     getSevaConfig.mockResolvedValue(
       serverDrivenConfig([
-        { type: "html", value: "<h1>ਸੁੰਦਰ ਗੁਟਕਾ</h1><p>Built by volunteers.</p>" },
+        {
+          type: "html",
+          value:
+            '<h1 class="seva-hero-title">Support our mission.</h1>' +
+            '<p class="seva-hero-desc">Built by volunteers.</p>',
+        },
+        { type: "card_open", name: "donate" },
+        {
+          type: "html",
+          value:
+            '<h2 class="seva-card-title">Seva with your support</h2>' +
+            '<p class="seva-card-sub">Your support keeps this mission alive.</p>',
+        },
         { type: "slot", name: "donate_widget" },
         { type: "slot", name: "tax_note" },
-        { type: "html", value: '<p class="seva-footer">Know coding?</p>' },
+        { type: "card_close" },
+        { type: "html", value: '<h2 class="seva-section">Other ways to do Seva</h2>' },
+        {
+          type: "html",
+          value:
+            '<p class="seva-means"><a href="seva-means:coding">Seva for coders</a>' +
+            "Contribute to our open source projects</p>",
+        },
       ])
     );
 
     const { getByTestId, getByText } = render(<SevaScreen />);
 
-    await waitFor(() => {
-      expect(getByText("Built by volunteers.")).toBeTruthy();
-    });
-
-    // Headline keeps its SVG gradient rendering in light mode.
-    expect(getByTestId("svg-headline")).toBeTruthy();
-    expect(getByText("ਸੁੰਦਰ ਗੁਟਕਾ")).toBeTruthy();
-    // Native donate widget (real, interactive component) still renders.
+    // Hero title renders as individual words (so the heart can flow inline).
+    await waitFor(() => expect(getByText("Support")).toBeTruthy());
+    expect(getByText("mission.")).toBeTruthy();
+    expect(getByText("Built by volunteers.")).toBeTruthy();
+    // Donate card header (server-driven title + subtitle).
+    expect(getByText("Seva with your support")).toBeTruthy();
+    expect(getByText("Your support keeps this mission alive.")).toBeTruthy();
+    // Native donate widget + country-conditional tax note.
     expect(getByTestId("donate-icon")).toBeTruthy();
-    // Native, country-conditional tax note — real text, not backend HTML.
     expect(getByText("US tax message")).toBeTruthy();
-    // Footer html segment renders too, and isn't clipped away.
-    expect(getByText("Know coding?")).toBeTruthy();
+    // Section header + a means item (title + subtitle) from the server.
+    expect(getByText("Other ways to do Seva")).toBeTruthy();
+    expect(getByText("Seva for coders")).toBeTruthy();
+    expect(getByText("Contribute to our open source projects")).toBeTruthy();
   });
 
   it("renders an inline link from server-driven content and opens it in the in-app browser", async () => {
@@ -224,49 +298,70 @@ describe("SevaScreen", () => {
     });
   });
 
-  it("re-acknowledges the version when the tab is re-focused, not just on mount", async () => {
+  it("re-syncs the config and re-acknowledges the version when the tab is re-focused", async () => {
     // The screen stays mounted in the tab navigator, so its mount effect never
-    // re-runs on a second visit. Without a focus listener, a dot that appeared
-    // mid-session would stay stuck on the tab even while the user is viewing
-    // this page.
+    // re-runs on a second visit. On every open it must re-sync the Seva config
+    // from the server (network → cache → bundled) AND re-acknowledge the version
+    // so a dot that appeared mid-session clears while the user views this page.
     getSevaConfig.mockResolvedValue(nativeFallbackConfig);
     render(<SevaScreen />);
 
     await waitFor(() => expect(markSevaSeen).toHaveBeenCalledTimes(1));
+    expect(getSevaConfig).toHaveBeenCalledTimes(1);
     expect(mockFocusListeners.length).toBeGreaterThan(0);
 
-    // Simulate leaving and re-tapping the Seva tab (no re-mount).
+    // Simulate leaving and re-tapping the Seva tab (no re-mount): it re-syncs.
+    getSevaConfig.mockClear();
+    markSevaSeen.mockClear();
     mockFocusListeners.forEach((cb) => cb());
 
-    expect(markSevaSeen).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(getSevaConfig).toHaveBeenCalledTimes(1);
+      expect(markSevaSeen).toHaveBeenCalledTimes(1);
+    });
   });
 
-  describe("headline light/dark parity", () => {
-    const renderHeadlineIn = async (mode) => {
-      mockThemeMode = mode;
-      getSevaConfig.mockResolvedValue(
-        serverDrivenConfig([{ type: "html", value: "<h1>ਸੁੰਦਰ ਗੁਟਕਾ</h1>" }])
-      );
-      const { getByTestId } = render(<SevaScreen />);
-      await waitFor(() => expect(getByTestId("svg-headline-text")).toBeTruthy());
-      return getByTestId("svg-headline-text").props;
-    };
+  it("shows the regular AppBar with a 'Seva' title (no in-page SG heading)", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const { getAllByText } = render(<SevaScreen />);
+    await waitFor(() => expect(getAllByText("Seva").length).toBeGreaterThan(0));
+  });
 
-    it("uses the blue gradient fill in light mode and flat white in dark mode", async () => {
-      const light = await renderHeadlineIn("light");
-      expect(light.fill).toBe("url(#headlineGrad)");
+  it("has a cross button that navigates to Home / All Banis", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const { getByLabelText } = render(<SevaScreen />);
+    await waitFor(() => expect(getByLabelText("close-seva")).toBeTruthy());
 
-      const dark = await renderHeadlineIn("dark");
-      expect(dark.fill).toBe("#FFFFFF");
-    });
+    fireEvent.press(getByLabelText("close-seva"));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith("Home");
+  });
 
-    it("renders at the SAME font size and weight in both modes — only the colour differs", async () => {
-      const light = await renderHeadlineIn("light");
-      const dark = await renderHeadlineIn("dark");
+  it("navigates to the SDUI page when a server-driven means item is tapped", async () => {
+    getSevaConfig.mockResolvedValue(
+      serverDrivenConfig([
+        {
+          type: "html",
+          value:
+            '<p class="seva-means"><a href="seva-means:coding">Seva for coders</a>' +
+            "Contribute to our open source projects</p>",
+        },
+      ])
+    );
+    const { getByText, getByLabelText } = render(<SevaScreen />);
 
-      expect(dark.fontSize).toBe(light.fontSize);
-      expect(dark.fontWeight).toBe(light.fontWeight);
-      expect(dark.fontFamily).toBe(light.fontFamily);
-    });
+    await waitFor(() => expect(getByText("Seva for coders")).toBeTruthy());
+    fireEvent.press(getByLabelText("seva-means-coding"));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith("SevaMeans", { page: "coding" });
+  });
+
+  it("shows the localised currency figure on the amount presets", async () => {
+    // Device locale is unresolved in the jest environment → defaults to USD, so
+    // presets read "$10 / $50 / $100" (symbol + figure), proving the currency
+    // formatting path is wired without depending on a specific device region.
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const { getByText } = render(<SevaScreen />);
+    await waitFor(() => expect(getByText("$10")).toBeTruthy());
+    expect(getByText("$50")).toBeTruthy();
+    expect(getByText("$100")).toBeTruthy();
   });
 });

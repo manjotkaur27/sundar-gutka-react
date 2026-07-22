@@ -1,19 +1,17 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, Animated, View, Dimensions, Platform, StyleSheet } from "react-native";
 import { useSelector } from "react-redux";
-import { ListItem, Avatar } from "@rneui/themed";
-import createStyles from "@settings/styles";
+import { ListItem } from "@rneui/themed";
 import PropTypes from "prop-types";
 import constant from "@common/constant";
 import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
+import { FolderIcon } from "@common/icons";
 import { convertToUnicode, baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
   const { theme } = useTheme();
-  const styles = useThemedStyles(createStyles);
   const { scrollViewProps, Indicator } = useCustomScrollbar();
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
@@ -68,12 +66,7 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
           }}
           onPress={() => onPress(row)}
         >
-          {row.item.folder && (
-            <Avatar
-              source={require("../../../../images/foldericon.png")}
-              avatarStyle={styles.avatarStyle}
-            />
-          )}
+          {row.item.folder && <FolderIcon size={26} color={theme.colors.primaryText} />}
           <ListItem.Content>
             <ListItemTitle
               title={getBaniTuk(row)}
