@@ -38,13 +38,20 @@ const SlimCalendarStrip = ({ refreshKey }) => {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(slideAnim, {
+    const anim = Animated.spring(slideAnim, {
       toValue: 1,
       tension: 130,
       friction: 14,
       useNativeDriver: true,
-    }).start();
-  }, []);
+    });
+    anim.start();
+    // Stop the native-driven spring if this strip unmounts mid-animation (e.g.
+    // dashboard re-layout / section reorder). Otherwise the driver keeps pushing
+    // props onto a node whose backing Animated.Value may already be dropped,
+    // which crashes in PropsAnimatedNode.updateView with "Mapped property node
+    // does not exist" (RN #12893 / #37267).
+    return () => anim.stop();
+  }, [slideAnim]);
 
   useEffect(() => {
     const now = new Date();

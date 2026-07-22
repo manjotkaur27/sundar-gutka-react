@@ -101,7 +101,7 @@ const Reader = ({ navigation, route }) => {
 
   useEffect(() => {
     const distance = navClusterHeightRef.current || 300;
-    Animated.parallel([
+    const anim = Animated.parallel([
       Animated.timing(navSlideAnim, {
         toValue: isHeader ? 0 : distance,
         duration: 300,
@@ -119,7 +119,15 @@ const Reader = ({ navigation, route }) => {
         duration: 300,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+    anim.start();
+    // Stop the native-driven animation when the screen unmounts (or isHeader
+    // toggles) mid-flight. Left running, the native driver keeps updating props
+    // on nodes whose backing Animated.Values may be dropped during teardown,
+    // which crashes in PropsAnimatedNode.updateView with "Mapped property node
+    // does not exist" (RN #12893 / #37267). Stopping first also prevents the old
+    // and new animations overlapping on the same values across isHeader toggles.
+    return () => anim.stop();
   }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight]);
 
   // ── Bar-visibility funnel + idle auto-hide ──────────────────────────────
