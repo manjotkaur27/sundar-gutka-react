@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS } from "@common";
+import { ChevronLeftIcon, ChevronRight } from "@common/icons";
+import { CustomText, STRINGS, constant } from "@common";
 import { getDayActivity } from "../../database/analytics";
 import useDashboardTheme from "./dashboardTheme";
 import SectionError from "./SectionError";
@@ -14,15 +15,18 @@ const DAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
     2,
-    "0",
+    "0"
   )}`;
 
-// Last 7 days ending today (oldest first).
-const last7 = () => {
-  const today = new Date();
+// 7-day window ending `offsetWeeks` weeks before today (0 = last 7 days
+// ending today), oldest first. Stepping by whole weeks (not arbitrary days)
+// mirrors MonthCalendar's month-at-a-time history browsing.
+const daysForOffset = (offsetWeeks) => {
+  const anchor = new Date();
+  anchor.setDate(anchor.getDate() - offsetWeeks * 7);
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (6 - i));
+    const d = new Date(anchor);
+    d.setDate(anchor.getDate() - (6 - i));
     return d;
   });
 };
@@ -31,15 +35,17 @@ const WeekChart = ({ refreshKey }) => {
   const { isDark, mutedText } = useDashboardTheme();
   // Highlighted (today) bar + label color.
   const barColor = isDark ? "#429aff" : "#006bde";
+  const [weekOffset, setWeekOffset] = useState(0);
   const [bars, setBars] = useState([]);
   const [avg, setAvg] = useState(0);
 
+  const days = useMemo(() => daysForOffset(weekOffset), [weekOffset]);
+
   const task = useCallback(async () => {
-    const days = last7();
     const rows = await Promise.all(days.map((d) => getDayActivity(ymd(d))));
     const todayKey = ymd(new Date());
     const mins = rows.map((r) =>
-      r ? Math.round(((r.reading_seconds ?? 0) + (r.listening_seconds ?? 0)) / 60) : 0,
+      r ? Math.round(((r.reading_seconds ?? 0) + (r.listening_seconds ?? 0)) / 60) : 0
     );
     const max = Math.max(1, ...mins);
     setBars(
@@ -48,29 +54,70 @@ const WeekChart = ({ refreshKey }) => {
         mins: mins[i],
         ratio: mins[i] / max,
         isToday: ymd(d) === todayKey,
-      })),
+      }))
     );
     const total = mins.reduce((a, b) => a + b, 0);
     setAvg(Math.round(total / 7));
     // refreshKey isn't read above but forces a refetch on screen focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  }, [refreshKey, days]);
 
   const { loading, error, retry } = useAsyncSection(task);
 
   const inactiveBar = isDark ? "rgba(37,129,223,0.25)" : "#dce4f2";
 
+  // No activity data exists before DASHBOARD_HISTORY_FLOOR (see MonthCalendar,
+  // which enforces the same floor). Block stepping back once the NEXT window
+  // back would fall entirely before it — its most recent day (index 6) is the
+  // one to check, since a window straddling the floor still has real days to
+  // show.
+  const { year: floorYear, month: floorMonth } = constant.DASHBOARD_HISTORY_FLOOR;
+  const floorDate = useMemo(() => new Date(floorYear, floorMonth - 1, 1), [floorYear, floorMonth]);
+  const canGoPrev = daysForOffset(weekOffset + 1)[6] >= floorDate;
+  const canGoNext = weekOffset > 0;
+
+  const rangeLabel = useMemo(() => {
+    if (weekOffset === 0) return STRINGS.THIS_WEEK;
+    const first = days[0];
+    const last = days[6];
+    const sameMonth = first.getMonth() === last.getMonth();
+    const firstLabel = first.toLocaleString("default", { month: "short", day: "numeric" });
+    const lastLabel = last.toLocaleString(
+      "default",
+      sameMonth ? { day: "numeric" } : { month: "short", day: "numeric" }
+    );
+    return `${firstLabel} – ${lastLabel}`;
+  }, [weekOffset, days]);
+
   return (
     <View>
       <SectionLabel
-        title={STRINGS.THIS_WEEK}
+        title={rangeLabel}
         color={isDark ? "#FFFFFF" : "#113879"}
         uppercase={false}
         titleStyle={{ fontSize: 20, fontWeight: "600", letterSpacing: 0 }}
         right={
-          <CustomText style={[styles.avg, { color: mutedText }]}>
-            {STRINGS.formatString(STRINGS.AVG_PER_DAY, { count: avg })}
-          </CustomText>
+          <View style={styles.navRow}>
+            <CustomText style={[styles.avg, { color: mutedText }]} numberOfLines={1}>
+              {STRINGS.formatString(STRINGS.AVG_PER_DAY, { count: avg })}
+            </CustomText>
+            <Pressable
+              onPress={() => setWeekOffset((o) => o + 1)}
+              disabled={!canGoPrev}
+              hitSlop={8}
+              style={[styles.navBtn, !canGoPrev && styles.navBtnDisabled]}
+            >
+              <ChevronLeftIcon size={16} color={mutedText} />
+            </Pressable>
+            <Pressable
+              onPress={() => setWeekOffset((o) => Math.max(0, o - 1))}
+              disabled={!canGoNext}
+              hitSlop={8}
+              style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]}
+            >
+              <ChevronRight size={16} color={mutedText} />
+            </Pressable>
+          </View>
         }
       />
       <View style={styles.wrap}>
@@ -122,6 +169,9 @@ const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
   card: { paddingVertical: 8 },
   avg: { fontSize: 12 },
+  navRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  navBtn: { padding: 4 },
+  navBtnDisabled: { opacity: 0.3 },
   chart: { flexDirection: "row", alignItems: "flex-end", height: 120, gap: 8 },
   barCol: { flex: 1, alignItems: "center", height: "100%", justifyContent: "flex-end" },
   barTrack: { flex: 1, width: 18, justifyContent: "flex-end" },

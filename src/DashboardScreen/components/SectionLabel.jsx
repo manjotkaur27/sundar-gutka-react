@@ -11,13 +11,22 @@ import useDashboardTheme from "./dashboardTheme";
 // React 19 ignores defaultProps on function components, so `uppercase` must
 // default via a parameter default (not defaultProps) or it reads as undefined
 // (falsy) and every heading silently drops to Title Case.
-const SectionLabel = ({ title, right = null, color = null, titleStyle = null, uppercase = true }) => {
+const SectionLabel = ({
+  title,
+  right = null,
+  color = null,
+  titleStyle = null,
+  uppercase = true,
+}) => {
   const { mutedText, isDark } = useDashboardTheme();
   // Client-specified section-title accent in dark mode (matches the header date line).
   const defaultColor = isDark ? "#a1bee7" : mutedText;
   return (
     <View style={styles.row}>
-      <CustomText style={[styles.title, { color: color || defaultColor }, titleStyle]}>
+      <CustomText
+        style={[styles.title, { color: color || defaultColor }, titleStyle]}
+        numberOfLines={1}
+      >
         {uppercase ? title.toUpperCase() : title}
       </CustomText>
       {right ? <View style={styles.right}>{right}</View> : null}
@@ -45,10 +54,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
+    // Give up width to `right` (which can hold action buttons that must stay
+    // full touch-target size) before overflowing on a narrow phone.
+    flexShrink: 1,
   },
   right: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0,
   },
 });
 

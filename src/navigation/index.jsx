@@ -84,8 +84,8 @@ const Navigation = () => {
         new Error(
           `Performance trace failed for route: ${state.routes[state.index]?.name || "unknown"} - ${
             error?.message || "Unknown error"
-          }`
-        )
+          }`,
+        ),
       );
       trace.current = resetTrace();
     }
@@ -103,7 +103,7 @@ const Navigation = () => {
       trackScreenView(
         currentRouteName,
         currentRoute?.params?.key,
-        currentRoute?.params?.params?.title
+        currentRoute?.params?.params?.title,
       ).catch(() => {});
     }
   };

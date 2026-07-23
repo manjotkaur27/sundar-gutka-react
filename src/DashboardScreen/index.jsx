@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } from "@common";
 import { getOrCreateSummary } from "../database/analytics";
 import { computeStreaks } from "../services/streakEngine";
@@ -15,6 +15,7 @@ import useDashboardSync from "./useDashboardSync";
 // sectionRegistry.js + reducer.js DEFAULT_DASHBOARD_ORDER.
 const DashboardScreen = () => {
   const { theme } = useTheme();
+  const navigation = useNavigation();
   useSelector((state) => state.language);
   const layout = useSelector((state) => state.dashboardLayout);
 
@@ -74,7 +75,11 @@ const DashboardScreen = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <DashboardHeader onMenuPress={() => setLayoutEditVisible(true)} refreshKey={refreshKey} />
+        <DashboardHeader
+          onMenuPress={() => setLayoutEditVisible(true)}
+          onClosePress={() => navigation.navigate("Home")}
+          refreshKey={refreshKey}
+        />
 
         {visibleSections.map((key) => {
           const { Component } = SECTION_REGISTRY[key];

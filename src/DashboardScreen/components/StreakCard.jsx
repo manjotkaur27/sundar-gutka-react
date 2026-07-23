@@ -1,7 +1,11 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { View, ScrollView, Image, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
+// Aliased: this file already defines its own local ChevronRight (the
+// flower-strip scroll hint below) — importing the shared icon under the same
+// name would collide with it.
+import { ChevronLeftIcon, ChevronRight as ChevronRightIcon } from "@common/icons";
 import { CustomText, STRINGS, constant, showInfoToast } from "@common";
 import { getOrCreateSummary, getDailyActivity } from "../../database/analytics";
 import useDashboardTheme from "./dashboardTheme";
@@ -56,7 +60,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     opacity: 0.6,
   },
-  weekRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 18 },
+  weekNavRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 18 },
+  weekRow: { flex: 1, flexDirection: "row", justifyContent: "space-between" },
+  navBtn: { padding: 4 },
+  navBtnDisabled: { opacity: 0.3 },
   dayCol: { flex: 1, alignItems: "center", gap: 6 },
   dayDot: {
     width: 34,
@@ -118,6 +125,21 @@ const qualifies = (row) =>
 const hasAnyActivity = (row) =>
   !!row && ((row.reading_seconds ?? 0) > 0 || (row.listening_seconds ?? 0) > 0);
 
+// Monday-first week (M T W T F S S) containing the day `offsetWeeks` weeks
+// before today — 0 = the week containing today.
+const weekDatesForOffset = (offsetWeeks) => {
+  const anchor = new Date();
+  anchor.setDate(anchor.getDate() - offsetWeeks * 7);
+  const mondayOffset = (anchor.getDay() + 6) % 7; // days since Monday
+  const monday = new Date(anchor);
+  monday.setDate(anchor.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+};
+
 const StreakCard = ({ refreshKey }) => {
   const { mutedText, accentBlue, gold, separator, isDark, theme } = useDashboardTheme();
   // Streak number matches the username: brand blue (light) / off-white (dark).
@@ -135,6 +157,16 @@ const StreakCard = ({ refreshKey }) => {
   const [days, setDays] = useState([]);
   const [modalDate, setModalDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  // Measured width of the 7-column day strip (between the two nav arrows), so
+  // the dots can shrink on a narrow phone instead of overflowing/clipping —
+  // same approach as MonthCalendar's responsive day circles.
+  const [weekRowWidth, setWeekRowWidth] = useState(0);
+  const dotSize = useMemo(() => {
+    if (!weekRowWidth) return 34;
+    const column = weekRowWidth / 7;
+    return Math.round(Math.max(24, Math.min(34, column - 10)));
+  }, [weekRowWidth]);
 
   const task = useCallback(async () => {
     const summary = await getOrCreateSummary();
@@ -143,16 +175,7 @@ const StreakCard = ({ refreshKey }) => {
       setLongest(summary.longest_streak ?? 0);
     }
 
-    // Current week, Monday-first (M T W T F S S).
-    const today = new Date();
-    const mondayOffset = (today.getDay() + 6) % 7; // days since Monday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - mondayOffset);
-    const weekDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d;
-    });
+    const weekDates = weekDatesForOffset(weekOffset);
 
     // Activity for the month(s) this week touches.
     const months = new Set(weekDates.map((d) => `${d.getFullYear()}-${d.getMonth() + 1}`));
@@ -167,7 +190,7 @@ const StreakCard = ({ refreshKey }) => {
       map[r.date] = r;
     });
 
-    const todayStr = ymd(today);
+    const todayStr = ymd(new Date());
     const list = weekDates.map((d) => {
       const key = ymd(d);
       return {
@@ -182,9 +205,17 @@ const StreakCard = ({ refreshKey }) => {
     setDays(list);
     // refreshKey isn't read above but forces a refetch on screen focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  }, [refreshKey, weekOffset]);
 
   const { loading, error, retry } = useAsyncSection(task);
+
+  // No activity data exists before DASHBOARD_HISTORY_FLOOR (same floor
+  // MonthCalendar/WeekChart enforce). Block stepping back once the NEXT week
+  // back would fall entirely before it.
+  const { year: floorYear, month: floorMonth } = constant.DASHBOARD_HISTORY_FLOOR;
+  const floorDate = useMemo(() => new Date(floorYear, floorMonth - 1, 1), [floorYear, floorMonth]);
+  const canGoPrevWeek = weekDatesForOffset(weekOffset + 1)[6] >= floorDate;
+  const canGoNextWeek = weekOffset > 0;
 
   const openDay = useCallback((day) => {
     // Future day → nothing to show yet, and nothing to say either.
@@ -212,7 +243,10 @@ const StreakCard = ({ refreshKey }) => {
             <SkeletonBlock style={styles.lineSkeletonSmall} />
           </View>
         </View>
-        <View style={[styles.weekRow, { marginTop: 24 }]}>
+        {/* 24 (original gap) + 18 (weekNavRow's paddingTop, absent here since
+            there's no nav row in the loading state) — keeps skeleton spacing
+            identical to the loaded layout below. */}
+        <View style={[styles.weekRow, { marginTop: 42 }]}>
           {Array.from({ length: 7 }).map((_, i) => (
             <SkeletonBlock key={i} style={styles.dotSkeleton} />
           ))}
@@ -299,35 +333,56 @@ const StreakCard = ({ refreshKey }) => {
         </View>
       </View>
 
-      {/* Current-week activity strip — minimal: weekday letters only, no dates.
-          done = filled gold + check, today = gold ring, past-missed = dashed,
-          future = faint ring. Tap a day for its detail / no-activity toast. */}
-      <View style={styles.weekRow}>
-        {days.map((s) => (
-          <Pressable key={s.date} style={styles.dayCol} onPress={() => openDay(s)}>
-            <View
-              style={[
-                styles.dayDot,
-                s.done && { backgroundColor: gold, borderColor: gold },
-                !s.done &&
-                  !s.isToday &&
-                  !s.isFuture && {
-                    borderColor: mutedText,
-                    borderWidth: 1.5,
-                    borderStyle: "dashed",
-                    opacity: 0.2
-                  },
-                !s.done && s.isFuture && { borderColor: separator, borderWidth: 1.5 },
-                !s.done && s.isToday && { borderColor: gold, borderWidth: 2 },
-              ]}
-            >
-              {s.done ? <CheckIcon color="#fff" /> : null}
-            </View>
-            <CustomText style={[styles.dayLabel, { color: s.isToday ? gold : mutedText }]}>
-              {s.letter}
-            </CustomText>
-          </Pressable>
-        ))}
+      {/* Week activity strip — minimal: weekday letters only, no dates. done =
+          filled gold + check, today = gold ring, past-missed = dashed, future
+          = faint ring. Tap a day for its detail / no-activity toast. ‹ ›
+          steps a full Monday-first week at a time, floored at
+          DASHBOARD_HISTORY_FLOOR and capped at the current week. */}
+      <View style={styles.weekNavRow}>
+        <Pressable
+          onPress={() => setWeekOffset((o) => o + 1)}
+          disabled={!canGoPrevWeek}
+          hitSlop={8}
+          style={[styles.navBtn, !canGoPrevWeek && styles.navBtnDisabled]}
+        >
+          <ChevronLeftIcon size={14} color={mutedText} />
+        </Pressable>
+        <View style={styles.weekRow} onLayout={(e) => setWeekRowWidth(e.nativeEvent.layout.width)}>
+          {days.map((s) => (
+            <Pressable key={s.date} style={styles.dayCol} onPress={() => openDay(s)}>
+              <View
+                style={[
+                  styles.dayDot,
+                  { width: dotSize, height: dotSize, borderRadius: dotSize / 2 },
+                  s.done && { backgroundColor: gold, borderColor: gold },
+                  !s.done &&
+                    !s.isToday &&
+                    !s.isFuture && {
+                      borderColor: mutedText,
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
+                      opacity: 0.2,
+                    },
+                  !s.done && s.isFuture && { borderColor: separator, borderWidth: 1.5 },
+                  !s.done && s.isToday && { borderColor: gold, borderWidth: 2 },
+                ]}
+              >
+                {s.done ? <CheckIcon color="#fff" /> : null}
+              </View>
+              <CustomText style={[styles.dayLabel, { color: s.isToday ? gold : mutedText }]}>
+                {s.letter}
+              </CustomText>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable
+          onPress={() => setWeekOffset((o) => Math.max(0, o - 1))}
+          disabled={!canGoNextWeek}
+          hitSlop={8}
+          style={[styles.navBtn, !canGoNextWeek && styles.navBtnDisabled]}
+        >
+          <ChevronRightIcon size={14} color={mutedText} />
+        </Pressable>
       </View>
 
       <DayDetailModal

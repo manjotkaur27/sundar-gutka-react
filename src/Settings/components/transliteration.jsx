@@ -32,7 +32,7 @@ const TransliterationComponent = () => {
   // Orientation-aware width — mirrors BottomSheetComponent logic
   const { width, height } = Dimensions.get("window");
   const [orientation, setOrientation] = useState(
-    width < height ? constant.PORTRAIT : constant.LANDSCAPE
+    width < height ? constant.PORTRAIT : constant.LANDSCAPE,
   );
   useEffect(() => {
     const sub = Dimensions.addEventListener("change", ({ window: { width: w, height: h } }) => {
@@ -99,11 +99,7 @@ const TransliterationComponent = () => {
               ]}
             >
               <CustomText
-                style={[
-                  styles.bottomSheetTitle,
-                  styles.listItemTitle,
-                  styles.containerNightStyles,
-                ]}
+                style={[styles.bottomSheetTitle, styles.listItemTitle, styles.containerNightStyles]}
               >
                 {STRINGS.transliteration}
               </CustomText>

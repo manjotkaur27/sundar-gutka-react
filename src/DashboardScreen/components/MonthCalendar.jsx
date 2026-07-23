@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { View, Pressable, StyleSheet, PanResponder } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import PropTypes from "prop-types";
+import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
 import { getDailyActivity, getOrCreateSummary } from "../../database/analytics";
 import useDashboardTheme from "./dashboardTheme";
 import DayDetailModal from "./DayDetailModal";
+import MonthYearPickerModal from "./MonthYearPickerModal";
 import SectionError from "./SectionError";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
@@ -154,6 +156,7 @@ const MonthCalendar = ({ refreshKey }) => {
   const [activityMap, setActivityMap] = useState({});
   const [modalDate, setModalDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
   // Measured width of the grid, so the day circle can be sized to the column it
   // actually has to fit in. A hard-coded 36 overflowed its cell on narrow phones
   // (7 columns share the card width) and looked lost on wide ones.
@@ -169,11 +172,17 @@ const MonthCalendar = ({ refreshKey }) => {
   const ymRef = useRef({ year, month });
   ymRef.current = { year, month };
 
+  // No activity data exists before this month, by product decision — see
+  // constant.DASHBOARD_HISTORY_FLOOR. Blocked here (not just visually) so the
+  // swipe gesture can't step past it either.
+  const { year: floorYear, month: floorMonth } = constant.DASHBOARD_HISTORY_FLOOR;
+
   const prevMonth = useCallback(() => {
-    const m = ymRef.current.month;
-    setYear((y) => (m === 1 ? y - 1 : y));
+    const { year: y, month: m } = ymRef.current;
+    if (y === floorYear && m === floorMonth) return;
+    setYear((yy) => (m === 1 ? yy - 1 : yy));
     setMonth((mm) => (mm === 1 ? 12 : mm - 1));
-  }, []);
+  }, [floorYear, floorMonth]);
 
   const nextMonth = useCallback(() => {
     const { year: y, month: m } = ymRef.current;
@@ -251,6 +260,8 @@ const MonthCalendar = ({ refreshKey }) => {
   const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
   const monthYearLabel = `${monthName} ${year}`;
   const rows = buildWeekRows(year, month);
+  const canGoPrev = !(year === floorYear && month === floorMonth);
+  const canGoNext = year < curYM.year || (year === curYM.year && month < curYM.month);
 
   const activeDaysCount = useMemo(
     () =>
@@ -290,10 +301,41 @@ const MonthCalendar = ({ refreshKey }) => {
         {...panResponder.panHandlers}
       >
         <View style={styles.header}>
-          <CustomText style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113879" }]}>
-            {monthYearLabel}
-          </CustomText>
-          <CustomText style={[styles.daysCount, { color: mutedText }]}>
+          <View style={styles.monthNav}>
+            <Pressable
+              onPress={prevMonth}
+              disabled={!canGoPrev}
+              hitSlop={8}
+              style={[styles.navBtn, !canGoPrev && styles.navBtnDisabled]}
+            >
+              <ChevronLeftIcon size={16} color={mutedText} />
+            </Pressable>
+            {/* Tap the label to jump to an arbitrary month via the date picker,
+                bounded by DASHBOARD_HISTORY_FLOOR..today (see below). flexShrink
+                lets it give up width to the arrows/daysCount before overflowing
+                on a narrow phone; numberOfLines+ellipsis is the last resort. */}
+            <Pressable
+              onPress={() => setPickerVisible(true)}
+              hitSlop={6}
+              style={styles.monthLabelBtn}
+            >
+              <CustomText
+                style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113879" }]}
+                numberOfLines={1}
+              >
+                {monthYearLabel}
+              </CustomText>
+            </Pressable>
+            <Pressable
+              onPress={nextMonth}
+              disabled={!canGoNext}
+              hitSlop={8}
+              style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]}
+            >
+              <ChevronRight size={16} color={mutedText} />
+            </Pressable>
+          </View>
+          <CustomText style={[styles.daysCount, { color: mutedText }]} numberOfLines={1}>
             {STRINGS.formatString(
               activeDaysCount === 1 ? STRINGS.DAY_THIS_MONTH : STRINGS.DAYS_THIS_MONTH,
               { count: activeDaysCount }
@@ -409,6 +451,27 @@ const MonthCalendar = ({ refreshKey }) => {
         date={modalDate}
         onClose={() => setModalVisible(false)}
       />
+
+      {/* Custom-built, not the native OS date picker: Android's native dialog
+          has no working theme hook from JS (confirmed against the native
+          module source — isDarkModeEnabled/accentColor/textColor only ever
+          applied on iOS), so it always rendered in the system's day/night
+          style regardless of this app's own in-app theme toggle. This
+          version is themed via useDashboardTheme() like everything else on
+          the dashboard, in both light and dark mode. Bounded to exactly the
+          range the arrows allow, and always opens on today's year so it
+          matches the "show today's date by default" behavior. */}
+      <MonthYearPickerModal
+        visible={pickerVisible}
+        year={year}
+        month={month}
+        onSelect={(y, m) => {
+          setYear(y);
+          setMonth(m);
+          setPickerVisible(false);
+        }}
+        onClose={() => setPickerVisible(false)}
+      />
     </View>
   );
 };
@@ -421,12 +484,22 @@ const styles = StyleSheet.create({
   card: { paddingVertical: 4 },
   header: {
     flexDirection: "row",
-    alignItems: "baseline",
+    // "center" (not the original "baseline") — the label now sits inside a
+    // View row with icon buttons on either side, which has no text baseline
+    // for "baseline" alignment to key off.
+    alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
   },
+  // flexShrink so the label can give up width to the arrows/daysCount instead
+  // of pushing them off a narrow phone; the arrows themselves (navBtn) never
+  // shrink, so they stay full touch-target size regardless.
+  monthNav: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
+  monthLabelBtn: { flexShrink: 1 },
+  navBtn: { padding: 4, flexShrink: 0 },
+  navBtnDisabled: { opacity: 0.3 },
   monthText: { fontSize: 20, fontWeight: "600" },
-  daysCount: { fontSize: 13 },
+  daysCount: { fontSize: 13, flexShrink: 1, marginLeft: 8 },
   weekRow: { flexDirection: "row", marginBottom: 4 },
   cell: { flex: 1, alignItems: "center", paddingVertical: 2 },
   dayLabel: { fontSize: 12, fontWeight: "500", paddingVertical: 4 },

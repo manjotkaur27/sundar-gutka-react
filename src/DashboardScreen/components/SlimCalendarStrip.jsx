@@ -58,7 +58,9 @@ const SlimCalendarStrip = ({ refreshKey }) => {
     getDailyActivity(now.getFullYear(), now.getMonth() + 1)
       .then((rows) => {
         const map = {};
-        rows.forEach((r) => { map[r.date] = r; });
+        rows.forEach((r) => {
+          map[r.date] = r;
+        });
         setActivityMap(map);
       })
       .catch(logError);
@@ -72,43 +74,56 @@ const SlimCalendarStrip = ({ refreshKey }) => {
         styles.wrapper,
         {
           opacity: slideAnim,
-          transform: [{
-            translateY: slideAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [-50, 0],
-            }),
-          }],
+          transform: [
+            {
+              translateY: slideAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-50, 0],
+              }),
+            },
+          ],
         },
       ]}
     >
-      <View style={[styles.container, {
-        backgroundColor: bg,
-        borderBottomColor: theme.colors.separator,
-      }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: bg,
+            borderBottomColor: theme.colors.separator,
+          },
+        ]}
+      >
         {weekDays.map(({ dateStr, dayNum, dow }) => {
           const row = activityMap[dateStr];
           const isToday = dateStr === todayStr;
-          const qualifies = row && (
-            (row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-            (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
-          );
-          const hasAny = row && (row.reading_seconds + row.listening_seconds) > 0;
+          const qualifies =
+            row &&
+            ((row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
+              (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS);
+          const hasAny = row && row.reading_seconds + row.listening_seconds > 0;
           return (
             <View key={dow} style={styles.cell}>
               <CustomText style={[styles.dayLetter, { color: theme.colors.textDisabled }]}>
                 {DAY_LETTERS[dow]}
               </CustomText>
-              <View style={[
-                styles.circle,
-                qualifies && { backgroundColor: accentBlue },
-                !qualifies && hasAny && { borderWidth: 1.5, borderColor: accentBlue },
-                isToday && !qualifies && !hasAny && { borderWidth: 2, borderColor: theme.colors.textDisabled },
-              ]}>
-                <CustomText style={[
-                  styles.dayNum,
-                  { color: qualifies ? "#ffffff" : theme.colors.primaryText },
-                  isToday && !qualifies && { fontWeight: "700" },
-                ]}>
+              <View
+                style={[
+                  styles.circle,
+                  qualifies && { backgroundColor: accentBlue },
+                  !qualifies && hasAny && { borderWidth: 1.5, borderColor: accentBlue },
+                  isToday &&
+                    !qualifies &&
+                    !hasAny && { borderWidth: 2, borderColor: theme.colors.textDisabled },
+                ]}
+              >
+                <CustomText
+                  style={[
+                    styles.dayNum,
+                    { color: qualifies ? "#ffffff" : theme.colors.primaryText },
+                    isToday && !qualifies && { fontWeight: "700" },
+                  ]}
+                >
                   {dayNum}
                 </CustomText>
               </View>

@@ -14,63 +14,63 @@
  *  • failed         — error icon; tap retries (or shows storage dialog)
  *  • completed      — offline-pin icon; tap → remove confirm
  */
-import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Pressable, Animated, Vibration, StyleSheet, ActivityIndicator } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import NetInfo from '@react-native-community/netinfo';
-import { Icon } from '@rneui/themed';
-import { DownloadIcon } from '@common/icons';
-import PropTypes from 'prop-types';
-import { unlink } from 'react-native-fs';
-import useTheme from '@common/context';
-import { STRINGS, showConfirm, showInfoToast, navigate } from '@common';
+import React, { useEffect, useRef, useCallback } from "react";
+import { View, Pressable, Animated, Vibration, StyleSheet, ActivityIndicator } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import NetInfo from "@react-native-community/netinfo";
+import { Icon } from "@rneui/themed";
+import { DownloadIcon } from "@common/icons";
+import PropTypes from "prop-types";
+import { unlink } from "react-native-fs";
+import useTheme from "@common/context";
+import { STRINGS, showConfirm, showInfoToast, navigate } from "@common";
 import {
   enqueueDownload,
   retryDownload,
   removeDownloadQueueEntry,
   removeDownloadEntries,
   toggleDownloadWifiOnly,
-} from '@common/actions';
-import { downloadControls } from '@common/services/globalDownloadManager';
-import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from '../../utils/audioDownloader';
+} from "@common/actions";
+import { downloadControls } from "@common/services/globalDownloadManager";
+import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownloader";
 
 // Canvas size for the icon slot (keeps every state visually aligned in the row).
 const SIZE = 40;
 
 const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
-  const { theme }    = useTheme();
-  const dispatch     = useDispatch();
+  const { theme } = useTheme();
+  const dispatch = useDispatch();
 
-  const downloadQueue           = useSelector((s) => s.downloadQueue);
-  const downloadRegistry        = useSelector((s) => s.downloadRegistry);
-  const downloadWifiOnly        = useSelector((s) => s.downloadWifiOnly);
+  const downloadQueue = useSelector((s) => s.downloadQueue);
+  const downloadRegistry = useSelector((s) => s.downloadRegistry);
+  const downloadWifiOnly = useSelector((s) => s.downloadWifiOnly);
 
-  const trackKey   = track?.audioUrl ? getLocalTrackPath(track.audioUrl) : null;
+  const trackKey = track?.audioUrl ? getLocalTrackPath(track.audioUrl) : null;
   const queueEntry = trackKey ? downloadQueue[trackKey] : null;
   const inRegistry = Boolean(trackKey && downloadRegistry[trackKey]);
 
-  const status = queueEntry?.status ?? (inRegistry ? 'completed' : 'idle');
+  const status = queueEntry?.status ?? (inRegistry ? "completed" : "idle");
 
   // ── Animation state (pulse for queued/retry only) ──────────────────────────
   const prevStatusRef = useRef(status);
-  const pulseAnim     = useRef(new Animated.Value(1)).current;
-  const pulseLoopRef  = useRef(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoopRef = useRef(null);
 
   // Haptic on download completion.
   useEffect(() => {
-    if (prevStatusRef.current === 'downloading' && status === 'completed') {
+    if (prevStatusRef.current === "downloading" && status === "completed") {
       Vibration.vibrate(12);
     }
     prevStatusRef.current = status;
   }, [status]);
 
   useEffect(() => {
-    if (status === 'queued' || status === 'paused_retry') {
+    if (status === "queued" || status === "paused_retry") {
       pulseLoopRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1,   duration: 700, useNativeDriver: true }),
-        ])
+          Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ]),
       );
       pulseLoopRef.current.start();
     } else {
@@ -92,15 +92,17 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   const onTapIdle = useCallback(async () => {
     if (!track?.audioUrl || !trackKey) return;
     const enqueue = () => {
-      dispatch(enqueueDownload({
-        trackKey,
-        audioUrl: track.remoteUrl || track.audioUrl,
-        displayName: track.displayName,
-        baniTitle,
-        baniNameUni: baniNameUni || baniTitle,
-        baniId,
-        sizeMB: track.trackSizeMB,
-      }));
+      dispatch(
+        enqueueDownload({
+          trackKey,
+          audioUrl: track.remoteUrl || track.audioUrl,
+          displayName: track.displayName,
+          baniTitle,
+          baniNameUni: baniNameUni || baniTitle,
+          baniId,
+          sizeMB: track.trackSizeMB,
+        }),
+      );
       showInfoToast(STRINGS.DOWNLOAD_STARTED);
     };
 
@@ -108,7 +110,7 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
     // Wi-Fi-only is ON and we're on cellular — offer to use mobile data, which
     // turns the setting off and proceeds. (Positive `=== 'cellular'` test: never
     // misfire on VPN/ethernet/unknown, which `!== 'wifi'` wrongly flags.)
-    if (downloadWifiOnly && net.type === 'cellular') {
+    if (downloadWifiOnly && net.type === "cellular") {
       showConfirm({
         title: STRINGS.WIFI_ONLY_ALERT_TITLE,
         message: STRINGS.WIFI_ONLY_ALERT_BODY,
@@ -128,7 +130,7 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
     if (!trackKey) return;
     showConfirm({
       title: STRINGS.CANCEL_DOWNLOAD_TITLE,
-      message: STRINGS.CANCEL_DOWNLOAD_BODY.replace('{title}', track?.displayName ?? ''),
+      message: STRINGS.CANCEL_DOWNLOAD_BODY.replace("{title}", track?.displayName ?? ""),
       cancelText: STRINGS.CANCEL_DOWNLOAD_KEEP,
       confirmText: STRINGS.CANCEL_DOWNLOAD_CONFIRM,
       destructive: true,
@@ -141,16 +143,16 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
     if (!trackKey) return;
     showConfirm({
       title: STRINGS.REMOVE_DOWNLOAD_TITLE,
-      message: STRINGS.REMOVE_DOWNLOAD_BODY.replace('{title}', track?.displayName ?? ''),
+      message: STRINGS.REMOVE_DOWNLOAD_BODY.replace("{title}", track?.displayName ?? ""),
       cancelText: STRINGS.cancel,
       neutralText: STRINGS.REMOVE_DOWNLOAD_MANAGE,
       confirmText: STRINGS.REMOVE_DOWNLOAD_CONFIRM,
       destructive: true,
-      onNeutral: () => navigate('ManageDownloads'),
+      onNeutral: () => navigate("ManageDownloads"),
       onConfirm: async () => {
         const base = `${AUDIO_DIRECTORY_PATH}/${trackKey}`;
         await unlink(base).catch(() => {});
-        await unlink(base.replace(/\.m4a$/, '.json')).catch(() => {});
+        await unlink(base.replace(/\.m4a$/, ".json")).catch(() => {});
         dispatch(removeDownloadEntries([trackKey]));
         dispatch(removeDownloadQueueEntry(trackKey));
       },
@@ -171,12 +173,12 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
 
   if (!track?.audioUrl) return null;
 
-  const primary   = theme.colors.primary;
+  const primary = theme.colors.primary;
   const mutedIcon = theme.colors.audioTitleText;
-  const HIT       = { top: 8, bottom: 8, left: 8, right: 8 };
+  const HIT = { top: 8, bottom: 8, left: 8, right: 8 };
 
   // ── COMPLETED ──────────────────────────────────────────────────────────────
-  if (status === 'completed') {
+  if (status === "completed") {
     return (
       <Pressable style={s.wrap} onPress={onTapCompleted} hitSlop={HIT}>
         <Icon name="offline-pin" type="material" size={22} color={primary} />
@@ -188,7 +190,7 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   // Indeterminate spinner with a centered stop-square — the standard
   // "downloading, tap to cancel" affordance. Visually distinct from the idle
   // download icon (no percentage shown).
-  if (status === 'downloading') {
+  if (status === "downloading") {
     return (
       <Pressable
         style={s.wrap}
@@ -204,7 +206,7 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   }
 
   // ── QUEUED / RETRY-BACKOFF ─────────────────────────────────────────────────
-  if (status === 'queued' || status === 'paused_retry') {
+  if (status === "queued" || status === "paused_retry") {
     return (
       <View style={s.wrap}>
         <Animated.View style={{ opacity: pulseAnim }}>
@@ -215,7 +217,7 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   }
 
   // ── PAUSED_WIFI_ONLY ───────────────────────────────────────────────────────
-  if (status === 'paused_wifi_only') {
+  if (status === "paused_wifi_only") {
     return (
       <Pressable style={s.wrap} onPress={onTapWifiOnly} hitSlop={HIT}>
         <Icon name="wifi" type="material" size={22} color={mutedIcon} />
@@ -224,7 +226,7 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   }
 
   // ── PAUSED_NO_NETWORK ──────────────────────────────────────────────────────
-  if (status === 'paused_no_network') {
+  if (status === "paused_no_network") {
     return (
       <View style={s.wrap}>
         <Icon name="cloud-off" type="material" size={22} color={mutedIcon} />
@@ -233,8 +235,8 @@ const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
   }
 
   // ── FAILED ─────────────────────────────────────────────────────────────────
-  if (status === 'failed') {
-    const isStorageError = queueEntry?.errorMessage === 'NOT_ENOUGH_STORAGE';
+  if (status === "failed") {
+    const isStorageError = queueEntry?.errorMessage === "NOT_ENOUGH_STORAGE";
     return (
       <Pressable
         style={s.wrap}
@@ -268,12 +270,12 @@ const s = StyleSheet.create({
   wrap: {
     width: SIZE,
     height: SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   // Small square centered inside the spinner — the "stop / tap to cancel" cue.
   stopSquare: {
-    position: 'absolute',
+    position: "absolute",
     top: (SIZE - 8) / 2,
     left: (SIZE - 8) / 2,
     width: 8,
@@ -296,9 +298,9 @@ DownloadButton.propTypes = {
 
 DownloadButton.defaultProps = {
   track: null,
-  baniTitle: '',
-  baniNameUni: '',
-  baniId: '',
+  baniTitle: "",
+  baniNameUni: "",
+  baniId: "",
 };
 
 export default DownloadButton;

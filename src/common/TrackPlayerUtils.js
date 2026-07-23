@@ -122,7 +122,9 @@ class TrackPlayerService {
           // is no unhandled rejection; setup stays uninitialised and simply retries
           // the next time it's requested from the foreground.
           this.isInitialized = false;
-          logMessage(`TrackPlayer setup deferred (foreground service not allowed): ${error?.message}`);
+          logMessage(
+            `TrackPlayer setup deferred (foreground service not allowed): ${error?.message}`,
+          );
         } else {
           logError(`TrackPlayer initialization failed: ${error?.message || "Unknown error"}`);
           this.isInitialized = false;

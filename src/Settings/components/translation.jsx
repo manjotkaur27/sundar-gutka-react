@@ -29,7 +29,7 @@ const TranslationComponent = () => {
   // Orientation-aware width — mirrors BottomSheetComponent logic
   const { width, height } = Dimensions.get("window");
   const [orientation, setOrientation] = useState(
-    width < height ? constant.PORTRAIT : constant.LANDSCAPE
+    width < height ? constant.PORTRAIT : constant.LANDSCAPE,
   );
   useEffect(() => {
     const sub = Dimensions.addEventListener("change", ({ window: { width: w, height: h } }) => {
@@ -62,8 +62,7 @@ const TranslationComponent = () => {
   const selectedCount = translationOptions.filter((item) => item.value).length;
   const isAllOff = selectedCount === 0;
 
-  const selectedSummary =
-    isAllOff ? STRINGS.none : `${selectedCount} selected (multiple allowed)`;
+  const selectedSummary = isAllOff ? STRINGS.none : `${selectedCount} selected (multiple allowed)`;
 
   const handleTurnAllOff = () => {
     if (isEnglishTranslation) dispatch(toggleEnglishTranslation(false));
@@ -118,11 +117,7 @@ const TranslationComponent = () => {
               ]}
             >
               <CustomText
-                style={[
-                  styles.bottomSheetTitle,
-                  styles.listItemTitle,
-                  styles.containerNightStyles,
-                ]}
+                style={[styles.bottomSheetTitle, styles.listItemTitle, styles.containerNightStyles]}
               >
                 {STRINGS.translations}
               </CustomText>

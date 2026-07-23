@@ -12,6 +12,7 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
   const { theme } = useTheme();
+  const isDarkMode = theme.mode === "dark";
   const { scrollViewProps, Indicator } = useCustomScrollbar();
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
@@ -48,7 +49,6 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
 
   const renderBanis = useCallback(
     (row) => {
-      const isDarkMode = theme.mode === "dark";
       const itemTextColor = isDarkMode ? theme.staticColors.WHITE_COLOR : theme.colors.primary;
       const displayFont = !isTransliteration ? fontFace : null;
 
@@ -94,11 +94,17 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
 
       return listItem;
     },
-    [theme, fontSize, fontFace, isTransliteration]
+    [theme, isDarkMode, fontSize, fontFace, isTransliteration]
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    // Each row paints its own navy background ("#041126" below) to match the
+    // home bani-list. Without this, the FlatList's own background stays
+    // theme.colors.surface (near-black, not navy) and shows through as a
+    // jarring black seam wherever content is shorter than the screen (e.g.
+    // the Sawaiye folder's few entries) — this keeps the whole area navy
+    // regardless of how many rows there are.
+    <View style={{ flex: 1, backgroundColor: isDarkMode ? "#041126" : theme.colors.surface }}>
       <AnimatedFlatList
         style={!isPotrait && Platform.OS === "ios" && { marginLeft: 30 }}
         data={data}

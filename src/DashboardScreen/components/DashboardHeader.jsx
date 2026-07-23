@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PropTypes from "prop-types";
+import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText } from "@common";
 import { getNanakshahiDate } from "../../services/dashboard";
 import { LAST_PUSH_KEY } from "../useDashboardSync";
@@ -28,7 +29,7 @@ const MenuIcon = ({ color }) => (
 );
 MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 
-const DashboardHeader = ({ onMenuPress, refreshKey }) => {
+const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
   const { isDark, gold, primaryText, mutedText, theme } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
   // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
@@ -42,6 +43,10 @@ const DashboardHeader = ({ onMenuPress, refreshKey }) => {
   // own client-specified accents, distinct from the generic mutedText/nameColor.
   const belowNameColor = isDark ? "#a1bee7ff" : "#9AA8C4";
   const avatarTextColor = isDark ? "#5A99FD" : "#113979";
+  // Close button: white in dark mode, app brand blue in light — same blue as
+  // the username text, independent of the golden salutation line it sits
+  // next to.
+  const closeIconColor = isDark ? "#FFFFFF" : "#00397e";
 
   const dateLine = useMemo(() => {
     const now = new Date();
@@ -75,14 +80,29 @@ const DashboardHeader = ({ onMenuPress, refreshKey }) => {
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 8, backgroundColor: bg }]}>
-      <CustomText
-        style={[
-          styles.salutation,
-          { color: gold, fontFamily: theme.typography.fonts.gurbaniHeavy },
-        ]}
-      >
-        ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
-      </CustomText>
+      <View style={styles.topRow}>
+        <CustomText
+          style={[
+            styles.salutation,
+            { color: gold, fontFamily: theme.typography.fonts.gurbaniHeavy },
+          ]}
+          // Sharing the row with the close button (added later) leaves it less
+          // width than when it had the row to itself — on a narrow phone this
+          // could wrap unpredictably and shove the button around. Clamp to one
+          // line; it's decorative, so an ellipsis on the smallest devices is a
+          // safe fallback.
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
+        </CustomText>
+        {/* Top-right dismiss, level with the golden salutation line rather
+            than down in the avatar/menu row. */}
+        <Pressable onPress={onClosePress} hitSlop={8} style={styles.closeBtn}>
+          <CloseIcon size={20} color={closeIconColor} />
+        </Pressable>
+      </View>
 
       <View style={styles.row}>
         <View style={styles.nameBlock}>
@@ -133,9 +153,10 @@ const DashboardHeader = ({ onMenuPress, refreshKey }) => {
               { backgroundColor: isDark ? "rgba(37,129,223,0.25)" : "#dbe6fb" },
             ]}
           >
-            <CustomText style={[styles.avatarText, { color: avatarTextColor }]}>
-              {DEFAULT_NAME[0]}
-            </CustomText>
+            {/* Generic account glyph — there is no login/account system yet
+                (see DEFAULT_NAME above), so this is a cosmetic placeholder
+                only, matching the non-interactive avatar it replaces. */}
+            <PersonIcon size={22} color={avatarTextColor} />
           </View>
         </View>
       </View>
@@ -145,11 +166,13 @@ const DashboardHeader = ({ onMenuPress, refreshKey }) => {
 
 DashboardHeader.propTypes = {
   onMenuPress: PropTypes.func,
+  onClosePress: PropTypes.func,
   refreshKey: PropTypes.number,
 };
 
 DashboardHeader.defaultProps = {
   onMenuPress: () => {},
+  onClosePress: () => {},
   refreshKey: 0,
 };
 
@@ -158,9 +181,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
   salutation: {
     fontSize: 12,
-    marginBottom: 10,
+    flex: 1,
+    paddingRight: 8,
+  },
+  closeBtn: {
+    padding: 2,
   },
   row: {
     flexDirection: "row",
@@ -173,7 +206,6 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 23,
-    
   },
   date: {
     fontSize: 13,
@@ -205,10 +237,6 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: 700,
   },
 });
 

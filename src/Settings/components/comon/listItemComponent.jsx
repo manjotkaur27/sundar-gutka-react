@@ -7,7 +7,15 @@ import useThemedStyles from "@common/hooks/useThemedStyles";
 import { ListItemTitle } from "@common";
 import createStyles from "../../styles";
 
-const ListItemComponent = ({ icon, title, value, isAvatar, tintIcon, actionConstant, onPressAction }) => {
+const ListItemComponent = ({
+  icon,
+  title,
+  value,
+  isAvatar,
+  tintIcon,
+  actionConstant,
+  onPressAction,
+}) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   return (

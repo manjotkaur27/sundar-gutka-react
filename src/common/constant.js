@@ -1,8 +1,7 @@
 // Khalis backend base URL (Seva + Dashboard APIs).
 //
 // ── PRODUCTION (Azure Container Apps) ───────────────────────────────────────
-const KHALIS_API_BASE =
-  "https://khalis-user-api.salmonriver-80392db4.eastus.azurecontainerapps.io";
+const KHALIS_API_BASE = "https://khalis-user-api.salmonriver-80392db4.eastus.azurecontainerapps.io";
 //
 // ── LOCAL DEV ───────────────────────────────────────────────────────────────
 // To test against the backend running on THIS machine (khalis-users-api → PORT
@@ -151,6 +150,10 @@ export default {
   },
   // Minimum number of visible sections the user must keep when customizing layout.
   DASHBOARD_MIN_VISIBLE: 4,
+  // Earliest month history browsing (calendar arrows, week nav, date picker) is
+  // allowed to reach — there is no activity data before this, by product
+  // decision, regardless of what a device's local SQLite table might contain.
+  DASHBOARD_HISTORY_FLOOR: { year: 2026, month: 7 },
   // Default daily Nitnem bani set (classic Sat Bania by Banis.ID).
   DEFAULT_NITNEM_BANI_IDS: [2, 3, 4, 9, 5, 21, 1],
 

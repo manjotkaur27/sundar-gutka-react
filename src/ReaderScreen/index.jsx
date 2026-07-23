@@ -238,7 +238,7 @@ const Reader = ({ navigation, route }) => {
   useEffect(() => {
     if (!webViewRef.current) return;
     webViewRef.current.postMessage(
-      JSON.stringify({ action: "setBottomInset", value: navChromeHeight })
+      JSON.stringify({ action: "setBottomInset", value: navChromeHeight }),
     );
   }, [navChromeHeight, webViewLoadTick]);
 
@@ -320,7 +320,7 @@ const Reader = ({ navigation, route }) => {
         isPunjabiTranslation,
         isSpanishTranslation,
         theme,
-        isLarivaar
+        isLarivaar,
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",
     };
@@ -483,7 +483,7 @@ const Reader = ({ navigation, route }) => {
       isPlayerDragging,
       setBarsVisible,
       scheduleBarsIdleHide,
-    ]
+    ],
   );
 
   const handleLoadStart = useCallback(() => {
