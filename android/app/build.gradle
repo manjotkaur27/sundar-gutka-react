@@ -120,6 +120,21 @@ android {
     }
     namespace 'com.WahegurooNetwork.SundarGutka'
 
+    // Extract native libs (.so) to /data/app/.../lib at install time instead of
+    // loading them directly, uncompressed, from inside the APK. The modern AGP
+    // default (useLegacyPackaging = false / extractNativeLibs="false") makes
+    // SoLoader mmap the DSOs straight out of the APK; on a subset of Android 11/12
+    // devices and on partial/updated installs that path intermittently fails with
+    //   SoLoaderDSONotFoundError: couldn't find DSO to load: libreactnative.so
+    // crashing the app on startup before any JS runs. Extracting to the standard
+    // native library directory restores the reliable linker search path. Costs a
+    // little install footprint; buys back a whole class of startup crashes.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
 }
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
