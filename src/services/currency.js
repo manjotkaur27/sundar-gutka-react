@@ -12,9 +12,13 @@ import { NativeModules, Platform } from "react-native";
  * Whatever the donor picks or types is converted **back to USD** before the
  * Qgiv hand-off, so the charge always matches the base tier.
  *
- * Region is detected from the device locale (works fully offline, on first
- * launch, with no backend dependency). Defaults to USD for anywhere not in the
- * table below.
+ * Region prefers the backend's IP-resolved countryCode (SevaScreen passes
+ * `config?.countryCode` in) — more accurate than locale for "what jurisdiction
+ * is this donor actually in right now". Falls back to the device locale
+ * whenever that's unavailable (first render before the config has loaded,
+ * offline, or the backend sent no country header), so this always works
+ * fully offline / on first launch too. Defaults to USD for anywhere not in
+ * the table below.
  */
 
 // symbol = what the donor sees; rate = local units per 1 USD (display only).
@@ -108,9 +112,10 @@ export const getDeviceCountryCode = () => {
 };
 
 /**
- * Resolves the currency to display. Pass an explicit ISO country code to
- * override device detection (e.g. a future backend-provided country); omit it
- * to use the device locale.
+ * Resolves the currency to display. Pass an explicit ISO country code (e.g.
+ * the backend's `countryCode`, from services/sevaConfig.js) to override
+ * device detection; omit it, or pass null/undefined, to fall back to the
+ * device locale.
  * @returns {{code: string, symbol: string, rate: number}}
  */
 export const resolveCurrency = (overrideCountryCode) => {

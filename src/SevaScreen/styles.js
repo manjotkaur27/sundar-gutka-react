@@ -246,18 +246,6 @@ const createStyles = (theme) => {
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     // ─── New server-driven layout (hero + donate card + "other ways" list) ────
-    // Words wrap like inline text; columnGap is the inter-word space and the
-    // heart (last flex item) flows right after the final word. `center` aligns
-    // the heart with the glyphs' vertical centre (flex-end dropped it to the
-    // bottom of the taller line box, below the letters).
-    heroTitleRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "center",
-      columnGap: 7,
-      rowGap: 2,
-      width: "100%",
-    },
     heroTitle: {
       // Swapped with the AppBar "Seva" title: the hero line is now the smaller
       // of the two (the AppBar is 26).
@@ -273,7 +261,7 @@ const createStyles = (theme) => {
       lineHeight: 22,
       color: isDarkMode ? "#A9B7C6" : "#4A5568",
       width: "100%",
-      textAlign: "left",
+      textAlign: "justify",
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     sectionHeader: {

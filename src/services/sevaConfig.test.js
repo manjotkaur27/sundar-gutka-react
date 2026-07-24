@@ -56,7 +56,7 @@ describe("sevaConfig", () => {
         { type: "html", value: "<p>Footer</p>" },
       ]);
 
-      const cachedRaw = await AsyncStorage.getItem("@seva_config_dynamic_v2");
+      const cachedRaw = await AsyncStorage.getItem("@seva_config_dynamic_v2:en");
       const cached = JSON.parse(cachedRaw);
       expect(cached.version).toBe(7);
       expect(cached.content).toBe(RAW_CONTENT_WITH_WIDGET);
@@ -87,6 +87,25 @@ describe("sevaConfig", () => {
       expect(config.content.segments).toEqual(
         expect.arrayContaining([{ type: "slot", name: "donate_widget" }])
       );
+    });
+
+    it("passes the raw countryCode through for currency resolution", async () => {
+      mockFetchOnce({
+        version: 1,
+        country: "OTHER",
+        countryCode: "IN",
+        payment: {},
+        redDot: 0,
+        content: "",
+      });
+      const config = await getSevaConfig();
+      expect(config.countryCode).toBe("IN");
+    });
+
+    it("countryCode defaults to null when the backend omits it (old server, or genuinely unknown)", async () => {
+      mockFetchOnce({ version: 1, country: "US", payment: {}, redDot: 0, content: "" });
+      const config = await getSevaConfig();
+      expect(config.countryCode).toBeNull();
     });
   });
 
@@ -144,6 +163,69 @@ describe("sevaConfig", () => {
         { type: "html", value: "<p>Footer</p>" },
       ]);
     });
+
+    it("a returning offline user keeps the last-known countryCode from cache (currency stays consistent)", async () => {
+      mockFetchOnce({
+        version: 2,
+        country: "OTHER",
+        countryCode: "GB",
+        payment: {},
+        redDot: 0,
+        content: "",
+      });
+      await getSevaConfig(); // populates the cache with countryCode "GB"
+
+      global.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+      const config = await getSevaConfig();
+      expect(config.countryCode).toBe("GB");
+    });
+
+    it("a brand-new offline user (nothing ever cached) gets countryCode null — falls back to device locale", async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+      const config = await getSevaConfig();
+      expect(config.countryCode).toBeNull();
+    });
+
+    it("switching language offline does NOT replay the other language's cached content (regression)", async () => {
+      // Cache English content online.
+      mockFetchOnce({
+        version: 1,
+        country: "US",
+        payment: {},
+        redDot: 0,
+        content: '<h1 class="seva-hero-title">Support our mission.</h1>',
+      });
+      await getSevaConfig("en");
+
+      // Go offline and switch to Italian, which was never fetched. Must NOT
+      // fall through to the English cache — that would show English text
+      // under an Italian-selected UI. It should fall to the bundled Italian
+      // default instead (never the wrong-language cache).
+      global.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+      const config = await getSevaConfig("it");
+      expect(config.source).toBe("fallback");
+      expect(config.content.segments.some((s) => s.type === "html" && s.value.includes("Support our mission"))).toBe(false);
+    });
+
+    it("a returning offline user in a language that WAS cached still gets their real cached content", async () => {
+      mockFetchOnce({
+        version: 4,
+        country: "US",
+        payment: {},
+        redDot: 0,
+        content: RAW_CONTENT_WITH_WIDGET,
+      });
+      await getSevaConfig("it"); // populates the Italian-keyed cache
+
+      global.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+      const config = await getSevaConfig("it");
+      expect(config.source).toBe("cache");
+      expect(config.content.segments).toEqual([
+        { type: "html", value: "<h1>Headline</h1>" },
+        { type: "slot", name: "donate_widget" },
+        { type: "html", value: "<p>Footer</p>" },
+      ]);
+    });
   });
 
   describe("badge does not resurrect offline after the page was seen", () => {
@@ -183,7 +265,7 @@ describe("sevaConfig", () => {
       mockFetchOnce({ version: 1, country: "US", payment: {}, redDot: 1, content: "" });
       await getSevaConfig();
 
-      const cached = JSON.parse(await AsyncStorage.getItem("@seva_config_dynamic_v2"));
+      const cached = JSON.parse(await AsyncStorage.getItem("@seva_config_dynamic_v2:en"));
       expect(cached).not.toHaveProperty("redDot");
       expect(cached.version).toBe(1); // the durable bits are still cached
     });

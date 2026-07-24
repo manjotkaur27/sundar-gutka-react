@@ -238,9 +238,7 @@ describe("SevaScreen", () => {
 
     const { getByTestId, getByText } = render(<SevaScreen />);
 
-    // Hero title renders as individual words (so the heart can flow inline).
-    await waitFor(() => expect(getByText("Support")).toBeTruthy());
-    expect(getByText("mission.")).toBeTruthy();
+    await waitFor(() => expect(getByText("Support our mission.")).toBeTruthy());
     expect(getByText("Built by volunteers.")).toBeTruthy();
     // Donate card header (server-driven title + subtitle).
     expect(getByText("Seva with your support")).toBeTruthy();
@@ -363,5 +361,17 @@ describe("SevaScreen", () => {
     await waitFor(() => expect(getByText("$10")).toBeTruthy());
     expect(getByText("$50")).toBeTruthy();
     expect(getByText("$100")).toBeTruthy();
+  });
+
+  it("prefers the backend's countryCode over the (unresolved) device locale for currency", async () => {
+    // Device locale is unresolved in this jest environment, so absent an
+    // override it would default to USD (see the test above). Once the
+    // backend supplies a countryCode ("IN"), that must win instead — proving
+    // resolveCurrency(config?.countryCode) is actually wired through, not
+    // just resolveCurrency() with the device falling back to USD by luck.
+    getSevaConfig.mockResolvedValue({ ...nativeFallbackConfig, countryCode: "IN" });
+    const { getByText } = render(<SevaScreen />);
+    await waitFor(() => expect(getByText("₹1,000")).toBeTruthy());
+    expect(getByText("₹5,000")).toBeTruthy();
   });
 });

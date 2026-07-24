@@ -19,15 +19,50 @@ const PATHS = {
   x: "M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z",
   youtube:
     "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
+  github:
+    "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12",
+  notion:
+    "M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z",
 };
 
-/** Maps a link URL to a known social brand, or null. */
+// Slack's real mark is inherently 4-colour (not a single-tone glyph like the
+// others) — four rounded "L" pieces, each its own brand colour. Sourced
+// verbatim from Slack's own icon SVG (Wikimedia Commons mirror of the 2019
+// mark), viewBox 0 0 127 127.
+const SLACK_PATHS = [
+  {
+    d: "M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z",
+    fill: "#E01E5A",
+  },
+  {
+    d: "M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z",
+    fill: "#36C5F0",
+  },
+  {
+    d: "M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z",
+    fill: "#2EB67D",
+  },
+  {
+    d: "M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z",
+    fill: "#ECB22E",
+  },
+];
+
+// The "Join our Slack" link is a Google Form sign-up (forms.gle), not
+// slack.com — so it can't be domain-matched like the others. It's the one
+// Seva-means link that needs an exact-URL match instead.
+const SLACK_SIGNUP_FORM_URL = "https://forms.gle/zc7JQiLHGxHKXP599";
+
+/** Maps a link URL to a known brand, or null. */
 export const detectSocialBrand = (url = "") => {
   const u = String(url).toLowerCase();
   if (u.includes("instagram.")) return "instagram";
   if (u.includes("facebook.") || u.includes("fb.com") || u.includes("fb.me")) return "facebook";
   if (u.includes("twitter.") || u.includes("x.com")) return "x";
   if (u.includes("youtube.") || u.includes("youtu.be")) return "youtube";
+  if (u.includes("github.com")) return "github";
+  if (u.includes("notion.so") || u.includes("notion.com")) return "notion";
+  if (u === SLACK_SIGNUP_FORM_URL.toLowerCase()) return "slack";
   return null;
 };
 
@@ -39,12 +74,26 @@ const META = {
   facebook: { viewBox: "0 0 24 24", aspect: 1 },
   x: { viewBox: "0 0 24 24", aspect: 1 },
   youtube: { viewBox: "0 3.545 24 16.91", aspect: 24 / 16.91 },
+  github: { viewBox: "0 0 24 24", aspect: 1 },
+  slack: { viewBox: "0 0 127 127", aspect: 1 },
+  notion: { viewBox: "0 0 24 24", aspect: 1 },
 };
 
 export const SocialBadge = ({ brand, size, dark }) => {
   const rawId = useId();
-  const d = PATHS[brand];
   const meta = META[brand];
+  if (brand === "slack" && meta) {
+    const h = size;
+    const w = Math.round(size * meta.aspect);
+    return (
+      <Svg width={w} height={h} viewBox={meta.viewBox}>
+        {SLACK_PATHS.map((p) => (
+          <Path key={p.fill} d={p.d} fill={p.fill} />
+        ))}
+      </Svg>
+    );
+  }
+  const d = PATHS[brand];
   if (!d || !meta) return null;
   const h = size;
   const w = Math.round(size * meta.aspect);
@@ -91,7 +140,7 @@ export const SocialBadge = ({ brand, size, dark }) => {
     );
   }
 
-  // x — theme-aware so it stays visible on the card.
+  // x / github / notion — monochrome marks, theme-aware so they stay visible.
   return (
     <Svg width={w} height={h} viewBox={meta.viewBox}>
       <Path d={d} fill={dark ? "#FFFFFF" : "#000000"} />
@@ -100,7 +149,15 @@ export const SocialBadge = ({ brand, size, dark }) => {
 };
 
 SocialBadge.propTypes = {
-  brand: PropTypes.oneOf(["instagram", "facebook", "x", "youtube"]).isRequired,
+  brand: PropTypes.oneOf([
+    "instagram",
+    "facebook",
+    "x",
+    "youtube",
+    "github",
+    "slack",
+    "notion",
+  ]).isRequired,
   size: PropTypes.number,
   dark: PropTypes.bool,
 };

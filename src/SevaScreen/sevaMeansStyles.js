@@ -3,6 +3,12 @@ import { StyleSheet } from "react-native";
 // Native styling for the server-driven "Seva by other means" pages. Colours
 // mirror the Seva page (createStyles in ./styles) so both screens read as one
 // system in light and dark mode.
+//
+// SPACING: this file deliberately carries NO vertical margins between blocks.
+// The screen owns the vertical rhythm through a single viewport-derived `gap`
+// on the content wrapper (see SevaMeansScreen), exactly like the main Seva
+// page — so spacing stays consistent between every element and scales with the
+// device instead of being a pile of mismatched hardcoded margins.
 const createStyles = (theme) => {
   const isDarkMode = theme.mode === "dark";
 
@@ -12,11 +18,9 @@ const createStyles = (theme) => {
       backgroundColor: isDarkMode ? "#041126" : "#FFF8E7",
     },
     scrollView: { flex: 1 },
-    scrollContent: {
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 32,
-    },
+    // Padding + gap are applied dynamically on the inner wrapper View in the
+    // screen; flexGrow lets a short page still fill the viewport.
+    scrollContent: { flexGrow: 1 },
     centered: {
       flex: 1,
       justifyContent: "center",
@@ -28,30 +32,26 @@ const createStyles = (theme) => {
       fontSize: 16,
       lineHeight: 24,
       color: isDarkMode ? "#A0AEC0" : "#3A4A63",
-      marginBottom: 16,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     description: {
       fontSize: 15,
       lineHeight: 22,
       color: isDarkMode ? "#A0AEC0" : "#4A5568",
-      marginBottom: 12,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     // NB: no numeric fontWeight anywhere the Baloo SemiBold font is used —
     // pairing an explicit custom font with fontWeight 700/800 makes Android
     // fall back to Roboto. The SemiBold font already carries the weight.
     sectionHeading: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: "normal",
-      letterSpacing: 0.4,
+      letterSpacing: 0.6,
       textTransform: "uppercase",
-      color: isDarkMode ? "#FAF9F6" : "#113979",
-      marginTop: 14,
-      marginBottom: 10,
+      color: isDarkMode ? "#8496A9" : "#6B7A90",
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
-    // A tappable link "card" row: text on the left, trailing chevron on the right.
+    // A tappable link "card" row: optional leading badge, text, trailing chevron.
     linkRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -62,14 +62,15 @@ const createStyles = (theme) => {
       borderRadius: 14,
       paddingVertical: 14,
       paddingHorizontal: 16,
-      marginBottom: 10,
     },
     linkRowInner: {
       flex: 1,
+      // Title and (optional) subtitle stack with a tight, consistent gap.
+      gap: 3,
     },
     linkRowText: {
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: 21,
       color: isDarkMode ? "#A0AEC0" : "#4A5568",
       fontFamily: theme.typography.fonts.balooPaaji,
     },
@@ -83,8 +84,6 @@ const createStyles = (theme) => {
       fontWeight: "normal",
       textAlign: "center",
       color: isDarkMode ? "#FAF9F6" : "#113979",
-      marginTop: 48,
-      marginBottom: 10,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     heroSub: {
@@ -92,8 +91,7 @@ const createStyles = (theme) => {
       lineHeight: 24,
       textAlign: "center",
       color: isDarkMode ? "#8496A9" : "#6B7A90",
-      paddingHorizontal: 24,
-      marginBottom: 12,
+      paddingHorizontal: 16,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     footer: {
@@ -101,7 +99,6 @@ const createStyles = (theme) => {
       lineHeight: 18,
       textAlign: "center",
       color: isDarkMode ? "#8496A9" : "#718096",
-      marginTop: 24,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
   });

@@ -9,10 +9,12 @@ import { buildBundledSevaLayout } from "./sevaBundledContent";
  *
  * Fetches the dynamic Seva config from the Khalis backend (constant.SEVA_CONFIG_API_URL)
  * and maps it onto the app-facing SevaConfig shape that SevaScreen + BottomNavigation
- * already consume. The page COPY stays app-local (6 languages via STRINGS); the backend
- * only drives the dynamic bits: payment (Qgiv) config, country, and the Seva dot (redDot).
- * Donation amounts are fixed app-local (see FILLER_CONFIG.amounts) — the backend no longer
- * provides them. Falls back to the last cached config, then bundled defaults, offline.
+ * already consume. The backend drives the page content (translated per `lang`), payment
+ * (Qgiv) config, donation amounts/presets, country + raw countryCode, and the Seva dot
+ * (redDot/version). FILLER_CONFIG below supplies only the few remaining app-local bits
+ * (fixed English literals used before any fetch ever completes, and the taxMessage/
+ * footerText/description STRINGS overwritten onto it per render). Falls back to the last
+ * cached config, then bundled defaults, offline.
  */
 
 /** @typedef {'one_time' | 'recurring' | 'unknown'} DonorType */
@@ -78,12 +80,22 @@ const FILLER_CONFIG = {
 // cached yet, or a server response whose `content` is empty. The moment the
 // backend returns a non-empty `content`, that real value replaces it.
 
-// Cache only the backend's dynamic bits (not the localized copy, which is rebuilt each
-// call with the current language). Keyed v2 — v1 didn't carry `content`;
-// bumping the key rather than defensive-coding around old cached shapes, since a
-// one-time cache miss on upgrade just falls through to the native STRINGS fallback
-// until the next successful fetch.
+// Cached per LANGUAGE — `content` is the server-driven HTML for whichever
+// language it was fetched in, so a single shared key would replay stale-language
+// content when offline (e.g. switch to Italian offline with only an English
+// fetch ever cached — without this, you'd see English until back online).
+// Mirrors services/sevaMeans.js's per-(page,lang) cache key for the same reason.
+// Keyed v2 — v1 didn't carry `content`; bumping the key rather than
+// defensive-coding around old cached shapes, since a one-time cache miss on
+// upgrade just falls through to the native STRINGS fallback until the next
+// successful fetch.
 const CACHE_KEY = "@seva_config_dynamic_v2";
+const cacheKey = (lang) => `${CACHE_KEY}:${lang}`;
+// Small language-agnostic marker for the version dot badge, which is the same
+// across every language — kept separate from the per-language content cache so
+// the badge still works even when nothing has been cached in the CURRENT
+// language yet.
+const LAST_VERSION_KEY = "@seva_config_last_version";
 // The config version the user has acknowledged by OPENING the Seva page. Sent as
 // ?v= so the backend computes redDot = currentVersion − seenVersion. Persisted
 // separately from the cached config so the dot survives background refetches and
@@ -160,6 +172,11 @@ const buildConfig = (dyn, source = "network", lang = "en") => ({
   source,
   configVersion: dyn?.version != null ? String(dyn.version) : FILLER_CONFIG.configVersion,
   country: dyn?.country || FILLER_CONFIG.country,
+  // Raw ISO country code from the backend (e.g. "IN"), null when unavailable
+  // (offline/fallback, or the CDN sent no country header). Passed to
+  // currency.resolveCurrency() as an override; null makes it fall back to the
+  // device locale, so this is safe in every source state.
+  countryCode: dyn?.countryCode ?? null,
   payment_mode: dyn?.payment?.mode || FILLER_CONFIG.payment_mode,
   // Donation tiers are backend-driven: `amounts` is the USD base ladder (the app
   // localises it per currency), and `amountPresets` is an optional per-currency
@@ -204,12 +221,22 @@ const fetchJson = async (url) => {
   }
 };
 
-const readCache = async () => {
+const readCache = async (lang) => {
   try {
-    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    const raw = await AsyncStorage.getItem(cacheKey(lang));
     return raw ? JSON.parse(raw) : null;
   } catch (_) {
     return null;
+  }
+};
+
+const readLastVersion = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_VERSION_KEY);
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  } catch (_) {
+    return 0;
   }
 };
 
@@ -231,9 +258,9 @@ const langToApi = (lang) => {
  * @returns {Promise<SevaConfig>}
  */
 export const getSevaConfig = async (langInput) => {
-  const cached = await readCache();
-  const url = constant.SEVA_CONFIG_API_URL;
   const apiLang = langToApi(langInput);
+  const cached = await readCache(apiLang);
+  const url = constant.SEVA_CONFIG_API_URL;
   try {
     if (!url) throw new Error("SEVA_CONFIG_API_URL not set");
     // Send the version the user has SEEN (not merely the last one fetched): the
@@ -247,6 +274,7 @@ export const getSevaConfig = async (langInput) => {
     const dyn = {
       version: resp?.version,
       country: resp?.country,
+      countryCode: resp?.countryCode ?? null,
       payment: resp?.payment,
       redDot: resp?.redDot,
       content: resp?.content,
@@ -261,7 +289,8 @@ export const getSevaConfig = async (langInput) => {
     // Replaying it offline would resurrect a dot the user already cleared —
     // the cache-read path below recomputes it from durable values instead.
     const { redDot: _derivedRedDot, ...persistable } = dyn;
-    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(persistable)).catch(() => {});
+    AsyncStorage.setItem(cacheKey(apiLang), JSON.stringify(persistable)).catch(() => {});
+    AsyncStorage.setItem(LAST_VERSION_KEY, String(latestVersion)).catch(() => {});
 
     // Re-derive the badge from the seen-version as of NOW, rather than trusting
     // resp.redDot, which the server computed from the `?v=` we sent BEFORE the
@@ -308,8 +337,7 @@ export const getSevaConfig = async (langInput) => {
 export const markSevaSeen = async () => {
   let version = latestVersion;
   if (!version) {
-    const cached = await readCache();
-    version = Number(cached?.version) || 0;
+    version = await readLastVersion();
   }
   try {
     // NEVER move the seen-version backwards. Versions only ever increase, so

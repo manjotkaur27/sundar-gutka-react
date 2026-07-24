@@ -33,7 +33,6 @@ import {
   DonateIcon,
   CloseIcon,
   ChevronRight,
-  SevaIcon,
   HandHeartIcon,
   MegaphoneIcon,
   CodeIcon,
@@ -139,9 +138,27 @@ const SevaScreen = () => {
     Math.min(52, Math.max(34, Math.min(screenWidth * 0.13, screenHeight * 0.062)))
   );
   const amountLineHeight = Math.round(amountFontSize * 1.12);
-  // Donor currency (symbol + display-figure conversion) from the device locale.
-  // The charge itself is always USD via Qgiv — see services/currency.js.
-  const currency = resolveCurrency();
+  const dispatch = useDispatch();
+  const navigation = useNavigation();
+
+  const language = useSelector((state) => state.language);
+
+  const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState(null);
+  const [error, setError] = useState(false);
+
+  // Donor currency (symbol + display-figure conversion). Prefers the backend's
+  // IP-resolved countryCode (config?.countryCode) once the config has loaded;
+  // falls back to the device locale before that (first render, offline, or
+  // when the backend sent no country header) — resolveCurrency(undefined)
+  // does exactly that internally. Recomputed every render, so this updates
+  // automatically the moment `config` lands. The charge itself is always USD
+  // via Qgiv — see services/currency.js. MUST stay below the `config` useState
+  // above — it was previously placed before it, silently reading `config` as
+  // undefined on every render (the useState call hadn't executed yet in that
+  // render pass), so it always fell back to the device locale regardless of
+  // what the backend actually sent.
+  const currency = resolveCurrency(config?.countryCode);
   // Digits ALWAYS render in Baloo Paaji. Only the currency SYMBOL may need a
   // different font: Baloo can't draw ₹ correctly, so INR's symbol uses the
   // system font; every other currency's symbol stays Baloo (they render fine).
@@ -153,14 +170,6 @@ const SevaScreen = () => {
   // scale the symbol DOWN to match their height. Non-INR symbols are Baloo (same
   // font as the digits) and already match → scale 1.
   const symbolFontSize = Math.round(amountFontSize * (currency.code === "INR" ? 0.82 : 1));
-  const dispatch = useDispatch();
-  const navigation = useNavigation();
-
-  const language = useSelector((state) => state.language);
-
-  const [loading, setLoading] = useState(true);
-  const [config, setConfig] = useState(null);
-  const [error, setError] = useState(false);
 
   const [selectedAmount, setSelectedAmount] = useState(10);
   const [isOtherSelected, setIsOtherSelected] = useState(false);
@@ -226,12 +235,24 @@ const SevaScreen = () => {
           if (!active) return;
           setConfig(cfg);
           if (isFirstLoad) {
+            // Resolve currency FRESH from cfg?.countryCode here rather than
+            // using the outer `currency` — that outer value was captured when
+            // this effect closure was created (mount time, before cfg existed)
+            // and does not reflect the countryCode that just arrived in cfg.
+            // Using the stale value would default-select an amount in the
+            // wrong currency's ladder for one render, until the next re-render
+            // silently swapped the displayed symbol out from under it.
+            const effectiveCurrency = resolveCurrency(cfg?.countryCode);
             // Default to the first tier of the resolved LOCAL ladder — backend
             // per-currency override, else the currency's built-in ladder (INR),
             // else the backend USD base amounts converted to local. Only on the
             // first load, so a background re-sync never resets a user's pick.
-            const [defaultLocal] = resolveLocalPresets(currency, cfg?.amounts, cfg?.amountPresets);
-            setSelectedAmount(defaultLocal ?? usdToLocal(10, currency));
+            const [defaultLocal] = resolveLocalPresets(
+              effectiveCurrency,
+              cfg?.amounts,
+              cfg?.amountPresets
+            );
+            setSelectedAmount(defaultLocal ?? usdToLocal(10, effectiveCurrency));
           }
           hasLoadedRef.current = true;
           markSevaSeen();
@@ -524,20 +545,10 @@ const SevaScreen = () => {
       if (cls.includes("seva-means")) return renderMeansItem(block, key);
 
       if (cls.includes("seva-hero-title")) {
-        // Render each word as its own flex item in a wrapping row so the heart
-        // flows INLINE right after the last word (e.g. "…millions. ♥"), instead
-        // of sitting off to the side of the whole title block.
-        const words = blockText(block).split(/\s+/).filter(Boolean);
         return (
-          <View key={key} style={styles.heroTitleRow}>
-            {words.map((w, wi) => (
-              // eslint-disable-next-line react/no-array-index-key
-              <CustomText key={`${key}-w-${wi}`} style={styles.heroTitle}>
-                {w}
-              </CustomText>
-            ))}
-            <SevaIcon size={18} color={isDarkMode ? "#4299E1" : "#1F69DF"} />
-          </View>
+          <CustomText key={key} style={styles.heroTitle}>
+            {blockText(block)}
+          </CustomText>
         );
       }
       if (cls.includes("seva-section")) {

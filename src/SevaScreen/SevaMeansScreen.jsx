@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, ScrollView, Pressable, ActivityIndicator, Text } from "react-native";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Text,
+  useWindowDimensions,
+} from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { AppBar, BackIconComponent } from "@common/components";
@@ -41,6 +48,20 @@ const SevaMeansScreen = ({ route, navigation }) => {
   const isDark = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const language = useSelector((state) => state.language);
+
+  // ─── Responsive vertical rhythm (mirrors the main Seva page) ────────────────
+  // One consistent, viewport-derived gap owns ALL spacing between blocks —
+  // instead of each element carrying its own hardcoded margin — so the page
+  // reads as an even rhythm and scales from a small phone to a tablet. The few
+  // deliberate group breaks (a section heading, the closing footer, the hero
+  // top offset) are the SAME small multiples of that base everywhere.
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const hPad = Math.round(Math.max(16, Math.min(28, screenWidth * 0.064)));
+  const gap = Math.round(Math.min(24, Math.max(14, screenHeight * 0.02)));
+  const vPad = Math.round(Math.min(36, Math.max(18, screenHeight * 0.04)));
+  const headingTop = Math.round(gap * 0.5); // extra space above a group heading
+  const footerTop = Math.round(gap * 0.6); // sets the closing footer apart
+  const heroTop = Math.round(vPad * 0.8); // top offset for the centered hero pages
 
   const page = route?.params?.page;
   // Bar background matches the page body (dark navy / cream), not a black strip.
@@ -100,11 +121,17 @@ const SevaMeansScreen = ({ route, navigation }) => {
       const isHeading = block.tag === "h1" || block.tag === "h2" || block.tag === "h3";
 
       if (isHeading) {
-        const headingStyle = cls.includes("seva-hero-title")
-          ? styles.heroTitle
-          : styles.sectionHeading;
+        // Hero title (the "other" page) gets a top offset so it isn't glued to
+        // the divider; a section heading gets a smaller group break above it.
+        const isHero = cls.includes("seva-hero-title");
         return (
-          <CustomText key={key} style={headingStyle}>
+          <CustomText
+            key={key}
+            style={[
+              isHero ? styles.heroTitle : styles.sectionHeading,
+              { marginTop: isHero ? heroTop : headingTop },
+            ]}
+          >
             {blockText(block)}
           </CustomText>
         );
@@ -112,7 +139,7 @@ const SevaMeansScreen = ({ route, navigation }) => {
 
       let blockStyle = styles.description;
       if (cls.includes("seva-hero-sub")) blockStyle = styles.heroSub;
-      else if (cls.includes("seva-footer")) blockStyle = styles.footer;
+      else if (cls.includes("seva-footer")) blockStyle = [styles.footer, { marginTop: footerTop }];
       else if (cls.includes("seva-intro")) blockStyle = styles.intro;
 
       const isLinkRow = cls.includes("seva-link");
@@ -181,14 +208,25 @@ const SevaMeansScreen = ({ route, navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {data.segments.map((seg, i) =>
-          seg.type === "html" ? (
-            // eslint-disable-next-line react/no-array-index-key
-            <React.Fragment key={`seg-${i}`}>
-              {renderHtmlSegment(seg.value, `seg-${i}`)}
-            </React.Fragment>
-          ) : null
-        )}
+        {/* One wrapper owns the whole page's spacing: horizontal padding, top/
+            bottom padding, and a single `gap` between every block. */}
+        <View
+          style={{
+            paddingHorizontal: hPad,
+            paddingTop: Math.round(vPad * 0.5),
+            paddingBottom: vPad,
+            gap,
+          }}
+        >
+          {data.segments.map((seg, i) =>
+            seg.type === "html" ? (
+              // eslint-disable-next-line react/no-array-index-key
+              <React.Fragment key={`seg-${i}`}>
+                {renderHtmlSegment(seg.value, `seg-${i}`)}
+              </React.Fragment>
+            ) : null
+          )}
+        </View>
       </ScrollView>
     );
   };

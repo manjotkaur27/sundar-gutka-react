@@ -43,13 +43,16 @@ const LINKS = {
   sttmWebsite: "https://www.sikhitothemax.org/",
   githubRepo: "https://github.com/KhalisFoundation/sundar-gutka-react",
   githubIssues: "https://github.com/KhalisFoundation/sundar-gutka-react/issues",
-  notionGoodFirstIssues: "https://www.notion.so/khalisfoundation",
-  slack: "https://khalis.slack.com",
-  qaTestBuild: "https://github.com/KhalisFoundation/sundar-gutka-react/releases",
-  qaFeedbackForm: "https://forms.gle/",
-  khalisInstagram: "https://www.instagram.com/khalisfoundation/",
+  notionGoodFirstIssues:
+    "https://app.notion.com/p/Sundar-Gutka-Good-First-Issues-3a6fd247b78080f4abb9ea85462c1ebc",
+  slack: "https://forms.gle/zc7JQiLHGxHKXP599",
+  qaTestBuild: "https://forms.gle/bPfiYhKQS8h6z1Vm7",
+  qaFeedbackForm:
+    "https://docs.google.com/forms/d/e/1FAIpQLSfui4s1eAUXWovySguAqgfRtb8eF-fOvJBtdP7CpbwStOPZqA/viewform?usp=sharing&ouid=114493208173660506988",
+  ideasForm: "https://forms.gle/EMUMZZiw8WXiFojCA",
+  khalisInstagram: "https://www.instagram.com/khalisfound/",
   khalisFacebook: "https://www.facebook.com/khalisfoundation/",
-  khalisTwitter: "https://twitter.com/khalisfoundation",
+  khalisTwitter: "https://x.com/khalisfound",
   khalisYoutube: "https://www.youtube.com/@khalisfoundation",
   sttmInstagram: "https://www.instagram.com/sikhitothemax/",
   sttmFacebook: "https://www.facebook.com/sikhitothemax/",
@@ -67,14 +70,25 @@ const MAIN = {
     it: "Sostieni la nostra missione. Servi milioni di persone.",
     es: "Apoya nuestra misión. Sirve a millones.",
   },
-  // {sg} and {sttm} are replaced with product links at build time.
+  // The org name — its own key so it can be wrapped in a link (proper noun, so
+  // it keeps each language's existing script/form). Mirrors seva-content.ts.
+  hero_org: {
+    en: "Khalis Foundation",
+    hi: "खालिस फाउंडेशन",
+    pa: "ਖਾਲਿਸ ਫਾਊਂਡੇਸ਼ਨ",
+    fr: "Khalis Foundation",
+    it: "Khalis Foundation",
+    es: "Khalis Foundation",
+  },
+  // {kf}, {sg} and {sttm} are replaced with links at build time: {kf} → Khalis
+  // Foundation, {sg} → Sundar Gutka, {sttm} → SikhiToTheMax (all proper nouns).
   hero_desc: {
-    en: "Khalis Foundation is a community of volunteers building tools like {sg} and {sttm} to help millions of Sikhs connect with Gurbani.",
-    hi: "खालिस फाउंडेशन स्वयंसेवकों का एक समुदाय है जो {sg} और {sttm} जैसे उपकरण बनाता है ताकि लाखों सिख गुरबाणी से जुड़ सकें।",
-    pa: "ਖਾਲਿਸ ਫਾਊਂਡੇਸ਼ਨ ਵਲੰਟੀਅਰਾਂ ਦਾ ਇੱਕ ਸਮੂਹ ਹੈ ਜੋ {sg} ਅਤੇ {sttm} ਵਰਗੇ ਟੂਲ ਬਣਾਉਂਦਾ ਹੈ ਤਾਂ ਜੋ ਲੱਖਾਂ ਸਿੱਖ ਗੁਰਬਾਣੀ ਨਾਲ ਜੁੜ ਸਕਣ।",
-    fr: "La Khalis Foundation est une communauté de bénévoles qui crée des outils comme {sg} et {sttm} pour aider des millions de Sikhs à se connecter à la Gurbani.",
-    it: "La Khalis Foundation è una comunità di volontari che crea strumenti come {sg} e {sttm} per aiutare milioni di Sikh a connettersi con la Gurbani.",
-    es: "Khalis Foundation es una comunidad de voluntarios que crea herramientas como {sg} y {sttm} para ayudar a millones de sijs a conectar con la Gurbani.",
+    en: "{kf} is a community of volunteers building tools like {sg} and {sttm} to help millions of Sikhs connect with Gurbani.",
+    hi: "{kf} स्वयंसेवकों का एक समुदाय है जो {sg} और {sttm} जैसे उपकरण बनाता है ताकि लाखों सिख गुरबाणी से जुड़ सकें।",
+    pa: "{kf} ਵਲੰਟੀਅਰਾਂ ਦਾ ਇੱਕ ਸਮੂਹ ਹੈ ਜੋ {sg} ਅਤੇ {sttm} ਵਰਗੇ ਟੂਲ ਬਣਾਉਂਦਾ ਹੈ ਤਾਂ ਜੋ ਲੱਖਾਂ ਸਿੱਖ ਗੁਰਬਾਣੀ ਨਾਲ ਜੁੜ ਸਕਣ।",
+    fr: "La {kf} est une communauté de bénévoles qui crée des outils comme {sg} et {sttm} pour aider des millions de Sikhs à se connecter à la Gurbani.",
+    it: "La {kf} è una comunità di volontari che crea strumenti come {sg} e {sttm} per aiutare milioni di Sikh a connettersi con la Gurbani.",
+    es: "{kf} es una comunidad de voluntarios que crea herramientas como {sg} y {sttm} para ayudar a millones de sijs a conectar con la Gurbani.",
   },
   card_title: {
     en: "Seva with your support",
@@ -182,6 +196,7 @@ const mainMeansItem = (page, titleKey, subKey, lang) =>
 export const buildBundledSevaLayout = (langInput) => {
   const lang = normalizeBundledLang(langInput);
   const desc = pick(MAIN, "hero_desc", lang)
+    .replace("{kf}", `<a href="${LINKS.khalisWebsite}">${pick(MAIN, "hero_org", lang)}</a>`)
     .replace("{sg}", `<a href="${LINKS.khalisWebsite}">Sundar Gutka</a>`)
     .replace("{sttm}", `<a href="${LINKS.sttmWebsite}">SikhiToTheMax</a>`);
 
@@ -378,21 +393,29 @@ const MEANS = {
     it: "Segnala bug e suggerimenti tramite il nostro modulo.",
     es: "Reporta errores y sugerencias con nuestro formulario.",
   },
-  other_soon: {
-    en: "Have an idea?",
-    hi: "कोई विचार है?",
-    pa: "ਕੋਈ ਵਿਚਾਰ ਹੈ?",
-    fr: "Une idée ?",
-    it: "Hai un'idea?",
-    es: "¿Tienes una idea?",
+  other_intro: {
+    en: "Have an idea for another way to do seva? We'd love to hear from you.",
+    hi: "सेवा करने के किसी और तरीके का विचार है? हमें आपसे सुनना अच्छा लगेगा।",
+    pa: "ਸੇਵਾ ਕਰਨ ਦੇ ਕਿਸੇ ਹੋਰ ਤਰੀਕੇ ਦਾ ਵਿਚਾਰ ਹੈ? ਸਾਨੂੰ ਤੁਹਾਡੇ ਤੋਂ ਸੁਣ ਕੇ ਖੁਸ਼ੀ ਹੋਵੇਗੀ।",
+    fr: "Vous avez une idée pour une autre façon de faire seva ? Nous serions ravis de vous entendre.",
+    it: "Hai un'idea per un altro modo di fare seva? Ci farebbe piacere sentirti.",
+    es: "¿Tienes una idea para otra forma de hacer seva? Nos encantaría saber de ti.",
   },
-  other_soon_sub: {
-    en: "Can think of other ways to do seva? Let us know!",
-    hi: "सेवा करने के और तरीके सोच सकते हैं? हमें बताएं!",
-    pa: "ਸੇਵਾ ਕਰਨ ਦੇ ਹੋਰ ਤਰੀਕੇ ਸੋਚ ਸਕਦੇ ਹੋ? ਸਾਨੂੰ ਦੱਸੋ!",
-    fr: "Vous avez d’autres idées pour faire seva ? Dites-le-nous !",
-    it: "Hai altre idee per fare seva? Faccelo sapere!",
-    es: "¿Se te ocurren otras formas de hacer seva? ¡Cuéntanos!",
+  other_ideas: {
+    en: "Share your ideas",
+    hi: "अपने विचार साझा करें",
+    pa: "ਆਪਣੇ ਵਿਚਾਰ ਸਾਂਝੇ ਕਰੋ",
+    fr: "Partagez vos idées",
+    it: "Condividi le tue idee",
+    es: "Comparte tus ideas",
+  },
+  other_ideas_sub: {
+    en: "Send us your suggestions through our form.",
+    hi: "हमारे फ़ॉर्म से अपने सुझाव भेजें।",
+    pa: "ਸਾਡੇ ਫਾਰਮ ਰਾਹੀਂ ਆਪਣੇ ਸੁਝਾਅ ਭੇਜੋ।",
+    fr: "Envoyez-nous vos suggestions via notre formulaire.",
+    it: "Inviaci i tuoi suggerimenti tramite il nostro modulo.",
+    es: "Envíanos tus sugerencias a través de nuestro formulario.",
   },
   footer: {
     en: "Built by volunteers at Khalis Foundation.",
@@ -469,7 +492,10 @@ const PAGES = {
   },
   "seva-by-other": {
     titleKey: "title_other",
-    sections: [{ hero: true, headingKey: "other_soon", bodyKey: "other_soon_sub" }],
+    sections: [
+      { hero: true, headingKey: "other_soon", bodyKey: "other_soon_sub" },
+      { links: [{ titleKey: "other_ideas", subKey: "other_ideas_sub", url: LINKS.ideasForm }] },
+    ],
   },
 };
 
