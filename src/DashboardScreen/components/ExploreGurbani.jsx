@@ -1,5 +1,14 @@
 import React, { useCallback, useState } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Image } from "react-native";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Image,
+  Linking,
+  Platform,
+  NativeModules,
+} from "react-native";
 import Svg, { Path, Circle } from "react-native-svg";
 import PropTypes from "prop-types";
 import { useNavigation } from "@react-navigation/native";
@@ -15,8 +24,21 @@ import useAsyncSection from "./useAsyncSection";
 import useBaniLookup from "./useBaniLookup";
 
 const KHALIS_LOGO = require("../../assets/images/khalis.png");
+const SEHAJ_PATH_LOGO = require("../../assets/images/sehajpath.webp");
 const STTM_LOGO = require("../../assets/images/sikhi2max.webp");
 const SHABADAVALI_LOGO = require("../../assets/images/shabadavali.png");
+
+// Android: launched directly via the native AppLauncher module (see
+// AppLauncherModule.kt), which asks PackageManager for the app's own launcher
+// intent — a real app-to-app launch, not a Play Store listing. iOS has no
+// equivalent here (no custom URL scheme was provided for Sehaj Path), so it
+// always opens the App Store listing, which itself shows "Open" instead of
+// "Get" when the app is already installed.
+const SEHAJ_PATH_ANDROID_PKG = "com.khalis.sehajpathapp";
+const SEHAJ_PATH_STORE_URL = Platform.select({
+  ios: "https://apps.apple.com/us/app/khalis-sehaj-path/id6752426194",
+  default: "https://play.google.com/store/apps/details?id=com.khalis.sehajpathapp",
+});
 
 const SearchIcon = ({ color }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -48,7 +70,32 @@ const APP_TILES = [
   { id: "search", title: "Search Shabad", subtitle: "SikhiToTheMax", icon: "search", url: "https://www.sikhitothemax.org" },
   { id: "hukamnama", title: "Hukamnama", subtitle: "Sri Darbar Sahib", image: STTM_LOGO, url: "https://www.sikhitothemax.org/hukamnama" },
   { id: "shabadavali", title: "Learn a Word", subtitle: "Shabadavali", image: SHABADAVALI_LOGO, url: "https://shabadavali.com/en/login" },
+  {
+    id: "sehaj-path",
+    title: "Sehaj Path",
+    subtitle: "Khalis App",
+    image: SEHAJ_PATH_LOGO,
+    pkg: SEHAJ_PATH_ANDROID_PKG,
+    url: SEHAJ_PATH_STORE_URL,
+    deepLink: true,
+  },
 ];
+
+// Deep-links to the native Sehaj Path app instead of the in-app browser used
+// for the other tiles (those are plain websites). On Android, AppLauncher
+// resolves true if it found and launched the app; false means it isn't
+// installed (not an error) so we fall through to the store link either way.
+const openAppTile = async (t) => {
+  if (Platform.OS === "android" && t.pkg && NativeModules.AppLauncher) {
+    try {
+      const opened = await NativeModules.AppLauncher.openApp(t.pkg);
+      if (opened) return;
+    } catch (_) {
+      // Fall through to the store link below.
+    }
+  }
+  Linking.openURL(t.url).catch(() => {});
+};
 
 const ExploreGurbani = ({ refreshKey }) => {
   const { isDark, accentBlue, gold, mutedText, theme } = useDashboardTheme();
@@ -170,7 +217,7 @@ const ExploreGurbani = ({ refreshKey }) => {
         {APP_TILES.map((t) => (
           <DashboardCard key={t.id} style={styles.tile}>
             <Pressable
-              onPress={() => openInAppBrowser(t.url)}
+              onPress={() => (t.deepLink ? openAppTile(t) : openInAppBrowser(t.url))}
               style={({ pressed }) => pressed && styles.pressed}
               accessibilityRole="link"
               accessibilityLabel={t.title}
