@@ -492,8 +492,8 @@ const PAGES = {
   },
   "seva-by-other": {
     titleKey: "title_other",
+    introKey: "other_intro",
     sections: [
-      { hero: true, headingKey: "other_soon", bodyKey: "other_soon_sub" },
       { links: [{ titleKey: "other_ideas", subKey: "other_ideas_sub", url: LINKS.ideasForm }] },
     ],
   },

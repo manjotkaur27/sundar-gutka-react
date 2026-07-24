@@ -51,5 +51,21 @@ describe("sevaBundledContent — offline mirror of the backend layout", () => {
     it("returns null for an unknown page key", () => {
       expect(buildBundledMeansPage("seva-by-nope", "en")).toBeNull();
     });
+
+    it("Other-opportunities page is a plain intro + link, matching the other three pages (regression)", () => {
+      // Regression: the page model here previously still pointed at a
+      // "hero"/"other_soon" section that had been deleted from the
+      // translation dict when the backend restyled this page — leaving raw,
+      // untranslated key names ("other_soon") rendered as visible text for a
+      // brand-new offline user. No `class="seva-hero-title"` should exist on
+      // this page anymore, and no dictionary key should ever leak as text.
+      ["en", "hi", "pa", "fr", "it", "es"].forEach((lang) => {
+        const page = buildBundledMeansPage("seva-by-other", lang);
+        expect(page.content).toContain('class="seva-intro"');
+        expect(page.content).not.toContain('class="seva-hero-title"');
+        expect(page.content).not.toContain("other_soon");
+        expect(page.content).toContain('class="seva-footer"');
+      });
+    });
   });
 });
