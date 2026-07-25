@@ -22,8 +22,7 @@ export const createCommonMock = (overrides = {}) => {
     showErrorToast: jest.fn(),
     showInfoToast: jest.fn(),
     showSuccessToast: jest.fn(),
-    StatusBarComponent: ({ children, ...rest }) =>
-      React.createElement(RN.View, rest, children),
+    StatusBarComponent: ({ children, ...rest }) => React.createElement(RN.View, rest, children),
     trackSevaEvent: jest.fn(),
     openInAppBrowser: jest.fn(() => Promise.resolve()),
     useBackHandler: jest.fn(),

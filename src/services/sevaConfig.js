@@ -88,12 +88,11 @@ export const getSevaConfig = async () => {
  *
  * @param {Object} params
  * @param {number} params.amount
- * @param {boolean} params.isCustomAmount  - true when the donor typed a custom value
  * @param {'one_time'|'recurring'} params.donationType
  * @param {'Monthly'|'Annually'} [params.frequency]
  * @returns {string}
  */
-export const buildQgivUrl = ({ amount, isCustomAmount = false, donationType, frequency }) => {
+export const buildQgivUrl = ({ amount, donationType, frequency }) => {
   // TODO: replace with the real Qgiv form key
   let url = "https://secure.qgiv.com/for/khalisfoundation";
 

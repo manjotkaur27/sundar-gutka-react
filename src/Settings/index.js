@@ -5,13 +5,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import {
-  STRINGS,
-  StatusBarComponent,
-  SafeArea,
-  CustomText,
-  useBackHandler,
-} from "@common";
+import { STRINGS, StatusBarComponent, SafeArea, CustomText, useBackHandler } from "@common";
 import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
 import BaniLengthComponent from "./components/baniLength";
@@ -54,7 +48,12 @@ const Settings = ({ navigation }) => {
       <StatusBarComponent backgroundColor={theme.colors.surface} />
       {appBar}
       <LinearGradient
-        colors={["rgba(17,57,121,0)", "rgba(17,57,121,1)", "rgba(17,57,121,1)", "rgba(17,57,121,0)"]}
+        colors={[
+          "rgba(17,57,121,0)",
+          "rgba(17,57,121,1)",
+          "rgba(17,57,121,1)",
+          "rgba(17,57,121,0)",
+        ]}
         locations={[0, 0.48, 0.52, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

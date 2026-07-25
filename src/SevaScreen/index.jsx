@@ -15,7 +15,6 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from "react-native-svg";
 import { useDispatch, useSelector } from "react-redux";
-import PropTypes from "prop-types";
 import {
   SafeArea,
   StatusBarComponent,
@@ -510,10 +509,6 @@ const SevaScreen = () => {
       </ScrollView>
     </SafeArea>
   );
-};
-
-SevaScreen.propTypes = {
-  navigation: PropTypes.object,
 };
 
 export default SevaScreen;
