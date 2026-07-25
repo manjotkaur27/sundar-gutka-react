@@ -1,17 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
 import Svg, { Line } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PropTypes from "prop-types";
 import { CloseIcon, PersonIcon } from "@common/icons";
-import { CustomText } from "@common";
+import { CustomText, STRINGS } from "@common";
 import { getNanakshahiDate } from "../../services/dashboard";
 import { LAST_PUSH_KEY } from "../useDashboardSync";
 import useDashboardTheme from "./dashboardTheme";
-
-// Display name is fixed until a real account/profile feature exists.
-const DEFAULT_NAME = "User";
 
 const MenuIcon = ({ color }) => (
   <Svg
@@ -50,8 +48,8 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
 
   const dateLine = useMemo(() => {
     const now = new Date();
-    const weekday = now.toLocaleString("default", { weekday: "long" });
-    const dayMonth = now.toLocaleString("default", { day: "numeric", month: "long" });
+    const weekday = formatWeekdayLong(now);
+    const dayMonth = formatDayMonth(now);
     const nanak = getNanakshahiDate(now);
     return `${weekday} · ${dayMonth} · ${nanak.label}`;
   }, []);
@@ -66,15 +64,17 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
     AsyncStorage.getItem(LAST_PUSH_KEY).then((raw) => {
       if (!active) return;
       if (!raw) {
-        setLastSyncedLabel("never");
+        setLastSyncedLabel(STRINGS.NEVER);
         return;
       }
-      setLastSyncedLabel(new Date(Number(raw)).toLocaleString());
+      setLastSyncedLabel(formatDateTime(new Date(Number(raw))));
     });
     return () => {
       active = false;
     };
-  }, [refreshKey]);
+    // STRINGS.getLanguage() in deps so "never" / the formatted timestamp
+    // re-localise when the user switches language.
+  }, [refreshKey, STRINGS.getLanguage()]);
 
   const bg = isDark ? "#031329" : "#F4F7FC";
 
@@ -122,7 +122,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
             ]}
             numberOfLines={1}
           >
-            {DEFAULT_NAME}
+            {STRINGS.USER}
           </CustomText>
           {/* Gregorian + Nanakshahi date line (greeting removed per design). */}
           <CustomText style={[styles.date, { color: belowNameColor }]} numberOfLines={1}>
@@ -131,7 +131,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
           {/* Temporary testing readout — remove once cloud sync is verified. */}
           {lastSyncedLabel ? (
             <CustomText style={[styles.syncLine, { color: mutedText }]} numberOfLines={1}>
-              {`Last synced: ${lastSyncedLabel}`}
+              {`${STRINGS.LAST_SYNCED}: ${lastSyncedLabel}`}
             </CustomText>
           ) : null}
         </View>

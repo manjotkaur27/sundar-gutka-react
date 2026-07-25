@@ -65,11 +65,15 @@ const HeadphonesIcon = ({ color }) => (
 );
 HeadphonesIcon.propTypes = { color: PropTypes.string.isRequired };
 
+// `titleKey`/`subtitleKey`/`badgeKey` hold STRINGS keys for the localisable
+// labels (resolved at render time so a language switch applies); brand and
+// proper-noun labels (SikhiToTheMax, Shabadavali, Sehaj Path, Khalis App,
+// Sri Darbar Sahib) stay as literal `title`/`subtitle` — they aren't translated.
 const APP_TILES = [
-  { id: "khalis-ai", title: "Ask Khalis AI", subtitle: "Gurbani Q&A", image: KHALIS_LOGO, badge: "NEW", url: "https://www.sikhitothemax.org/" },
-  { id: "search", title: "Search Shabad", subtitle: "SikhiToTheMax", icon: "search", url: "https://www.sikhitothemax.org" },
-  { id: "hukamnama", title: "Hukamnama", subtitle: "Sri Darbar Sahib", image: STTM_LOGO, url: "https://www.sikhitothemax.org/hukamnama" },
-  { id: "shabadavali", title: "Learn a Word", subtitle: "Shabadavali", image: SHABADAVALI_LOGO, url: "https://shabadavali.com/en/login" },
+  { id: "khalis-ai", titleKey: "TILE_ASK_AI", subtitleKey: "TILE_GURBANI_QA", image: KHALIS_LOGO, badgeKey: "BADGE_NEW", url: "https://www.sikhitothemax.org/" },
+  { id: "search", titleKey: "TILE_SEARCH_SHABAD", subtitle: "SikhiToTheMax", icon: "search", url: "https://www.sikhitothemax.org" },
+  { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", image: STTM_LOGO, url: "https://www.sikhitothemax.org/hukamnama" },
+  { id: "shabadavali", titleKey: "TILE_LEARN_WORD", subtitle: "Shabadavali", image: SHABADAVALI_LOGO, url: "https://shabadavali.com/en/login" },
   {
     id: "sehaj-path",
     title: "Sehaj Path",
@@ -214,13 +218,19 @@ const ExploreGurbani = ({ refreshKey }) => {
           />
         ) : null}
 
-        {APP_TILES.map((t) => (
+        {APP_TILES.map((t) => {
+          // Resolve localisable labels from STRINGS; brand/proper-noun labels
+          // fall through to the literal title/subtitle on the tile.
+          const title = t.titleKey ? STRINGS[t.titleKey] : t.title;
+          const subtitle = t.subtitleKey ? STRINGS[t.subtitleKey] : t.subtitle;
+          const badge = t.badgeKey ? STRINGS[t.badgeKey] : t.badge;
+          return (
           <DashboardCard key={t.id} style={styles.tile}>
             <Pressable
               onPress={() => (t.deepLink ? openAppTile(t) : openInAppBrowser(t.url))}
               style={({ pressed }) => pressed && styles.pressed}
               accessibilityRole="link"
-              accessibilityLabel={t.title}
+              accessibilityLabel={title}
             >
               <View style={styles.iconRow}>
                 <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
@@ -230,21 +240,22 @@ const ExploreGurbani = ({ refreshKey }) => {
                     <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
                   )}
                 </View>
-                {t.badge ? (
+                {badge ? (
                   <View style={[styles.badge, { backgroundColor: gold }]}>
-                    <CustomText style={styles.badgeText}>{t.badge}</CustomText>
+                    <CustomText style={styles.badgeText}>{badge}</CustomText>
                   </View>
                 ) : null}
               </View>
               <CustomText style={[styles.title, { color: titleColor, fontFamily: titleFont }]} numberOfLines={2}>
-                {t.title}
+                {title}
               </CustomText>
               <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>
-                {t.subtitle}
+                {subtitle}
               </CustomText>
             </Pressable>
           </DashboardCard>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
+import { weekdayNarrow, formatDayMonth } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant } from "@common";
@@ -10,7 +11,6 @@ import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
 
-const DAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
@@ -50,7 +50,7 @@ const WeekChart = ({ refreshKey }) => {
     const max = Math.max(1, ...mins);
     setBars(
       days.map((d, i) => ({
-        letter: DAY_LETTER[d.getDay()],
+        letter: weekdayNarrow(d.getDay()),
         mins: mins[i],
         ratio: mins[i] / max,
         isToday: ymd(d) === todayKey,
@@ -81,13 +81,13 @@ const WeekChart = ({ refreshKey }) => {
     const first = days[0];
     const last = days[6];
     const sameMonth = first.getMonth() === last.getMonth();
-    const firstLabel = first.toLocaleString("default", { month: "short", day: "numeric" });
-    const lastLabel = last.toLocaleString(
-      "default",
-      sameMonth ? { day: "numeric" } : { month: "short", day: "numeric" }
-    );
+    const firstLabel = formatDayMonth(first, true);
+    // Within one month, the closing label is just the day number ("Jan 5 – 11").
+    const lastLabel = sameMonth ? String(last.getDate()) : formatDayMonth(last, true);
     return `${firstLabel} – ${lastLabel}`;
-  }, [weekOffset, days]);
+    // STRINGS.getLanguage() in deps so the label (THIS_WEEK / month names)
+    // recomputes when the user switches app language, not just on week change.
+  }, [weekOffset, days, STRINGS.getLanguage()]);
 
   return (
     <View>

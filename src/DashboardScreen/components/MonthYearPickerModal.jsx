@@ -4,21 +4,11 @@ import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight, CloseIcon } from "@common/icons";
 import { CustomText, constant } from "@common";
 import useDashboardTheme from "./dashboardTheme";
+import { monthShort } from "@common/dateLocale";
 
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+// Localised short month labels (Jan…Dec in the app language), built at render
+// time so a language switch is reflected immediately.
+const monthLabels = () => Array.from({ length: 12 }, (_, i) => monthShort(i));
 
 // How far below its resting position the sheet starts/ends — must clear the
 // sheet's own rendered height (handle + header + 3 grid rows) so the slide
@@ -154,7 +144,7 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           </View>
 
           <View style={styles.grid}>
-            {MONTH_LABELS.map((label, i) => {
+            {monthLabels().map((label, i) => {
               const m = i + 1;
               const enabled = isMonthEnabled(viewYear, m);
               const isSelected = viewYear === year && m === month;

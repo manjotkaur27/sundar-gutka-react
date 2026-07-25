@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { View, ScrollView, Image, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
+import { weekdayNarrow } from "@common/dateLocale";
 import PropTypes from "prop-types";
 // Aliased: this file already defines its own local ChevronRight (the
 // flower-strip scroll hint below) — importing the shared icon under the same
@@ -35,7 +36,6 @@ const FLOWERS = [
 // Streak (days) required to reach each of the 13 stages. Stage 1 starts at day 1.
 const THRESHOLDS = [1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 180, 270, 365];
 
-const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
@@ -195,7 +195,7 @@ const StreakCard = ({ refreshKey }) => {
       const key = ymd(d);
       return {
         date: key,
-        letter: DAY_LETTERS[d.getDay()],
+        letter: weekdayNarrow(d.getDay()),
         done: qualifies(map[key]),
         hasActivity: hasAnyActivity(map[key]),
         isToday: key === todayStr,

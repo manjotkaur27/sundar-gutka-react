@@ -8,22 +8,6 @@ import { readFreshCache, writeCache } from "./dailyCache";
 // device timezone. v3: IST-dated fetch + IST cache key + dateLabel.
 const CACHE_KEY = "@daily_vaak_cache_v3";
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
 // Current wall-clock date in IST (UTC+5:30, no DST), regardless of device tz.
 const istParts = () => {
   const now = new Date();
@@ -34,10 +18,6 @@ const istParts = () => {
 const istDateKey = () => {
   const { y, m, d } = istParts();
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-};
-const istDateLabel = () => {
-  const { y, m, d, wd } = istParts();
-  return `${WEEKDAYS[wd]}, ${d} ${MONTHS[m - 1]} ${y}`;
 };
 
 // Today's Vaak — the official daily Hukamnama from Sri Darbar Sahib, shown exactly
@@ -103,7 +83,7 @@ const fromBaniDb = (data) => {
     ang: info?.pageNo ?? picked[0]?.pageNo ?? verses[0]?.pageNo ?? null,
     shabadId: info?.shabadId ?? null,
     source: "Sri Darbar Sahib",
-    dateLabel: istDateLabel(),
+    istDate: istDateKey(),
     _source: "banidb",
   };
 };
@@ -119,7 +99,7 @@ const parseVaak = (data) => {
       ang: data.ang ?? null,
       shabadId: data.shabadId ?? null,
       source: data.source ?? "Sri Darbar Sahib",
-      dateLabel: istDateLabel(),
+      istDate: istDateKey(),
       _source: "api",
     };
   }

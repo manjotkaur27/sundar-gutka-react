@@ -120,7 +120,7 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
           <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
             <CustomText style={[styles.meta, { color: mutedText }]}>
-              {[shabad.ang ? `Ang ${shabad.ang}` : null, shabad.raag || null]
+              {[shabad.ang ? `${STRINGS.ANG} ${shabad.ang}` : null, shabad.raag || null]
                 .filter(Boolean)
                 .join(" · ")}
             </CustomText>

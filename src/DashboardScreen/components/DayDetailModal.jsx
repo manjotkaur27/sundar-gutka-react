@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Modal, StyleSheet, Pressable } from "react-native";
 import { BlurView } from "@react-native-community/blur";
 import Svg, { Path } from "react-native-svg";
+import { formatDayMonth } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, logError } from "@common";
 import { getDayDetail, getDayActivity } from "../../database/analytics";
@@ -107,7 +108,7 @@ HeadphoneIcon.propTypes = {
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
   const [y, mo, d] = dateStr.split("-").map(Number);
-  return new Date(y, mo - 1, d).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  return formatDayMonth(new Date(y, mo - 1, d));
 };
 
 const DayDetailModal = ({ visible, date, onClose }) => {

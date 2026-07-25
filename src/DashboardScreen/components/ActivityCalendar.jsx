@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline, Path } from "react-native-svg";
+import { weekdayNarrowRow, monthLong } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, constant, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
 import DayDetailModal from "./DayDetailModal";
 
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
 const ChevronLeft = ({ color }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -103,7 +103,7 @@ const ActivityCalendar = ({ refreshKey }) => {
     setModalVisible(true);
   }, [year, month]);
 
-  const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
+  const monthName = monthLong(month - 1);
   const rows = buildWeekRows(year, month);
 
   const getDayState = (d) => {
@@ -156,7 +156,7 @@ const ActivityCalendar = ({ refreshKey }) => {
 
       {/* Day labels */}
       <View style={styles.weekRow}>
-        {DAY_LABELS.map((l, i) => (
+        {weekdayNarrowRow(true).map((l, i) => (
           <View key={i} style={styles.cell}>
             <CustomText style={[styles.dayLabel, { color: theme.colors.textDisabled }]}>{l}</CustomText>
           </View>

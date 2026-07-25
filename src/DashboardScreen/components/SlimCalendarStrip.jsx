@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, Animated } from "react-native";
+import { weekdayNarrow } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, constant, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
 
-const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
 const getTodayStr = () => {
   const now = new Date();
@@ -105,7 +105,7 @@ const SlimCalendarStrip = ({ refreshKey }) => {
           return (
             <View key={dow} style={styles.cell}>
               <CustomText style={[styles.dayLetter, { color: theme.colors.textDisabled }]}>
-                {DAY_LETTERS[dow]}
+                {weekdayNarrow(dow)}
               </CustomText>
               <View
                 style={[

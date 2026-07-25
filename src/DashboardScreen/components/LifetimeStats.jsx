@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
-import { CustomText, useTheme, logError } from "@common";
+import { CustomText, useTheme, logError, STRINGS } from "@common";
 import { getOrCreateSummary, getAllTimeTotals } from "../../database/analytics";
 
 const formatStatTime = (secs) => {
-  if (!secs) return { value: "0", unit: "min" };
+  if (!secs) return { value: "0", unit: STRINGS.UNIT_MIN };
   const totalMins = Math.floor(secs / 60);
-  if (totalMins < 60) return { value: String(totalMins), unit: "min" };
-  return { value: String(Math.floor(secs / 3600)), unit: "hrs" };
+  if (totalMins < 60) return { value: String(totalMins), unit: STRINGS.UNIT_MIN };
+  return { value: String(Math.floor(secs / 3600)), unit: STRINGS.UNIT_HRS };
 };
 
 const StatBlock = ({ value, unit, label, theme, accentBlue }) => (
@@ -60,7 +60,7 @@ const LifetimeStats = ({ refreshKey }) => {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
-        Lifetime
+        {STRINGS.LIFETIME}
       </CustomText>
 
       {/* Row 1: Reading + Listening with vertical divider */}
@@ -68,7 +68,7 @@ const LifetimeStats = ({ refreshKey }) => {
         <StatBlock
           value={readStat.value}
           unit={readStat.unit}
-          label="TOTAL READING"
+          label={STRINGS.STAT_TOTAL_READING}
           theme={theme}
           accentBlue={accentBlue}
         />
@@ -76,7 +76,7 @@ const LifetimeStats = ({ refreshKey }) => {
         <StatBlock
           value={listenStat.value}
           unit={listenStat.unit}
-          label="TOTAL LISTENING"
+          label={STRINGS.STAT_TOTAL_LISTENING}
           theme={theme}
           accentBlue={accentBlue}
         />
@@ -86,8 +86,8 @@ const LifetimeStats = ({ refreshKey }) => {
       <View style={[styles.statsRow, styles.row2]}>
         <StatBlock
           value={longestStreak}
-          unit="days"
-          label="LONGEST STREAK"
+          unit={STRINGS.UNIT_DAYS}
+          label={STRINGS.LONGEST_STREAK}
           theme={theme}
           accentBlue={accentBlue}
         />
@@ -95,8 +95,8 @@ const LifetimeStats = ({ refreshKey }) => {
         <View style={[styles.vertDivider, { opacity: 0 }]} />
         <StatBlock
           value={activeDays}
-          unit="total"
-          label="ACTIVE DAYS"
+          unit={STRINGS.UNIT_TOTAL}
+          label={STRINGS.TOTAL_ACTIVE_DAYS}
           theme={theme}
           accentBlue={accentBlue}
         />
@@ -159,6 +159,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 1.2,
+    // Uppercases Latin-script labels for the original look; a no-op for
+    // Devanagari/Gurmukhi (which have no letter case), so those read naturally.
+    textTransform: "uppercase",
   },
 });
 

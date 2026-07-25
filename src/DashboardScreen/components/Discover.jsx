@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS } from "@common";
+import { gurmukhiToDevanagari } from "@common/gurmukhiToDevanagari";
 import { getWordOfDay, getNextEvent } from "../../services/dashboard";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
@@ -26,6 +27,22 @@ const Discover = ({ refreshKey }) => {
   const upcomingNumColor = isDark ? "#ffffffff" : "#113879";
   const [word, setWord] = useState(null);
   const [event, setEvent] = useState(null);
+
+  // Show the featured word in the READER's own script, not always Gurmukhi:
+  //   Punjabi → ਸੰਤ (Gurmukhi, as sourced) · Hindi → संत (converted to
+  //   Devanagari) · English + other Latin locales → "Sant" (roman). The word
+  //   itself comes from the live hukamnama/BaniDB word-of-day (Gurmukhi +
+  //   roman); Devanagari is derived on the fly since the feed has no Hindi form.
+  const lang = STRINGS.getLanguage();
+  let displayWord = "—";
+  if (word) {
+    if (lang === "pa") displayWord = word.gurmukhi;
+    else if (lang === "hi") displayWord = gurmukhiToDevanagari(word.gurmukhi);
+    else displayWord = word.transliteration || word.gurmukhi;
+  }
+  // Gurbani font only renders Gurmukhi; Devanagari/Latin use the app font
+  // (Devanagari falls back to the system script font for those glyphs).
+  const wordFont = lang === "pa" ? gurbaniFont : theme.typography.fonts.balooPaajiSemiBold;
 
   // Each tile fetches (and can fail/retry) independently, so a broken
   // upcoming-event lookup never takes the word-of-day tile down with it.
@@ -70,7 +87,7 @@ const Discover = ({ refreshKey }) => {
                   styles.word,
                   {
                     color: cardMainColor,
-                    fontFamily: gurbaniFont,
+                    fontFamily: wordFont,
                     // Faux-bold to match the streak count / practice numbers.
                     textShadowColor: cardMainColor,
                     textShadowOffset: { width: 0.5, height: 0 },
@@ -79,10 +96,13 @@ const Discover = ({ refreshKey }) => {
                 ]}
                 numberOfLines={1}
               >
-                {word?.gurmukhi ?? "—"}
+                {displayWord}
               </CustomText>
               <CustomText style={[styles.translit, { color: cardSecondaryColor }]} numberOfLines={1}>
-                {word?.transliteration ?? ""}
+                {/* Roman helper line — redundant when the main word already IS
+                    the roman form (English/other Latin locales), so show it
+                    only under the Gurmukhi/Devanagari scripts. */}
+                {lang === "pa" || lang === "hi" ? word?.transliteration ?? "" : ""}
               </CustomText>
               <CustomText style={[styles.meaning, { color: cardSecondaryColor }]} numberOfLines={4}>
                 {word?.meaning ?? ""}

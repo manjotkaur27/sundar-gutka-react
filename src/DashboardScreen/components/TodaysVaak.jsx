@@ -3,12 +3,22 @@ import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, logError, openInAppBrowser } from "@common";
+import { formatFullDate } from "@common/dateLocale";
 import { getDailyVaak } from "../../services/dashboard";
 import { OfflineError } from "../../services/dashboard/connectivity";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import OfflineNotice from "./OfflineNotice";
 import SkeletonBlock from "./SkeletonBlock";
+
+// "2026-07-25" (IST calendar date) → localised "Saturday, 25 July 2026". Built
+// from the Y/M/D parts so the weekday is the IST date's weekday regardless of
+// the device timezone (no UTC-parse drift).
+const formatIstDate = (isoDate) => {
+  const [y, m, d] = String(isoDate).split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return formatFullDate(new Date(y, m - 1, d));
+};
 
 const ChevronRight = ({ color }) => (
   <Svg
@@ -99,10 +109,13 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
           {STRINGS.TODAYS_VAAK.toUpperCase()}
         </CustomText>
       )}
-      {/* Hukamnama date — shown in IST (the day rolls over at Sri Darbar Sahib). */}
-      {vaak?.dateLabel ? (
+      {/* Hukamnama date — shown in IST (the day rolls over at Sri Darbar Sahib),
+          localised to the app language at render (so a language switch applies
+          without waiting for the next day's fetch). Falls back to a legacy
+          pre-formatted dateLabel from an older cached vaak. */}
+      {vaak?.istDate || vaak?.dateLabel ? (
         <CustomText style={[styles.dateLine, { color: translationColor }]}>
-          {`${vaak.dateLabel} · IST`}
+          {`${vaak?.istDate ? formatIstDate(vaak.istDate) : vaak.dateLabel} · IST`}
         </CustomText>
       ) : null}
       {/* dailyVaak.js already filters the heading verse out and picks exactly
@@ -123,7 +136,9 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
           <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
             <CustomText style={[styles.meta, { color: mutedText }]}>
-              {[vaak.ang ? `Ang ${vaak.ang}` : null, vaak.raag || null].filter(Boolean).join(" · ")}
+              {[vaak.ang ? `${STRINGS.ANG} ${vaak.ang}` : null, vaak.raag || null]
+                .filter(Boolean)
+                .join(" · ")}
             </CustomText>
             {/* Tap to read the full hukamnama on SikhiToTheMax. */}
             <Pressable

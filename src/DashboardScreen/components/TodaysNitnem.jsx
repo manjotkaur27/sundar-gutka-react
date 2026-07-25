@@ -148,7 +148,9 @@ const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFon
           <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont }]}>
             {done}/{total}
           </CustomText>
-          <CustomText style={[styles.ringLabel, { color: labelColor }]}>banis</CustomText>
+          <CustomText style={[styles.ringLabel, { color: labelColor }]}>
+            {STRINGS.BANIS_LABEL}
+          </CustomText>
         </View>
       </View>
     </View>

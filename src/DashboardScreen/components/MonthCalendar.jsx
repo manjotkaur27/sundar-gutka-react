@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Pressable, StyleSheet, PanResponder } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import { weekdayNarrowRow, formatMonthYear } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
@@ -12,7 +13,6 @@ import SectionError from "./SectionError";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
 
-const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 // Fallback only — the real circle size is derived from the measured grid width
 // (see `circle` below) so 7 columns always fit, on a small phone or a tablet.
 const CIRCLE_FALLBACK = 36;
@@ -257,8 +257,7 @@ const MonthCalendar = ({ refreshKey }) => {
     [year, month, activityMap, todayStr]
   );
 
-  const monthName = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
-  const monthYearLabel = `${monthName} ${year}`;
+  const monthYearLabel = formatMonthYear(new Date(year, month - 1, 1));
   const rows = buildWeekRows(year, month);
   const canGoPrev = !(year === floorYear && month === floorMonth);
   const canGoNext = year < curYM.year || (year === curYM.year && month < curYM.month);
@@ -344,7 +343,7 @@ const MonthCalendar = ({ refreshKey }) => {
         </View>
 
         <View style={styles.weekRow}>
-          {DAY_LABELS.map((l, i) => (
+          {weekdayNarrowRow(false).map((l, i) => (
             <View key={i} style={styles.cell}>
               <CustomText style={[styles.dayLabel, { color: mutedText }]}>{l}</CustomText>
             </View>
