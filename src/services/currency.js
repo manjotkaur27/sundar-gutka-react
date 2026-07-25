@@ -1,46 +1,51 @@
 import { NativeModules, Platform } from "react-native";
+import { getLiveRate } from "./exchangeRates";
 
 /**
  * Currency localisation for the Seva page.
  *
  * The donation is ultimately processed by Qgiv **in USD** — the app cannot
  * charge in other currencies. So this module keeps a single USD "base" ladder
- * ($10 / $50 / $100) and only localises how those figures are *displayed*:
+ * ($10 / $50 / $100) and localises it two ways:
  *   • the right symbol for the donor's region (₹, $, CA$, €, A$, £), and
- *   • a "simplified" round figure (e.g. $10 shown as ₹1000 in India — a x100
- *     factor, per the product spec: "$10 in USD can be shown as Rs. 1000").
- * Whatever the donor picks or types is converted **back to USD** before the
- * Qgiv hand-off, so the charge always matches the base tier.
+ *   • a *real* conversion at live ECB exchange rates (services/exchangeRates.js),
+ *     rounded to a clean local figure for display (e.g. the $10 tier shows as
+ *     CA$15, not CA$14.09).
+ * Whatever the donor picks or types (a local figure) is converted **back to USD
+ * at the same live rate and rounded to whole dollars** before the Qgiv hand-off,
+ * so Qgiv is prefilled with the correct USD amount for what the donor saw.
+ *
+ * The `rate` values below are STATIC FALLBACKS (local units per 1 USD, roughly
+ * current). They're used only until — or when — live rates are unavailable
+ * (first launch before the fetch lands, offline, or the FX endpoint is down),
+ * so conversion always works fully offline. getLiveRate() overrides them the
+ * moment real rates are cached; see effectiveRate() below.
  *
  * Region prefers the backend's IP-resolved countryCode (SevaScreen passes
  * `config?.countryCode` in) — more accurate than locale for "what jurisdiction
  * is this donor actually in right now". Falls back to the device locale
- * whenever that's unavailable (first render before the config has loaded,
- * offline, or the backend sent no country header), so this always works
- * fully offline / on first launch too. Defaults to USD for anywhere not in
- * the table below.
+ * whenever that's unavailable. Defaults to USD for anywhere not in the table.
  */
 
-// symbol = what the donor sees; rate = local units per 1 USD (display only).
-// Non-INR currencies use rate 1 (round, plausible figures at the same tier),
-// matching the "simplified figures" intent; INR uses x100 so amounts read
-// naturally (₹10 would feel tiny; ₹1000 does not).
+// symbol = what the donor sees; rate = static fallback (local units per 1 USD),
+// overridden by live ECB rates when available (see effectiveRate).
 // NB: the ₹ (U+20B9) glyph renders as a Devanagari-style form in the app's Baloo
 // Paaji font, so the Seva UI draws currency *symbols* in the system font (which
 // has a correct ₹) while keeping the digits in Baloo — see styles.symbolFont.
 //
 // `presets` (optional) are the LOCAL suggested-amount tiers to show for that
 // currency; the first is the default/base. When absent, the app derives tiers
-// from the backend's USD base amounts × rate. INR uses its own round local
-// ladder (₹100 / ₹1,000 / ₹5,000, base ₹100) per product; those map back to
-// USD via `rate` for the Qgiv charge (₹100 → $1, ₹1,000 → $10, ₹5,000 → $50).
+// from the backend's USD base amounts × rate, nice-rounded for display. INR
+// keeps its own fixed round ladder (₹100 / ₹1,000 / ₹5,000, base ₹100) per
+// product; those convert to USD via the live rate for the Qgiv charge
+// (≈ ₹100 → $1, ₹1,000 → $10, ₹5,000 → $52 at ~₹96/USD).
 export const CURRENCIES = {
   USD: { symbol: "$", rate: 1 },
-  CAD: { symbol: "CA$", rate: 1 },
-  EUR: { symbol: "€", rate: 1 },
-  AUD: { symbol: "A$", rate: 1 },
-  GBP: { symbol: "£", rate: 1 },
-  INR: { symbol: "₹", rate: 100, presets: [100, 1000, 5000] },
+  CAD: { symbol: "CA$", rate: 1.41 },
+  EUR: { symbol: "€", rate: 0.88 },
+  AUD: { symbol: "A$", rate: 1.43 },
+  GBP: { symbol: "£", rate: 0.75 },
+  INR: { symbol: "₹", rate: 96, presets: [100, 1000, 5000] },
 };
 
 export const DEFAULT_CURRENCY_CODE = "USD";
@@ -131,24 +136,52 @@ const asCurrency = (currency) => {
   return { code, ...CURRENCIES[code] };
 };
 
+/**
+ * The rate to convert with: the live ECB rate for this currency when we have it,
+ * else the static fallback baked into CURRENCIES. Keeping this in one place means
+ * display figures and the Qgiv USD charge always use the SAME rate, so what the
+ * donor sees and what they're charged can never drift apart.
+ */
+const effectiveRate = (c) => getLiveRate(c.code) ?? c.rate;
+
 /** Groups thousands with commas without relying on Intl (Hermes-safe). */
 const groupThousands = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-/** A USD base amount → its localised **display** figure (rounded, whole). */
+/**
+ * Rounds a raw converted local figure to a clean, donation-friendly number so
+ * the cards read nicely (e.g. CA$14.09 → CA$15, £75.1 → £75), with the step
+ * scaling by magnitude. Small tiers snap to 5s, mid tiers to 10s, large to
+ * 25/100/500. Never returns 0 for a positive input (floors at one step).
+ */
+export const niceRoundLocal = (value) => {
+  const v = Number(value) || 0;
+  if (v <= 0) return 0;
+  let step;
+  if (v < 30) step = 5;
+  else if (v < 150) step = 10;
+  else if (v < 600) step = 25;
+  else if (v < 2000) step = 100;
+  else step = 500;
+  return Math.max(step, Math.round(v / step) * step);
+};
+
+/** A USD base amount → its raw localised figure at the effective rate (whole). */
 export const usdToLocal = (usd, currency) => {
   const c = asCurrency(currency);
-  return Math.round((Number(usd) || 0) * c.rate);
+  return Math.round((Number(usd) || 0) * effectiveRate(c));
 };
 
 /**
- * A locally-entered/displayed figure → the USD amount to hand to Qgiv, kept to
- * 2 decimals. This is the inverse of usdToLocal, so a selected preset round-trips
- * back to its exact base tier.
+ * A locally-entered/displayed figure → the USD amount to hand to Qgiv, converted
+ * at the same effective (live) rate and **rounded to whole US dollars** — Qgiv is
+ * prefilled with a clean figure, and it matches the donor's ₹1000 → $10 mental
+ * model. Floors at $1 so a hand-off can never be $0.
  */
 export const localToUsd = (local, currency) => {
   const c = asCurrency(currency);
-  const usd = (Number(local) || 0) / c.rate;
-  return Math.round(usd * 100) / 100;
+  const usd = (Number(local) || 0) / effectiveRate(c);
+  if (!(usd > 0)) return 0;
+  return Math.max(1, Math.round(usd));
 };
 
 /** A whole number with thousands grouping and no symbol, e.g. 1000 → "1,000". */
@@ -160,9 +193,14 @@ export const formatCurrency = (amount, currency) => {
   return `${c.symbol}${formatNumber(amount)}`;
 };
 
-/** Maps the USD preset ladder to localised display figures. */
+/**
+ * Maps the USD preset ladder to localised **display** figures — converted at the
+ * live rate, then nice-rounded so the cards show clean numbers (CA$15, not
+ * CA$14.09). USD itself stays exact (its rate is 1, so nice-rounding a round
+ * base tier is a no-op).
+ */
 export const localPresets = (usdPresets, currency) =>
-  (usdPresets || []).map((usd) => usdToLocal(usd, currency));
+  (usdPresets || []).map((usd) => niceRoundLocal(usdToLocal(usd, currency)));
 
 /**
  * The LOCAL preset ladder to display for a currency, resolving in priority order:

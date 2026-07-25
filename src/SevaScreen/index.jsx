@@ -47,6 +47,7 @@ import {
   resolveLocalPresets,
 } from "../services/currency";
 import { getSevaConfig, buildQgivUrl, markSevaSeen } from "../services/sevaConfig";
+import { initExchangeRates } from "../services/exchangeRates";
 import { prewarmSevaMeans } from "../services/sevaMeans";
 import createStyles from "./styles";
 import { parseHtmlBlocks, blockText } from "./utils/parseHtmlBlocks";
@@ -231,6 +232,11 @@ const SevaScreen = () => {
             setLoading(true);
             setError(false);
           }
+          // Warm live FX rates (from cache — fast) before resolving the config,
+          // so the very first render's donation tiers + default are already in
+          // real, correctly-converted local figures (no fallback-then-swap
+          // flicker). The daily network refresh it triggers is fire-and-forget.
+          await initExchangeRates();
           const cfg = await getSevaConfig(language);
           if (!active) return;
           setConfig(cfg);
