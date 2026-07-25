@@ -57,12 +57,13 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   const [mounted, setMounted] = useState(visible);
   const translateY = useRef(new Animated.Value(visible ? 0 : SHEET_TRAVEL)).current;
   const dimOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const animRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
       setViewYear(today.year);
       setMounted(true);
-      Animated.parallel([
+      animRef.current = Animated.parallel([
         Animated.timing(dimOpacity, {
           toValue: 1,
           duration: 200,
@@ -75,9 +76,10 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start();
+      ]);
+      animRef.current.start();
     } else if (mounted) {
-      Animated.parallel([
+      animRef.current = Animated.parallel([
         Animated.timing(dimOpacity, {
           toValue: 0,
           duration: 180,
@@ -90,8 +92,15 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start(() => setMounted(false));
+      ]);
+      animRef.current.start(() => setMounted(false));
     }
+    // Stop the in-flight native-driven slide on unmount (e.g. the dashboard
+    // itself unmounts while the sheet is still animating open/closed).
+    // Otherwise the driver keeps updating props on a node whose backing value
+    // may already be torn down, crashing in PropsAnimatedNode.updateView with
+    // "Mapped property node does not exist".
+    return () => animRef.current?.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 

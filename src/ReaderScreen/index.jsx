@@ -574,6 +574,14 @@ const Reader = ({ navigation, route }) => {
           showsVerticalScrollIndicator
           showsHorizontalScrollIndicator={false}
           onContentProcessDidTerminate={reloadWebView}
+          // Android equivalent of onContentProcessDidTerminate above: when the
+          // Chromium renderer process dies out-of-process, react-native-webview
+          // returns true so Android doesn't kill our app — but the WebView is
+          // dead and would otherwise sit blank. Reload it the same way an iOS
+          // content-process death is already handled. (Cannot catch the
+          // in-process/low-memory SIGBUS case — that tears down the whole
+          // process before any JS handler can run.)
+          onRenderProcessGone={reloadWebView}
           source={webViewSource}
           backgroundColor={readerBgColor}
           style={[

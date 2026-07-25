@@ -33,6 +33,17 @@ const loadRNTP = () => {
   return _rntp;
 };
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// RNTP's own native foreground check (AppForegroundTracker) is a separate
+// Activity-lifecycle observer from RN's AppState module, so it can still lag
+// a beat behind — waitForForeground() can resolve a moment before the native
+// side agrees the app is foreground. Bounded retry below absorbs that gap
+// instead of stranding the player in a deferred state until the user
+// manually retries.
+const MAX_SETUP_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 500;
+
 // Singleton service to manage TrackPlayer initialization
 class TrackPlayerService {
   constructor() {
@@ -55,72 +66,23 @@ class TrackPlayerService {
     // Create initialization promise
     this.initPromise = (async () => {
       try {
-        // Never start the player's foreground service from the background —
-        // wait until the app is foreground first (Android 12+ FGS restriction).
-        await waitForForeground();
-
-        logMessage("Initializing TrackPlayer service...");
-
-        // Resolve RNTP lazily here — by the time initialize() is called the
-        // native module is guaranteed to be registered by the Android runtime.
-        const TrackPlayer = loadRNTP().default;
-        const { Capability, RepeatMode, AppKilledPlaybackBehavior } = loadRNTP();
-
-        await TrackPlayer.setupPlayer({
-          // waitForBuffer: true makes ExoPlayer/AVPlayer pause (transition to
-          // Buffering state) when the stream buffer runs dry, instead of silently
-          // advancing the position counter with no audio output. The auto-resume
-          // watchdog in useTrackPlayer handles recovery when the buffer refills.
-          // Combined with playbackBuffer: 1, initial playback starts after just
-          // 1 second of buffering — fast enough for good UX.
-          waitForBuffer: true,
-          maxCacheSize: 51200, // 50 MB ExoPlayer cache
-          minBuffer: 5, // Android: keep ≥5s buffered ahead
-          maxBuffer: 30, // Android: buffer up to 30s ahead
-          backBuffer: 0, // Android: no back-buffer (saves memory)
-          playbackBuffer: 1, // Android: start playing once 1s is buffered
-          iosCategory: "playback",
-        });
-
-        await TrackPlayer.setRepeatMode(RepeatMode.Off);
-
-        await TrackPlayer.updateOptions({
-          // Fewer progress events -> less UI/notification churn on low-end devices.
-          progressUpdateEventInterval: 2,
-          // Small icon shown in Android notification (RNTP v4 expects a JS map with a uri field)
-          icon: { uri: "ic_notification" },
-          android: {
-            appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-            notificationChannelName: "Sundar Gutka Playback V4",
-            notificationChannelDescription: "Gurbani audio playback controls",
-            notificationColor: 0xffeeb14f,
-          },
-          capabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.SkipToNext,
-            Capability.SkipToPrevious,
-            Capability.Stop,
-          ],
-          compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
-        });
-
+        await this._setupWithRetry();
         this.isInitialized = true;
         logMessage("TrackPlayer service initialized successfully");
       } catch (error) {
-        // If setupPlayer throws because it's already initialized, that's okay
         if (
           error?.message?.includes("already initialized") ||
           error?.code === "player_already_initialized"
         ) {
           this.isInitialized = true;
           logMessage("TrackPlayer already initialized");
-        } else if (error?.code === "android_cannot_setup_player_in_background") {
-          // Android 12+ refused to start the playback foreground service (the app
-          // wasn't in a foreground-service-eligible state). The native side (patched
-          // MusicModule) now rejects instead of crashing — swallow it here so there
-          // is no unhandled rejection; setup stays uninitialised and simply retries
-          // the next time it's requested from the foreground.
+        } else if (
+          error?.code === "android_cannot_setup_player_in_background" ||
+          error?.message?.includes("must be in the foreground")
+        ) {
+          // Still backgrounded after every retry — genuinely defer; the next
+          // manual retry (or app.js's own foreground-triggered setup) will
+          // pick this back up.
           this.isInitialized = false;
           logMessage(
             `TrackPlayer setup deferred (foreground service not allowed): ${error?.message}`,
@@ -136,6 +98,74 @@ class TrackPlayerService {
     })();
 
     return this.initPromise;
+  }
+
+  async _setupWithRetry(attempt = 1) {
+    // Never start the player's foreground service from the background —
+    // wait until the app is foreground first (Android 12+ FGS restriction).
+    await waitForForeground();
+
+    logMessage("Initializing TrackPlayer service...");
+
+    // Resolve RNTP lazily here — by the time initialize() is called the
+    // native module is guaranteed to be registered by the Android runtime.
+    const TrackPlayer = loadRNTP().default;
+    const { Capability, RepeatMode, AppKilledPlaybackBehavior } = loadRNTP();
+
+    try {
+      await TrackPlayer.setupPlayer({
+        // waitForBuffer: true makes ExoPlayer/AVPlayer pause (transition to
+        // Buffering state) when the stream buffer runs dry, instead of silently
+        // advancing the position counter with no audio output. The auto-resume
+        // watchdog in useTrackPlayer handles recovery when the buffer refills.
+        // Combined with playbackBuffer: 1, initial playback starts after just
+        // 1 second of buffering — fast enough for good UX.
+        waitForBuffer: true,
+        maxCacheSize: 51200, // 50 MB ExoPlayer cache
+        minBuffer: 5, // Android: keep ≥5s buffered ahead
+        maxBuffer: 30, // Android: buffer up to 30s ahead
+        backBuffer: 0, // Android: no back-buffer (saves memory)
+        playbackBuffer: 1, // Android: start playing once 1s is buffered
+        iosCategory: "playback",
+      });
+    } catch (error) {
+      const isForegroundRace =
+        error?.code === "android_cannot_setup_player_in_background" ||
+        error?.message?.includes("must be in the foreground");
+      if (isForegroundRace && attempt < MAX_SETUP_ATTEMPTS) {
+        // Native's own foreground tracker hadn't caught up with RN's AppState
+        // yet — give it a beat and try again rather than stranding the player.
+        logMessage(
+          `TrackPlayer setup hit the foreground race (attempt ${attempt}/${MAX_SETUP_ATTEMPTS}), retrying...`,
+        );
+        await delay(RETRY_DELAY_MS);
+        return this._setupWithRetry(attempt + 1);
+      }
+      throw error;
+    }
+
+    await TrackPlayer.setRepeatMode(RepeatMode.Off);
+
+    await TrackPlayer.updateOptions({
+      // Fewer progress events -> less UI/notification churn on low-end devices.
+      progressUpdateEventInterval: 2,
+      // Small icon shown in Android notification (RNTP v4 expects a JS map with a uri field)
+      icon: { uri: "ic_notification" },
+      android: {
+        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+        notificationChannelName: "Sundar Gutka Playback V4",
+        notificationChannelDescription: "Gurbani audio playback controls",
+        notificationColor: 0xffeeb14f,
+      },
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.Stop,
+      ],
+      compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
+    });
   }
 
   async cleanup() {

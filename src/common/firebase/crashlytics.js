@@ -31,6 +31,29 @@ const normalizeValue = (value) => {
   return String(value).slice(0, MAX_VALUE_LENGTH);
 };
 
+// Turns a non-Error thrown/rejected value into a readable string for Crashlytics.
+// Native module rejections and other cross-boundary errors don't always arrive
+// as real Error instances — a plain { message, code } object is common. Without
+// this, those all collapsed into the same useless "Non-Error exception: [object
+// Object]" bucket, hiding what actually failed behind one non-diagnosable issue.
+const describeNonError = (value) => {
+  if (value == null) return String(value);
+  if (typeof value === "object") {
+    if (typeof value.message === "string" && value.message) {
+      const code = typeof value.code === "string" || typeof value.code === "number"
+        ? ` (code: ${value.code})`
+        : "";
+      return `${value.message}${code}`;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return Object.prototype.toString.call(value); // e.g. "[object Object]"
+    }
+  }
+  return String(value);
+};
+
 const safeSetAttribute = (key, value) => {
   const safeKey = sanitizeName(key, MAX_KEY_LENGTH);
   if (!safeKey) return;
@@ -74,13 +97,22 @@ export const logMessage = (message) => {
   log(crashlytics, message);
 };
 
-// Log a custom error
-export const logError = (error) => {
+// Log a custom error. Accepts either a single error/message, or a
+// "context, error" pair (many call sites do `logError("X failed:", err)`) —
+// without this second form the context string was recorded as the whole
+// error and the real `err` (and its message/stack) was silently dropped.
+export const logError = (error, extra) => {
   try {
+    if (extra !== undefined) {
+      const detail = extra instanceof Error ? extra.message : describeNonError(extra);
+      const prefix = error instanceof Error ? error.message : describeNonError(error);
+      recordError(crashlytics, new Error(`${prefix} ${detail}`));
+      return;
+    }
     if (error instanceof Error) {
       recordError(crashlytics, error);
     } else {
-      const newError = new Error(`Non-Error exception: ${error}`);
+      const newError = new Error(`Non-Error exception: ${describeNonError(error)}`);
       recordError(crashlytics, newError);
     }
   } catch {

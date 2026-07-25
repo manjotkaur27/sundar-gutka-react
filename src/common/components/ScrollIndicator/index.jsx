@@ -37,25 +37,28 @@ export const useCustomScrollbar = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const fadeTimer = useRef(null);
+  const animRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
   // Mimic the native fade: appear while scrolling, fade out shortly after idle.
   const showThenFade = useCallback(() => {
-    Animated.timing(opacity, {
+    animRef.current = Animated.timing(opacity, {
       toValue: 1,
       duration: 120,
       useNativeDriver: true,
-    }).start();
+    });
+    animRef.current.start();
     if (fadeTimer.current) {
       clearTimeout(fadeTimer.current);
     }
     fadeTimer.current = setTimeout(() => {
-      Animated.timing(opacity, {
+      animRef.current = Animated.timing(opacity, {
         toValue: 0,
         duration: 400,
         useNativeDriver: true,
-      }).start();
+      });
+      animRef.current.start();
     }, FADE_OUT_DELAY_MS);
   }, [opacity]);
 
@@ -64,6 +67,11 @@ export const useCustomScrollbar = () => {
       if (fadeTimer.current) {
         clearTimeout(fadeTimer.current);
       }
+      // Stop any in-flight native-driven fade on unmount. Left running (e.g. the
+      // user navigates away mid-scroll), the driver keeps updating props on a
+      // node whose backing value may already be torn down, crashing in
+      // PropsAnimatedNode.updateView with "Mapped property node does not exist".
+      animRef.current?.stop();
     },
     []
   );

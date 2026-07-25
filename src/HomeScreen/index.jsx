@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View } from "react-native";
+import { View, InteractionManager } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
@@ -44,9 +44,15 @@ const HomeScreen = React.memo(({ navigation }) => {
   }, [baniLengthSelector, navigation]);
 
   useEffect(() => {
-    (async () => {
-      await allowTracking(isStatistics);
-    })();
+    // Deferred past the first interactive frame: setAnalyticsCollectionEnabled()
+    // is the app's first Firebase Analytics call, which can trigger Play
+    // Services' Analytics "dynamite" module to load over a synchronous Binder
+    // call. Running it on HomeScreen's very first mount — the highest-contention
+    // moment of cold start — risked blocking the main thread long enough to ANR.
+    const task = InteractionManager.runAfterInteractions(() => {
+      allowTracking(isStatistics);
+    });
+    return () => task.cancel();
   }, [isStatistics]);
 
   useEffect(() => {
