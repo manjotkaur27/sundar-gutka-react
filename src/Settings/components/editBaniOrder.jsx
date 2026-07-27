@@ -1,31 +1,32 @@
 import React from "react";
-import { View, Linking } from "react-native";
-import { ListItem, Icon } from "@rneui/themed";
+import { View } from "react-native";
+import { ListItem, Avatar } from "@rneui/themed";
+import PropTypes from "prop-types";
 import { STRINGS, useTheme, useThemedStyles, ListItemTitle } from "@common";
-import { buildQgivUrl } from "../../services/sevaConfig";
 import createStyles from "../styles";
 
-const Donate = () => {
+const EditBaniOrder = ({ navigate }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { donate } = STRINGS;
-  // Lead to the same Qgiv donation form the Seva screen hands off to (its in-app
-  // give link is hidden on this branch). No amount/frequency context here, so we
-  // open the base form via the shared builder rather than hardcoding the URL.
+  const { EDIT_BANI_ORDER } = STRINGS;
+  const rearrangeIcon = require("../../../images/rearrangeicon.png");
   return (
     <ListItem
       bottomDivider
       containerStyle={styles.containerNightStyles}
-      onPress={() => Linking.openURL(buildQgivUrl({}))}
+      onPress={() => navigate("EditBaniOrder")}
     >
       <View style={styles.iconContainerStyle}>
-        <Icon color={theme.colors.primaryText} name="volunteer-activism" size={26} />
+        <Avatar source={rearrangeIcon} avatarStyle={styles.avatarStyle} />
       </View>
       <ListItem.Content>
-        <ListItemTitle title={donate} style={styles.listItemTitle} />
+        <ListItemTitle title={EDIT_BANI_ORDER} style={styles.listItemTitle} />
       </ListItem.Content>
       <ListItem.Chevron color={theme.colors.primaryText} />
     </ListItem>
   );
 };
-export default Donate;
+EditBaniOrder.propTypes = {
+  navigate: PropTypes.func.isRequired,
+};
+export default EditBaniOrder;
