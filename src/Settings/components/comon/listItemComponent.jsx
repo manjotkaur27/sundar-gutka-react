@@ -36,6 +36,11 @@ const ListItemComponent = ({
         <ListItemTitle
           title={actionConstant.filter((item) => item.key === value).map((item) => item.title)[0]}
           style={[styles.titleInfoStyle]}
+          // Trailing value stays on one line so it never steals vertical space
+          // from the row's title.
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
         />
       )}
       <ListItem.Chevron color={theme.colors.primaryText} />

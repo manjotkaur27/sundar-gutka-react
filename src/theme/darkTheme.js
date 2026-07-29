@@ -9,6 +9,11 @@ const darkTheme = {
   colors: {
     primary: "#113979",
     surface: "rgba(18, 18, 18, 1)",
+    // Raised surface for floating elements. On a dark ground a shadow has too
+    // little contrast to read as depth, so elevation is expressed by lightening
+    // the surface instead: Material's 4dp overlay is 9% white, which over
+    // #121212 gives #272727.
+    surfaceElevated: "#272727",
     primaryText: "#faf9f6",
     primaryVariant: "#99852c",
     surfaceGrey: "#464646",

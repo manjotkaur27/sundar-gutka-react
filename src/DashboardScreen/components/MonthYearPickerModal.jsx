@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Modal, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight, CloseIcon } from "@common/icons";
-import { CustomText, constant } from "@common";
+import { CustomText } from "@common";
 import useDashboardTheme from "./dashboardTheme";
 import { monthShort } from "@common/dateLocale";
 
@@ -32,7 +32,6 @@ const getToday = () => {
 // hand-rolled slide DayDetailModal-style sheets elsewhere in the dashboard.
 const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   const { isDark, cardBg, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
-  const { year: floorYear, month: floorMonth } = constant.DASHBOARD_HISTORY_FLOOR;
   const today = getToday();
 
   // Defaults to today's year every time the picker opens — same "show
@@ -96,14 +95,8 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
 
   if (!mounted) return null;
 
-  const isMonthEnabled = (y, m) => {
-    const afterFloor = y > floorYear || (y === floorYear && m >= floorMonth);
-    const beforeOrEqualToday = y < today.year || (y === today.year && m <= today.month);
-    return afterFloor && beforeOrEqualToday;
-  };
-
-  const canGoPrevYear = viewYear > floorYear;
-  const canGoNextYear = viewYear < today.year;
+  // Every month and year is reachable. A month with no data reads as an empty
+  // calendar, which tells the user more than an arrow that refuses to move.
   const chipBg = isDark ? "rgba(255,255,255,0.06)" : "#f1f4f9";
 
   return (
@@ -123,20 +116,18 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           <View style={styles.header}>
             <Pressable
               onPress={() => setViewYear((y) => y - 1)}
-              disabled={!canGoPrevYear}
               hitSlop={8}
-              style={[styles.navBtn, !canGoPrevYear && styles.navBtnDisabled]}
+              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
             >
-              <ChevronLeftIcon size={18} color={mutedText} />
+              <ChevronLeftIcon size={18} color={primaryText} />
             </Pressable>
             <CustomText style={[styles.yearText, { color: primaryText }]}>{viewYear}</CustomText>
             <Pressable
               onPress={() => setViewYear((y) => y + 1)}
-              disabled={!canGoNextYear}
               hitSlop={8}
-              style={[styles.navBtn, !canGoNextYear && styles.navBtnDisabled]}
+              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
             >
-              <ChevronRight size={18} color={mutedText} />
+              <ChevronRight size={18} color={primaryText} />
             </Pressable>
             <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
               <CloseIcon size={20} color={mutedText} />
@@ -146,15 +137,13 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           <View style={styles.grid}>
             {monthLabels().map((label, i) => {
               const m = i + 1;
-              const enabled = isMonthEnabled(viewYear, m);
               const isSelected = viewYear === year && m === month;
               const isToday = viewYear === today.year && m === today.month;
               return (
                 <Pressable
                   key={label}
-                  disabled={!enabled}
                   onPress={() => onSelect(viewYear, m)}
-                  style={[
+                  style={({ pressed }) => [
                     styles.cell,
                     // Every cell keeps the same chip shape/size so the grid
                     // reads as one consistent grid regardless of state —
@@ -162,15 +151,11 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
                     { backgroundColor: chipBg },
                     isSelected && { backgroundColor: accentBlue },
                     !isSelected && isToday && { borderWidth: 1.5, borderColor: accentBlue },
-                    !enabled && styles.cellDisabled,
+                    pressed && styles.cellPressed,
                   ]}
                 >
                   <CustomText
-                    style={[
-                      styles.cellText,
-                      { color: isSelected ? "#FFFFFF" : primaryText },
-                      !enabled && { color: mutedText },
-                    ]}
+                    style={[styles.cellText, { color: isSelected ? "#FFFFFF" : primaryText }]}
                   >
                     {label}
                   </CustomText>
@@ -222,7 +207,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   navBtn: { padding: 4 },
-  navBtnDisabled: { opacity: 0.3 },
+  // Nothing in this sheet is ever disabled, so the only state to express is the
+  // touch. Matches the month arrows in MonthCalendar.
+  navBtnPressed: { opacity: 0.45 },
   yearText: {
     flex: 1,
     fontSize: 18,
@@ -242,8 +229,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
   },
-  cellDisabled: {
-    opacity: 0.4,
+  cellPressed: {
+    opacity: 0.6,
   },
   cellText: {
     fontSize: 15,

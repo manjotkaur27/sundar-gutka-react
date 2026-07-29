@@ -145,6 +145,10 @@ const intensity = (row) => {
 
 const MonthCalendar = ({ refreshKey }) => {
   const { accentBlue, mutedText, isDark, theme } = useDashboardTheme();
+  // Month arrows are controls, not secondary text: mutedText only reached
+  // 2.4:1 against the light card, under the 3:1 WCAG asks of a non-text UI
+  // element. primaryText also matches the arrows in ActivityCalendar.
+  const navColor = theme.colors.primaryText;
   // Real SemiBold glyph for today's number (heavier than the Regular the other
   // days use). fontWeight alone does nothing on these custom TTFs.
   const numFont = theme.typography.fonts.balooPaajiSemiBold;
@@ -172,25 +176,24 @@ const MonthCalendar = ({ refreshKey }) => {
   const ymRef = useRef({ year, month });
   ymRef.current = { year, month };
 
-  // No activity data exists before this month, by product decision — see
-  // constant.DASHBOARD_HISTORY_FLOOR. Blocked here (not just visually) so the
-  // swipe gesture can't step past it either.
+  // First day activity data can exist for — see constant.DASHBOARD_HISTORY_FLOOR.
+  // This bounds the "missed" marker only. Browsing is deliberately unbounded:
+  // a month outside the data range simply reads as empty, which is clearer than
+  // a dead arrow the user cannot explain.
   const { year: floorYear, month: floorMonth } = constant.DASHBOARD_HISTORY_FLOOR;
+  const historyStart = `${floorYear}-${String(floorMonth).padStart(2, "0")}-01`;
 
   const prevMonth = useCallback(() => {
-    const { year: y, month: m } = ymRef.current;
-    if (y === floorYear && m === floorMonth) return;
+    const { month: m } = ymRef.current;
     setYear((yy) => (m === 1 ? yy - 1 : yy));
     setMonth((mm) => (mm === 1 ? 12 : mm - 1));
-  }, [floorYear, floorMonth]);
+  }, []);
 
   const nextMonth = useCallback(() => {
-    const { year: y, month: m } = ymRef.current;
-    const forward = y < curYM.year || (y === curYM.year && m < curYM.month);
-    if (!forward) return;
+    const { month: m } = ymRef.current;
     setYear((yy) => (m === 12 ? yy + 1 : yy));
     setMonth((mm) => (mm === 12 ? 1 : mm + 1));
-  }, [curYM.year, curYM.month]);
+  }, []);
 
   const loadActivity = useCallback(async (y, m) => {
     const rows = await getDailyActivity(y, m);
@@ -259,8 +262,6 @@ const MonthCalendar = ({ refreshKey }) => {
 
   const monthYearLabel = formatMonthYear(new Date(year, month - 1, 1));
   const rows = buildWeekRows(year, month);
-  const canGoPrev = !(year === floorYear && month === floorMonth);
-  const canGoNext = year < curYM.year || (year === curYM.year && month < curYM.month);
 
   const activeDaysCount = useMemo(
     () =>
@@ -303,11 +304,10 @@ const MonthCalendar = ({ refreshKey }) => {
           <View style={styles.monthNav}>
             <Pressable
               onPress={prevMonth}
-              disabled={!canGoPrev}
               hitSlop={8}
-              style={[styles.navBtn, !canGoPrev && styles.navBtnDisabled]}
+              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
             >
-              <ChevronLeftIcon size={16} color={mutedText} />
+              <ChevronLeftIcon size={16} color={navColor} />
             </Pressable>
             {/* Tap the label to jump to an arbitrary month via the date picker,
                 bounded by DASHBOARD_HISTORY_FLOOR..today (see below). flexShrink
@@ -327,11 +327,10 @@ const MonthCalendar = ({ refreshKey }) => {
             </Pressable>
             <Pressable
               onPress={nextMonth}
-              disabled={!canGoNext}
               hitSlop={8}
-              style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]}
+              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
             >
-              <ChevronRight size={16} color={mutedText} />
+              <ChevronRight size={16} color={navColor} />
             </Pressable>
           </View>
           <CustomText style={[styles.daysCount, { color: mutedText }]} numberOfLines={1}>
@@ -379,8 +378,11 @@ const MonthCalendar = ({ refreshKey }) => {
                   const level = intensity(row2);
                   const isToday = dateStr === todayStr;
                   const isPast = dateStr < todayStr;
-                  // A brand-new user never "missed" days before they installed the app.
-                  const missed = isPast && level === 0 && hasEverBeenActive;
+                  // A brand-new user never "missed" days before they installed the
+                  // app, and nobody missed a day the app could not have recorded —
+                  // months before historyStart are browsable but always read empty.
+                  const missed =
+                    isPast && dateStr >= historyStart && level === 0 && hasEverBeenActive;
                   return (
                     <Pressable key={d} style={styles.cell} onPress={() => handleDayPress(d)}>
                       <View style={[styles.dayCircle, { width: circle, height: circle }]}>
@@ -417,6 +419,14 @@ const MonthCalendar = ({ refreshKey }) => {
               </View>
             ))
           : null}
+
+        {/* Months outside the recorded range are reachable, so say why one is
+            blank rather than leaving the user with a silent empty grid. */}
+        {!loading && !error && activeDaysCount === 0 ? (
+          <CustomText style={[styles.emptyNote, { color: mutedText }]}>
+            {STRINGS.NO_ACTIVITY_MONTH}
+          </CustomText>
+        ) : null}
 
         {/* Legend: Less ▢▢▢▢ More · Missed (missed marker hidden for a user
             who has never had any activity — it would never appear anyway) */}
@@ -496,7 +506,10 @@ const styles = StyleSheet.create({
   monthNav: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   monthLabelBtn: { flexShrink: 1 },
   navBtn: { padding: 4, flexShrink: 0 },
-  navBtnDisabled: { opacity: 0.3 },
+  // Month navigation is never disabled, so the only state to express is the
+  // touch itself — without it a tap that lands on an empty month gives no
+  // sign it registered.
+  navBtnPressed: { opacity: 0.45 },
   monthText: { fontSize: 20, fontWeight: "600" },
   daysCount: { fontSize: 13, flexShrink: 1, marginLeft: 8 },
   weekRow: { flexDirection: "row", marginBottom: 4 },
@@ -514,6 +527,7 @@ const styles = StyleSheet.create({
   // comment on DayMarker for why that clipped the circles).
   dayMarkerSvg: { position: "absolute", top: 0, left: 0 },
   dayNum: { fontSize: 13 },
+  emptyNote: { fontSize: 12, textAlign: "center", marginTop: 12 },
   legend: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14 },
   legendText: { fontSize: 11 },
   legendBox: { width: 14, height: 14, borderRadius: 4 },

@@ -5,7 +5,7 @@ import { ListItem, Icon } from "@rneui/themed";
 import { setOnboardingVisible } from "@common/actions";
 import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
-import { STRINGS, ListItemTitle } from "@common";
+import { STRINGS, ListItemTitle, constant } from "@common";
 import createStyles from "../styles";
 
 // "Revisit Tutorial" row (Other Options) — reopens the onboarding carousel
@@ -20,6 +20,10 @@ const RevisitTutorial = () => {
   const handlePress = () => {
     dispatch(setOnboardingVisible(true));
   };
+
+  // After the hooks, so hook order is unaffected by the flag. Hidden rather
+  // than disabled: a row that cannot do anything is noise, not feedback.
+  if (!constant.ONBOARDING_ENABLED) return null;
 
   return (
     <ListItem

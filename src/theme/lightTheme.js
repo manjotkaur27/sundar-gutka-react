@@ -9,6 +9,9 @@ const lightTheme = {
   colors: {
     primary: "#113979",
     surface: "rgba(255, 255, 255, 1)",
+    // Raised surface for floating elements. Light mode conveys elevation with a
+    // real shadow, so this matches the base surface.
+    surfaceElevated: "#ffffff",
     primaryText: "#121212",
     primaryVariant: "#DEBB0A",
     surfaceGrey: "#faf9f6",

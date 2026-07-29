@@ -22,7 +22,7 @@ const AutoScroll = () => {
         <Icon color={theme.colors.primaryText} name="auto-fix-high" type="material" size={26} />
       </View>
       <ListItem.Content>
-        <ListItemTitle title={AUTO_SCROLL} style={{ color: theme.colors.primaryText }} />
+        <ListItemTitle title={AUTO_SCROLL} style={styles.listItemTitle} />
       </ListItem.Content>
       <ThemedSwitch
         value={isAutoScroll}

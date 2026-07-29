@@ -35,6 +35,11 @@ export default {
   // who already saw an earlier onboarding alike. Bump it whenever the
   // onboarding content should be force-shown again.
   ONBOARDING_VERSION: 1,
+  // Master switch for the onboarding carousel. While false the carousel never
+  // auto-opens and the Settings "Revisit Tutorial" row is hidden, so it cannot
+  // be reached at all. The carousel and its slides stay in the build untouched:
+  // set this back to true to restore the feature with no other change.
+  ONBOARDING_ENABLED: false,
   EXTRA_SMALL: "EXTRA_SMALL",
   SMALL: "SMALL",
   MEDIUM: "MEDIUM",

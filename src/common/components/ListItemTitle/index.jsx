@@ -3,10 +3,16 @@ import { Text } from "react-native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 
-// Plain Text (not rneui ListItem.Title, which didn't reliably honour
-// adjustsFontSizeToFit). flexShrink gives it a bounded width inside the row so
-// adjustsFontSizeToFit can shrink long translations to fit ONE line instead of
-// wrapping or truncating — e.g. Punjabi "ਆਡੀਓ ਆਟੋ ਪਲੇ" stays whole on one line.
+// Plain Text (not rneui ListItem.Title, which didn't reliably honour the
+// text props we pass). flexShrink bounds its width inside the row so a long
+// title wraps within the row instead of pushing the trailing control off-screen.
+//
+// Defaults deliberately do NOT auto-shrink: adjustsFontSizeToFit sizes each
+// label independently from its own length, so a list of localized strings
+// renders at a different size per row (e.g. "Thème" at 16 next to
+// "Téléchargement automatique en Wi-Fi" at ~10). Wrapping to a second line
+// keeps every row the same size. Callers that need a single fixed-height line
+// can opt back in via adjustsFontSizeToFit + numberOfLines={1}.
 const ListItemTitle = ({ title, style, numberOfLines, adjustsFontSizeToFit, minimumFontScale }) => {
   const { theme } = useTheme();
   const base = { fontFamily: theme.typography.fonts.balooPaaji, flexShrink: 1 };
@@ -35,9 +41,9 @@ ListItemTitle.propTypes = {
 
 ListItemTitle.defaultProps = {
   style: null,
-  numberOfLines: 1,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.65,
+  numberOfLines: 2,
+  adjustsFontSizeToFit: false,
+  minimumFontScale: undefined,
 };
 
 export default ListItemTitle;

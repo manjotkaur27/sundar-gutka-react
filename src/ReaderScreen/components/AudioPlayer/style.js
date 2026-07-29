@@ -510,18 +510,27 @@ export const minimizePlayerStyles = (theme) => ({
     alignItems: "center",
     backgroundColor: theme.colors.surface,
     ...SHADOW.medium,
-    // Dark mode: a black shadow is invisible on the dark bani, so use a soft
-    // light glow on iOS, plus a faint light border for separation on Android
-    // (where elevation shadows are always black and don't show on dark).
+    // Dark mode: no shadow at all. A shadow has too little contrast against the
+    // dark bani to read as depth, and colouring it light turns it into a halo
+    // rather than a lift. Elevation is expressed the way Material does on dark
+    // surfaces instead — a lighter surface plus a hairline edge.
+    // The cast shadow also rendered inconsistently across the supported range:
+    // shadowColor only tints Android's elevation shadow from API 28, so the
+    // same pill glowed white on Android 9+ and drew a plain (invisible) black
+    // shadow on API 24-27. shadowOpacity/Radius are iOS-only throughout.
     // Light mode: the black elevation shadow rendered as a square — replace it
     // with a soft, light electric-blue glow halo.
     ...(theme.mode === "dark"
       ? {
-          shadowColor: theme.staticColors.WHITE_COLOR,
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          borderWidth: 1,
-          borderColor: "rgba(255, 255, 255, 0.14)",
+          backgroundColor: theme.colors.surfaceElevated,
+          // Explicit zeroes: SHADOW.medium above sets elevation 4 and an
+          // offset, which would otherwise still cast on both platforms.
+          shadowOpacity: 0,
+          shadowRadius: 0,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: 0,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: "rgba(255, 255, 255, 0.16)",
         }
       : LIGHT_GLOW(12)),
   },

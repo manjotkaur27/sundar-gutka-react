@@ -23,6 +23,9 @@ const useOnboardingTrigger = () => {
   const firedRef = useRef(false);
 
   useEffect(() => {
+    // Checked inside the effect, not before the hooks, so hook order stays
+    // stable whichever way the flag is set.
+    if (!constant.ONBOARDING_ENABLED) return;
     if (firedRef.current) return;
     if (seenOnboardingVersion < constant.ONBOARDING_VERSION) {
       firedRef.current = true;

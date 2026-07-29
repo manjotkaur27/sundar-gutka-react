@@ -110,7 +110,10 @@ const createStyles = (theme) => ({
   listItemTitle: {
     color: theme.colors.primaryText,
     fontSize: theme.typography.sizes.lg,
-    lineHeight: theme.typography.sizes.lg * theme.typography.lineHeights.normal,
+    // Baloo Paaji carries Devanagari/Gurmukhi matras above and below the
+    // baseline, which clip at the 1.4 line height sized for Latin. 1.6 also
+    // keeps the two lines of a long translation from touching.
+    lineHeight: theme.typography.sizes.lg * theme.typography.lineHeights.relaxed,
   },
   listItemSubtitle: {
     color: theme.colors.textDisabled,

@@ -77,6 +77,11 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
                   fontFamily: displayFont,
                 },
               ]}
+              // Bani names keep the single-line shrink-to-fit behaviour: their
+              // size is a user setting, so wrapping would reflow the whole list.
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.65}
             />
             {row.item.tukGurmukhi && (
               <ListItemTitle
@@ -86,6 +91,9 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
                   { fontFamily: displayFont },
                   { fontSize: 17 },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.65}
               />
             )}
           </ListItem.Content>

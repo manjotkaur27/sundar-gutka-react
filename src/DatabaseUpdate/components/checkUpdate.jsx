@@ -61,7 +61,13 @@ const CheckUpdatesAnimation = ({ isLoading, isUpdateAvailable }) => {
     <View style={styles.mainWrapper}>
       {isLoading && (
         <ListItem containerStyle={styles.mainWrapper}>
-          <ListItemTitle title={STRINGS.checkForUpdate} style={styles.header} />
+          <ListItemTitle
+            title={STRINGS.checkForUpdate}
+            style={styles.header}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
+          />
           <ListItem.Content>
             <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
               <Icon name="refresh" type="material" size={35} color={theme.colors.primaryText} />
@@ -71,7 +77,13 @@ const CheckUpdatesAnimation = ({ isLoading, isUpdateAvailable }) => {
       )}
       {!isUpdateAvailable && !isLoading && (
         <ListItem containerStyle={styles.mainWrapper}>
-          <ListItemTitle title={STRINGS.upToDate} style={styles.header} />
+          <ListItemTitle
+            title={STRINGS.upToDate}
+            style={styles.header}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
+          />
         </ListItem>
       )}
     </View>
