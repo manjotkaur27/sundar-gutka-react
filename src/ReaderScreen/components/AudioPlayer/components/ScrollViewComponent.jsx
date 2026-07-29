@@ -7,8 +7,9 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
-import { audioTrackDialogStyles } from "../style";
+import { audioTrackDialogStyles, TRACK_ROW_BORDER_WIDTH } from "../style";
 import { getLocalTrackPath } from "../utils/audioDownloader";
+import PreviewSweep from "./PreviewSweep";
 
 // A track is playable offline when it has a local copy. The authoritative source
 // is the download registry (the same store the download button uses), keyed by
@@ -33,6 +34,8 @@ const ScrollViewComponent = ({
   playingTrack = null,
   isPlaying = false,
   previewLoadingTrackId = null,
+  previewActiveTrackId = null,
+  previewDurationMs = 0,
   isOffline = false,
   handleSelectTrack,
 }) => {
@@ -68,7 +71,7 @@ const ScrollViewComponent = ({
           {
             backgroundColor: theme.colors.trackBackgroundColor,
             borderColor: theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : "transparent",
-            borderWidth: 1,
+            borderWidth: TRACK_ROW_BORDER_WIDTH,
           },
           selectedTrack && track.id === selectedTrack?.id && styles.selectedTrackItem,
           unavailableOffline && styles.trackItemDisabled,
@@ -79,6 +82,17 @@ const ScrollViewComponent = ({
         disabled={unavailableOffline}
         activeOpacity={0.7}
       >
+        {/* Rendered before the name and icons so it paints beneath them. Drives
+            itself off the native driver, so the countdown costs this list no
+            re-renders while it runs. */}
+        {previewActiveTrackId === track.id && (
+          <PreviewSweep
+            durationMs={previewDurationMs}
+            trackStyle={styles.previewSweepTrack}
+            fillStyle={styles.previewSweepFill}
+          />
+        )}
+
         <CustomText
           style={[
             styles.trackName,
@@ -143,6 +157,8 @@ ScrollViewComponent.defaultProps = {
   playingTrack: null,
   isPlaying: false,
   previewLoadingTrackId: null,
+  previewActiveTrackId: null,
+  previewDurationMs: 0,
   isOffline: false,
 };
 
@@ -163,6 +179,8 @@ ScrollViewComponent.propTypes = {
   }),
   isPlaying: PropTypes.bool,
   previewLoadingTrackId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  previewActiveTrackId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  previewDurationMs: PropTypes.number,
   isOffline: PropTypes.bool,
   handleSelectTrack: PropTypes.func.isRequired,
 };

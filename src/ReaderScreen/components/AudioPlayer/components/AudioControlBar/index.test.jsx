@@ -117,6 +117,7 @@ jest.mock("@common", () => {
     },
     CustomText: (props) => <Text {...props} />,
     logError: jest.fn(),
+    setToastBottomReservation: jest.fn(),
     Coachmark: ({ children }) => children,
     ExplorePromptCallout: () => null,
     PLAYER_STEPS: [],

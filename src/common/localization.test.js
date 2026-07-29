@@ -53,6 +53,29 @@ describe("localization parity", () => {
     });
   });
 
+  // The audio tab label (MUSIC). "Audios" is plural in English, and only the
+  // languages that actually inflect the loanword follow it: French and Spanish
+  // pluralise it ("des audios", "los audios"), while Italian treats foreign
+  // nouns as invariable ("gli audio"), and Hindi/Punjabi leave the noun
+  // unmarked and carry number on the verb instead — as the existing
+  // WE_DO_NOT_HAVE_AUDIOS_FOR translations in this file already do.
+  describe("audio tab label", () => {
+    it.each(["en-US", "fr", "es"])("is pluralised in %s", (lang) => {
+      expect(valueOf(blockFor(lang), "MUSIC")).toBe("Audios");
+    });
+
+    it("stays invariable in it", () => {
+      expect(valueOf(blockFor("it"), "MUSIC")).toBe("Audio");
+    });
+
+    it.each(["hi", "pa"])("stays unmarked in %s", (lang) => {
+      const value = valueOf(blockFor(lang), "MUSIC");
+      expect(value).toBeTruthy();
+      // Not the Latin-script form, and not carrying an English plural suffix.
+      expect(value).not.toMatch(/s$/);
+    });
+  });
+
   it("does not leave a translation identical to the English placeholder", () => {
     // NO_ACTIVITY_MONTH is newly added; catch a copy-paste that skipped a language.
     const english = valueOf(blockFor("en-US"), "NO_ACTIVITY_MONTH");

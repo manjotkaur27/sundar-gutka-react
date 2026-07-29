@@ -243,6 +243,10 @@ export const audioControlBarStyles = (theme) => ({
   },
 });
 
+// Border drawn around every artist row. Shared with the preview sweep, which
+// has to cancel it out to cover the whole pill.
+export const TRACK_ROW_BORDER_WIDTH = 1;
+
 export const audioTrackDialogStyles = (theme) => ({
   modalWrapper: {
     position: "relative",
@@ -434,17 +438,32 @@ export const audioTrackDialogStyles = (theme) => ({
   playButtonDisabled: {
     opacity: 0.5,
   },
-  previewProgressTrack: {
+  // The 15s preview countdown, drawn across the artist row it belongs to
+  // rather than on the Next button — on the button it read as "Next is
+  // loading and will advance on its own", which is not what happens.
+  // Clipping lives on this wrapper, not on the row, so only the fill is
+  // masked: overflow + borderRadius on the row itself makes Android shave
+  // the icons inside it.
+  previewSweepTrack: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 3,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    // Absolutely positioned children are laid out INSIDE the parent's border,
+    // so 0 insets leave the row's border uncovered as a hairline gap along the
+    // sweep's edge. It also makes this box 2px shorter than the row, and since
+    // the pill radius clamps to height/2 the two corner curves then disagree.
+    // Pulling out by the border width fixes both.
+    top: -TRACK_ROW_BORDER_WIDTH,
+    left: -TRACK_ROW_BORDER_WIDTH,
+    right: -TRACK_ROW_BORDER_WIDTH,
+    bottom: -TRACK_ROW_BORDER_WIDTH,
+    borderRadius: theme.borderRadius.xl,
+    overflow: "hidden",
   },
-  previewProgressFill: {
+  // Translucent white over the selected row's navy (colors.primary, the same
+  // value in both themes), so it lightens the row without hiding the artist
+  // name that sits on top of it.
+  previewSweepFill: {
     height: "100%",
-    backgroundColor: theme.staticColors.WHITE_COLOR,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
   },
 });
 
@@ -486,6 +505,12 @@ export const downloadBadgeStyles = (theme) => ({
     minWidth: 0,
   },
 });
+
+// Vertical space the collapsed pill occupies: its own height plus the gap it
+// keeps from the bottom of the screen. It is absolutely positioned, so it
+// contributes nothing to its parent's layout and anything that needs to sit
+// clear of it (see setToastBottomReservation) has to be told the number.
+export const MINIMIZED_PLAYER_FOOTPRINT = 54;
 
 export const minimizePlayerStyles = (theme) => ({
   container: {

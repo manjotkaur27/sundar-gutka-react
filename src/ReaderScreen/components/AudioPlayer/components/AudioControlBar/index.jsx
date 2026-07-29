@@ -19,18 +19,14 @@ import {
   ChevronDownIcon,
   ExpandCollapseIcon,
 } from "@common/icons";
-import {
-  STRINGS,
-  CustomText,
-  logError,
-} from "@common";
+import { STRINGS, CustomText, logError, setToastBottomReservation } from "@common";
 import {
   useAnimation,
   useDownloadManager,
   useBookmarks,
   useArtistListeningDuration,
 } from "../../hooks";
-import { audioControlBarStyles } from "../../style";
+import { audioControlBarStyles, MINIMIZED_PLAYER_FOOTPRINT } from "../../style";
 import checkLyricsFileAvailable from "../../utils/checkLRC";
 import {
   getSequenceFromPosition,
@@ -589,8 +585,23 @@ const AudioControlBar = ({
     return () => clearInterval(intervalId);
   }, [isPlaying, currentPlaying?.id, baniID, dispatch]);
 
+  // Keep toasts clear of whichever form of the player is on screen. The
+  // expanded bar sits in normal flow, so this wrapper measures it; the
+  // collapsed pill is absolutely positioned and contributes nothing to that
+  // height, so its known footprint is used instead.
+  const [footerHeight, setFooterHeight] = useState(0);
+  const handleFooterLayout = useCallback((e) => {
+    setFooterHeight(e.nativeEvent.layout.height);
+  }, []);
+  useEffect(() => {
+    setToastBottomReservation(isMinimized ? MINIMIZED_PLAYER_FOOTPRINT : footerHeight);
+    // Released on unmount so a toast fired from any other screen sits at its
+    // normal resting offset.
+    return () => setToastBottomReservation(0);
+  }, [isMinimized, footerHeight]);
+
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container} pointerEvents="box-none" onLayout={handleFooterLayout}>
       {/* DownloadBadge replaced by DownloadButton in the trackInfo row */}
       {isMinimized && (
         <MinimizePlayer

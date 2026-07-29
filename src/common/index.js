@@ -74,7 +74,13 @@ import {
 } from "./rnfs";
 import { navigate, navigateTo, navigationRef } from "./rootNavigation";
 import createStore from "./store";
-import { showToast, showErrorToast, showSuccessToast, showInfoToast } from "./toast";
+import {
+  showToast,
+  showErrorToast,
+  showSuccessToast,
+  showInfoToast,
+  setToastBottomReservation,
+} from "./toast";
 import convertToUnicode from "./utils";
 
 export {
@@ -134,6 +140,7 @@ export {
   showErrorToast,
   showSuccessToast,
   showInfoToast,
+  setToastBottomReservation,
   convertToUnicode,
   BottomNavigation,
   useTheme,

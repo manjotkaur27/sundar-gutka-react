@@ -54,7 +54,6 @@ const AudioTrackDialog = ({
   const [previewLoadingTrackId, setPreviewLoadingTrackId] = useState(null);
   const [previewActiveTrackId, setPreviewActiveTrackId] = useState(null);
   const [isNextLoading, setIsNextLoading] = useState(false);
-  const [previewProgress, setPreviewProgress] = useState(0);
   const previewTimeoutRef = useRef(null);
   const previewStartTimeoutRef = useRef(null);
   const previewIntervalRef = useRef(null);
@@ -170,43 +169,35 @@ const AudioTrackDialog = ({
     }
   }, []);
 
-  const resetPreviewProgress = useCallback(() => {
-    setPreviewProgress(0);
-  }, []);
-
   /**
-   * The preview ticker is the single source of truth for both the visual
-   * countdown AND the 15-second stop. When elapsed reaches PREVIEW_DURATION_MS,
-   * the interval itself stops the audio. This guarantees the countdown shows 0
-   * at exactly the moment audio stops — no separate setTimeout that can drift.
+   * The preview ticker owns stopping the audio at the end of the 15-second
+   * window. It deliberately holds no render state: the on-screen countdown is
+   * drawn by PreviewSweep on the native driver, so this interval never touches
+   * React and never re-renders the track list while a preview runs.
    */
   const startPreviewTicker = useCallback(
     (track, sessionId) => {
       clearPreviewInterval();
       previewStartedAtRef.current = Date.now();
-      setPreviewProgress(0);
 
       previewIntervalRef.current = setInterval(async () => {
         const elapsed = Date.now() - previewStartedAtRef.current;
         const clampedElapsed = Math.min(elapsed, PREVIEW_DURATION_MS);
 
-        setPreviewProgress(clampedElapsed / PREVIEW_DURATION_MS);
-
-        // Time's up — stop audio from within the same tick that shows 0
+        // Time's up — stop audio
         if (clampedElapsed >= PREVIEW_DURATION_MS) {
           clearPreviewInterval();
           if (previewSessionRef.current !== sessionId) return;
           try { await stop(); } catch (_) {}
           try { await reset(); } catch (_) {}
           await restoreNotificationCapabilities();
-          resetPreviewProgress();
           setPreviewLoadingTrackId(null);
           setPreviewActiveTrackId(null);
           setPlayingTrack((current) => (current?.id === track.id ? null : current));
         }
       }, 250);
     },
-    [clearPreviewInterval, stop, reset, restoreNotificationCapabilities, resetPreviewProgress]
+    [clearPreviewInterval, stop, reset, restoreNotificationCapabilities]
   );
 
   // Restore full notification capabilities after a preview ends.
@@ -247,7 +238,6 @@ const AudioTrackDialog = ({
     }
     // Restore full capabilities so normal playback keeps its notification controls.
     await restoreNotificationCapabilities();
-    resetPreviewProgress();
     setPreviewLoadingTrackId(null);
     setPreviewActiveTrackId(null);
     setPlayingTrack(null);
@@ -258,7 +248,6 @@ const AudioTrackDialog = ({
     stop,
     reset,
     restoreNotificationCapabilities,
-    resetPreviewProgress,
   ]);
 
   /**
@@ -326,7 +315,6 @@ const AudioTrackDialog = ({
       setPreviewLoadingTrackId(track.id);
       setPreviewActiveTrackId(null);
       setPlayingTrack(null);
-      resetPreviewProgress();
       clearPreviewTimeout();
       clearPreviewStartTimeout();
       clearPreviewInterval();
@@ -436,7 +424,6 @@ const AudioTrackDialog = ({
         setPreviewLoadingTrackId(null);
         setPreviewActiveTrackId(null);
         setPlayingTrack(null);
-        resetPreviewProgress();
         try { await stop(); } catch (_) {}
         try { await reset(); } catch (_) {}
         await restoreNotificationCapabilities();
@@ -445,7 +432,6 @@ const AudioTrackDialog = ({
       clearPreviewTimeout();
       clearPreviewStartTimeout();
       clearPreviewInterval();
-      resetPreviewProgress();
       setPreviewLoadingTrackId(null);
       setPreviewActiveTrackId(null);
       setPlayingTrack(null);
@@ -481,8 +467,9 @@ const AudioTrackDialog = ({
   const isPreviewRunning = Boolean(
     selectedTrack && previewActiveTrackId && previewActiveTrackId === selectedTrack?.id
   );
-  // The button always reads a bare "Next" — no countdown text — even while a
-  // preview is running (the countdown is conveyed by the progress-fill bar).
+  // The button always reads a bare "Next" and carries no countdown of its own:
+  // progress belongs to the artist row being previewed, not to the control that
+  // advances the wizard.
   const nextButtonLabel = STRINGS.NEXT;
 
   return (
@@ -541,6 +528,8 @@ const AudioTrackDialog = ({
           playingTrack={playingTrack}
           isPlaying={isPlaying}
           previewLoadingTrackId={previewLoadingTrackId}
+          previewActiveTrackId={isPreviewRunning ? previewActiveTrackId : null}
+          previewDurationMs={PREVIEW_DURATION_MS}
           isOffline={isOffline}
           handleSelectTrack={handleSelectTrack}
         />
@@ -560,16 +549,6 @@ const AudioTrackDialog = ({
                   color={theme.staticColors.WHITE_COLOR}
                   style={styles.nextLoadingSpinner}
                 />
-              )}
-              {isPreviewRunning && (
-                <View style={styles.previewProgressTrack}>
-                  <View
-                    style={[
-                      styles.previewProgressFill,
-                      { width: `${Math.round(previewProgress * 100)}%` },
-                    ]}
-                  />
-                </View>
               )}
               <CustomText style={styles.playButtonText}>
                 {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
