@@ -9,17 +9,23 @@ import { logError } from "@common";
 // - `loading` is true only until the FIRST attempt (success or failure)
 //   settles, so returning to the dashboard never re-shows a skeleton over
 //   already-loaded content.
+// - `refreshing` is true for every LATER run. Because `loading` stays false
+//   once data is on screen, it is the only way a caller can tell that a
+//   user-triggered refetch is in flight — which is what a refresh control
+//   needs in order to show progress instead of appearing to do nothing.
 // - `error` is only set when the first attempt fails with nothing to fall
 //   back on — a background refetch failure after a prior success leaves the
 //   last-known-good data on screen instead of blanking it out.
 const useAsyncSection = (task) => {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const loadedOnceRef = useRef(false);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let active = true;
+    if (loadedOnceRef.current) setRefreshing(true);
     task()
       .then(() => {
         if (!active) return;
@@ -32,7 +38,9 @@ const useAsyncSection = (task) => {
         if (!loadedOnceRef.current) setError(true);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (!active) return;
+        setLoading(false);
+        setRefreshing(false);
       });
     return () => {
       active = false;
@@ -45,7 +53,7 @@ const useAsyncSection = (task) => {
     setNonce((n) => n + 1);
   }, []);
 
-  return { loading, error, retry };
+  return { loading, refreshing, error, retry };
 };
 
 export default useAsyncSection;

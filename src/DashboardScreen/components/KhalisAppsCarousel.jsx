@@ -9,7 +9,7 @@ const APPS = [
     pkg: "antisoft.livesehajpath",
     image: require("../../assets/images/sahej_path.png"),
     iconBgDark: "#0a1628",
-    iconBgLight: "#eef2ff",
+    iconBgLight: "#E2E8F1",
     url: "https://play.google.com/store/apps/details?id=antisoft.livesehajpath&hl=en_IN",
   },
   {

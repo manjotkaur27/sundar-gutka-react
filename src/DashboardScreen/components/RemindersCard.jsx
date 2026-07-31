@@ -15,7 +15,7 @@ import {
   logError,
 } from "@common";
 import { getBaniList } from "@database";
-import useDashboardTheme from "./dashboardTheme";
+import useDashboardTheme, { BRAND } from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 import useBaniLookup, { toTitleCase } from "./useBaniLookup";
 
@@ -160,7 +160,7 @@ const buildIconStyles = (isDark, accentBlue, mutedText, gold) => ({
   // Amrit Vela (dawn) shares the warm gold tint with the daytime sun.
   sunrise: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
   sun: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
-  sunset: { color: accentBlue, bg: isDark ? "rgba(38,105,214,0.14)" : "#E3ECFB" },
+  sunset: { color: accentBlue, bg: isDark ? "rgba(85,141,231,0.14)" : BRAND.tint88 },
   night: { color: mutedText, bg: isDark ? "rgba(255,255,255,0.06)" : "#ECEEF2" },
 });
 
@@ -178,7 +178,7 @@ const RemindersCard = () => {
   const onTrackColor = isDark ? "#5A8DEF" : null;
   const offTrackColor = isDark ? "#1B2B47" : null;
   // "Add a reminder" matches the "Edit banis" link (light blue in dark, accent in light).
-  const addColor = isDark ? "#5A99FD" : accentBlue;
+  const addColor = accentBlue;
 
   const isReminders = useSelector((state) => state.isReminders);
   const reminderBanis = useSelector((state) => state.reminderBanis);

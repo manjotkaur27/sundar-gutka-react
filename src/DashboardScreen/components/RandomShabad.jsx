@@ -1,34 +1,16 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
-import Svg, { Path, Polyline } from "react-native-svg";
+import Svg, { Polyline } from "react-native-svg";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, openInAppBrowser } from "@common";
 import { getRandomShabad } from "../../services/dashboard";
 import DashboardCard from "./DashboardCard";
-import useDashboardTheme from "./dashboardTheme";
+import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import RefreshSpinner from "./RefreshSpinner";
 import SectionError from "./SectionError";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
-
-// Single-arrow refresh glyph: one near-full circular arc with one arrowhead
-// (as opposed to the two-arrow "shuffle-style" refresh look).
-const RefreshIcon = ({ color }) => (
-  <Svg
-    width={15}
-    height={15}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <Path d="M21 12a9 9 0 1 1-3.05-6.75" />
-    <Polyline points="21 3 21 8 16 8" />
-  </Svg>
-);
-RefreshIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const ChevronRight = ({ color }) => (
   <Svg
@@ -46,7 +28,7 @@ const ChevronRight = ({ color }) => (
 );
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
-const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
+const RandomShabad = ({ refreshKey, embedded, reloadNonce, onLoadingChange }) => {
   const { isDark, accentBlue, gold, mutedText, separator, theme } = useDashboardTheme();
   // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
   const gurmukhiColor = "#fff";
@@ -62,7 +44,18 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transliterationLanguage, refreshKey, reloadNonce]
   );
-  const { loading, error, retry } = useAsyncSection(task);
+  const { loading, refreshing, error, retry } = useAsyncSection(task);
+  // `loading` covers the first fetch only — it deliberately stays false once
+  // data is on screen. `refreshing` is what a shuffle actually needs, since
+  // every shuffle after the first is a refetch over existing content.
+  const busy = loading || refreshing;
+
+  // Reported upward so whichever shuffle control is on screen can spin and
+  // refuse repeat taps; otherwise the button looks inert for the ~2s a fetch
+  // takes and each extra tap queues another swap.
+  useEffect(() => {
+    onLoadingChange(busy);
+  }, [busy, onLoadingChange]);
 
   // A local-DB tukk has no ang/raag/shabadId, so hide the Ang·Raag + Read row.
   const showFooter = !!shabad?.shabadId;
@@ -78,13 +71,18 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
           </CustomText>
           <Pressable
             onPress={retry}
+            disabled={busy}
             hitSlop={8}
-            style={[
+            style={({ pressed }) => [
               styles.shuffleBtn,
-              { backgroundColor: isDark ? "rgba(37,129,223,0.16)" : "#eef2fb" },
+              { backgroundColor: isDark ? "rgba(85,141,231,0.16)" : BRAND.tint88 },
+              pressed && styles.shuffleBtnPressed,
+              busy && styles.shuffleBtnBusy,
             ]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busy, busy }}
           >
-            <RefreshIcon color={accentBlue} />
+            <RefreshSpinner color={accentBlue} spinning={busy} />
             <CustomText style={[styles.shuffleText, { color: accentBlue }]}>
               {STRINGS.SHUFFLE}
             </CustomText>
@@ -109,11 +107,8 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce }) => {
             </CustomText>
           ))
         : null}
-      {!loading && !error && shabad?.translation ? (
-        <CustomText style={[styles.translation, { color: translationColor }]}>
-          {shabad.translation}
-        </CustomText>
-      ) : null}
+      {/* Gurbani only on this card — the translation belongs in the Reader,
+          where the user's own translation settings apply. */}
 
       {!loading && !error && showFooter ? (
         <>
@@ -154,8 +149,14 @@ RandomShabad.propTypes = {
   refreshKey: PropTypes.number,
   embedded: PropTypes.bool,
   reloadNonce: PropTypes.number,
+  onLoadingChange: PropTypes.func,
 };
-RandomShabad.defaultProps = { refreshKey: 0, embedded: false, reloadNonce: 0 };
+RandomShabad.defaultProps = {
+  refreshKey: 0,
+  embedded: false,
+  reloadNonce: 0,
+  onLoadingChange: () => {},
+};
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
@@ -177,13 +178,6 @@ const styles = StyleSheet.create({
     lineHeight: 31,
     paddingHorizontal: 4,
   },
-  translation: {
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 19,
-    paddingHorizontal: 4,
-  },
   footerDivider: { height: 1, marginVertical: 16 },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   meta: { fontSize: 13 },
@@ -197,6 +191,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
+  // Dimmed while a shabad is in flight, so the control reads as busy rather
+  // than broken when it stops responding to taps.
+  shuffleBtnBusy: { opacity: 0.6 },
+  // Instant acknowledgement on touch-down, before any async work starts.
+  shuffleBtnPressed: { opacity: 0.5 },
   shuffleText: { fontSize: 13, fontWeight: "600" },
 });
 

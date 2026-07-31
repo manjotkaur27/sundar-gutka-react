@@ -125,11 +125,8 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
           {line}
         </CustomText>
       ))}
-      {vaak?.translation ? (
-        <CustomText style={[styles.translation, { color: translationColor }]}>
-          {vaak.translation}
-        </CustomText>
-      ) : null}
+      {/* Gurbani only on this card — the translation belongs in the Reader,
+          where the user's own translation settings apply. */}
 
       {showFooter ? (
         <>
@@ -191,13 +188,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 6,
     lineHeight: 31,
-    paddingHorizontal: 4,
-  },
-  translation: {
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 10,
-    lineHeight: 19,
     paddingHorizontal: 4,
   },
   footerDivider: { height: 1, marginVertical: 16 },

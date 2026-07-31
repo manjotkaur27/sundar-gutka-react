@@ -9,7 +9,7 @@ import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { getNanakshahiDate } from "../../services/dashboard";
 import { LAST_PUSH_KEY } from "../useDashboardSync";
-import useDashboardTheme from "./dashboardTheme";
+import useDashboardTheme, { BRAND } from "./dashboardTheme";
 
 const MenuIcon = ({ color }) => (
   <Svg
@@ -27,24 +27,23 @@ const MenuIcon = ({ color }) => (
 );
 MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 
-const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
-  const { isDark, gold, primaryText, mutedText, theme } = useDashboardTheme();
-  const { top: safeTop } = useSafeAreaInsets();
-  // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
-  // fontWeight with a custom TTF makes Android synthesize a fake bold and
-  // silently fall back off the real glyph.
-  const nameFont = theme.typography.fonts.balooPaajiSemiBold;
+// The Fateh, broken at its own halfway point rather than wherever the line
+// happens to run out. Left to wrap on its own, the closing ॥ was landing alone
+// on the second line; the two halves are also how it is conventionally written.
+// The no-break space binds each ॥ to the word before it, so the mark can never
+// be orphaned even if a half has to wrap on a very narrow screen.
+const FATEH = "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥\nਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥";
 
-  // Username: brand blue in light mode, off-white in dark.
-  const nameColor = isDark ? "#ffffffff" : "#00397e";
-  // Text below the name (date line) and the avatar's "U" initial each get their
-  // own client-specified accents, distinct from the generic mutedText/nameColor.
-  const belowNameColor = isDark ? "#a1bee7ff" : "#9AA8C4";
-  const avatarTextColor = isDark ? "#5A99FD" : "#113979";
-  // Close button: white in dark mode, app brand blue in light — same blue as
-  // the username text, independent of the golden salutation line it sits
-  // next to.
-  const closeIconColor = isDark ? "#FFFFFF" : "#00397e";
+const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
+  const { isDark, gold, primaryText, mutedText, brandText, theme } = useDashboardTheme();
+  const { top: safeTop } = useSafeAreaInsets();
+
+  // Date line under the Fateh — a brand tint, quieter than the Fateh itself.
+  const belowNameColor = isDark ? "#a1bee7ff" : BRAND.tint45;
+  const avatarTextColor = isDark ? BRAND.accentOnDark : BRAND.base;
+  // Close button: white in dark mode, brand navy in light, independent of the
+  // golden Fateh it sits next to.
+  const closeIconColor = isDark ? "#FFFFFF" : brandText;
 
   const dateLine = useMemo(() => {
     const now = new Date();
@@ -76,7 +75,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
     // re-localise when the user switches language.
   }, [refreshKey, STRINGS.getLanguage()]);
 
-  const bg = isDark ? "#031329" : "#F4F7FC";
+  const bg = isDark ? "#031329" : BRAND.tint94;
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 8, backgroundColor: bg }]}>
@@ -86,16 +85,11 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
             styles.salutation,
             { color: gold, fontFamily: theme.typography.fonts.gurbaniHeavy },
           ]}
-          // Sharing the row with the close button (added later) leaves it less
-          // width than when it had the row to itself — on a narrow phone this
-          // could wrap unpredictably and shove the button around. Clamp to one
-          // line; it's decorative, so an ellipsis on the smallest devices is a
-          // safe fallback.
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.85}
+          // Two lines, and never shrunk: adjustsFontSizeToFit would render the
+          // Fateh at a different size on every screen width.
+          numberOfLines={2}
         >
-          ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
+          {FATEH}
         </CustomText>
         {/* Top-right dismiss, level with the golden salutation line rather
             than down in the avatar/menu row. */}
@@ -106,25 +100,9 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
 
       <View style={styles.row}>
         <View style={styles.nameBlock}>
-          <CustomText
-            style={[
-              styles.name,
-              {
-                color: nameColor,
-                fontFamily: nameFont,
-                // Faux-bold: BalooPaaji ships only Regular + SemiBold and a named
-                // TTF ignores fontWeight, so thicken the strokes with a same-color
-                // shadow. Replace with a real Bold Baloo face if one is bundled.
-                textShadowColor: nameColor,
-                textShadowOffset: { width: 0.5, height: 0 },
-                textShadowRadius: 0.4,
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {STRINGS.USER}
-          </CustomText>
-          {/* Gregorian + Nanakshahi date line (greeting removed per design). */}
+          {/* No account system exists, so there is no name to greet. The Fateh
+              above stands in its place as the header's title. */}
+          {/* Gregorian + Nanakshahi date line. */}
           <CustomText style={[styles.date, { color: belowNameColor }]} numberOfLines={1}>
             {dateLine}
           </CustomText>
@@ -142,7 +120,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#f1f4f9" },
+              { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : BRAND.tint88 },
             ]}
           >
             <MenuIcon color={primaryText} />
@@ -150,7 +128,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
           <View
             style={[
               styles.avatar,
-              { backgroundColor: isDark ? "rgba(37,129,223,0.25)" : "#dbe6fb" },
+              { backgroundColor: isDark ? "rgba(85,141,231,0.25)" : BRAND.tint75 },
             ]}
           >
             {/* Generic account glyph — there is no login/account system yet
@@ -183,12 +161,15 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: "row",
-    alignItems: "center",
+    // Top-aligned so the dismiss button stays level with the Fateh's first
+    // line instead of drifting down when it wraps to two.
+    alignItems: "flex-start",
     justifyContent: "space-between",
     marginBottom: 10,
   },
   salutation: {
-    fontSize: 12,
+    fontSize: 19,
+    lineHeight: 28,
     flex: 1,
     paddingRight: 8,
   },
@@ -203,9 +184,6 @@ const styles = StyleSheet.create({
   nameBlock: {
     flex: 1,
     paddingRight: 12,
-  },
-  name: {
-    fontSize: 23,
   },
   date: {
     fontSize: 13,

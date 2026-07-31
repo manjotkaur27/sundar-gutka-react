@@ -1,31 +1,16 @@
 import React, { useState } from "react";
-import { View, Pressable, StyleSheet } from "react-native";
-import Svg, { Path, Polyline } from "react-native-svg";
+import { View, Pressable, StyleSheet, Image } from "react-native";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS } from "@common";
-import DashboardCard from "./DashboardCard";
-import useDashboardTheme from "./dashboardTheme";
+import DashboardCard, { CARD_RADIUS } from "./DashboardCard";
+import useDashboardTheme, { BRAND } from "./dashboardTheme";
 import RandomShabad from "./RandomShabad";
+import RefreshSpinner from "./RefreshSpinner";
 import TodaysVaak from "./TodaysVaak";
-
-// Single-arrow refresh glyph: one near-full circular arc with one arrowhead
-// (as opposed to the two-arrow "shuffle-style" refresh look).
-const RefreshIcon = ({ color }) => (
-  <Svg
-    width={14}
-    height={14}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <Path d="M21 12a9 9 0 1 1-3.05-6.75" />
-    <Polyline points="21 3 21 8 16 8" />
-  </Svg>
-);
-RefreshIcon.propTypes = { color: PropTypes.string.isRequired };
+// Sunlit Sri Harmandir Sahib, used as the faint backdrop for the Hukamnama tab.
+// Square crop, so `cover` fills the wide card by trimming top and bottom evenly
+// rather than cutting the building out of frame.
+const DARBAR_SAHIB = require("../../assets/images/darbar-sahib.jpg");
 
 // Combined card: a segmented toggle (inside the card, like the audio bar's
 // Tracks/Options pills) switches between Today's Vaak and Random Shabad. Both
@@ -36,8 +21,12 @@ const ShabadVaak = ({ refreshKey }) => {
   const { isDark, mutedText, gold } = useDashboardTheme();
   const [tab, setTab] = useState("vaak");
   const [shabadNonce, setShabadNonce] = useState(0);
+  // Mirrors RandomShabad's fetch state so the shuffle can show progress and
+  // stop accepting taps — otherwise it looks inert and each extra tap queues
+  // another swap that lands seconds later.
+  const [shabadLoading, setShabadLoading] = useState(false);
 
-  const inactiveBg = isDark ? "rgba(255,255,255,0.06)" : "#eef2fb";
+  const inactiveBg = isDark ? "rgba(255,255,255,0.06)" : BRAND.tint88;
   const goldTint = isDark ? "rgba(210,144,48,0.16)" : "#FBF1E2";
   // Client-specified navy card for Today's Vaak / Random Shabad.
   const cardBgOverride = { backgroundColor: isDark ? "#062346" : "#042f67" };
@@ -49,6 +38,22 @@ const ShabadVaak = ({ refreshKey }) => {
   return (
     <View style={styles.wrap}>
       <DashboardCard style={[styles.card, cardBgOverride]}>
+        {/* Sri Darbar Sahib behind the Hukamnama tab, to place where the
+            hukamnama comes from. Only on that tab — the random shabad is not
+            from the darbar. Clipped by its own wrapper rather than by the card,
+            so the card keeps its shadow (overflow hidden suppresses elevation
+            on Android). First child, and non-interactive, so it paints beneath
+            the content without intercepting taps. */}
+        {tab === "vaak" ? (
+          <View style={styles.backdrop} pointerEvents="none">
+            <Image
+              source={DARBAR_SAHIB}
+              style={[styles.backdropImage, { opacity: isDark ? 0.12 : 0.16 }]}
+              resizeMode="cover"
+            />
+          </View>
+        ) : null}
+
         {/* Tabs (+ shuffle for the shabad tab) live INSIDE the card header. */}
         <View style={styles.header}>
           <View style={styles.tabsGroup}>
@@ -73,12 +78,19 @@ const ShabadVaak = ({ refreshKey }) => {
           {tab === "shabad" ? (
             <Pressable
               onPress={() => setShabadNonce((n) => n + 1)}
+              disabled={shabadLoading}
               hitSlop={10}
-              style={[styles.shuffleBtn, { backgroundColor: inactiveBg }]}
+              style={({ pressed }) => [
+                styles.shuffleBtn,
+                { backgroundColor: inactiveBg },
+                pressed && styles.shuffleBtnPressed,
+                shabadLoading && styles.shuffleBtnBusy,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={STRINGS.SHUFFLE}
+              accessibilityState={{ disabled: shabadLoading, busy: shabadLoading }}
             >
-              <RefreshIcon color={gold} />
+              <RefreshSpinner color={gold} size={14} spinning={shabadLoading} />
             </Pressable>
           ) : null}
         </View>
@@ -88,7 +100,12 @@ const ShabadVaak = ({ refreshKey }) => {
           <TodaysVaak embedded refreshKey={refreshKey} />
         </View>
         <View style={tab === "shabad" ? styles.shown : styles.hidden}>
-          <RandomShabad embedded refreshKey={refreshKey} reloadNonce={shabadNonce} />
+          <RandomShabad
+            embedded
+            refreshKey={refreshKey}
+            reloadNonce={shabadNonce}
+            onLoadingChange={setShabadLoading}
+          />
         </View>
       </DashboardCard>
     </View>
@@ -100,6 +117,16 @@ ShabadVaak.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: CARD_RADIUS,
+    overflow: "hidden",
+  },
+  backdropImage: { width: "100%", height: "100%" },
   card: { padding: 18 },
   header: {
     flexDirection: "row",
@@ -120,6 +147,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: 8,
   },
+  // Dimmed while a shabad is in flight, so the control reads as busy rather
+  // than broken when it stops responding to taps.
+  shuffleBtnBusy: { opacity: 0.6 },
+  // Instant acknowledgement on touch-down, before any async work starts.
+  shuffleBtnPressed: { opacity: 0.5 },
   shown: { display: "flex" },
   hidden: { display: "none" },
 });

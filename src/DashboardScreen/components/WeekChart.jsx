@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant } from "@common";
 import { getDayActivity } from "../../database/analytics";
-import useDashboardTheme from "./dashboardTheme";
+import useDashboardTheme, { BRAND } from "./dashboardTheme";
 import SectionError from "./SectionError";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
@@ -64,7 +64,7 @@ const WeekChart = ({ refreshKey }) => {
 
   const { loading, error, retry } = useAsyncSection(task);
 
-  const inactiveBar = isDark ? "rgba(37,129,223,0.25)" : "#dce4f2";
+  const inactiveBar = isDark ? "rgba(85,141,231,0.25)" : BRAND.tint75;
 
   // No activity data exists before DASHBOARD_HISTORY_FLOOR (see MonthCalendar,
   // which enforces the same floor). Block stepping back once the NEXT window
@@ -93,7 +93,7 @@ const WeekChart = ({ refreshKey }) => {
     <View>
       <SectionLabel
         title={rangeLabel}
-        color={isDark ? "#FFFFFF" : "#113879"}
+        color={isDark ? "#FFFFFF" : "#113979"}
         uppercase={false}
         titleStyle={{ fontSize: 20, fontWeight: "600", letterSpacing: 0 }}
         right={

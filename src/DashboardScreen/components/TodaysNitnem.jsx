@@ -278,7 +278,7 @@ const TodaysNitnem = ({ refreshKey }) => {
   // Client-specified "light blue" accent for this section in dark mode only —
   // scoped locally rather than changing the shared accentBlue theme value,
   // which every other dashboard section also relies on.
-  const accentBlue = isDark ? "#5A99FD" : baseAccentBlue;
+  const accentBlue = baseAccentBlue;
   const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const dispatch = useDispatch();
   const navigation = useNavigation();

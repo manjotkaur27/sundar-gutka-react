@@ -12,6 +12,17 @@ import useDashboardTheme from "./dashboardTheme";
 // blur. A single view with a single well-tuned shadow is far more reliable —
 // worth the tradeoff of one shadow layer instead of two.
 const RADIUS = 30;
+// Exported so anything drawing edge-to-edge inside a card (a background image,
+// for instance) can clip itself to the same curve.
+export const CARD_RADIUS = RADIUS;
+const SHADOW_OFFSET_Y = 8;
+const SHADOW_RADIUS = 24;
+
+// How far the shadow reaches past the card's own box. A parent that clips its
+// children — a horizontal ScrollView, or anything with overflow hidden — has to
+// reserve this much or the shadow gets cut off at the boundary.
+export const CARD_SHADOW_BLEED = SHADOW_OFFSET_Y + SHADOW_RADIUS;
+
 const SHADOW_COLOR = "#64748B"; // slate-500 — blue-gray tint (iOS only, see below)
 const BORDER_COLOR = "rgba(100, 116, 139, 0.12)"; // thin blue-gray border, lightened
 const TOP_HIGHLIGHT = "rgba(255, 255, 255, 0.8)"; // inset-style highlight along the top edge
@@ -55,9 +66,9 @@ const styles = StyleSheet.create({
   },
   shadow: {
     shadowColor: SHADOW_COLOR,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: SHADOW_OFFSET_Y },
     shadowOpacity: 0.12,
-    shadowRadius: 24,
+    shadowRadius: SHADOW_RADIUS,
     elevation: 6,
   },
 });

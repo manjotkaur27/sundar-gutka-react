@@ -13,11 +13,12 @@ import Svg, { Path, Circle } from "react-native-svg";
 import PropTypes from "prop-types";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
+import { HukamnamaIcon } from "@common/icons";
 import { CustomText, STRINGS, constant, actions, openInAppBrowser } from "@common";
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
-import DashboardCard from "./DashboardCard";
-import useDashboardTheme from "./dashboardTheme";
+import DashboardCard, { CARD_SHADOW_BLEED } from "./DashboardCard";
+import useDashboardTheme, { BRAND } from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
@@ -25,7 +26,6 @@ import useBaniLookup from "./useBaniLookup";
 
 const KHALIS_LOGO = require("../../assets/images/khalis.png");
 const SEHAJ_PATH_LOGO = require("../../assets/images/sehajpath.webp");
-const STTM_LOGO = require("../../assets/images/sikhi2max.webp");
 const SHABADAVALI_LOGO = require("../../assets/images/shabadavali.png");
 
 // Android: launched directly via the native AppLauncher module (see
@@ -65,15 +65,37 @@ const HeadphonesIcon = ({ color }) => (
 );
 HeadphonesIcon.propTypes = { color: PropTypes.string.isRequired };
 
+// Map pin for the Gurdham tile — no artwork was supplied for it, so it uses a
+// location glyph drawn in the same stroked style as the search icon above.
+const PinIcon = ({ color }) => (
+  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
+    <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
+PinIcon.propTypes = { color: PropTypes.string.isRequired };
+
+// Tiles carry an `icon` key when they draw a vector glyph instead of a logo
+// image. Hukamnama's darbar artwork is solid-filled and detailed, so it gets a
+// slightly larger box than the stroked glyphs to stay legible.
+const TileIcon = ({ name, color }) => {
+  if (name === "hukamnama") return <HukamnamaIcon size={26} color={color} />;
+  if (name === "gurdham") return <PinIcon color={color} />;
+  return <SearchIcon color={color} />;
+};
+TileIcon.propTypes = {
+  name: PropTypes.string.isRequired,
+  color: PropTypes.string.isRequired,
+};
+
 // `titleKey`/`subtitleKey`/`badgeKey` hold STRINGS keys for the localisable
 // labels (resolved at render time so a language switch applies); brand and
 // proper-noun labels (SikhiToTheMax, Shabadavali, Sehaj Path, Khalis App,
 // Sri Darbar Sahib) stay as literal `title`/`subtitle` — they aren't translated.
 const APP_TILES = [
-  { id: "khalis-ai", titleKey: "TILE_ASK_AI", subtitleKey: "TILE_GURBANI_QA", image: KHALIS_LOGO, badgeKey: "BADGE_NEW", url: "https://www.sikhitothemax.org/" },
   { id: "search", titleKey: "TILE_SEARCH_SHABAD", subtitle: "SikhiToTheMax", icon: "search", url: "https://www.sikhitothemax.org" },
-  { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", image: STTM_LOGO, url: "https://www.sikhitothemax.org/hukamnama" },
-  { id: "shabadavali", titleKey: "TILE_LEARN_WORD", subtitle: "Shabadavali", image: SHABADAVALI_LOGO, url: "https://shabadavali.com/en/login" },
+  { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", icon: "hukamnama", url: "https://www.sikhitothemax.org/hukamnama" },
+  { id: "khalis-ai", titleKey: "TILE_ASK_AI", subtitleKey: "TILE_GURBANI_QA", image: KHALIS_LOGO, badgeKey: "BADGE_NEW", url: "https://www.sikhitothemax.org/" },
   {
     id: "sehaj-path",
     title: "Sehaj Path",
@@ -83,6 +105,8 @@ const APP_TILES = [
     url: SEHAJ_PATH_STORE_URL,
     deepLink: true,
   },
+  { id: "shabadavali", titleKey: "TILE_LEARN_WORD", subtitle: "Shabadavali", image: SHABADAVALI_LOGO, url: "https://shabadavali.com/en/login" },
+  { id: "gurdham", titleKey: "TILE_EXPLORE_GURDHAM", subtitle: "Gurdham", icon: "gurdham", url: "https://gurdham.com" },
 ];
 
 // Deep-links to the native Sehaj Path app instead of the in-app browser used
@@ -106,9 +130,9 @@ const ExploreGurbani = ({ refreshKey }) => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { nameOf } = useBaniLookup();
-  const iconBg = isDark ? "rgba(255,255,255,0.08)" : "#eef2fb";
+  const iconBg = isDark ? "rgba(255,255,255,0.08)" : BRAND.tint88;
   // Tile titles match the streak count / username navy.
-  const titleColor = isDark ? "#ffffffff" : "#00397e";
+  const titleColor = isDark ? "#ffffffff" : BRAND.base;
   // Tile icons (search / read / listen) go white in dark mode for contrast on the navy card.
   const iconColor = isDark ? "#fff" : accentBlue;
   // Explicit SemiBold (no fontWeight) — same convention as the header name/streak
@@ -168,10 +192,16 @@ const ExploreGurbani = ({ refreshKey }) => {
         <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
           {icon === "book" ? <BookIcon color={iconColor} /> : <HeadphonesIcon color={iconColor} />}
         </View>
-        <CustomText style={[styles.title, { color: titleColor, fontFamily: titleFont }]} numberOfLines={2}>
+        {/* Same allowance as the app tiles — bani names run long in Gurmukhi. */}
+        <CustomText
+          style={[styles.title, { color: titleColor, fontFamily: titleFont }]}
+          numberOfLines={3}
+        >
           {nameOf(item.bani_id) || item.bani_title || `Bani ${item.bani_id}`}
         </CustomText>
-        <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>{label}</CustomText>
+        <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={2}>
+          {label}
+        </CustomText>
       </Pressable>
     </DashboardCard>
   );
@@ -185,7 +215,12 @@ const ExploreGurbani = ({ refreshKey }) => {
   return (
     <View>
       <SectionLabel title={STRINGS.EXPLORE} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.scroll}
+        contentContainerStyle={styles.row}
+      >
         {/* While the recent-history lookup is in flight, hold the tiles' place
             with skeletons instead of popping them in after APP_TILES. */}
         {loading ? (
@@ -234,8 +269,8 @@ const ExploreGurbani = ({ refreshKey }) => {
             >
               <View style={styles.iconRow}>
                 <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                  {t.icon === "search" ? (
-                    <SearchIcon color={iconColor} />
+                  {t.icon ? (
+                    <TileIcon name={t.icon} color={iconColor} />
                   ) : (
                     <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
                   )}
@@ -246,10 +281,17 @@ const ExploreGurbani = ({ refreshKey }) => {
                   </View>
                 ) : null}
               </View>
-              <CustomText style={[styles.title, { color: titleColor, fontFamily: titleFont }]} numberOfLines={2}>
+              {/* Three lines, not two: the longest translations ("Rechercher
+                  sur SikhiToTheMax") need a third rather than being cut off.
+                  The row stretches every tile to the tallest, so allowing it
+                  costs alignment nothing. */}
+              <CustomText
+                style={[styles.title, { color: titleColor, fontFamily: titleFont }]}
+                numberOfLines={3}
+              >
                 {title}
               </CustomText>
-              <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={1}>
+              <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={2}>
                 {subtitle}
               </CustomText>
             </Pressable>
@@ -265,16 +307,33 @@ ExploreGurbani.propTypes = { refreshKey: PropTypes.number };
 ExploreGurbani.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
-  tile: { width: 128, paddingHorizontal: 16, paddingVertical: 20 },
+  // A horizontal ScrollView clips to its bounds, so the row reserves the card
+  // shadow's full reach; `scroll` pulls the same amount back off the layout so
+  // the extra room costs no visible space.
+  row: {
+    paddingHorizontal: 20,
+    gap: 12,
+    paddingTop: CARD_SHADOW_BLEED,
+    paddingBottom: CARD_SHADOW_BLEED,
+  },
+  scroll: { marginTop: -CARD_SHADOW_BLEED, marginBottom: -CARD_SHADOW_BLEED + 4 },
+  // Sized to its content, not to a fixed width. At 128 the text box was 96dp,
+  // narrower than the single word "SikhiToTheMax" (~114dp at 16px), so RN split
+  // it mid-word; the longer French and Spanish labels truncated outright.
+  // minWidth keeps short tiles from looking cramped, maxWidth forces wrapping
+  // so one long translation can't stretch a tile across the screen. Tiles are
+  // stretched to a common height by the row, so they stay aligned.
+  tile: { minWidth: 150, maxWidth: 190, paddingHorizontal: 16, paddingVertical: 20 },
   pressed: { opacity: 0.75 },
   iconRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   iconBox: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: 14 },
   iconImg: { width: 32, height: 32 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   badgeText: { color: "#fff", fontSize: 10, fontWeight: 900, letterSpacing: 0.5 },
-  title: { fontSize: 16, lineHeight: 18 },
-  subtitle: { fontSize: 12, marginTop: 3 },
+  // 18 was tighter than the 1.4 ratio that already clipped Baloo's Gurmukhi and
+  // Devanagari matras in Settings, and it now has to hold up to three lines.
+  title: { fontSize: 16, lineHeight: 24 },
+  subtitle: { fontSize: 12, lineHeight: 17, marginTop: 3 },
   tileSkeleton: { width: "100%", height: 88 },
 });
 

@@ -22,9 +22,9 @@ const Discover = ({ refreshKey }) => {
   // upcoming "days away" number instead gets its own dark-mode value.
   // Hero values (featured word + days-away count) match the "This week" / month
   // title color exactly.
-  const cardMainColor = isDark ? primaryText : "#113879";
+  const cardMainColor = isDark ? primaryText : "#113979";
   const cardSecondaryColor = isDark ? mutedText : "#97A5C2";
-  const upcomingNumColor = isDark ? "#ffffffff" : "#113879";
+  const upcomingNumColor = isDark ? "#ffffffff" : "#113979";
   const [word, setWord] = useState(null);
   const [event, setEvent] = useState(null);
 

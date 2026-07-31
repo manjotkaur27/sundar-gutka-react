@@ -61,7 +61,7 @@ const DashboardScreen = () => {
     }, [])
   );
 
-  const bg = theme.mode === "dark" ? "#031329" : "#F4F7FC";
+  const bg = theme.mode === "dark" ? "#031329" : "#F1F4F9";
   const visibleSections = layout.order.filter(
     (key) => !layout.hidden.includes(key) && SECTION_REGISTRY[key]
   );

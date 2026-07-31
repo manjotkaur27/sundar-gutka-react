@@ -282,16 +282,18 @@ const MonthCalendar = ({ refreshKey }) => {
     return Math.round(Math.max(CIRCLE_MIN, Math.min(CIRCLE_MAX, column - 6)));
   }, [gridWidth]);
 
-  // #2669d6 = rgb(38,105,214) — the brand blue, ramped by activity level.
+  // Brand navy in light mode; the lighter same-hue accent in dark, where the
+  // navy would be indistinguishable from the card behind it.
+  const heatRgb = isDark ? "85,141,231" : "17,57,121";
   const heatColor = (level) => {
     if (level === 0) return "transparent";
     const opacity = [0, 0.28, 0.5, 0.74, 1][level];
-    return `rgba(38,105,214,${opacity})`;
+    return `rgba(${heatRgb},${opacity})`;
   };
 
   // Today is always a light-blue fill + accent ring (not the activity heat fill),
   // so it reads as a distinct "today" marker regardless of how active the day is.
-  const todayFill = isDark ? "rgba(90,153,253,0.22)" : "rgba(38,105,214,0.15)";
+  const todayFill = isDark ? "rgba(85,141,231,0.22)" : "rgba(17,57,121,0.15)";
 
   return (
     <View style={styles.wrap}>
@@ -319,7 +321,7 @@ const MonthCalendar = ({ refreshKey }) => {
               style={styles.monthLabelBtn}
             >
               <CustomText
-                style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113879" }]}
+                style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113979" }]}
                 numberOfLines={1}
               >
                 {monthYearLabel}

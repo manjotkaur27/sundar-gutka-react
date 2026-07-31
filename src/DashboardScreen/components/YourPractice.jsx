@@ -131,7 +131,7 @@ const YourPractice = ({ refreshKey }) => {
   const numFont = theme.typography.fonts.balooPaajiSemiBold;
   const labelFont = theme.typography.fonts.balooPaaji;
   // Hero numbers match the username / streak count exactly (color + faux-bold).
-  const heroNumColor = isDark ? "#ffffffff" : "#00397e";
+  const heroNumColor = isDark ? "#ffffffff" : "#113979";
   const heroLabelColor = isDark ? primaryText : "#5E7090";
   // Book/clock icon tint — light blue in dark mode, accent in light.
   const iconColor = isDark ? "#a1bee7ff" : accentBlue;
