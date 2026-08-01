@@ -1,17 +1,61 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Modal, Pressable, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet } from "react-native";
 import DraggableFlatList, {
   ShadowDecorator,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS, constant, actions, showErrorToast } from "@common";
 import useDashboardTheme from "./dashboardTheme";
 import { sectionLabel } from "./sectionRegistry";
+import SheetModal from "./SheetModal";
+
+const styles = StyleSheet.create({
+  gestureRoot: { flex: 1 },
+  container: { flex: 1 },
+  listContent: { padding: 20, paddingTop: 6, paddingBottom: 24 },
+  listWrap: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  headerTitle: { flex: 1, fontSize: 17, textAlign: "center", paddingHorizontal: 8 },
+  // 44pt minimum touch targets on both header controls.
+  headerBtn: { minHeight: 44, minWidth: 60, justifyContent: "center" },
+  action: { fontSize: 15 },
+  saveBtn: {
+    minHeight: 44,
+    minWidth: 60,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveText: { fontSize: 15, color: "#FFFFFF" },
+  pressed: { opacity: 0.7 },
+  hint: { fontSize: 12, paddingHorizontal: 20, paddingTop: 14 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  rowLabel: { flex: 1, fontSize: 15 },
+  switch: { width: 46, height: 28, borderRadius: 14, padding: 3, justifyContent: "center" },
+  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
+  knobOn: { alignSelf: "flex-end" },
+  resetBtn: { alignItems: "center", paddingVertical: 18 },
+  resetText: { fontSize: 14 },
+});
 
 // Drag handle (six-dot grip) — long-press anywhere on the row to reorder.
 const DragHandle = ({ color }) => (
@@ -43,18 +87,22 @@ ThemedSwitchLite.propTypes = {
 };
 
 const LayoutEditOverlay = ({ visible, onClose }) => {
-  const { screenBg, cardBg, accentBlue, primaryText, mutedText, separator, theme } =
-    useDashboardTheme();
+  const { cardBg, accentBlue, primaryText, mutedText, separator, theme } = useDashboardTheme();
   // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
   // fontWeight with a custom TTF makes Android synthesize a fake bold and
   // silently fall back off the real glyph, which was making the title/Save
   // text render in the system font instead of Baloo Paaji.
   const boldFont = theme.typography.fonts.balooPaajiSemiBold;
-  const { top, bottom } = useSafeAreaInsets();
   const dispatch = useDispatch();
   const layout = useSelector((state) => state.dashboardLayout);
 
   const [order, setOrder] = useState(layout.order);
+  // Measured space left for the list once the header and hint have taken theirs.
+  const [listHeight, setListHeight] = useState(0);
+  const onListWrapLayout = useCallback((e) => {
+    const h = e.nativeEvent.layout.height;
+    setListHeight((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+  }, []);
   const [hidden, setHidden] = useState(layout.hidden);
 
   useEffect(() => {
@@ -133,20 +181,32 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
   );
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <View style={[styles.container, { backgroundColor: screenBg, paddingTop: top + 8 }]}>
+    <SheetModal visible={visible} onClose={onClose} heightRatio={0.75}>
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <View style={styles.container}>
           <View style={[styles.header, { borderBottomColor: separator }]}>
-            <Pressable onPress={onClose} hitSlop={8}>
+            <Pressable onPress={onClose} style={styles.headerBtn} hitSlop={8}>
               <CustomText style={[styles.action, { color: mutedText }]}>
                 {STRINGS.CANCEL}
               </CustomText>
             </Pressable>
-            <CustomText style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}>
+            <CustomText
+              style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}
+              numberOfLines={1}
+            >
               {STRINGS.CUSTOMIZE_LAYOUT}
             </CustomText>
-            <Pressable onPress={save} hitSlop={8}>
-              <CustomText style={[styles.action, { color: accentBlue, fontFamily: boldFont }]}>
+            {/* Primary action, styled as a button — matches Edit Banis. */}
+            <Pressable
+              onPress={save}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { backgroundColor: accentBlue },
+                pressed && styles.pressed,
+              ]}
+              hitSlop={8}
+            >
+              <CustomText style={[styles.saveText, { fontFamily: boldFont }]}>
                 {STRINGS.SAVE}
               </CustomText>
             </Pressable>
@@ -156,23 +216,33 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
             {STRINGS.DRAG_TO_REORDER}
           </CustomText>
 
-          <DraggableFlatList
-            data={order}
-            keyExtractor={(key) => key}
-            renderItem={renderItem}
-            onDragEnd={({ data }) => setOrder(data)}
-            contentContainerStyle={{ padding: 20, paddingTop: 6, paddingBottom: bottom + 40 }}
-            ListFooterComponent={
-              <Pressable onPress={reset} style={styles.resetBtn} hitSlop={6}>
-                <CustomText style={[styles.resetText, { color: mutedText }]}>
-                  {STRINGS.RESET_TO_DEFAULT}
-                </CustomText>
-              </Pressable>
-            }
-          />
+          {/* DraggableFlatList needs an EXPLICIT height. Inside a Modal a
+              flex:1 chain does not resolve reliably — the list measured zero
+              and rendered nothing — so this wrapper is measured and the height
+              handed to the list directly. The list is withheld until that
+              first layout arrives rather than mounted at zero height. */}
+          <View style={styles.listWrap} onLayout={onListWrapLayout}>
+            {listHeight > 0 ? (
+              <DraggableFlatList
+                data={order}
+                keyExtractor={(key) => key}
+                renderItem={renderItem}
+                onDragEnd={({ data }) => setOrder(data)}
+                style={{ height: listHeight }}
+                contentContainerStyle={styles.listContent}
+                ListFooterComponent={
+                  <Pressable onPress={reset} style={styles.resetBtn} hitSlop={6}>
+                    <CustomText style={[styles.resetText, { color: mutedText }]}>
+                      {STRINGS.RESET_TO_DEFAULT}
+                    </CustomText>
+                  </Pressable>
+                }
+              />
+            ) : null}
+          </View>
         </View>
       </GestureHandlerRootView>
-    </Modal>
+    </SheetModal>
   );
 };
 
@@ -180,34 +250,5 @@ LayoutEditOverlay.propTypes = {
   visible: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-  },
-  headerTitle: { fontSize: 17 },
-  action: { fontSize: 15 },
-  hint: { fontSize: 12, paddingHorizontal: 20, paddingTop: 14 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  rowLabel: { flex: 1, fontSize: 15, fontWeight: "600" },
-  switch: { width: 46, height: 28, borderRadius: 14, padding: 3, justifyContent: "center" },
-  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
-  knobOn: { alignSelf: "flex-end" },
-  resetBtn: { alignItems: "center", paddingVertical: 18 },
-  resetText: { fontSize: 14, fontWeight: "600" },
-});
 
 export default LayoutEditOverlay;

@@ -50,12 +50,16 @@ const LINKS = {
   qaFeedbackForm:
     "https://docs.google.com/forms/d/e/1FAIpQLSfui4s1eAUXWovySguAqgfRtb8eF-fOvJBtdP7CpbwStOPZqA/viewform?usp=sharing&ouid=114493208173660506988",
   ideasForm: "https://forms.gle/EMUMZZiw8WXiFojCA",
+  // Declared in the order the social page lists them. An empty string means
+  // "no published account yet" — the renderer drops the row rather than
+  // emitting a link that goes nowhere.
+  khalisSubstack: "https://khalisfoundation.substack.com/",
   khalisInstagram: "https://www.instagram.com/khalisfound/",
-  khalisFacebook: "https://www.facebook.com/khalisfoundation/",
-  khalisTwitter: "https://x.com/khalisfound",
   khalisYoutube: "https://www.youtube.com/@khalisfoundation",
-  sttmInstagram: "https://www.instagram.com/sikhitothemax/",
-  sttmFacebook: "https://www.facebook.com/sikhitothemax/",
+  khalisTiktok: "https://www.tiktok.com/@khalisfoundation/",
+  khalisLinkedin: "https://www.linkedin.com/company/khalis-foundation/",
+  khalisTwitter: "https://x.com/khalisfound",
+  khalisFacebook: "https://www.facebook.com/khalisfoundation/",
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -147,45 +151,54 @@ const MAIN = {
     es: "Contribuye a nuestros proyectos de código abierto",
   },
   qa_title: {
-    en: "Test our work",
-    hi: "हमारे काम का परीक्षण करें",
-    pa: "ਸਾਡੇ ਕੰਮ ਦੀ ਜਾਂਚ ਕਰੋ",
-    fr: "Testez notre travail",
-    it: "Prova il nostro lavoro",
-    es: "Prueba nuestro trabajo",
+    en: "Report an issue",
+    hi: "समस्या की रिपोर्ट करें",
+    pa: "ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰੋ",
+    fr: "Signaler un problème",
+    it: "Segnala un problema",
+    es: "Informar de un problema",
   },
   qa_sub: {
-    en: "Help us test and improve our products",
-    hi: "हमारे उत्पादों का परीक्षण और सुधार करने में मदद करें",
-    pa: "ਸਾਡੇ ਉਤਪਾਦਾਂ ਦੀ ਜਾਂਚ ਅਤੇ ਸੁਧਾਰ ਵਿੱਚ ਮਦਦ ਕਰੋ",
-    fr: "Aidez-nous à tester et améliorer nos produits",
-    it: "Aiutaci a testare e migliorare i nostri prodotti",
-    es: "Ayúdanos a probar y mejorar nuestros productos",
+    en: "Help us improve and test our products",
+    hi: "हमारे उत्पादों को बेहतर बनाने और परखने में मदद करें",
+    pa: "ਸਾਡੇ ਉਤਪਾਦਾਂ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਅਤੇ ਪਰਖਣ ਵਿੱਚ ਮਦਦ ਕਰੋ",
+    fr: "Aidez-nous à améliorer et tester nos produits",
+    it: "Aiutaci a migliorare e testare i nostri prodotti",
+    es: "Ayúdanos a mejorar y probar nuestros productos",
   },
   other_title: {
-    en: "Other opportunities",
-    hi: "अन्य अवसर",
-    pa: "ਹੋਰ ਮੌਕੇ",
-    fr: "Autres opportunités",
-    it: "Altre opportunità",
-    es: "Otras oportunidades",
+    en: "Share your ideas",
+    hi: "अपने विचार साझा करें",
+    pa: "ਆਪਣੇ ਵਿਚਾਰ ਸਾਂਝੇ ਕਰੋ",
+    fr: "Partagez vos idées",
+    it: "Condividi le tue idee",
+    es: "Comparte tus ideas",
   },
   other_sub: {
-    en: "Explore more ways to get involved",
-    hi: "शामिल होने के और तरीके जानें",
-    pa: "ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਹੋਰ ਤਰੀਕੇ ਲੱਭੋ",
-    fr: "Découvrez d’autres façons de vous impliquer",
-    it: "Scopri altri modi per partecipare",
-    es: "Descubre más formas de participar",
+    en: "Share ideas for another way to do seva.",
+    hi: "सेवा करने के किसी और तरीके के लिए विचार साझा करें।",
+    pa: "ਸੇਵਾ ਕਰਨ ਦੇ ਕਿਸੇ ਹੋਰ ਤਰੀਕੇ ਲਈ ਵਿਚਾਰ ਸਾਂਝੇ ਕਰੋ।",
+    fr: "Proposez vos idées pour une autre façon de faire seva.",
+    it: "Condividi idee per un altro modo di fare seva.",
+    es: "Comparte ideas para otra forma de hacer seva.",
   },
 };
 
-const mainMeansItem = (page, titleKey, subKey, lang) =>
-  `<p class="seva-means"><a href="seva-means:${page}">${pick(MAIN, titleKey, lang)}</a>${pick(
+// `href` always starts `seva-means:<page>` so the app can map the row to its
+// icon and accent tint. `openUrl` appends `?open=<encoded url>`, telling the app
+// to open that URL in the in-app browser instead of navigating to the sub-page.
+// Rows without it navigate as before. Encoding also stops any `&` in the URL
+// from terminating the href attribute.
+const mainMeansItem = (page, titleKey, subKey, lang, openUrl) => {
+  const href = openUrl
+    ? `seva-means:${page}?open=${encodeURIComponent(openUrl)}`
+    : `seva-means:${page}`;
+  return `<p class="seva-means"><a href="${href}">${pick(MAIN, titleKey, lang)}</a>${pick(
     MAIN,
     subKey,
     lang
   )}</p>`;
+};
 
 /**
  * The full localized Seva page layout — mirror of buildSevaLayout(). Includes the
@@ -209,8 +222,8 @@ export const buildBundledSevaLayout = (langInput) => {
 <h2 class="seva-section">${pick(MAIN, "section", lang)}</h2>
 ${mainMeansItem("social", "social_title", "social_sub", lang)}
 ${mainMeansItem("coding", "coding_title", "coding_sub", lang)}
-${mainMeansItem("qa", "qa_title", "qa_sub", lang)}
-${mainMeansItem("other", "other_title", "other_sub", lang)}`;
+${mainMeansItem("qa", "qa_title", "qa_sub", lang, LINKS.qaFeedbackForm)}
+${mainMeansItem("other", "other_title", "other_sub", lang, LINKS.ideasForm)}`;
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -362,36 +375,36 @@ const MEANS = {
     es: "Explora el proyecto y reporta incidencias.",
   },
   qa_test: {
-    en: "Test the App",
-    hi: "ऐप का परीक्षण करें",
-    pa: "ਐਪ ਦੀ ਜਾਂਚ ਕਰੋ",
-    fr: "Tester l'application",
-    it: "Prova l'app",
-    es: "Prueba la app",
+    en: "Become a Tester",
+    hi: "टेस्टर बनें",
+    pa: "ਟੈਸਟਰ ਬਣੋ",
+    fr: "Devenez testeur",
+    it: "Diventa un tester",
+    es: "Conviértete en tester",
   },
   qa_test_sub: {
-    en: "Try the latest build and put it through its paces.",
-    hi: "नवीनतम बिल्ड आज़माएं और उसे परखें।",
-    pa: "ਨਵੀਨਤਮ ਬਿਲਡ ਅਜ਼ਮਾਓ ਅਤੇ ਉਸ ਨੂੰ ਪਰਖੋ।",
-    fr: "Essayez la dernière version et mettez-la à l’épreuve.",
-    it: "Prova l'ultima versione e mettila alla prova.",
-    es: "Prueba la última versión y ponla a prueba.",
+    en: "Sign up to test any of our apps before release.",
+    hi: "रिलीज़ से पहले हमारे किसी भी ऐप की जाँच के लिए साइन अप करें।",
+    pa: "ਰਿਲੀਜ਼ ਤੋਂ ਪਹਿਲਾਂ ਸਾਡੇ ਕਿਸੇ ਵੀ ਐਪ ਦੀ ਜਾਂਚ ਲਈ ਸਾਈਨ ਅੱਪ ਕਰੋ।",
+    fr: "Inscrivez-vous pour tester nos applications avant leur sortie.",
+    it: "Iscriviti per provare le nostre app prima del rilascio.",
+    es: "Regístrate para probar nuestras apps antes de su lanzamiento.",
   },
   qa_form: {
-    en: "Report Your Findings",
-    hi: "अपने निष्कर्ष बताएं",
-    pa: "ਆਪਣੇ ਨਤੀਜੇ ਦੱਸੋ",
-    fr: "Partagez vos retours",
-    it: "Condividi i tuoi riscontri",
-    es: "Comparte tus hallazgos",
+    en: "Report a Sundar Gutka Issue",
+    hi: "सुंदर गुटका की समस्या बताएं",
+    pa: "ਸੁੰਦਰ ਗੁਟਕਾ ਦੀ ਸਮੱਸਿਆ ਦੱਸੋ",
+    fr: "Signaler un problème Sundar Gutka",
+    it: "Segnala un problema di Sundar Gutka",
+    es: "Reportar un problema de Sundar Gutka",
   },
   qa_form_sub: {
-    en: "Share bugs and feedback through our form.",
-    hi: "हमारे फ़ॉर्म से बग और सुझाव साझा करें।",
-    pa: "ਸਾਡੇ ਫਾਰਮ ਰਾਹੀਂ ਬੱਗ ਅਤੇ ਸੁਝਾਅ ਸਾਂਝੇ ਕਰੋ।",
-    fr: "Signalez les bugs et suggestions via notre formulaire.",
-    it: "Segnala bug e suggerimenti tramite il nostro modulo.",
-    es: "Reporta errores y sugerencias con nuestro formulario.",
+    en: "Tell us about a bug or send feedback on this app.",
+    hi: "इस ऐप में किसी बग या सुझाव के बारे में हमें बताएं।",
+    pa: "ਇਸ ਐਪ ਵਿੱਚ ਕਿਸੇ ਬੱਗ ਜਾਂ ਸੁਝਾਅ ਬਾਰੇ ਸਾਨੂੰ ਦੱਸੋ।",
+    fr: "Signalez un bug ou envoyez vos retours sur cette application.",
+    it: "Segnala un bug o inviaci un riscontro su questa app.",
+    es: "Cuéntanos un error o envía comentarios sobre esta app.",
   },
   other_intro: {
     en: "Have an idea for another way to do seva? We'd love to hear from you.",
@@ -429,12 +442,14 @@ const MEANS = {
 
 // Brand/handle labels — identical across languages (proper nouns).
 const LITERALS = {
+  lit_khalis_substack: "Khalis Foundation · Substack",
   lit_khalis_instagram: "Khalis Foundation · Instagram",
-  lit_khalis_facebook: "Khalis Foundation · Facebook",
-  lit_khalis_twitter: "Khalis Foundation · X",
+  lit_khalis_slack: "Khalis Foundation · Slack",
   lit_khalis_youtube: "Khalis Foundation · YouTube",
-  lit_sttm_instagram: "SikhiToTheMax · Instagram",
-  lit_sttm_facebook: "SikhiToTheMax · Facebook",
+  lit_khalis_tiktok: "Khalis Foundation · TikTok",
+  lit_khalis_linkedin: "Khalis Foundation · LinkedIn",
+  lit_khalis_twitter: "Khalis Foundation · X",
+  lit_khalis_facebook: "Khalis Foundation · Facebook",
 };
 
 const meansText = (key, lang) =>
@@ -448,13 +463,16 @@ const PAGES = {
     sections: [
       {
         headingKey: "social_follow",
+        // Rows whose URL is still empty in LINKS are dropped by the renderer.
         links: [
+          { titleKey: "lit_khalis_substack", url: LINKS.khalisSubstack },
           { titleKey: "lit_khalis_instagram", url: LINKS.khalisInstagram },
-          { titleKey: "lit_khalis_facebook", url: LINKS.khalisFacebook },
-          { titleKey: "lit_khalis_twitter", url: LINKS.khalisTwitter },
+          { titleKey: "lit_khalis_slack", url: LINKS.slack },
           { titleKey: "lit_khalis_youtube", url: LINKS.khalisYoutube },
-          { titleKey: "lit_sttm_instagram", url: LINKS.sttmInstagram },
-          { titleKey: "lit_sttm_facebook", url: LINKS.sttmFacebook },
+          { titleKey: "lit_khalis_tiktok", url: LINKS.khalisTiktok },
+          { titleKey: "lit_khalis_linkedin", url: LINKS.khalisLinkedin },
+          { titleKey: "lit_khalis_twitter", url: LINKS.khalisTwitter },
+          { titleKey: "lit_khalis_facebook", url: LINKS.khalisFacebook },
         ],
       },
     ],
@@ -518,7 +536,11 @@ const renderSection = (section, lang) => {
   }
   if (section.headingKey) parts.push(`<h2>${esc(meansText(section.headingKey, lang))}</h2>`);
   if (section.bodyKey) parts.push(`<p>${esc(meansText(section.bodyKey, lang))}</p>`);
-  (section.links || []).forEach((link) => parts.push(renderLink(link, lang)));
+  // An empty URL means the account isn't published yet — drop the row rather
+  // than emit a link that goes nowhere.
+  (section.links || [])
+    .filter((link) => link.url && link.url.trim())
+    .forEach((link) => parts.push(renderLink(link, lang)));
   return parts.join("\n");
 };
 

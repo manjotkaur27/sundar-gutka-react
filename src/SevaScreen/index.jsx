@@ -37,8 +37,10 @@ import {
   MegaphoneIcon,
   CodeIcon,
   ClipboardCheckIcon,
+  ExternalLinkIcon,
   StarIcon,
 } from "../common/icons";
+import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 import {
   resolveCurrency,
   usdToLocal,
@@ -356,6 +358,19 @@ const SevaScreen = () => {
     setTimeout(() => otherAmountInputRef.current?.focus(), 50);
   };
 
+  // Tapping the figure is how people expect to edit it, so it switches to
+  // "Other" itself rather than doing nothing until the Other chip is pressed.
+  // Selecting Other flips isOtherSelected, and the effect above focuses the
+  // input; when already in Other there is no state change to trigger it, so
+  // refocus directly.
+  const handleAmountPress = () => {
+    if (isOtherSelected) {
+      focusOtherAmount();
+      return;
+    }
+    handleAmountSelect(null, true);
+  };
+
   const handleFrequencyChange = (freq) => {
     setFrequency(freq);
     lastFrequencyRef.current = freq;
@@ -508,23 +523,41 @@ const SevaScreen = () => {
   // block. The backend supplies the title (link text) + subtitle (trailing
   // text) + which page; the app supplies the icon, accent tint, and the native
   // navigation to the SDUI page — the only non-content pieces.
+  //
+  // A row may also carry `?open=<encoded url>`. That means "open this URL in
+  // the in-app browser instead of navigating", for rows whose sub-page would
+  // hold a single link. The page key before the `?` still drives the icon.
   const renderMeansItem = (block, key) => {
     const linkSeg = block.segments.find((s) => s.link);
     const subSeg = block.segments.find((s) => !s.link && s.text.trim());
     const title = linkSeg ? linkSeg.text : blockText(block);
     const sub = subSeg ? subSeg.text.trim() : "";
-    const page =
+    const target =
       linkSeg && linkSeg.url && linkSeg.url.startsWith("seva-means:")
         ? linkSeg.url.slice("seva-means:".length)
         : null;
+    const [page, query] = target ? target.split("?") : [null, ""];
+    const openMatch = query && query.match(/(?:^|&)open=([^&]*)/);
+    let openUrl = null;
+    if (openMatch) {
+      try {
+        openUrl = decodeURIComponent(openMatch[1]);
+      } catch {
+        openUrl = null;
+      }
+    }
     const meta = MEANS_META[page] || MEANS_META.other;
     const { Icon } = meta;
+    const trailingIconColor = isDarkMode ? "#4A6785" : "#9AA8BD";
     return (
       <Pressable
         key={key}
         style={styles.meansRow}
-        onPress={() => page && navigation.navigate("SevaMeans", { page })}
-        accessibilityRole="button"
+        onPress={() => {
+          if (openUrl) openBrowserForUrl(openUrl);
+          else if (page) navigation.navigate("SevaMeans", { page });
+        }}
+        accessibilityRole={openUrl ? "link" : "button"}
         accessibilityLabel={`seva-means-${page}`}
       >
         <View style={[styles.meansIconCircle, { backgroundColor: `${meta.tint}22` }]}>
@@ -534,7 +567,13 @@ const SevaScreen = () => {
           <CustomText style={styles.meansTitle}>{title}</CustomText>
           {!!sub && <CustomText style={styles.meansSub}>{sub}</CustomText>}
         </View>
-        <ChevronRight size={20} color={isDarkMode ? "#4A6785" : "#9AA8BD"} />
+        {/* Chevron means "another screen in the app"; the external-link mark
+            means "this leaves the app for a browser". */}
+        {openUrl ? (
+          <ExternalLinkIcon size={19} color={trailingIconColor} />
+        ) : (
+          <ChevronRight size={20} color={trailingIconColor} />
+        )}
       </Pressable>
     );
   };
@@ -644,9 +683,14 @@ const SevaScreen = () => {
   const renderDonateWidget = () => (
     <>
       {/* Amount card — static display OR inline input when Other is selected.
-          The whole card is the tap target in "Other" mode so the keyboard
-          re-opens on tapping anywhere on it, not just the thin cursor line. */}
-      <Pressable style={styles.amountCard} onPress={isOtherSelected ? focusOtherAmount : undefined}>
+          The whole card is the tap target so the keyboard opens from anywhere
+          on it, not just the thin cursor line. */}
+      <Pressable
+        style={({ pressed }) => [styles.amountCard, pressed && styles.amountCardPressed]}
+        onPress={handleAmountPress}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.SEVA_OTHER}
+      >
         <View style={styles.amountContainer}>
           <View style={styles.amountRow}>
             {/* The figure is ONE inline Text: the currency symbol (its own font —
@@ -895,8 +939,11 @@ const SevaScreen = () => {
   // returns to Home / All Banis. Replaces the old in-page "ਸੁੰਦਰ ਗੁਟਕਾ" heading.
   // The bar background matches the page BODY (dark navy / cream) so there's no
   // contrasting black strip above the divider.
-  const headerBg = isDarkMode ? "#041126" : "#FFF8E7";
-  const headerFg = isDarkMode ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
+  // Matches the dashboard's ground rather than the old cream. The foreground
+  // drives BOTH the "Seva" title and the close cross: near-black read as a
+  // heavy, unbranded mark against the light bar, so it is the brand navy.
+  const headerBg = isDarkMode ? "#041126" : BRAND.tint94;
+  const headerFg = isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base;
   const renderHeader = () => (
     <AppBar
       title={STRINGS.SEVA}

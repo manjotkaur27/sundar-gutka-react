@@ -477,7 +477,6 @@ const TodaysNitnem = ({ refreshKey }) => {
       <EditBanisModal
         visible={editVisible}
         onClose={() => setEditVisible(false)}
-        baniMap={baniMap}
         selectedIds={selectedBaniIds}
       />
     </View>

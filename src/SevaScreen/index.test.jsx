@@ -146,6 +146,7 @@ jest.mock("../common/icons", () => {
     MegaphoneIcon: Stub,
     CodeIcon: Stub,
     ClipboardCheckIcon: Stub,
+    ExternalLinkIcon: (props) => <Text testID="external-link-icon" {...props} />,
     StarIcon: Stub,
   };
 });
@@ -350,6 +351,35 @@ describe("SevaScreen", () => {
     await waitFor(() => expect(getByText("Seva for coders")).toBeTruthy());
     fireEvent.press(getByLabelText("seva-means-coding"));
     expect(mockNavigation.navigate).toHaveBeenCalledWith("SevaMeans", { page: "coding" });
+  });
+
+  it("opens the browser instead of navigating when a means item carries ?open=", async () => {
+    // The QA row links straight to the bug-report form rather than to a
+    // sub-page holding a single link. The page key before the `?` must still
+    // resolve (it drives the icon), but the tap must not navigate.
+    const form = "https://docs.google.com/forms/d/e/ABC/viewform?usp=sharing&ouid=123";
+    getSevaConfig.mockResolvedValue(
+      serverDrivenConfig([
+        {
+          type: "html",
+          value:
+            `<p class="seva-means"><a href="seva-means:qa?open=${encodeURIComponent(form)}">` +
+            "Seva by testing our work</a>Help us find bugs</p>",
+        },
+      ])
+    );
+    const { getByText, getByLabelText, queryByTestId } = render(<SevaScreen />);
+
+    await waitFor(() => expect(getByText("Seva by testing our work")).toBeTruthy());
+
+    // The row must LOOK like it leaves the app, not like it pushes a screen.
+    expect(queryByTestId("external-link-icon")).toBeTruthy();
+
+    fireEvent.press(getByLabelText("seva-means-qa"));
+
+    // The `&` in the form URL must survive the round trip intact.
+    expect(mockOpenInAppBrowser).toHaveBeenCalledWith(form, expect.any(Object));
+    expect(mockNavigation.navigate).not.toHaveBeenCalledWith("SevaMeans", { page: "qa" });
   });
 
   it("shows the localised currency figure on the amount presets", async () => {

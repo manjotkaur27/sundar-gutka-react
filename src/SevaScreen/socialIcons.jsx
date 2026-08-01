@@ -19,6 +19,12 @@ const PATHS = {
   x: "M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z",
   youtube:
     "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
+  linkedin:
+    "M22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z",
+  substack:
+    "M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812V24L12 18.11 22.54 24V10.812H1.46zM22.54 0H1.46v2.836h21.08V0z",
+  tiktok:
+    "M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z",
   github:
     "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12",
   notion:
@@ -60,6 +66,9 @@ export const detectSocialBrand = (url = "") => {
   if (u.includes("facebook.") || u.includes("fb.com") || u.includes("fb.me")) return "facebook";
   if (u.includes("twitter.") || u.includes("x.com")) return "x";
   if (u.includes("youtube.") || u.includes("youtu.be")) return "youtube";
+  if (u.includes("linkedin.")) return "linkedin";
+  if (u.includes("substack.")) return "substack";
+  if (u.includes("tiktok.")) return "tiktok";
   if (u.includes("github.com")) return "github";
   if (u.includes("notion.so") || u.includes("notion.com")) return "notion";
   if (u === SLACK_SIGNUP_FORM_URL.toLowerCase()) return "slack";
@@ -74,9 +83,19 @@ const META = {
   facebook: { viewBox: "0 0 24 24", aspect: 1 },
   x: { viewBox: "0 0 24 24", aspect: 1 },
   youtube: { viewBox: "0 3.545 24 16.91", aspect: 24 / 16.91 },
+  linkedin: { viewBox: "0 0 24 24", aspect: 1 },
+  substack: { viewBox: "0 0 24 24", aspect: 1 },
+  tiktok: { viewBox: "0 0 24 24", aspect: 1 },
   github: { viewBox: "0 0 24 24", aspect: 1 },
   slack: { viewBox: "0 0 127 127", aspect: 1 },
   notion: { viewBox: "0 0 24 24", aspect: 1 },
+};
+
+// Single-tone marks that keep their own brand colour in both themes. Brand
+// colours are exempt from the WCAG contrast minimum (1.4.11 excludes
+// logotypes), same as the Instagram gradient and the YouTube red above.
+const BRAND_FILL = {
+  substack: "#FF6719",
 };
 
 export const SocialBadge = ({ brand, size, dark }) => {
@@ -123,6 +142,38 @@ export const SocialBadge = ({ brand, size, dark }) => {
     );
   }
 
+  if (brand === "tiktok") {
+    // TikTok's mark is one note drawn three times with a chromatic offset:
+    // cyan up-left, magenta down-right, and a foreground note that is black on
+    // light and white on dark — which is how the brand shows it on either
+    // background. A flat single-tone glyph would not read as the real logo.
+    return (
+      <Svg width={w} height={h} viewBox={meta.viewBox}>
+        <Path d={d} fill="#25F4EE" translateX={-0.9} translateY={-0.9} />
+        <Path d={d} fill="#FE2C55" translateX={0.9} translateY={0.9} />
+        <Path d={d} fill={dark ? "#FFFFFF" : "#000000"} />
+      </Svg>
+    );
+  }
+
+  if (brand === "linkedin") {
+    // Same as Facebook: the "in" is a cutout in the Simple Icons glyph, so the
+    // rounded square is drawn in LinkedIn blue and the letters painted on top.
+    return (
+      <Svg width={w} height={h} viewBox={meta.viewBox}>
+        <Path d={d} fill="#0A66C2" />
+        <Path
+          d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286z"
+          fill="#FFFFFF"
+        />
+        <Path
+          d="M5.337 7.433a2.062 2.062 0 1 1 0-4.125 2.062 2.062 0 0 1 0 4.125zM7.119 20.452H3.555V9h3.564v11.452z"
+          fill="#FFFFFF"
+        />
+      </Svg>
+    );
+  }
+
   if (brand === "instagram") {
     const gradId = `ig${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
     return (
@@ -140,10 +191,11 @@ export const SocialBadge = ({ brand, size, dark }) => {
     );
   }
 
-  // x / github / notion — monochrome marks, theme-aware so they stay visible.
+  // Single-tone marks: the brand's own colour where it has one, otherwise
+  // theme-aware black/white (x / github / notion) so the glyph stays visible.
   return (
     <Svg width={w} height={h} viewBox={meta.viewBox}>
-      <Path d={d} fill={dark ? "#FFFFFF" : "#000000"} />
+      <Path d={d} fill={BRAND_FILL[brand] || (dark ? "#FFFFFF" : "#000000")} />
     </Svg>
   );
 };
@@ -154,6 +206,9 @@ SocialBadge.propTypes = {
     "facebook",
     "x",
     "youtube",
+    "linkedin",
+    "substack",
+    "tiktok",
     "github",
     "slack",
     "notion",

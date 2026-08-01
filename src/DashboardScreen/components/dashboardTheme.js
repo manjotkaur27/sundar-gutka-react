@@ -8,10 +8,19 @@ import { useTheme } from "@common";
 // base mixed with white; accentOnDark keeps the base's hue (217deg) and
 // saturation but lifts the lightness, because the base itself disappears
 // against a near-black background.
+// Steps are the base mixed with white by the percentage in the name. Two of
+// them are pinned by contrast rather than chosen for looks:
+//   tint25 — the lightest step that still clears 4.5:1 for small text on both
+//            light grounds (5.40 on white, 4.89 on tint94). Secondary text
+//            must not go lighter than this.
+//   tint40 — the lightest step that still clears 3:1 for a non-text edge on
+//            tint94 (3.45). Control outlines must not go lighter than this.
+// Anything above tint40 is decorative only: fills, dividers, disabled states.
 export const BRAND = {
   base: "#113979",
   tint15: "#35578D",
-  tint30: "#5874A1",
+  tint25: "#4D6B9B",
+  tint40: "#6B84AC",
   tint45: "#7C92B5",
   tint60: "#A0B0C9",
   tint75: "#C4CEDD",
@@ -41,8 +50,10 @@ const useDashboardTheme = () => {
     screenBg: isDark ? "#031329" : BRAND.tint94,
     cardBg: isDark ? theme.colors.activeView : "#ffffff",
     primaryText: theme.colors.primaryText,
-    // Secondary text: a brand tint rather than an unrelated grey-blue.
-    mutedText: isDark ? "#a1bee7ff" : BRAND.tint45,
+    // Secondary text: a brand tint rather than an unrelated grey-blue, and
+    // tint25 rather than something lighter — anything above it drops under
+    // 4.5:1 on a white card.
+    mutedText: isDark ? "#a1bee7ff" : BRAND.tint25,
     separator: theme.colors.separator,
     // Headline/number colour for cards — brand navy in light, plain white in
     // dark where the navy would not read.

@@ -13,6 +13,7 @@ export { default as ListIcon } from "./ListIcon";
 export { default as MegaphoneIcon } from "./MegaphoneIcon";
 export { default as CodeIcon } from "./CodeIcon";
 export { default as ClipboardCheckIcon } from "./ClipboardCheckIcon";
+export { default as ExternalLinkIcon } from "./ExternalLinkIcon";
 export { default as SparklesIcon } from "./SparklesIcon";
 export { default as StarIcon } from "./StarIcon";
 export { default as HandHeartIcon } from "./HandHeartIcon";

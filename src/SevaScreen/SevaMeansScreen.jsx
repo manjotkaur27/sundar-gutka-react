@@ -21,6 +21,7 @@ import {
   openInAppBrowser,
 } from "@common";
 import { ChevronRight } from "../common/icons";
+import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 import { getSevaMeansPage } from "../services/sevaMeans";
 import createStyles from "./sevaMeansStyles";
 import { detectSocialBrand, SocialBadge } from "./socialIcons";
@@ -65,8 +66,10 @@ const SevaMeansScreen = ({ route, navigation }) => {
 
   const page = route?.params?.page;
   // Bar background matches the page body (dark navy / cream), not a black strip.
-  const headerBg = isDark ? "#041126" : "#FFF8E7";
-  const headerFg = isDark ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
+  // Same bar as the Seva landing page: dashboard ground, brand-navy title and
+  // back arrow rather than near-black.
+  const headerBg = isDark ? "#041126" : BRAND.tint94;
+  const headerFg = isDark ? theme.staticColors.WHITE_COLOR : BRAND.base;
 
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
