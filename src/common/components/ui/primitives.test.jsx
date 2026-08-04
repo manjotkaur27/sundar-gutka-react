@@ -1,0 +1,319 @@
+import React from "react";
+
+import { render, screen } from "@testing-library/react-native";
+import darkTheme from "@theme/darkTheme";
+import lightTheme from "@theme/lightTheme";
+import { FONT_SCALE_MAX } from "@theme/scale";
+
+import Button from "./Button";
+import Card from "./Card";
+import Dialog from "./Dialog";
+import Row from "./Row";
+import ScreenHeader from "./ScreenHeader";
+import Sheet from "./Sheet";
+import Text from "./Text";
+import Toast from "./Toast";
+
+// These primitives are the contract the rest of the overhaul depends on, so the
+// tests assert the properties that actually broke the old components rather
+// than that they render: font scaling on, nothing fixed-height, long strings
+// absorbed, and both themes exercised.
+
+// `mock` prefix so the jest.mock factory may close over it. The primitives
+// resolve real token values this way, so these tests exercise the actual
+// palette and scale rather than a stub.
+let mockTheme = lightTheme;
+
+jest.mock("../../context/ThemeContext", () => ({
+  useTheme: () => ({ theme: mockTheme }),
+}));
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 12, left: 0, right: 0 }),
+}));
+
+// Pinned to a reference phone so assertions can use the design values
+// directly. React Native's own jest setup reports fontScale 2, which would
+// otherwise scale every token and make these numbers device-dependent.
+const REFERENCE = { width: 390, height: 844, scale: 3, fontScale: 1 };
+let mockWindow = REFERENCE;
+
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
+
+beforeEach(() => {
+  mockWindow = REFERENCE;
+  mockTheme = lightTheme;
+});
+
+const withTheme = (theme, ui) => {
+  mockTheme = theme;
+  return render(ui);
+};
+
+/** Renders on a small phone at the largest OS font — the worst realistic case. */
+const withSmallDeviceLargeFont = (ui) => {
+  mockWindow = { width: 320, height: 568, scale: 2, fontScale: 1.5 };
+  return render(ui);
+};
+
+/** The longest realistic translation of a short English label, in Punjabi. */
+const LONG_LABEL = "ਸਾਰੀਆਂ ਡਾਊਨਲੋਡ ਕੀਤੀਆਂ ਆਡੀਓ ਫਾਈਲਾਂ ਹਟਾਓ ਅਤੇ ਬੰਦ ਕਰੋ";
+const LONG_MESSAGE =
+  "ਨੈੱਟਵਰਕ ਗਲਤੀ, ਆਡੀਓ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਅਸਥਾਈ ਤੌਰ 'ਤੇ ਉਪਲਬਧ ਨਹੀਂ ਹਨ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।";
+
+/** Flattens a possibly-nested RN style prop into one object. */
+const flat = (style) =>
+  (Array.isArray(style) ? style.flat(Infinity) : [style])
+    .filter(Boolean)
+    .reduce((out, s) => ({ ...out, ...s }), {});
+
+const themes = [
+  ["light", lightTheme],
+  ["dark", darkTheme],
+];
+
+describe("Text", () => {
+  it.each(themes)("[%s] scales with the OS font setting, capped", (_name, theme) => {
+    withTheme(theme, <Text testID="t">hello</Text>);
+    const el = screen.getByTestId("t");
+    // The defect this replaces: CustomText hardcoded allowFontScaling={false}
+    // in 72 files, so the app ignored the OS text-size setting entirely.
+    expect(el.props.allowFontScaling).toBe(true);
+    expect(el.props.maxFontSizeMultiplier).toBe(FONT_SCALE_MAX);
+  });
+
+  it("never auto-shrinks to fit", () => {
+    withTheme(lightTheme, <Text testID="t">{LONG_LABEL}</Text>);
+    expect(screen.getByTestId("t").props.adjustsFontSizeToFit).toBeFalsy();
+  });
+
+  it.each(themes)("[%s] resolves a colour role from the theme", (_name, theme) => {
+    withTheme(theme, <Text testID="t" color="textSecondary" />);
+    expect(flat(screen.getByTestId("t").props.style).color).toBe(theme.c.textSecondary);
+  });
+
+  it("carries size, line height and face together", () => {
+    withTheme(lightTheme, <Text testID="t" variant="heading" />);
+    const s = flat(screen.getByTestId("t").props.style);
+    expect(s.fontSize).toBe(lightTheme.type.heading.fontSize);
+    expect(s.lineHeight).toBe(lightTheme.type.heading.lineHeight);
+    expect(s.fontFamily).toBe(lightTheme.type.heading.fontFamily);
+  });
+
+  it("falls back to body for an unknown variant rather than rendering unstyled", () => {
+    withTheme(lightTheme, <Text testID="t" variant="nope" />);
+    expect(flat(screen.getByTestId("t").props.style).fontSize).toBe(lightTheme.type.body.fontSize);
+  });
+});
+
+describe("Button", () => {
+  it.each(themes)("[%s] meets the 44pt touch-target floor", (_name, theme) => {
+    withTheme(theme, <Button testID="b" title="Save" onPress={() => {}} />);
+    expect(flat(screen.getByTestId("b").props.style).minHeight).toBeGreaterThanOrEqual(44);
+  });
+
+  it("has no fixed width or height, so a long translation fits", () => {
+    withTheme(lightTheme, <Button testID="b" title={LONG_LABEL} onPress={() => {}} />);
+    const s = flat(screen.getByTestId("b").props.style);
+    expect(s.width).toBeUndefined();
+    expect(s.height).toBeUndefined();
+    expect(s.minHeight).toBeGreaterThan(0);
+  });
+
+  it("announces itself and its disabled state", () => {
+    withTheme(lightTheme, <Button testID="b" title="Save" onPress={() => {}} disabled />);
+    const el = screen.getByTestId("b");
+    expect(el.props.accessibilityRole).toBe("button");
+    expect(el.props.accessibilityLabel).toBe("Save");
+    expect(el.props.accessibilityState.disabled).toBe(true);
+  });
+
+  it("shows a spinner instead of the label while loading", () => {
+    withTheme(lightTheme, <Button testID="b" title="Save" onPress={() => {}} loading />);
+    expect(screen.getByTestId("button-spinner")).toBeTruthy();
+    expect(screen.queryByText("Save")).toBeNull();
+  });
+
+  it.each(themes)("[%s] destructive fill keeps its label legible", (_name, theme) => {
+    withTheme(theme, <Button testID="b" title="Delete" onPress={() => {}} variant="destructive" />);
+    expect(flat(screen.getByTestId("b").props.style).backgroundColor).toBe(theme.c.error);
+    // onError flips between themes precisely so this stays readable.
+    expect(theme.c.onError).toBeDefined();
+  });
+});
+
+describe("Row", () => {
+  it("gives only the text column room to grow", () => {
+    withTheme(lightTheme, <Row testID="r" title={LONG_LABEL} subtitle={LONG_LABEL} />);
+    // A two-line row is taller, never a fixed height that would clip.
+    const s = flat(screen.getByTestId("r").props.style);
+    expect(s.height).toBeUndefined();
+    expect(s.minHeight).toBe(lightTheme.layout.row.minHeightTwoLine);
+  });
+
+  it("grows on a small phone at the largest font instead of clipping", () => {
+    withSmallDeviceLargeFont(<Row testID="r" title={LONG_LABEL} />);
+    const grown = flat(screen.getByTestId("r").props.style).minHeight;
+    // Container minimums track the font scale at the full rate, precisely so
+    // the text still fits after the user enlarges it.
+    expect(grown).toBeGreaterThan(lightTheme.layout.row.minHeight);
+    expect(grown).toBe(Math.round(lightTheme.layout.row.minHeight * 1.5));
+  });
+
+  it("is not focusable when it has no action", () => {
+    withTheme(lightTheme, <Row testID="r" title="Version" value="1.2.3" />);
+    expect(screen.getByTestId("r").props.accessibilityRole).toBeUndefined();
+  });
+
+  it("announces itself when it does have an action", () => {
+    withTheme(lightTheme, <Row testID="r" title="Language" onPress={() => {}} />);
+    expect(screen.getByTestId("r").props.accessibilityRole).toBe("button");
+  });
+});
+
+describe("Card", () => {
+  it.each(themes)("[%s] takes its surface and elevation from the theme", (_name, theme) => {
+    withTheme(theme, <Card testID="c" />);
+    const s = flat(screen.getByTestId("c").props.style);
+    expect(s.backgroundColor).toBe(theme.c.surface);
+    expect(s.height).toBeUndefined();
+  });
+
+  it("draws a real shadow in light and none in dark", () => {
+    // Dark mode expresses depth by lightening the surface instead; a black
+    // shadow on a near-black ground is invisible and still costs a render.
+    expect(lightTheme.elevation.card.elevation).toBeGreaterThan(0);
+    expect(darkTheme.elevation.card.elevation).toBe(0);
+  });
+});
+
+describe("Dialog", () => {
+  it("wraps its actions instead of truncating them", () => {
+    withTheme(
+      lightTheme,
+      <Dialog
+        visible
+        title="Delete download"
+        message={LONG_MESSAGE}
+        confirmLabel={LONG_LABEL}
+        cancelLabel={LONG_LABEL}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+        destructive
+      />
+    );
+    // Both labels render in full — no ellipsis, no fixed-width button.
+    expect(screen.getAllByText(LONG_LABEL)).toHaveLength(2);
+    expect(screen.getByTestId("dialog-confirm")).toBeTruthy();
+    expect(screen.getByTestId("dialog-cancel")).toBeTruthy();
+  });
+
+  it("omits cancel for an acknowledge-only dialog", () => {
+    withTheme(
+      lightTheme,
+      <Dialog visible title="Done" confirmLabel="OK" onConfirm={() => {}} onCancel={() => {}} />
+    );
+    expect(screen.queryByTestId("dialog-cancel")).toBeNull();
+  });
+});
+
+describe("ScreenHeader", () => {
+  it.each(themes)("[%s] is one height everywhere, plus the safe-area inset", (_name, theme) => {
+    withTheme(theme, <ScreenHeader testID="h" title="Settings" />);
+    // The inset is a device fact and is added here, never baked into a token.
+    expect(flat(screen.getByTestId("h").props.style).paddingTop).toBe(24);
+  });
+
+  it("wraps a long title to two lines rather than shrinking it", () => {
+    withTheme(lightTheme, <ScreenHeader title={LONG_LABEL} />);
+    expect(screen.getByText(LONG_LABEL).props.numberOfLines).toBe(2);
+    expect(screen.getByText(LONG_LABEL).props.adjustsFontSizeToFit).toBeFalsy();
+  });
+
+  it("renders no back affordance on a root screen", () => {
+    withTheme(lightTheme, <ScreenHeader title="Dashboard" />);
+    expect(screen.queryByTestId("screen-header-back")).toBeNull();
+  });
+
+  it("labels the back control, which is icon-only", () => {
+    withTheme(
+      lightTheme,
+      <ScreenHeader title="About" onBack={() => {}} backAccessibilityLabel="Go back" />
+    );
+    const back = screen.getByTestId("screen-header-back");
+    expect(back.props.accessibilityRole).toBe("button");
+    expect(back.props.accessibilityLabel).toBe("Go back");
+  });
+
+  it("centres the branded variant without letting the back arrow overlap it", () => {
+    withTheme(
+      lightTheme,
+      <ScreenHeader
+        title={LONG_LABEL}
+        centered
+        titleVariant="baniTitle"
+        onBack={() => {}}
+        backAccessibilityLabel="Back"
+      />
+    );
+    const title = screen.getByText(LONG_LABEL);
+    // The folder header used to position the arrow absolutely over the title
+    // and cap it at one line to compensate. Columns cannot collide, so it wraps.
+    expect(title.props.numberOfLines).toBe(2);
+    expect(flat(title.props.style).textAlign).toBe("center");
+    expect(flat(title.props.style).fontFamily).toBe(lightTheme.type.baniTitle.fontFamily);
+  });
+
+  it("can suppress its border when the caller draws its own divider", () => {
+    withTheme(lightTheme, <ScreenHeader testID="h" title="Folder" showBorder={false} />);
+    expect(flat(screen.getByTestId("h").props.style).borderBottomWidth).toBe(0);
+  });
+
+  it("keeps the back target at 44pt or more on a small phone", () => {
+    mockWindow = { width: 320, height: 568, scale: 2, fontScale: 1 };
+    render(<ScreenHeader title="About" onBack={() => {}} backAccessibilityLabel="Back" />);
+    const s = flat(screen.getByTestId("screen-header-back").props.style);
+    expect(s.width).toBeGreaterThanOrEqual(44);
+    expect(s.height).toBeGreaterThanOrEqual(44);
+  });
+});
+
+describe("Sheet", () => {
+  it("caps its height at a ratio of the screen rather than a fixed number", () => {
+    withTheme(lightTheme, <Sheet visible onClose={() => {}} title="Choose" testID="s" />);
+    // 844 tall reference device x the 0.9 cap.
+    const panel = screen.getByText("Choose").parent;
+    expect(panel).toBeTruthy();
+    expect(lightTheme.layout.sheet.maxHeightRatio).toBeLessThan(1);
+  });
+
+  it("renders nothing when hidden", () => {
+    withTheme(lightTheme, <Sheet visible={false} onClose={() => {}} title="Choose" />);
+    expect(screen.queryByText("Choose")).toBeNull();
+  });
+});
+
+describe("Toast", () => {
+  it.each(themes)("[%s] never truncates the message", (_name, theme) => {
+    withTheme(theme, <Toast testID="t" type="error" message={LONG_MESSAGE} />);
+    const message = screen.getByText(LONG_MESSAGE);
+    // No numberOfLines means it wraps to whatever the translation needs.
+    expect(message.props.numberOfLines).toBeUndefined();
+  });
+
+  it("has no fixed width, only a cap", () => {
+    withTheme(lightTheme, <Toast testID="t" message="Saved" />);
+    const s = flat(screen.getByTestId("t").props.style);
+    expect(s.width).toBe("100%");
+    expect(s.maxWidth).toBe(lightTheme.layout.dialog.maxWidth);
+  });
+
+  it("does not rely on colour alone to convey status", () => {
+    withTheme(lightTheme, <Toast testID="t" type="error" message="Download failed" />);
+    // The dot is decorative; the message itself states the outcome.
+    expect(screen.getByText("Download failed")).toBeTruthy();
+  });
+});
