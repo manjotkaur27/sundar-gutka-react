@@ -15,21 +15,21 @@ import createStyles from "../styles";
 
 const BaniHeader = ({ navigate }) => {
   const { theme } = useTheme();
+  const { c } = theme;
   const styles = useThemedStyles(createStyles);
-  const iconColor = theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary;
+  // The one header foreground: brand navy in light, white in dark.
+  const iconColor = c.headerFg;
   return (
-    <SafeArea
-      backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface}
-      edges={["top"]}
-      flex={0}
-    >
+    <SafeArea backgroundColor={c.background} edges={["top"]} flex={0}>
       <View style={styles.newHeaderContainer}>
         <CustomText style={styles.newHeaderInvocationText}>
           {"॥ "}
-          {/* The "<>" ligature in the Gurbani font is the Ik Onkar with its full
-              elongated stroke over the onkar — the Unicode ੴ in Baloo Paaji
-              flattens it. */}
-          <CustomText style={styles.ikOnkarGlyph}>{"<>"}</CustomText>
+          {/* Ik Onkar as the real Unicode ੴ in Baloo Paaji, so the whole line is
+              one typeface. It was the "<>" ligature in the Gurbani font, which
+              draws a longer stroke over the onkar but left a single character of
+              a second font sitting inside a Baloo line. Kept a little larger
+              than the surrounding text so the glyph still reads at this size. */}
+          <CustomText style={styles.ikOnkarGlyph}>ੴ</CustomText>
           {" ਸ੍ਰੀ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥"}
         </CustomText>
         <View style={styles.titleRow}>

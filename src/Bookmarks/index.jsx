@@ -1,17 +1,31 @@
+import React, { useEffect } from "react";
 import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { BaniList, actions, StatusBarComponent, SafeArea, useTheme, STRINGS, GradientDivider } from "@common";
-import { AppBar, BackIconComponent } from "@common/components";
-import useBookmarks from "./hooks/useBookmarks";
-import useHeader from "./hooks/useHeader";
+import useTokens from "@common/hooks/useTokens";
+import { actions, BaniList, GradientDivider, SafeArea, StatusBarComponent, STRINGS } from "@common";
+import { ScreenHeader } from "../common/components/ui";
 import constant from "../common/constant";
+import useBookmarks from "./hooks/useBookmarks";
+
+// Migrated onto the design system. This screen hardcoded `#041126` five times
+// and repeated the same `theme.mode === "dark" ? … : …` ternary alongside each
+// one — the surface colour, the status bar, the app bar, the title and the
+// content wrapper each deciding the theme for themselves. All of it is now
+// `c.background`, which also drops the navy dark ground in favour of the
+// neutral one.
+//
+// `styles.js` had no consumers at all and `hooks/useHeader.js` only set
+// `headerShown: false`; both are deleted.
 
 const Bookmarks = ({ navigation, route }) => {
-  useHeader(navigation);
-  const { theme } = useTheme();
+  const { c } = useTokens();
   const { bookmarksData } = useBookmarks(route);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const fontFace = useSelector((state) => state.fontFace);
   const isBaloo = fontFace === constant.BALOO_PAAJI;
@@ -22,21 +36,9 @@ const Bookmarks = ({ navigation, route }) => {
   };
 
   const formattedData = bookmarksData?.map((item, index) => {
-    const {
-      gurmukhi,
-      gurmukhiUni,
-      tukGurmukhi,
-      tukGurmukhiUni,
-      translit,
-      shabadID,
-    } = item;
-
+    const { gurmukhi, gurmukhiUni, tukGurmukhi, tukGurmukhiUni, translit, shabadID } = item;
     const title = isBaloo && gurmukhiUni ? gurmukhiUni : gurmukhi;
-
-    const subtitle =
-      isBaloo && tukGurmukhiUni
-        ? tukGurmukhiUni
-        : tukGurmukhi || translit || "";
+    const subtitle = isBaloo && tukGurmukhiUni ? tukGurmukhiUni : tukGurmukhi || translit || "";
 
     return {
       ...item,
@@ -47,23 +49,18 @@ const Bookmarks = ({ navigation, route }) => {
   });
 
   return (
-    <SafeArea backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface}>
-      <StatusBarComponent backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface} />
-      <AppBar
+    <SafeArea backgroundColor={c.background}>
+      <StatusBarComponent backgroundColor={c.background} />
+      <ScreenHeader
         title={STRINGS.bookmarks}
-        backgroundColor={theme.mode === "dark" ? "#041126" : theme.colors.surface}
-        titleColor={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK}
-        titleStyle={{
-          fontFamily: theme.typography.fonts.balooPaajiSemiBold,
-          fontSize: theme.typography.sizes.xxl,
-          fontWeight: theme.typography.weights.normal,
-        }}
-        leftComponent={
-          <BackIconComponent size={30} color={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK} />
-        }
+        onBack={() => navigation.goBack()}
+        backAccessibilityLabel={STRINGS.GO_BACK}
+        // The GradientDivider below IS this header's rule. Without this the
+        // header also drew its own hairline, stacking two lines.
+        showBorder={false}
       />
       <GradientDivider />
-      <View style={{ flex: 1, backgroundColor: theme.mode === "dark" ? "#041126" : theme.colors.surface }}>
+      <View style={{ flex: 1, backgroundColor: c.background }}>
         <BaniList data={formattedData} onPress={onPress} isFolderScreen />
       </View>
     </SafeArea>
@@ -74,4 +71,5 @@ Bookmarks.propTypes = {
   navigation: PropTypes.shape().isRequired,
   route: PropTypes.shape().isRequired,
 };
+
 export default Bookmarks;

@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'react';
-import {
-  View,
-  SectionList,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
+import { View, SectionList, Pressable, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { Icon } from '@rneui/themed';
 import { exists, unlink } from 'react-native-fs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { removeDownloadEntries, removeDownloadQueueEntry, retryDownload } from '@common/actions';
+import constant from '@common/constant';
+import useTokens from '@common/hooks/useTokens';
+import useTokenStyles from '@common/hooks/useTokenStyles';
 import {
   SafeArea,
   StatusBarComponent,
@@ -20,11 +17,7 @@ import {
   showConfirm,
   convertToUnicode,
 } from '@common';
-import constant from '@common/constant';
-import { BackIconComponent } from '@common/components';
-import useTheme from '@common/context';
-import useThemedStyles from '@common/hooks/useThemedStyles';
-import { removeDownloadEntries, removeDownloadQueueEntry, retryDownload } from '@common/actions';
+import { ScreenHeader, Text } from '../common/components/ui';
 import { AUDIO_DIRECTORY_PATH } from '../ReaderScreen/components/AudioPlayer/utils/audioDownloader';
 import createStyles from './styles';
 
@@ -34,8 +27,8 @@ const formatMB = (mb) => {
 };
 
 const ManageDownloads = ({ navigation }) => {
-  const { theme }  = useTheme();
-  const styles     = useThemedStyles(createStyles);
+  const { c, layout } = useTokens();
+  const styles     = useTokenStyles(createStyles);
   const dispatch   = useDispatch();
 
   const downloadRegistry = useSelector((s) => s.downloadRegistry);
@@ -254,18 +247,37 @@ const ManageDownloads = ({ navigation }) => {
   // Header is the bani name, resolved live (script/font follow the user's
   // transliteration/Unicode/fontFace settings) — the section carries the same
   // bani identity fields getDisplayName reads off a row.
-  const renderSectionHeader = useCallback(({ section }) => (
-    <CustomText style={[styles.sectionHeader, nameFontStyle]}>
-      {getDisplayName(section).toUpperCase()}
-    </CustomText>
-  ), [styles, getDisplayName, nameFontStyle]);
+  const renderSectionHeader = useCallback(
+    ({ section }) => {
+      // The top margin separates one bani group from the previous one, so the
+      // FIRST heading does not want it — it was stacking on the selection bar's
+      // own padding and leaving a large gap before the list started.
+      const isFirst = sections[0] === section;
+      return (
+        <CustomText
+          style={[styles.sectionHeader, isFirst && styles.sectionHeaderFirst, nameFontStyle]}
+        >
+          {getDisplayName(section).toUpperCase()}
+        </CustomText>
+      );
+    },
+    [styles, getDisplayName, nameFontStyle, sections]
+  );
 
-  const renderItem = useCallback(({ item }) => {
+  // `index`/`section` drive the card corners: SectionList can't wrap a section
+  // in one view, so the first and last row of each bani carry the rounding and
+  // the rows between them are separated by an inset hairline. Same shape as a
+  // Settings group.
+  const renderItem = useCallback(({ item, index, section }) => {
+    const isFirst = index === 0;
+    const isLast = index === section.data.length - 1;
+    const card = [isFirst && styles.cardTop, isLast && styles.cardBottom];
+
     if (item.isQueued) {
       const isFailed = item.queueStatus === 'failed';
       return (
         <Pressable
-          style={[styles.trackRow, styles.inProgressRow]}
+          style={[styles.trackRow, ...card, styles.inProgressRow]}
           onPress={() =>
             isFailed
               ? retryQueueEntry(item)
@@ -279,9 +291,10 @@ const ManageDownloads = ({ navigation }) => {
             </CustomText>
           </View>
           {isFailed ? (
-            <Icon name="error-outline" type="material" size={22} color="#D32F2F" />
+            <Icon name="error-outline" type="material" size={layout.icon.sm} color={c.error} />
           ) : (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
+            // c.accent, not the brand navy: navy is invisible on a dark ground.
+            <ActivityIndicator size="small" color={c.accent} />
           )}
         </Pressable>
       );
@@ -290,12 +303,12 @@ const ManageDownloads = ({ navigation }) => {
     const isChecked = selected.has(item.relativePath);
     return (
       <Pressable
-        style={[styles.trackRow, isChecked && styles.trackRowChecked]}
+        style={[styles.trackRow, ...card, isChecked && styles.trackRowChecked]}
         onPress={() => toggleSelect(item.relativePath)}
       >
         <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
           {isChecked && (
-            <Icon name="check" type="material" size={14} color={theme.staticColors.WHITE_COLOR} />
+            <Icon name="check" type="material" size={layout.icon.xs} color={c.onAccent} />
           )}
         </View>
         <View style={styles.trackInfo}>
@@ -306,73 +319,41 @@ const ManageDownloads = ({ navigation }) => {
         )}
       </Pressable>
     );
-  }, [selected, toggleSelect, cancelQueueEntry, styles, theme]);
+  }, [selected, toggleSelect, cancelQueueEntry, styles, c, layout]);
 
-  const { top: safeTop } = useSafeAreaInsets();
   const isEmpty = sections.length === 0 && validated;
 
   return (
-    <SafeArea backgroundColor={theme.colors.surface} edges={['left', 'right']}>
-      <StatusBarComponent backgroundColor={theme.colors.surface} />
+    <SafeArea backgroundColor={c.background} edges={['left', 'right']}>
+      <StatusBarComponent backgroundColor={c.background} />
 
-      {/* Custom header — same visual as AppBar but right side has flex space
-          for the action buttons, avoiding AppBar's fixed 48px side constraint. */}
-      <View
-        style={[
-          headerStyles.bar,
-          {
-            backgroundColor: theme.colors.surface,
-            paddingTop: safeTop,
-            elevation: 4,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 2,
-          },
-        ]}
-      >
-        <View style={headerStyles.row}>
-          {/* Back button */}
-          <View style={headerStyles.leftSlot}>
-            <BackIconComponent size={30} color={theme.colors.primaryText} onPress={handleBack} />
-          </View>
-
-          {/* Spacer — pushes actions to the right */}
-          <View style={{ flex: 1 }} />
-
-          {/* Action buttons — compact icon buttons (not text labels) so their
-              footprint stays small and fixed, leaving the absolutely-centered
-              title room to breathe regardless of how many actions are shown. */}
-          <View style={headerStyles.actions}>
-            {selected.size > 0 && (
-              <Pressable
-                onPress={confirmDelete}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel={`${STRINGS.delete} (${selected.size})`}
-                style={headerStyles.deleteButton}
-              >
-                <Icon name="delete-outline" type="material-community" size={24} color="#D32F2F" />
-                <View style={headerStyles.deleteBadge}>
-                  <CustomText style={headerStyles.deleteBadgeText}>{selected.size}</CustomText>
-                </View>
-              </Pressable>
-            )}
-          </View>
-
-          {/* Title — absolutely centered across the full bar width, z-above spacer */}
-          <View style={headerStyles.titleWrap} pointerEvents="none">
-            <CustomText
-              style={[
-                headerStyles.title,
-                { color: theme.colors.primaryText, fontFamily: theme.typography.fonts.balooPaajiSemiBold },
-              ]}
-              numberOfLines={1}
+      <ScreenHeader
+        title={STRINGS.MANAGE_DOWNLOADS}
+        onBack={handleBack}
+        backAccessibilityLabel={STRINGS.GO_BACK}
+        showBorder={false}
+        actions={
+          selected.size > 0 ? (
+            <Pressable
+              onPress={confirmDelete}
+              hitSlop={layout.hitSlop}
+              accessibilityRole="button"
+              accessibilityLabel={`${STRINGS.delete} (${selected.size})`}
+              style={styles.deleteButton}
             >
-              {STRINGS.MANAGE_DOWNLOADS}
-            </CustomText>
-          </View>
-        </View>
-      </View>
+              <Icon
+                name="delete-outline"
+                type="material-community"
+                size={layout.icon.md}
+                color={c.error}
+              />
+              <View style={styles.deleteBadge}>
+                <Text style={styles.deleteBadgeText}>{String(selected.size)}</Text>
+              </View>
+            </Pressable>
+          ) : null
+        }
+      />
 
       <GradientDivider />
 
@@ -390,7 +371,7 @@ const ManageDownloads = ({ navigation }) => {
             >
               <View style={[styles.checkbox, allSelected && styles.checkboxChecked]}>
                 {allSelected && (
-                  <Icon name="check" type="material" size={14} color={theme.staticColors.WHITE_COLOR} />
+                  <Icon name="check" type="material" size={layout.icon.xs} color={c.onAccent} />
                 )}
               </View>
               <CustomText style={styles.selectAllLabel}>
@@ -416,7 +397,7 @@ const ManageDownloads = ({ navigation }) => {
             name="cloud-off"
             type="material"
             size={72}
-            color={theme.colors.textDisabled}
+            color={c.textDisabled}
           />
           <CustomText style={styles.emptyTitle}>{STRINGS.NO_DOWNLOADS}</CustomText>
           <CustomText style={styles.emptyHint}>{STRINGS.DOWNLOAD_OFFLINE_HINT}</CustomText>
@@ -429,69 +410,14 @@ const ManageDownloads = ({ navigation }) => {
           keyExtractor={(item) => item.relativePath}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
+          // Between rows of the same bani only — never after the last, so the
+          // card's bottom edge stays clean.
+          ItemSeparatorComponent={() => <View style={styles.rowSeparator} />}
           stickySectionHeadersEnabled={false}
         />
       )}
     </SafeArea>
   );
 };
-
-// Static styles for the custom header (don't need theme — colors passed inline).
-const headerStyles = StyleSheet.create({
-  bar: {
-    width: '100%',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 52,
-    paddingHorizontal: 8,
-  },
-  leftSlot: {
-    width: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  titleWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-    paddingRight: 4,
-  },
-  deleteButton: {
-    position: 'relative',
-  },
-  deleteBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#D32F2F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  deleteBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-});
 
 export default ManageDownloads;

@@ -1,177 +1,202 @@
-// ManageDownloads styles — intentionally mirrors Settings screen conventions:
-// section headers use displayOptionsText, rows use surfaceGrey background,
-// all colors come from theme to support light/dark automatically.
-const createStyles = (theme) => ({
-  // ── Section headers — same as Settings displayOptionsText ───────────────────
+// ManageDownloads styles, on the design tokens.
+//
+// The previous version carried a comment admitting the header design gambled on
+// string length: "we accept they may overlap the title on very short locales;
+// the title is never long enough to collide in practice." That header is gone —
+// the screen uses the shared `ScreenHeader`, whose columns cannot overlap.
+//
+// Everything here now comes from resolved tokens, so paddings and row heights
+// scale with the device width and the user's text-size setting.
+const createStyles = ({ c, space, layout, radii, type }) => ({
+  // ── Section headings ───────────────────────────────────────────────────
+  // Same shape as a Settings group heading: quiet label OUTSIDE and above the
+  // card, not a banner across the list.
   sectionHeader: {
-    paddingHorizontal: theme.spacing.md_12,
-    paddingVertical: theme.spacing.sm + theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.primaryText,
-    fontSize: theme.typography.sizes.md,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    lineHeight: theme.typography.sizes.md * theme.typography.lineHeights.normal,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.separator,
+    ...type.label,
+    marginTop: space.xl,
+    marginHorizontal: space.md,
+    paddingHorizontal: space.sm,
+    paddingBottom: space.sm,
+    color: c.textSecondary,
+  },
+  // The first heading sits directly under the selection bar, which already
+  // supplies its own padding — the full group gap on top of that read as a
+  // hole before the list began.
+  sectionHeaderFirst: {
+    marginTop: space.sm,
   },
 
-  // ── Selection toolbar ───────────────────────────────────────────────────────
-  // "Select all" on the left (md_12 inset matches trackRow so its checkbox lines
-  // up with the row checkbox column), totals summary on the right.
+  // ── The card each bani's tracks sit in ─────────────────────────────────
+  // SectionList cannot wrap a section in a single view, so the corners are
+  // carried by the first and last row of each section instead.
+  cardTop: {
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+  },
+  cardBottom: {
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+  },
+  rowSeparator: {
+    height: layout.borderWidth.hairline,
+    backgroundColor: c.border,
+    marginHorizontal: space.md + layout.row.paddingHorizontal,
+  },
+
+  // ── Selection toolbar ──────────────────────────────────────────────────
   selectionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md_12,
-    paddingVertical: theme.spacing.sm + theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.separator,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: space.sm,
+    paddingHorizontal: layout.row.paddingHorizontal,
+    paddingVertical: space.sm,
+    backgroundColor: c.backgroundAlt,
   },
   selectAllControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: layout.touchTarget,
+    flexShrink: 1,
   },
   selectAllLabel: {
-    color: theme.colors.primaryText,
-    fontSize: theme.typography.sizes.md,
-    fontFamily: theme.typography.fonts.balooPaaji,
+    ...type.body,
+    color: c.textPrimary,
+    flexShrink: 1,
   },
   selectionSummary: {
-    color: theme.colors.textDisabled,
-    fontSize: theme.typography.sizes.sm,
-    fontFamily: theme.typography.fonts.balooPaaji,
+    ...type.caption,
+    color: c.textSecondary,
     flexShrink: 1,
-    textAlign: 'right',
-    marginLeft: theme.spacing.md,
+    textAlign: "right",
   },
 
   // Invisible, always-mounted spotlight target used by the downloads coachmark
   // when there's no completed-downloads summary to point at (empty list or a
-  // download still in progress). Small height keeps the cutout tidy; transparent
-  // so it never changes what the user sees.
+  // download still in progress). Transparent so it never changes what the user
+  // sees.
   spotlightAnchor: {
-    height: 36,
-    alignSelf: 'stretch',
-    backgroundColor: 'transparent',
+    height: space.xxl,
+    alignSelf: "stretch",
+    backgroundColor: "transparent",
   },
 
-  // ── Track rows ──────────────────────────────────────────────────────────────
+  // ── Track rows ─────────────────────────────────────────────────────────
+  // Inside the card, so they carry the card's horizontal inset and no border
+  // of their own — separation is the inset hairline between them.
   trackRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceGrey,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md_12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.separator,
-    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: c.surface,
+    marginHorizontal: space.md,
+    paddingVertical: layout.row.paddingVertical,
+    paddingHorizontal: layout.row.paddingHorizontal,
+    // A minimum, so a long track name in any language makes the row taller
+    // rather than clipping.
+    minHeight: layout.row.minHeight,
   },
   trackRowChecked: {
-    backgroundColor: theme.colors.actionButton,
+    backgroundColor: c.surfaceSelected,
   },
   inProgressRow: {
     opacity: 0.7,
   },
 
-  // ── Checkbox ────────────────────────────────────────────────────────────────
-  // In dark mode theme.colors.primary (#113979) is very dark on dark backgrounds.
-  // Use the lighter highlight blue (highlightTuk) so the checkbox is clearly
-  // visible and matches the lighter accent already used for tuk highlights.
+  // ── Checkbox ───────────────────────────────────────────────────────────
+  // Previously branched on `theme.mode === "dark"` in three places because the
+  // brand navy is invisible on a dark ground. `c.accent` already resolves per
+  // theme, so the branch is gone.
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: theme.mode === 'dark' ? theme.colors.highlightTuk : theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: theme.spacing.md_12,
+    width: space.xl,
+    height: space.xl,
+    borderRadius: radii.sm,
+    borderWidth: layout.borderWidth.thick,
+    borderColor: c.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: space.md,
     flexShrink: 0,
   },
   checkboxChecked: {
-    backgroundColor: theme.mode === 'dark' ? theme.colors.highlightTuk : theme.colors.primary,
-    borderColor: theme.mode === 'dark' ? theme.colors.highlightTuk : theme.colors.primary,
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
 
-  // ── Track text ──────────────────────────────────────────────────────────────
+  // ── Track text ─────────────────────────────────────────────────────────
   trackInfo: {
     flex: 1,
   },
   trackName: {
-    color: theme.colors.primaryText,
-    fontSize: theme.typography.sizes.lg,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    lineHeight: theme.typography.sizes.lg * theme.typography.lineHeights.normal,
+    ...type.body,
+    color: c.textPrimary,
   },
   trackMeta: {
-    color: theme.colors.textDisabled,
-    fontSize: theme.typography.sizes.sm,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    marginTop: 2,
+    ...type.caption,
+    color: c.textSecondary,
+    marginTop: space.xxs,
   },
   trackSize: {
-    color: theme.colors.textDisabled,
-    fontSize: theme.typography.sizes.sm,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    marginLeft: theme.spacing.md,
+    ...type.caption,
+    color: c.textSecondary,
+    marginLeft: space.sm,
     flexShrink: 0,
   },
 
-  // ── List ────────────────────────────────────────────────────────────────────
+  // ── List ───────────────────────────────────────────────────────────────
   list: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: c.backgroundAlt,
   },
   listContent: {
-    paddingBottom: theme.spacing.xxl,
+    paddingBottom: layout.screenPaddingBottom,
   },
 
-  // ── Empty state ─────────────────────────────────────────────────────────────
+  // ── Empty state ────────────────────────────────────────────────────────
   emptyContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.xxl,
-    gap: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: space.xxl,
+    gap: space.lg,
+    backgroundColor: c.backgroundAlt,
   },
   emptyTitle: {
-    color: theme.colors.primaryText,
-    fontSize: theme.typography.sizes.xl,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    textAlign: 'center',
+    ...type.subheading,
+    color: c.textPrimary,
+    textAlign: "center",
   },
   emptyHint: {
-    color: theme.colors.textDisabled,
-    fontSize: theme.typography.sizes.md,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    textAlign: 'center',
-    lineHeight: theme.typography.sizes.md * theme.typography.lineHeights.relaxed,
+    ...type.bodySmall,
+    color: c.textSecondary,
+    textAlign: "center",
   },
 
-  // ── AppBar right-side actions ────────────────────────────────────────────────
-  // The View must not be constrained by AppBar's 48px side column,
-  // so ManageDownloads passes this as rightComponent content and we rely on
-  // the fact that AppBar's `side` View clips to its width — for this screen
-  // we need the right side to flex wider, so we use a plain View positioned
-  // absolutely relative to the header row. The simpler solution used here:
-  // render both action text buttons in a horizontal row and accept they may
-  // overlap the title on very short locales; the title is never long enough
-  // to collide with "Select All" + "Delete (N)" in practice.
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    paddingRight: theme.spacing.xs,
+  // ── Delete action in the header ────────────────────────────────────────
+  deleteButton: {
+    width: layout.header.actionSize,
+    height: layout.header.actionSize,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  headerActionText: {
-    fontSize: theme.typography.sizes.sm,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    color: theme.colors.primary,
+  deleteBadge: {
+    position: "absolute",
+    top: space.xs,
+    right: space.xxs,
+    minWidth: space.lg,
+    minHeight: space.lg,
+    borderRadius: radii.pill,
+    backgroundColor: c.error,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: space.xxs,
   },
-  deleteActionText: {
-    color: '#D32F2F',
+  deleteBadgeText: {
+    ...type.caption,
+    // Was fontSize 9 — below any readable minimum, and it did not scale with
+    // the user's text-size setting either.
+    color: c.onError,
+    textAlign: "center",
   },
 });
 

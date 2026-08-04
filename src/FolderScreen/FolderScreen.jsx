@@ -1,26 +1,44 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { View } from "react-native";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
+import useTokens from "@common/hooks/useTokens";
 import {
-  BaniList,
-  constant,
-  StatusBarComponent,
-  SafeArea,
   actions,
+  BaniList,
   BottomNavigation,
+  constant,
+  GradientDivider,
+  SafeArea,
+  StatusBarComponent,
+  STRINGS,
 } from "@common";
-import Header from "./header";
+import { ScreenHeader } from "../common/components/ui";
 
 // The bottom nav's home items navigate to the tab routes.
 const TAB_ROUTES = ["Home", constant.DASHBOARD, constant.SEVA, constant.SETTINGS];
 
+// Migrated onto the design system. The separate `header.js` and `styles.js` are
+// deleted: the header is now the shared `ScreenHeader`, which centres its title
+// exactly as this screen's own header did.
+//
+// Two defects went with them. The old header positioned the back arrow
+// absolutely over the title and compensated with 48pt of padding plus
+// `numberOfLines={1}`, so a long Gurmukhi folder title truncated; the shared
+// header lays out in columns that cannot collide, so the title wraps instead.
+// And the status bar was painted `colors.primary` (navy) while the header
+// underneath it was `colors.surface` (white) — a mismatched strip in light
+// mode.
+
 const FolderScreen = ({ navigation, route }) => {
-  const { theme } = useTheme();
+  const { c } = useTokens();
   const dispatch = useDispatch();
   const { navigate } = navigation;
   const { data, title } = route.params.params;
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   // FolderScreen is pushed on the root stack, so the tab routes live inside the
   // nested MainTabs navigator and a plain navigate("Home") can't resolve them.
@@ -48,19 +66,22 @@ const FolderScreen = ({ navigation, route }) => {
       params: { id, title: gurmukhi, titleUni: gurmukhiUni },
     });
   };
+
   return (
-    <SafeArea backgroundColor={theme.colors.surface} edges={["left", "right"]}>
-      <StatusBarComponent backgroundColor={theme.colors.primary} />
-      <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
-        <Header navigation={navigation} title={title} />
+    <SafeArea backgroundColor={c.background} edges={["left", "right"]}>
+      <StatusBarComponent backgroundColor={c.background} />
+      <View style={{ flex: 1, backgroundColor: c.background }}>
+        <ScreenHeader
+          title={title}
+          titleVariant="baniTitle"
+          showBorder={false}
+          onBack={() => navigation.goBack()}
+          backAccessibilityLabel={STRINGS.GO_BACK}
+        />
+        <GradientDivider />
         <BaniList data={data} isFolderScreen onPress={onPress} />
       </View>
-      <BottomNavigation
-        activeKey="Home"
-        context="home"
-        visible
-        navigation={navWithTabs}
-      />
+      <BottomNavigation activeKey="Home" context="home" visible navigation={navWithTabs} />
     </SafeArea>
   );
 };
@@ -68,6 +89,8 @@ const FolderScreen = ({ navigation, route }) => {
 FolderScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func,
+    goBack: PropTypes.func,
+    setOptions: PropTypes.func,
   }).isRequired,
   route: PropTypes.shape({
     params: PropTypes.shape({
@@ -78,4 +101,5 @@ FolderScreen.propTypes = {
     }),
   }).isRequired,
 };
+
 export default FolderScreen;
