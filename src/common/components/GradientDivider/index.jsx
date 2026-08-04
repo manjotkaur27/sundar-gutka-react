@@ -14,7 +14,7 @@ const GRADIENT_COLORS = [
 ];
 const GRADIENT_LOCATIONS = [0, 0.48, 0.52, 1];
 
-const GradientDivider = ({ style }) => (
+const GradientDivider = ({ style = null }) => (
   <LinearGradient
     colors={GRADIENT_COLORS}
     locations={GRADIENT_LOCATIONS}
@@ -31,10 +31,6 @@ GradientDivider.propTypes = {
     PropTypes.array,
     PropTypes.number,
   ]),
-};
-
-GradientDivider.defaultProps = {
-  style: null,
 };
 
 export default GradientDivider;

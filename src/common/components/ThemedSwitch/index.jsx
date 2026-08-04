@@ -1,30 +1,29 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Pressable } from "react-native";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
+import useTokens from "@common/hooks/useTokens";
 
-const TRACK_WIDTH = 50;
-const TRACK_HEIGHT = 30;
-const THUMB_SIZE = 24;
-const PADDING = 3;
-const TRAVEL = TRACK_WIDTH - THUMB_SIZE - PADDING * 2;
-
-const OFF_TRACK_LIGHT = "#D1D1D6";
-const OFF_TRACK_DARK = "#6c6c71";
-const ON_TRACK_LIGHT = "#4A80D2";
-const ON_TRACK_DARK = "#6FA0E0";
-const THUMB_COLOR = "#FFFFFF";
-const THUMB_BORDER = "rgba(0,0,0,0.1)";
+// The app's switch, on design tokens.
+//
+// It previously carried six hardcoded colours and branched on `isDark` for two
+// of them. All four are roles now, and `controlTrackOff` is deliberately ONE
+// value for both themes: it clears 3:1 against either ground and against the
+// thumb, so the switch needs no per-theme branch. Fewer values, same result —
+// verified in `contrast.test.js`, which checks the thumb against both track
+// states and each track against the page.
+//
+// Geometry scales with the OS text-size setting like every other control, so
+// the switch stays proportionate to the row label beside it.
 
 const ThemedSwitch = ({
   value,
-  onValueChange,
-  disabled,
-  offThumbColor,
-  onTrackColor,
-  offTrackColor,
+  onValueChange = undefined,
+  disabled = false,
+  offThumbColor = null,
+  onTrackColor = null,
+  offTrackColor = null,
 }) => {
-  const { theme } = useTheme();
+  const { c, scale } = useTokens();
   const progress = useRef(new Animated.Value(value ? 1 : 0)).current;
 
   useEffect(() => {
@@ -35,20 +34,21 @@ const ThemedSwitch = ({
     }).start();
   }, [value, progress]);
 
-  const isDark = theme.mode === "dark";
-  // Track colors default to the theme values but can be overridden per-usage.
-  const offColor = offTrackColor || (isDark ? OFF_TRACK_DARK : OFF_TRACK_LIGHT);
-  const onColor = onTrackColor || (isDark ? ON_TRACK_DARK : ON_TRACK_LIGHT);
+  // Base geometry at the reference font scale, grown with the user's setting.
+  const trackWidth = Math.round(50 * scale.container);
+  const trackHeight = Math.round(30 * scale.container);
+  const padding = Math.round(3 * scale.container);
+  const thumbSize = trackHeight - padding * 2;
+  const travel = trackWidth - thumbSize - padding * 2;
 
   const trackBackgroundColor = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [offColor, onColor],
+    // `primary`, not `accent`: the ON track is the same blue as the bottom
+    // navigation bar, so the app shows one blue instead of two similar ones.
+    outputRange: [offTrackColor || c.controlTrackOff, onTrackColor || c.controlAccent],
   });
 
-  const translateX = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, TRAVEL],
-  });
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [0, travel] });
 
   const handlePress = () => {
     if (disabled) return;
@@ -66,24 +66,23 @@ const ThemedSwitch = ({
     >
       <Animated.View
         style={{
-          width: TRACK_WIDTH,
-          height: TRACK_HEIGHT,
-          borderRadius: TRACK_HEIGHT / 2,
+          width: trackWidth,
+          height: trackHeight,
+          borderRadius: trackHeight / 2,
           backgroundColor: trackBackgroundColor,
-          padding: PADDING,
+          padding,
           justifyContent: "center",
         }}
       >
         <Animated.View
           style={{
-            width: THUMB_SIZE,
-            height: THUMB_SIZE,
-            borderRadius: THUMB_SIZE / 2,
-            // offThumbColor only tints the OFF-state circle; ON stays the
-            // default white thumb everywhere.
-            backgroundColor: !value && offThumbColor ? offThumbColor : THUMB_COLOR,
-            borderWidth: 0.5,
-            borderColor: THUMB_BORDER,
+            width: thumbSize,
+            height: thumbSize,
+            borderRadius: thumbSize / 2,
+            // offThumbColor only tints the OFF-state circle; ON keeps the
+            // default thumb. `c.surface` reads against both tracks in both
+            // themes, which a fixed white does not.
+            backgroundColor: !value && offThumbColor ? offThumbColor : c.surface,
             transform: [{ translateX }],
           }}
         />
@@ -99,14 +98,6 @@ ThemedSwitch.propTypes = {
   offThumbColor: PropTypes.string,
   onTrackColor: PropTypes.string,
   offTrackColor: PropTypes.string,
-};
-
-ThemedSwitch.defaultProps = {
-  onValueChange: undefined,
-  disabled: false,
-  offThumbColor: null,
-  onTrackColor: null,
-  offTrackColor: null,
 };
 
 export default ThemedSwitch;

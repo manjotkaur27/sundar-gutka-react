@@ -11,11 +11,11 @@ import { CustomText, useTheme } from '@common';
  */
 const AppBar = ({
   title,
-  backgroundColor,
-  titleColor,
-  titleStyle,
-  leftComponent,
-  rightComponent,
+  backgroundColor = null,
+  titleColor = null,
+  titleStyle = null,
+  leftComponent = null,
+  rightComponent = null,
 }) => {
   const { top } = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -71,14 +71,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
-AppBar.defaultProps = {
-  backgroundColor: null,
-  titleColor: null,
-  titleStyle: null,
-  leftComponent: null,
-  rightComponent: null,
-};
 
 AppBar.propTypes = {
   title: PropTypes.string.isRequired,

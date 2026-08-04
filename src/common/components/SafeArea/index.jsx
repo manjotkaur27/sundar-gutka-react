@@ -17,9 +17,4 @@ SafeArea.propTypes = {
   flex: PropTypes.number,
 };
 
-SafeArea.defaultProps = {
-  edges: ["left", "right"],
-  flex: 1,
-};
-
 export default SafeArea;

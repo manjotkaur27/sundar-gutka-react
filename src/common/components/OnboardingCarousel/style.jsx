@@ -54,7 +54,9 @@ const createStyles = (theme) => ({
     width: "88%",
     borderRadius: 15,
     borderWidth: 3.5,
-    borderColor: "#0066ff",
+    // The app's one blue, not a hardcoded literal that stayed the same in
+    // both themes.
+    borderColor: theme.c.controlAccent,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",

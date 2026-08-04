@@ -36,10 +36,27 @@ const valueOf = (block, key) => {
   return m ? JSON.parse(m[1]) : null;
 };
 
+/** Every key defined in a language block. */
+const keysOf = (block) =>
+  new Set([...block.matchAll(/\n {4}([A-Za-z_][A-Za-z0-9_]*):/g)].map((m) => m[1]));
+
 describe("localization parity", () => {
   it("defines a block for every supported language", () => {
     SUPPORTED.forEach((lang) => {
       expect(blockFor(lang)).toBeTruthy();
+    });
+  });
+
+  // The blanket check. A key present in English and missing elsewhere ships as
+  // English to those users, which is the single most common way a translation
+  // regresses — someone adds a string and updates one block. This covers all
+  // 364 keys, so no hand-maintained key list can fall behind.
+  describe.each(SUPPORTED.filter((l) => l !== "en-US"))("%s", (lang) => {
+    it("defines every key that en-US defines", () => {
+      const english = keysOf(blockFor("en-US"));
+      const translated = keysOf(blockFor(lang));
+      const missing = [...english].filter((key) => !translated.has(key));
+      expect(missing).toEqual([]);
     });
   });
 

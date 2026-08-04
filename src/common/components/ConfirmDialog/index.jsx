@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Modal, View, Pressable, StyleSheet } from "react-native";
+import constant from "@common/constant";
 import useTheme from "@common/context";
 import CustomText from "../CustomText";
 
@@ -188,9 +189,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
   },
+  // Explicit SemiBold face and NO numeric fontWeight beside it. Baloo ships as
+  // separate named TTFs, so a fontWeight makes Android try to synthesize bold
+  // and silently drop back to the SYSTEM font — which is why these headings
+  // rendered in a different typeface to the rest of the app.
   title: {
+    fontFamily: constant.BALOO_PAAJI_SEMI_BOLD,
     fontSize: 18,
-    fontWeight: "700",
     marginBottom: 8,
   },
   message: {
@@ -227,8 +232,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   btnText: {
+    fontFamily: constant.BALOO_PAAJI_SEMI_BOLD,
     fontSize: 15,
-    fontWeight: "600",
   },
 });
 

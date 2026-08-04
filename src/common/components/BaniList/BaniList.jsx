@@ -1,34 +1,33 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Animated, View, Dimensions, Platform, StyleSheet } from "react-native";
+import React, { useCallback } from "react";
+import {
+  FlatList,
+  Animated,
+  View,
+  Platform,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+} from "react-native";
 import { useSelector } from "react-redux";
-import { ListItem } from "@rneui/themed";
 import PropTypes from "prop-types";
 import constant from "@common/constant";
-import useTheme from "@common/context";
+import useTokens from "@common/hooks/useTokens";
 import { FolderIcon } from "@common/icons";
 import { convertToUnicode, baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
-  const { theme } = useTheme();
-  const isDarkMode = theme.mode === "dark";
+const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
+  const { c, space, layout } = useTokens();
   const { scrollViewProps, Indicator } = useCustomScrollbar();
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
   const isTransliteration = useSelector((state) => state.isTransliteration);
-  const [isPotrait, toggleIsPotrait] = useState(true);
-
-  const checkPotrait = () => {
-    const dim = Dimensions.get("screen");
-    return dim.height >= dim.width;
-  };
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", () => {
-      toggleIsPotrait(checkPotrait());
-    });
-    return () => subscription.remove();
-  }, []);
+  // `useWindowDimensions` re-renders on rotation, split-screen and foldable
+  // unfold on its own. This replaced a `Dimensions.get` snapshot plus a manual
+  // change listener and a piece of state that duplicated what the hook gives.
+  const { width, height } = useWindowDimensions();
+  const isPotrait = height >= width;
   const isUnicode = fontFace === constant.BALOO_PAAJI;
 
   const getBaniTuk = (row) => {
@@ -49,25 +48,35 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
 
   const renderBanis = useCallback(
     (row) => {
-      const itemTextColor = isDarkMode ? theme.staticColors.WHITE_COLOR : theme.colors.primary;
+      const itemTextColor = c.textPrimary;
       const displayFont = !isTransliteration ? fontFace : null;
 
+      // Rows are separated by a faint INSET hairline (see ItemSeparator below),
+      // which is Apple's spec for a list: a light grey at low opacity starting
+      // at the text margin, not a full-bleed rule. The original looked like
+      // ruled paper because it drew a line edge-to-edge under every row AND
+      // packed the rows tightly; the fix is both — inset the line and give the
+      // rows room to breathe.
       const listItem = (
-        <ListItem
-          bottomDivider={false}
-          containerStyle={{
-            // Folder rows match the home bani-list exactly (same dark navy in
-            // dark mode), so the folders section feels like part of home.
-            backgroundColor: isDarkMode ? "#041126" : theme.colors.surface,
-            // Default vertical padding (no override) keeps rows at the roomier
-            // height, with a sleek per-theme hairline divider between them.
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: theme.colors.separator,
-          }}
+        <Pressable
           onPress={() => onPress(row)}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space.md,
+            // The press tint is the only fill this row ever has, and only while
+            // the finger is down.
+            backgroundColor: pressed ? c.surfaceSelected : "transparent",
+            paddingHorizontal: layout.screenGutter,
+            paddingVertical: space.lg,
+            // A minimum, so a long name or a raised font setting makes the row
+            // taller rather than clipping it.
+            minHeight: layout.row.minHeight,
+          })}
         >
-          {row.item.folder && <FolderIcon size={26} color={theme.colors.primaryText} />}
-          <ListItem.Content>
+          {row.item.folder && <FolderIcon size={22} color={c.textSecondary} />}
+          <View style={{ flex: 1, gap: space.xxs }}>
             <ListItemTitle
               title={getBaniTuk(row)}
               style={[
@@ -77,46 +86,62 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen }) => {
                   fontFamily: displayFont,
                 },
               ]}
-              // Bani names keep the single-line shrink-to-fit behaviour: their
-              // size is a user setting, so wrapping would reflow the whole list.
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.65}
+              // Wraps to a second line rather than shrinking. Shrink-to-fit
+              // sized each name by its own string length, so the list rendered
+              // at a dozen different sizes — and it silently overrode the
+              // user's own font-size setting, which is the one thing this row
+              // is supposed to honour.
+              numberOfLines={2}
             />
             {row.item.tukGurmukhi && (
               <ListItemTitle
                 title={row.item.tukGurmukhi}
-                style={[
-                  { color: isDarkMode ? theme.colors.textDisabled : theme.colors.primaryText },
-                  { fontFamily: displayFont },
-                  { fontSize: 17 },
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.65}
+                style={[{ color: c.textSecondary }, { fontFamily: displayFont }, { fontSize: 15 }]}
+                numberOfLines={2}
               />
             )}
-          </ListItem.Content>
-        </ListItem>
+          </View>
+        </Pressable>
       );
 
       return listItem;
     },
-    [theme, isDarkMode, fontSize, fontFace, isTransliteration]
+    [c, space, layout, fontSize, fontFace, isTransliteration]
+  );
+
+  // Drawn BETWEEN rows only — a FlatList separator never renders after the
+  // last item, so the list ends on whitespace instead of a stray line.
+  //
+  // Inset by the SAME gutter on both sides, so it lines up with the row's text
+  // on the left and stops short of the screen edge on the right. iOS insets
+  // only the leading edge, which leaves the line running into the right edge
+  // and reads as lopsided here. `layout.screenGutter` comes from the token
+  // layer, so this tracks the row padding and scales with the device width
+  // rather than being a fixed number.
+  const ItemSeparator = useCallback(
+    () => (
+      <View
+        style={{
+          height: StyleSheet.hairlineWidth,
+          backgroundColor: c.border,
+          marginHorizontal: layout.screenGutter,
+        }}
+      />
+    ),
+    [c, layout]
   );
 
   return (
-    // Each row paints its own navy background ("#041126" below) to match the
-    // home bani-list. Without this, the FlatList's own background stays
-    // theme.colors.surface (near-black, not navy) and shows through as a
-    // jarring black seam wherever content is shorter than the screen (e.g.
-    // the Sawaiye folder's few entries) — this keeps the whole area navy
-    // regardless of how many rows there are.
-    <View style={{ flex: 1, backgroundColor: isDarkMode ? "#041126" : theme.colors.surface }}>
+    // One flat ground, the same one the header sits on, so the list reads as a
+    // continuation of the screen rather than a panel dropped onto it. It fills
+    // the viewport so a short folder (e.g. Sawaiye) shows no seam.
+    <View style={{ flex: 1, backgroundColor: c.background }}>
       <AnimatedFlatList
         style={!isPotrait && Platform.OS === "ios" && { marginLeft: 30 }}
+        contentContainerStyle={{ paddingTop: space.sm, paddingBottom: space.xxl }}
         data={data}
         renderItem={renderBanis}
+        ItemSeparatorComponent={ItemSeparator}
         keyExtractor={(item) => item.gurmukhi}
         {...scrollViewProps}
       />
@@ -136,11 +161,9 @@ BaniList.propTypes = {
     })
   ).isRequired,
   onPress: PropTypes.func.isRequired,
+  // Defaulted in the signature; the lint rule cannot see through React.memo.
+  // eslint-disable-next-line react/require-default-props
   isFolderScreen: PropTypes.bool,
-};
-
-BaniList.defaultProps = {
-  isFolderScreen: false,
 };
 
 export default BaniList;
