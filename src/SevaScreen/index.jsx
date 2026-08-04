@@ -40,7 +40,6 @@ import {
   ExternalLinkIcon,
   StarIcon,
 } from "../common/icons";
-import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 import {
   resolveCurrency,
   usdToLocal,
@@ -87,10 +86,14 @@ const stepNameOf = (v) => SEVA_STEP_NAMES[v - 1] || "landing_view";
 // (`seva-means:<page>`) maps to a native icon + accent tint. The app supplies
 // the icon/colour/navigation chrome; the backend supplies the text + order.
 const MEANS_META = {
-  social: { Icon: MegaphoneIcon, tint: "#8B7CF6" }, // indigo
-  coding: { Icon: CodeIcon, tint: "#22B8CF" }, // teal
-  qa: { Icon: ClipboardCheckIcon, tint: "#37B24D" }, // green
-  other: { Icon: StarIcon, tint: "#E0A93B" }, // gold
+  // `tint` names a semantic role, resolved per theme at render. These were
+  // four bespoke hues (indigo/teal/green/gold); they now draw on three roles
+  // the palette already defines, since the icon beside each row is what
+  // actually distinguishes it.
+  social: { Icon: MegaphoneIcon, tint: "accent" },
+  coding: { Icon: CodeIcon, tint: "accent" },
+  qa: { Icon: ClipboardCheckIcon, tint: "success" },
+  other: { Icon: StarIcon, tint: "gold" },
 };
 
 // A blinking text cursor for the custom-amount inline display (the real
@@ -120,6 +123,7 @@ BlinkingCursor.propTypes = {
 
 const SevaScreen = () => {
   const { theme } = useTheme();
+  const { c } = theme;
   const isDarkMode = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -389,8 +393,8 @@ const SevaScreen = () => {
     async (url) => {
       if (isBrowserOpenRef.current) return;
 
-      const barColor = isDarkMode ? "#041126" : theme.colors.surface;
-      const controlColor = isDarkMode ? "#FAF9F6" : "#113979";
+      const barColor = c.surface;
+      const controlColor = c.textPrimary;
 
       isBrowserOpenRef.current = true;
       pendingBrowserUrlRef.current = url;
@@ -548,7 +552,7 @@ const SevaScreen = () => {
     }
     const meta = MEANS_META[page] || MEANS_META.other;
     const { Icon } = meta;
-    const trailingIconColor = isDarkMode ? "#4A6785" : "#9AA8BD";
+    const trailingIconColor = c.textSecondary;
     return (
       <Pressable
         key={key}
@@ -560,8 +564,10 @@ const SevaScreen = () => {
         accessibilityRole={openUrl ? "link" : "button"}
         accessibilityLabel={`seva-means-${page}`}
       >
-        <View style={[styles.meansIconCircle, { backgroundColor: `${meta.tint}22` }]}>
-          <Icon size={20} color={meta.tint} />
+        {/* `meta.tint` names a role; resolve it, then derive the 13%-opacity
+            disc behind the icon from the resolved colour. */}
+        <View style={[styles.meansIconCircle, { backgroundColor: `${c[meta.tint]}22` }]}>
+          <Icon size={20} color={c[meta.tint]} />
         </View>
         <View style={styles.meansTextWrap}>
           <CustomText style={styles.meansTitle}>{title}</CustomText>
@@ -723,10 +729,7 @@ const SevaScreen = () => {
                 displayAmount
               )}
               {isOtherSelected && (
-                <BlinkingCursor
-                  color={isDarkMode ? theme.staticColors.WHITE_COLOR : "#2C5282"}
-                  fontSize={amountFontSize}
-                />
+                <BlinkingCursor color={c.textPrimary} fontSize={amountFontSize} />
               )}
               {frequency !== "One Time" && (
                 <Text style={styles.perMonthSpan}>{` /${getFrequencyLabel()}`}</Text>
@@ -762,9 +765,7 @@ const SevaScreen = () => {
                 styles.amountButtonText,
                 selectedAmount === amount && !isOtherSelected && styles.amountButtonTextSelected,
               ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
+              numberOfLines={2}
             >
               {/* Symbol span (own font) + Baloo digits — inline, baseline-aligned.
                   `amount` is already the LOCAL figure. */}
@@ -782,9 +783,7 @@ const SevaScreen = () => {
               intact in every locale. */}
           <CustomText
             style={[styles.amountButtonText, isOtherSelected && styles.amountButtonTextSelected]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
+            numberOfLines={2}
           >
             {STRINGS.SEVA_OTHER}
           </CustomText>
@@ -810,9 +809,7 @@ const SevaScreen = () => {
       {/* Donate button */}
       <Pressable style={styles.donateButton} onPress={handleDonate}>
         <LinearGradient
-          colors={
-            isDarkMode ? [theme.colors.primary, theme.colors.primary] : ["#113979", "#0C2958"]
-          }
+          colors={[c.controlAccent, c.controlAccentPressed]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={{
@@ -825,7 +822,7 @@ const SevaScreen = () => {
             paddingVertical: 14,
           }}
         >
-          <DonateIcon size={30} color="#FFFFFF" />
+          <DonateIcon size={30} color={c.onControlAccent} />
           <CustomText style={styles.donateButtonText}>{STRINGS.donate}</CustomText>
         </LinearGradient>
       </Pressable>
@@ -880,7 +877,7 @@ const SevaScreen = () => {
         {(!!cardTitle || !!cardSub) && (
           <View style={styles.donateCardHeader}>
             <View style={styles.cardIconCircle}>
-              <HandHeartIcon size={22} color={isDarkMode ? "#7FB6FF" : "#1F69DF"} />
+              <HandHeartIcon size={22} color={c.accent} />
             </View>
             <View style={styles.donateCardHeaderText}>
               {!!cardTitle && <CustomText style={styles.cardTitle}>{cardTitle}</CustomText>}
@@ -942,8 +939,11 @@ const SevaScreen = () => {
   // Matches the dashboard's ground rather than the old cream. The foreground
   // drives BOTH the "Seva" title and the close cross: near-black read as a
   // heavy, unbranded mark against the light bar, so it is the brand navy.
-  const headerBg = isDarkMode ? "#041126" : BRAND.tint94;
-  const headerFg = isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base;
+  const headerBg = c.backgroundAlt;
+  // The one header foreground — brand navy in light, white in dark. Drives both
+  // the "Seva" title and the close cross. `textPrimary`'s near-black read as a
+  // heavy, unbranded mark against the light bar.
+  const headerFg = c.headerFg;
   const renderHeader = () => (
     <AppBar
       title={STRINGS.SEVA}
@@ -954,16 +954,20 @@ const SevaScreen = () => {
         // Swapped with the hero: the AppBar "Seva" is now the prominent heading
         // (26) and the hero line drops to the smaller size (see styles.heroTitle).
         fontSize: 26,
-        fontWeight: theme.typography.weights.normal,
+        // No fontWeight beside the family. Baloo ships as separate named TTFs,
+        // so a weight makes Android try to synthesize and fall back to the
+        // system font — the family named above already IS the SemiBold face.
       }}
       rightComponent={
         <Pressable
           onPress={() => navigation.navigate("Home")}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="close-seva"
+          accessibilityLabel={STRINGS.CLOSE}
         >
-          <CloseIcon size={28} color={headerFg} />
+          {/* Same size as the Dashboard's close cross, so the two read as one
+              control rather than two. */}
+          <CloseIcon size={theme.layout.header.closeIconSize} color={headerFg} />
         </Pressable>
       }
     />
@@ -977,7 +981,7 @@ const SevaScreen = () => {
         {renderHeader()}
         <GradientDivider />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ActivityIndicator size="large" color={theme.c.accent} />
         </View>
       </SafeArea>
     );
@@ -993,7 +997,7 @@ const SevaScreen = () => {
         <View style={styles.centered}>
           <CustomText style={styles.description}>{STRINGS.SEVA_LOAD_ERROR}</CustomText>
           <Pressable onPress={() => Linking.openURL("https://khalisfoundation.org/donate")}>
-            <CustomText style={[styles.description, { color: theme.colors.primary }]}>
+            <CustomText style={[styles.description, { color: theme.c.textBrand }]}>
               {STRINGS.SEVA_DONATE_DIRECTLY}
             </CustomText>
           </Pressable>

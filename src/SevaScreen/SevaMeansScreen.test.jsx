@@ -19,6 +19,9 @@ jest.mock("@common", () => {
   const { View, Text } = require("react-native");
   const theme = {
     mode: "light",
+    // The real semantic layer, so the stylesheet resolves the same roles the
+    // app does instead of a hand-rolled subset that drifts from it.
+    c: require("@theme/semanticColors").light,
     colors: { primary: "#123", surface: "#FFF", activeView: "#EEE" },
     staticColors: { WHITE_COLOR: "#FFF", NIGHT_BLACK: "#041126" },
     typography: {

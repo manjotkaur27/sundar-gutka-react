@@ -6,7 +6,7 @@ import { CloseIcon } from "@common/icons";
 import { useTheme, useThemedStyles, CustomText, STRINGS } from "@common";
 import createStyles from "./styles";
 
-const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle }) => {
+const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle = "" }) => {
   const fontFace = useSelector((state) => state.fontFace);
   const styles = useThemedStyles(createStyles);
   const { theme } = useTheme();
@@ -59,10 +59,6 @@ ErrorFallback.propTypes = {
   buttonPress: PropTypes.func.isRequired,
   buttonText: PropTypes.string.isRequired,
   handleClose: PropTypes.func.isRequired,
-};
-
-ErrorFallback.defaultProps = {
-  baniTitle: "",
 };
 
 export default ErrorFallback;

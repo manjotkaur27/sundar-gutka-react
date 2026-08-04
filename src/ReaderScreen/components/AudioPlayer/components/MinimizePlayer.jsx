@@ -27,10 +27,10 @@ const MinimizePlayer = ({
   progress,
   duration,
   displayName,
-  isDragging,
-  opacityStyle,
-  pointerEvents,
-  isNavBarVisible,
+  isDragging = false,
+  opacityStyle = null,
+  pointerEvents = "auto",
+  isNavBarVisible = false,
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(minimizePlayerStyles);
@@ -424,13 +424,6 @@ const MinimizePlayer = ({
       </View>
     </Animated.View>
   );
-};
-
-MinimizePlayer.defaultProps = {
-  isDragging: false,
-  opacityStyle: null,
-  pointerEvents: "auto",
-  isNavBarVisible: false,
 };
 
 MinimizePlayer.propTypes = {

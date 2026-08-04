@@ -39,11 +39,11 @@ const styles = StyleSheet.create({
 
 const DonationWebView = ({ route, navigation }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  // Match the app's standard themed header (see Bookmarks): surface/white in
-  // light mode, near-black/white in dark mode.
-  const headerBg = isDark ? theme.staticColors.NIGHT_BLACK : theme.colors.surface;
-  const headerFg = isDark ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
+  // The app's standard themed header. Two roles rather than two isDark
+  // ternaries: headerFg is brand navy in light and white in dark, exactly as
+  // every other header in the app.
+  const headerBg = theme.c.background;
+  const headerFg = theme.c.headerFg;
 
   const { url } = route.params || {};
   const [isLoading, setIsLoading] = useState(true);
@@ -85,10 +85,10 @@ const DonationWebView = ({ route, navigation }) => {
         leftComponent={<BackIconComponent size={30} color={headerFg} onPress={handleBack} />}
       />
       <GradientDivider />
-      <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+      <View style={[styles.container, { backgroundColor: theme.c.surface }]}>
         {hasError ? (
           <View style={styles.centerFill}>
-            <CustomText style={{ color: theme.colors.audioTitleText }}>
+            <CustomText style={{ color: theme.c.textBrand }}>
               {STRINGS.SOMETHING_WENT_WRONG || "Something went wrong. Please try again."}
             </CustomText>
           </View>
@@ -130,12 +130,12 @@ const DonationWebView = ({ route, navigation }) => {
               setIsLoading(false);
               setHasError(true);
             }}
-            style={{ backgroundColor: theme.colors.surface }}
+            style={{ backgroundColor: theme.c.surface }}
           />
         )}
         {isLoading && !hasError && (
           <View style={styles.loadingOverlay} pointerEvents="none">
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ActivityIndicator size="large" color={theme.c.accent} />
           </View>
         )}
       </View>

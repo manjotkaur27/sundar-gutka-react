@@ -9,7 +9,7 @@ import { PlusIcon, MinusIcon, ChevronRight } from "@common/icons";
 import { STRINGS, CustomText, ThemedSwitch, navigate } from "@common";
 import { audioSettingModalStyles } from "../style";
 
-const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking, setRate }) => {
+const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRate }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(audioSettingModalStyles);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);

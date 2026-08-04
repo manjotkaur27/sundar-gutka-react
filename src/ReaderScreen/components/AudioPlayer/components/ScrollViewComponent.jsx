@@ -152,16 +152,6 @@ const ScrollViewComponent = ({
   );
 };
 
-ScrollViewComponent.defaultProps = {
-  selectedTrack: null,
-  playingTrack: null,
-  isPlaying: false,
-  previewLoadingTrackId: null,
-  previewActiveTrackId: null,
-  previewDurationMs: 0,
-  isOffline: false,
-};
-
 ScrollViewComponent.propTypes = {
   tracks: PropTypes.arrayOf(
     PropTypes.shape({

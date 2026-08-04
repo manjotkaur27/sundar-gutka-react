@@ -1,5 +1,4 @@
 import { StyleSheet } from "react-native";
-import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 
 // Native styling for the server-driven "Seva by other means" pages. Colours
 // mirror the Seva page (createStyles in ./styles) so both screens read as one
@@ -11,12 +10,12 @@ import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 // page — so spacing stays consistent between every element and scales with the
 // device instead of being a pile of mismatched hardcoded margins.
 const createStyles = (theme) => {
-  const isDarkMode = theme.mode === "dark";
+  const { c } = theme;
 
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: isDarkMode ? "#041126" : BRAND.tint94,
+      backgroundColor: c.backgroundAlt,
     },
     scrollView: { flex: 1 },
     // Padding + gap are applied dynamically on the inner wrapper View in the
@@ -27,18 +26,18 @@ const createStyles = (theme) => {
       justifyContent: "center",
       alignItems: "center",
       padding: 24,
-      backgroundColor: isDarkMode ? "#041126" : BRAND.tint94,
+      backgroundColor: c.backgroundAlt,
     },
     intro: {
       fontSize: 16,
       lineHeight: 24,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint15,
+      color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     description: {
       fontSize: 15,
       lineHeight: 22,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint15,
+      color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     // NB: no numeric fontWeight anywhere the Baloo SemiBold font is used —
@@ -49,7 +48,7 @@ const createStyles = (theme) => {
       fontWeight: "normal",
       letterSpacing: 0.6,
       textTransform: "uppercase",
-      color: isDarkMode ? "#8496A9" : BRAND.tint25,
+      color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     // A tappable link "card" row: optional leading badge, text, trailing chevron.
@@ -57,8 +56,8 @@ const createStyles = (theme) => {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      backgroundColor: isDarkMode ? theme.colors.activeView : "#FFFFFF",
-      borderColor: isDarkMode ? "#1B3A5B" : BRAND.tint88,
+      backgroundColor: c.surface,
+      borderColor: c.border,
       borderWidth: 1,
       borderRadius: 14,
       paddingVertical: 14,
@@ -72,11 +71,11 @@ const createStyles = (theme) => {
     linkRowText: {
       fontSize: 15,
       lineHeight: 21,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint15,
+      color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     link: {
-      color: isDarkMode ? "#4299E1" : BRAND.base,
+      color: c.accent,
       fontWeight: "normal",
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
@@ -84,14 +83,14 @@ const createStyles = (theme) => {
       fontSize: 24,
       fontWeight: "normal",
       textAlign: "center",
-      color: isDarkMode ? "#FAF9F6" : BRAND.base,
+      color: c.textPrimary,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     heroSub: {
       fontSize: 16,
       lineHeight: 24,
       textAlign: "center",
-      color: isDarkMode ? "#8496A9" : BRAND.tint25,
+      color: c.textSecondary,
       paddingHorizontal: 16,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
@@ -99,7 +98,7 @@ const createStyles = (theme) => {
       fontSize: 13,
       lineHeight: 18,
       textAlign: "center",
-      color: isDarkMode ? "#8496A9" : BRAND.tint25,
+      color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
   });

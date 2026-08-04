@@ -111,7 +111,7 @@ const DownloadComponent = () => {
           <DownloadControls
             downloading={downloading}
             onStartDownload={startDownload}
-            darkModeText={{ color: theme.colors.primaryText }}
+            darkModeText={{ color: theme.c.textPrimary }}
           />
         </>
       )}

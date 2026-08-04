@@ -21,7 +21,6 @@ import {
   openInAppBrowser,
 } from "@common";
 import { ChevronRight } from "../common/icons";
-import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 import { getSevaMeansPage } from "../services/sevaMeans";
 import createStyles from "./sevaMeansStyles";
 import { detectSocialBrand, SocialBadge } from "./socialIcons";
@@ -46,6 +45,7 @@ const TITLE_KEYS = {
 
 const SevaMeansScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
+  const { c } = theme;
   const isDark = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const language = useSelector((state) => state.language);
@@ -68,8 +68,8 @@ const SevaMeansScreen = ({ route, navigation }) => {
   // Bar background matches the page body (dark navy / cream), not a black strip.
   // Same bar as the Seva landing page: dashboard ground, brand-navy title and
   // back arrow rather than near-black.
-  const headerBg = isDark ? "#041126" : BRAND.tint94;
-  const headerFg = isDark ? theme.staticColors.WHITE_COLOR : BRAND.base;
+  const headerBg = c.backgroundAlt;
+  const headerFg = c.textPrimary;
 
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -103,8 +103,8 @@ const SevaMeansScreen = ({ route, navigation }) => {
   const openBrowserForUrl = useCallback(
     async (url) => {
       if (!url || isBrowserOpenRef.current) return;
-      const barColor = isDark ? "#041126" : theme.colors.surface;
-      const controlColor = isDark ? "#FAF9F6" : "#113979";
+      const barColor = c.surface;
+      const controlColor = c.textPrimary;
       isBrowserOpenRef.current = true;
       try {
         await openInAppBrowser(url, { barColor, controlColor });
@@ -178,7 +178,7 @@ const SevaMeansScreen = ({ route, navigation }) => {
           <Pressable key={key} style={rowStyle} onPress={() => openBrowserForUrl(firstLink?.url)}>
             {brand && <SocialBadge brand={brand} size={24} dark={isDark} />}
             <View style={styles.linkRowInner}>{textEl}</View>
-            <ChevronRight size={20} color={isDark ? "#4299E1" : "#113979"} />
+            <ChevronRight size={20} color={c.accent} />
           </Pressable>
         );
       }
@@ -191,7 +191,7 @@ const SevaMeansScreen = ({ route, navigation }) => {
     if (loading) {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ActivityIndicator size="large" color={theme.c.accent} />
         </View>
       );
     }

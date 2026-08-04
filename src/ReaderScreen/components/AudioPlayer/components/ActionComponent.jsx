@@ -36,9 +36,7 @@ const ActionComponents = ({ selector, toggle, Icon, text }) => {
           <Icon size={20} color={color} />
         </View>
         <CustomText
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
+          numberOfLines={2}
           style={[
             styles.actionButtonText,
             {

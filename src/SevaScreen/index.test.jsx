@@ -80,6 +80,12 @@ jest.mock("@common", () => {
   const { View, Text } = require("react-native");
   const buildTheme = () => ({
     mode: mockThemeMode,
+    // The real semantic layer, so the stylesheet resolves the same roles the
+    // app does instead of a hand-rolled subset that drifts from it.
+    c: require("@theme/semanticColors")[mockThemeMode === "dark" ? "dark" : "light"],
+    // Likewise the real sizing tokens, so a size the screen reads (the close
+    // cross) is the one the app actually renders.
+    layout: require("@theme/layout").default,
     colors: { primary: "#123456", surface: "#FFFFFF", activeView: "#EEE" },
     staticColors: { WHITE_COLOR: "#FFFFFF", NIGHT_BLACK: "#041126" },
     typography: {
@@ -97,6 +103,7 @@ jest.mock("@common", () => {
     useThemedStyles: (createStyles) => createStyles(buildTheme()),
     STRINGS: {
       SEVA: "Seva",
+      CLOSE: "Close",
       SEVA_MONTHLY: "Monthly",
       SEVA_ANNUALLY: "Annually",
       SEVA_ONE_TIME: "One Time",
@@ -329,9 +336,9 @@ describe("SevaScreen", () => {
   it("has a cross button that navigates to Home / All Banis", async () => {
     getSevaConfig.mockResolvedValue(nativeFallbackConfig);
     const { getByLabelText } = render(<SevaScreen />);
-    await waitFor(() => expect(getByLabelText("close-seva")).toBeTruthy());
+    await waitFor(() => expect(getByLabelText("Close")).toBeTruthy());
 
-    fireEvent.press(getByLabelText("close-seva"));
+    fireEvent.press(getByLabelText("Close"));
     expect(mockNavigation.navigate).toHaveBeenCalledWith("Home");
   });
 

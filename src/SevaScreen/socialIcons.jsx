@@ -1,5 +1,6 @@
 import React, { useId } from "react";
 import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
+import { brandMarks } from "@theme/palette";
 import PropTypes from "prop-types";
 
 /**
@@ -38,19 +39,19 @@ const PATHS = {
 const SLACK_PATHS = [
   {
     d: "M27.2 80c0 7.3-5.9 13.2-13.2 13.2C6.7 93.2.8 87.3.8 80c0-7.3 5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V80z",
-    fill: "#E01E5A",
+    fill: brandMarks.slack.rose,
   },
   {
     d: "M47 27c-7.3 0-13.2-5.9-13.2-13.2C33.8 6.5 39.7.6 47 .6c7.3 0 13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H13.9C6.6 60.1.7 54.2.7 46.9c0-7.3 5.9-13.2 13.2-13.2H47z",
-    fill: "#36C5F0",
+    fill: brandMarks.slack.sky,
   },
   {
     d: "M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2 7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V13.8C66.9 6.5 72.8.6 80.1.6c7.3 0 13.2 5.9 13.2 13.2v33.1z",
-    fill: "#2EB67D",
+    fill: brandMarks.slack.green,
   },
   {
     d: "M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2-7.3 0-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2 0-7.3 5.9-13.2 13.2-13.2h33.1c7.3 0 13.2 5.9 13.2 13.2 0 7.3-5.9 13.2-13.2 13.2H80.1z",
-    fill: "#ECB22E",
+    fill: brandMarks.slack.gold,
   },
 ];
 
@@ -95,10 +96,10 @@ const META = {
 // colours are exempt from the WCAG contrast minimum (1.4.11 excludes
 // logotypes), same as the Instagram gradient and the YouTube red above.
 const BRAND_FILL = {
-  substack: "#FF6719",
+  substack: brandMarks.substack,
 };
 
-export const SocialBadge = ({ brand, size, dark }) => {
+export const SocialBadge = ({ brand, size = 28, dark = false }) => {
   const rawId = useId();
   const meta = META[brand];
   if (brand === "slack" && meta) {
@@ -123,8 +124,8 @@ export const SocialBadge = ({ brand, size, dark }) => {
     // YouTube mark. Triangle coords match the glyph's cutout.
     return (
       <Svg width={w} height={h} viewBox={meta.viewBox}>
-        <Path d={d} fill="#FF0000" />
-        <Path d="M9.545 8.432 15.818 12 9.545 15.568Z" fill="#FFFFFF" />
+        <Path d={d} fill={brandMarks.youtube} />
+        <Path d="M9.545 8.432 15.818 12 9.545 15.568Z" fill={brandMarks.cutoutLight} />
       </Svg>
     );
   }
@@ -133,10 +134,10 @@ export const SocialBadge = ({ brand, size, dark }) => {
     // Same as YouTube: the "f" is a cutout, so draw it white on the blue circle.
     return (
       <Svg width={w} height={h} viewBox={meta.viewBox}>
-        <Path d={d} fill="#1877F2" />
+        <Path d={d} fill={brandMarks.facebook} />
         <Path
           d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245Z"
-          fill="#FFFFFF"
+          fill={brandMarks.cutoutLight}
         />
       </Svg>
     );
@@ -149,9 +150,9 @@ export const SocialBadge = ({ brand, size, dark }) => {
     // background. A flat single-tone glyph would not read as the real logo.
     return (
       <Svg width={w} height={h} viewBox={meta.viewBox}>
-        <Path d={d} fill="#25F4EE" translateX={-0.9} translateY={-0.9} />
-        <Path d={d} fill="#FE2C55" translateX={0.9} translateY={0.9} />
-        <Path d={d} fill={dark ? "#FFFFFF" : "#000000"} />
+        <Path d={d} fill={brandMarks.tiktokCyan} translateX={-0.9} translateY={-0.9} />
+        <Path d={d} fill={brandMarks.tiktokMagenta} translateX={0.9} translateY={0.9} />
+        <Path d={d} fill={dark ? brandMarks.cutoutLight : brandMarks.cutoutDark} />
       </Svg>
     );
   }
@@ -161,14 +162,14 @@ export const SocialBadge = ({ brand, size, dark }) => {
     // rounded square is drawn in LinkedIn blue and the letters painted on top.
     return (
       <Svg width={w} height={h} viewBox={meta.viewBox}>
-        <Path d={d} fill="#0A66C2" />
+        <Path d={d} fill={brandMarks.linkedin} />
         <Path
           d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286z"
-          fill="#FFFFFF"
+          fill={brandMarks.cutoutLight}
         />
         <Path
           d="M5.337 7.433a2.062 2.062 0 1 1 0-4.125 2.062 2.062 0 0 1 0 4.125zM7.119 20.452H3.555V9h3.564v11.452z"
-          fill="#FFFFFF"
+          fill={brandMarks.cutoutLight}
         />
       </Svg>
     );
@@ -180,10 +181,10 @@ export const SocialBadge = ({ brand, size, dark }) => {
       <Svg width={w} height={h} viewBox={meta.viewBox}>
         <Defs>
           <LinearGradient id={gradId} x1="0" y1="1" x2="1" y2="0">
-            <Stop offset="0" stopColor="#FEDA75" />
-            <Stop offset="0.35" stopColor="#FA7E1E" />
-            <Stop offset="0.62" stopColor="#D62976" />
-            <Stop offset="1" stopColor="#962FBF" />
+            <Stop offset="0" stopColor={brandMarks.instagram[0]} />
+            <Stop offset="0.35" stopColor={brandMarks.instagram[1]} />
+            <Stop offset="0.62" stopColor={brandMarks.instagram[2]} />
+            <Stop offset="1" stopColor={brandMarks.instagram[3]} />
           </LinearGradient>
         </Defs>
         <Path d={d} fill={`url(#${gradId})`} />
@@ -195,7 +196,10 @@ export const SocialBadge = ({ brand, size, dark }) => {
   // theme-aware black/white (x / github / notion) so the glyph stays visible.
   return (
     <Svg width={w} height={h} viewBox={meta.viewBox}>
-      <Path d={d} fill={BRAND_FILL[brand] || (dark ? "#FFFFFF" : "#000000")} />
+      <Path
+        d={d}
+        fill={BRAND_FILL[brand] || (dark ? brandMarks.cutoutLight : brandMarks.cutoutDark)}
+      />
     </Svg>
   );
 };
@@ -217,7 +221,3 @@ SocialBadge.propTypes = {
   dark: PropTypes.bool,
 };
 
-SocialBadge.defaultProps = {
-  size: 28,
-  dark: false,
-};

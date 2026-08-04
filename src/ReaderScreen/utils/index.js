@@ -5,10 +5,13 @@ import script from "./gutkaScript";
 export const fontColorForReader = (header, theme, text) => {
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  // Header level 1 (and all transliteration) use the accent blue — brightened
-  // in dark mode so it stays legible. Everything else uses the regular primary
-  // text color; header 2/6 are deliberately regular (not blue).
-  const getHeaderColor1 = () => (theme.mode === "dark" ? "#77baff" : "#113979");
+  // Header level 1 (and all transliteration) use the accent blue. Everything
+  // else uses the regular primary text color; header 2/6 are deliberately
+  // regular (not blue).
+  //
+  // `textBrand`, not a pair of hex literals: it is the app's one blue, so the
+  // Reader matches the rest of the app instead of carrying its own two shades.
+  const getHeaderColor1 = () => theme.c.textBrand;
   const getHeaderColor2 = () => theme.colors.primaryText;
 
   const defaultColor = getHeaderColor2();

@@ -37,7 +37,7 @@ import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownlo
 // Canvas size for the icon slot (keeps every state visually aligned in the row).
 const SIZE = 40;
 
-const DownloadButton = ({ track, baniTitle, baniNameUni, baniId }) => {
+const DownloadButton = ({ track = null, baniTitle = "", baniNameUni = "", baniId = "" }) => {
   const { theme } = useTheme();
   const dispatch = useDispatch();
 
@@ -294,13 +294,6 @@ DownloadButton.propTypes = {
   baniTitle: PropTypes.string,
   baniNameUni: PropTypes.string,
   baniId: PropTypes.string,
-};
-
-DownloadButton.defaultProps = {
-  track: null,
-  baniTitle: "",
-  baniNameUni: "",
-  baniId: "",
 };
 
 export default DownloadButton;

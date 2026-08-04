@@ -562,12 +562,6 @@ const AudioTrackDialog = ({
   );
 };
 
-AudioTrackDialog.defaultProps = {
-  title: "",
-  isHeader: true,
-  isFooter: true,
-};
-
 AudioTrackDialog.propTypes = {
   title: PropTypes.string,
   tracks: PropTypes.arrayOf(
@@ -579,7 +573,7 @@ AudioTrackDialog.propTypes = {
       trackLengthSec: PropTypes.number.isRequired,
       trackSizeMB: PropTypes.number.isRequired,
     })
-  ).isRequired,
+  ),
   handleTrackSelect: PropTypes.func.isRequired,
   isHeader: PropTypes.bool,
   isFooter: PropTypes.bool,

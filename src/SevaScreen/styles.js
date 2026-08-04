@@ -1,13 +1,12 @@
 import { StyleSheet } from "react-native";
-import { BRAND } from "../DashboardScreen/components/dashboardTheme";
 
 const createStyles = (theme) => {
-  const isDarkMode = theme.mode === "dark";
+  const { c } = theme;
 
   return StyleSheet.create({
     scrollView: {
       flex: 1,
-      backgroundColor: isDarkMode ? "#041126" : BRAND.tint94,
+      backgroundColor: c.backgroundAlt,
     },
     // flexGrow keeps the background filling the viewport when content is short.
     // NB: no justifyContent:center — centering shifts the content's origin away
@@ -25,58 +24,40 @@ const createStyles = (theme) => {
     // there isn't room.
     container: {
       width: "100%",
-      backgroundColor: isDarkMode ? "#041126" : BRAND.tint94,
+      backgroundColor: c.backgroundAlt,
       // stretch → hero/section text and cards fill the width and left-align.
       alignItems: "stretch",
     },
-    header: {
-      backgroundColor: theme.colors.primary,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-    },
-    backButton: {
-      padding: 8,
-      width: 40,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: "600",
-      color: theme.staticColors.WHITE_COLOR,
-      flex: 1,
-      textAlign: "center",
-    },
-    headerSpacer: {
-      width: 40,
-    },
+    // NB: `header`, `backButton`, `headerTitle` and `headerSpacer` were removed
+    // from here. They belonged to a hand-rolled navy header this screen no
+    // longer draws — it uses the shared `AppBar` now — and nothing referenced
+    // them. They also held the last two legacy colour reads in this screen.
+    // Bold is expressed by naming the SemiBold FILE, never by a numeric weight
+    // beside the family. Baloo ships as separate named TTFs, so a weight makes
+    // Android try to synthesize and silently drop to the system font.
     title: {
       fontSize: 32,
-      fontWeight: "bold",
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       textAlign: "center",
-      fontFamily: theme.typography.fonts.balooPaaji,
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     headline: {
-      fontWeight: "800",
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       textAlign: "center",
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     description: {
       fontSize: 15,
       lineHeight: 22,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint15,
+      color: c.textSecondary,
       textAlign: "left",
       width: "100%",
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     link: {
-      color: isDarkMode ? "#4299E1" : BRAND.base,
-      fontWeight: "600",
+      color: c.accent,
       textDecorationLine: "underline",
-      fontFamily: theme.typography.fonts.balooPaaji,
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     // Shorter box (SIO-155): reduced vertical padding, and "/month" now sits
     // inline in the row rather than on a second line below.
@@ -84,14 +65,14 @@ const createStyles = (theme) => {
       // Light mode sits on the page's own pale-blue ground rather than pure
       // white, so the figure reads as part of the page instead of a floating
       // white slab. The shadow below still separates it from the ground.
-      backgroundColor: isDarkMode ? theme.colors.activeView : BRAND.tint94,
+      backgroundColor: c.surfaceSelected,
       borderRadius: 16,
       paddingTop: 8,
       paddingBottom: 10,
       paddingHorizontal: 20,
       width: "100%",
       alignItems: "center",
-      shadowColor: "#000",
+      shadowColor: c.shadow,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.1,
       shadowRadius: 3,
@@ -121,22 +102,21 @@ const createStyles = (theme) => {
     // span sets its own fontFamily inline. includeFontPadding:false keeps the
     // baseline tight so inline spans of different fonts line up.
     amountDisplay: {
-      fontWeight: "400",
       fontFamily: theme.typography.fonts.balooPaaji,
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       textAlign: "center",
       includeFontPadding: false,
       padding: 0,
     },
     // Inline "0" placeholder span (muted) — shown before the user types.
     amountPlaceholder: {
-      color: BRAND.tint45,
+      color: c.textSecondary,
     },
     // Inline "/month" span beside the amount (smaller + muted, same baseline).
     perMonthSpan: {
       fontSize: 18,
       fontFamily: theme.typography.fonts.balooPaaji,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint25,
+      color: c.textSecondary,
     },
     // The real, offscreen input that captures keystrokes for the custom amount.
     // The visible figure is the inline Text above; this stays invisible so the
@@ -164,23 +144,26 @@ const createStyles = (theme) => {
       paddingVertical: 12,
       borderRadius: 8,
       borderWidth: 2,
-      borderColor: isDarkMode ? "#2D3748" : BRAND.tint40,
+      borderColor: c.borderStrong,
       backgroundColor: "transparent",
       alignItems: "center",
       justifyContent: "center",
     },
     amountButtonSelected: {
-      backgroundColor: isDarkMode ? theme.colors.primary : BRAND.base,
-      borderColor: isDarkMode ? theme.colors.primary : BRAND.base,
+      backgroundColor: c.controlAccent,
+      borderColor: c.controlAccent,
     },
     amountButtonText: {
       fontSize: 16,
       fontWeight: "600",
-      color: isDarkMode ? "#FAF9F6" : BRAND.tint15,
+      color: c.textPrimary,
       textAlign: "center",
     },
     amountButtonTextSelected: {
-      color: "#FFFFFF",
+      // Pairs with controlAccent: white on the navy pill in light, near-black
+      // on the bright blue one in dark. Reading onPrimary here put white on the
+      // dark-mode blue at 3.7:1.
+      color: c.onControlAccent,
     },
     frequencyContainer: {
       flexDirection: "row",
@@ -195,12 +178,15 @@ const createStyles = (theme) => {
       alignItems: "center",
       gap: 8,
     },
+    // `controlAccent`: the frequency radios track the Settings switches — the
+    // brand navy in light, the bright blue in dark. Not `primary`, which is
+    // chrome and stays navy in both.
     radioButton: {
       width: 22,
       height: 22,
       borderRadius: 7,
       borderWidth: 2,
-      borderColor: isDarkMode ? "#4299E1" : BRAND.base,
+      borderColor: c.controlAccent,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: "transparent",
@@ -209,11 +195,11 @@ const createStyles = (theme) => {
       width: 12,
       height: 12,
       borderRadius: 6,
-      backgroundColor: isDarkMode ? "#4299E1" : BRAND.base,
+      backgroundColor: c.controlAccent,
     },
     frequencyText: {
       fontSize: 14,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint15,
+      color: c.textSecondary,
     },
     donateButton: {
       borderRadius: 100,
@@ -224,22 +210,25 @@ const createStyles = (theme) => {
       width: 26,
       height: 26,
       borderRadius: 13,
-      backgroundColor: "#FFFFFF",
+      backgroundColor: c.surface,
       alignItems: "center",
       justifyContent: "center",
     },
     donateIcon: {
       fontSize: 18,
-      color: isDarkMode ? theme.colors.primary : BRAND.base,
+      color: c.textBrand,
     },
     donateButtonText: {
       fontSize: 22,
-      color: "#FFFFFF",
+      // The button is a gradient of controlAccent -> controlAccentPressed, so
+      // its label takes that pairing: white on the navy in light, near-black on
+      // the bright blue in dark.
+      color: c.onControlAccent,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     footerText: {
       fontSize: 13,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint25,
+      color: c.textSecondary,
       textAlign: "center",
       lineHeight: 18,
       paddingHorizontal: 16,
@@ -248,7 +237,7 @@ const createStyles = (theme) => {
     taxNote: {
       fontSize: 13,
       lineHeight: 18,
-      color: isDarkMode ? "#A0AEC0" : BRAND.tint25,
+      color: c.textSecondary,
       textAlign: "center",
       width: "100%",
       paddingHorizontal: 8,
@@ -260,15 +249,14 @@ const createStyles = (theme) => {
       // of the two (the AppBar is 26).
       fontSize: 20,
       lineHeight: 26,
-      fontWeight: "normal",
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
       includeFontPadding: false,
     },
     heroDesc: {
       fontSize: 15,
       lineHeight: 22,
-      color: isDarkMode ? "#A9B7C6" : BRAND.tint15,
+      color: c.textSecondary,
       width: "100%",
       // Left, not justified. Justification stretches the word gaps on every
       // line but the last, which reads as ragged holes at this measure, and
@@ -280,7 +268,7 @@ const createStyles = (theme) => {
     sectionHeader: {
       fontSize: 18,
       fontWeight: "normal",
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       width: "100%",
       textAlign: "left",
       marginTop: 2,
@@ -291,8 +279,8 @@ const createStyles = (theme) => {
       width: "100%",
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: isDarkMode ? "#1B3A5B" : BRAND.tint88,
-      backgroundColor: isDarkMode ? "#0C2036" : "#FFFFFF",
+      borderColor: c.border,
+      backgroundColor: c.surface,
       padding: 16,
       gap: 14,
     },
@@ -307,21 +295,20 @@ const createStyles = (theme) => {
       borderRadius: 22,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: isDarkMode ? "#12294A" : BRAND.tint88,
+      backgroundColor: c.surfaceSelected,
     },
     donateCardHeaderText: {
       flex: 1,
     },
     cardTitle: {
       fontSize: 17,
-      fontWeight: "normal",
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     cardSub: {
       fontSize: 13.5,
       lineHeight: 18,
-      color: isDarkMode ? "#8496A9" : BRAND.tint25,
+      color: c.textSecondary,
       marginTop: 2,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
@@ -333,8 +320,8 @@ const createStyles = (theme) => {
       width: "100%",
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: isDarkMode ? "#1B3A5B" : BRAND.tint88,
-      backgroundColor: isDarkMode ? "#0C2036" : "#FFFFFF",
+      borderColor: c.border,
+      backgroundColor: c.surface,
       paddingVertical: 13,
       paddingHorizontal: 14,
     },
@@ -350,14 +337,13 @@ const createStyles = (theme) => {
     },
     meansTitle: {
       fontSize: 15.5,
-      fontWeight: "normal",
-      color: isDarkMode ? theme.staticColors.WHITE_COLOR : BRAND.base,
+      color: c.textPrimary,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     meansSub: {
       fontSize: 13,
       lineHeight: 17,
-      color: isDarkMode ? "#8496A9" : BRAND.tint25,
+      color: c.textSecondary,
       marginTop: 2,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
@@ -366,11 +352,11 @@ const createStyles = (theme) => {
       justifyContent: "center",
       alignItems: "center",
       padding: 24,
-      backgroundColor: isDarkMode ? "#041126" : BRAND.tint94,
+      backgroundColor: c.backgroundAlt,
     },
     retentionBanner: {
-      backgroundColor: isDarkMode ? "#1A365D" : "#FEFCBF",
-      borderColor: isDarkMode ? "#2B6CB0" : "#ECC94B",
+      backgroundColor: c.goldSurface,
+      borderColor: c.gold,
       borderWidth: 1,
       borderRadius: 8,
       paddingVertical: 8,
@@ -378,7 +364,7 @@ const createStyles = (theme) => {
       width: "100%",
     },
     retentionText: {
-      color: isDarkMode ? "#EBF8FF" : "#744210",
+      color: c.gold,
       fontSize: 14,
       textAlign: "center",
       fontWeight: "600",

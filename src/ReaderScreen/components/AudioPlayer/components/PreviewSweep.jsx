@@ -17,7 +17,7 @@ import PropTypes from "prop-types";
  * progress. It is purely decorative — the preview's own ticker still owns
  * stopping the audio at the end of the window.
  */
-const PreviewSweep = ({ durationMs, trackStyle, fillStyle }) => {
+const PreviewSweep = ({ durationMs, trackStyle = null, fillStyle = null }) => {
   const [width, setWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const startedAtRef = useRef(0);
@@ -60,11 +60,6 @@ PreviewSweep.propTypes = {
   durationMs: PropTypes.number.isRequired,
   trackStyle: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
   fillStyle: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
-};
-
-PreviewSweep.defaultProps = {
-  trackStyle: null,
-  fillStyle: null,
 };
 
 export default PreviewSweep;

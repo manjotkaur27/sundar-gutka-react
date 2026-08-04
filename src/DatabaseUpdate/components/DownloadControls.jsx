@@ -18,7 +18,7 @@ const DownloadControls = ({ downloading, onStartDownload, darkModeText }) => {
         disabled={downloading}
       >
         {downloading ? (
-          <ActivityIndicator color={theme.staticColors.WHITE_COLOR} />
+          <ActivityIndicator color={theme.c.onPrimary} />
         ) : (
           <CustomText style={[styles.buttonText, darkModeText]}>{STRINGS.startDownload}</CustomText>
         )}

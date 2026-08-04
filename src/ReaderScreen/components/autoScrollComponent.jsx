@@ -16,7 +16,7 @@ import {
 
 import { Slider } from "@miblanchard/react-native-slider";
 
-const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick, onActivity }) => {
+const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActivity = undefined }) => {
   const { theme } = useTheme();
   const isFocused = useIsFocused();
   const [isPaused, togglePaused] = useState(true);
@@ -193,11 +193,6 @@ AutoScrollComponent.propTypes = {
   }).isRequired,
   webViewLoadTick: PropTypes.number,
   onActivity: PropTypes.func,
-};
-
-AutoScrollComponent.defaultProps = {
-  webViewLoadTick: 0,
-  onActivity: undefined,
 };
 
 export default React.memo(AutoScrollComponent);

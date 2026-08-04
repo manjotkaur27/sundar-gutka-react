@@ -8,6 +8,9 @@ import { BlurView } from "@react-native-community/blur";
 
 import PropTypes from "prop-types";
 import { setAudioProgress } from "@common/actions";
+// Used by the two bani-length guards below. It was referenced without being
+// imported, so those paths threw a ReferenceError instead of running.
+import constant from "@common/constant";
 import useTheme, { useNetwork } from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
@@ -48,9 +51,9 @@ const AudioControlBar = ({
   handleTrackSelect,
   onCloseTrackModal,
   baniID,
-  title,
+  title = undefined,
   notificationTitle = "",
-  currentPlaying,
+  currentPlaying = null,
   addTrackToManifest,
   isTrackDownloaded,
   tracks,
@@ -61,8 +64,8 @@ const AudioControlBar = ({
   isInitialized,
   addAndPlayTrack,
   play,
-  isPlayerActionLoading,
-  skipNextLoadRef,
+  isPlayerActionLoading = false,
+  skipNextLoadRef = undefined,
   isNavBarVisible = false,
 }) => {
   const dispatch = useDispatch();
@@ -768,11 +771,6 @@ const AudioControlBar = ({
       )}
     </View>
   );
-};
-
-AudioControlBar.defaultProps = {
-  currentPlaying: null,
-  isPlayerActionLoading: false,
 };
 
 AudioControlBar.propTypes = {
