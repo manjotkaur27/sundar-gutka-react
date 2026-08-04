@@ -2,25 +2,25 @@ import React from "react";
 import { StatusBar, Animated, View } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
+import useTokens from "@common/hooks/useTokens";
 import {
   STRINGS,
   StatusBarComponent,
   SafeArea,
-  CustomText,
   GradientDivider,
   useCustomScrollbar,
   useBackHandler,
   BottomNavigation,
   constant,
 } from "@common";
+import { ScreenHeader } from "../common/components/ui";
 import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
 import BaniFontFaceComponent from "./components/baniFontFace";
 import BaniLengthComponent from "./components/baniLength";
 import CollectStatistics from "./components/collectStatistics";
 import ListItemWithIcon from "./components/comon/ListitemWithIcon";
+import { SettingsSection } from "./components/comon/SettingsRow";
 import DatabaseUpdateBanner from "./components/databaseUpdate";
 import Donate from "./components/donate";
 import EditBaniOrder from "./components/editBaniOrder";
@@ -37,10 +37,8 @@ import ThemeComponent from "./components/theme";
 import TranslationComponent from "./components/translation";
 import TransliterationComponent from "./components/transliteration";
 import VishraamComponent from "./components/vishraam";
-import useHeader from "./hooks/useHeader";
-import createStyles from "./styles";
 
-const Settings = ({ navigation, route }) => {
+const Settings = ({ navigation, route = undefined }) => {
   const fromReader = route?.params?.fromReader === true;
   // Settings is reachable several ways: pushed onto the root stack (from the
   // Reader OR a Folder) where goBack() pops correctly, OR as a bottom tab from
@@ -56,70 +54,78 @@ const Settings = ({ navigation, route }) => {
     }
     return true;
   }, [navigation]);
-  const appBar = useHeader(navigation, handleBackPress);
   useBackHandler(handleBackPress);
   const isDatabaseUpdateAvailable = useSelector((state) => state.isDatabaseUpdateAvailable);
 
   const { navigate } = navigation;
-  const { theme } = useTheme();
+  const { c, layout } = useTokens();
   const { scrollViewProps, Indicator } = useCustomScrollbar();
 
-  const styles = useThemedStyles(createStyles);
-  const { displayOptionsText, end } = styles;
-  const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO } = STRINGS;
+  const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO, about, databaseUpdate } = STRINGS;
   const language = useSelector((state) => state.language);
-  const { about, databaseUpdate } = STRINGS;
 
   return (
-    <SafeArea backgroundColor={theme.colors.surface} edges={["left", "right"]}>
-      <StatusBarComponent backgroundColor={theme.colors.surface} />
-      {appBar}
+    <SafeArea backgroundColor={c.backgroundAlt} edges={["left", "right"]}>
+      <StatusBarComponent backgroundColor={c.backgroundAlt} />
+      <ScreenHeader
+        title={STRINGS.SETTINGS}
+        onBack={handleBackPress}
+        backAccessibilityLabel={STRINGS.GO_BACK}
+        showBorder={false}
+      />
       <GradientDivider />
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
-      <View style={{ flex: 1 }}>
-      <Animated.ScrollView {...scrollViewProps}>
-        <CustomText style={displayOptionsText}>{DISPLAY_OPTIONS}</CustomText>
-        <FontSizeComponent />
-        <BaniFontFaceComponent />
-        <LanguageComponent language={language} />
-        <TransliterationComponent />
-        <TranslationComponent />
-        <ThemeComponent />
-        <StatusBar />
-        <HideStatusBar />
-        <AutoScroll />
-        <KeepAwake />
-        {/* Audio Player */}
-        <CustomText style={displayOptionsText}>{AUDIO}</CustomText>
-        <Audio />
-        {/* Bani Options */}
-        <CustomText style={displayOptionsText}>{BANI_OPTIONS}</CustomText>
-        <EditBaniOrder navigate={navigate} />
-        <BaniLengthComponent />
-        <LarivaarComponent />
-        <ParagraphMode />
-        <PadchedSettingsComponent />
-        <VishraamComponent />
-        <RemindersComponent navigation={navigation} />
-        <CustomText style={displayOptionsText}>{OTHER_OPTIONS}</CustomText>
-        <CollectStatistics />
-        <RevisitTutorial />
-        <Donate />
-        <ListItemWithIcon
-          iconName="info"
-          title={about}
-          navigate={navigate}
-          navigationTarget="About"
-        />
-        <ListItemWithIcon
-          iconName="update"
-          title={databaseUpdate}
-          navigate={navigate}
-          navigationTarget="DatabaseUpdate"
-        />
-        <CustomText style={end} />
-      </Animated.ScrollView>
-      {Indicator}
+      <View style={{ flex: 1, backgroundColor: c.backgroundAlt }}>
+        <Animated.ScrollView
+          {...scrollViewProps}
+          contentContainerStyle={{ paddingBottom: layout.screenPaddingBottom }}
+        >
+          <SettingsSection title={DISPLAY_OPTIONS}>
+            <FontSizeComponent />
+            <BaniFontFaceComponent />
+            <LanguageComponent language={language} />
+            <TransliterationComponent />
+            <TranslationComponent />
+            <ThemeComponent />
+            <StatusBar />
+            <HideStatusBar />
+            <AutoScroll />
+            <KeepAwake />
+          </SettingsSection>
+
+          <SettingsSection title={AUDIO}>
+            <Audio />
+          </SettingsSection>
+
+          <SettingsSection title={BANI_OPTIONS}>
+            <EditBaniOrder navigate={navigate} />
+            <BaniLengthComponent />
+            <LarivaarComponent />
+            <ParagraphMode />
+            <PadchedSettingsComponent />
+            <VishraamComponent />
+            <RemindersComponent navigation={navigation} />
+          </SettingsSection>
+
+          <SettingsSection title={OTHER_OPTIONS}>
+            <CollectStatistics />
+            <RevisitTutorial />
+            <Donate />
+            <ListItemWithIcon
+              iconName="info"
+              title={about}
+              navigate={navigate}
+              navigationTarget="About"
+            />
+            <ListItemWithIcon
+              iconName="update"
+              title={databaseUpdate}
+              navigate={navigate}
+              navigationTarget="DatabaseUpdate"
+            />
+          </SettingsSection>
+        </Animated.ScrollView>
+        {Indicator}
       </View>
       {fromReader && <BottomNavigation activeKey={constant.SETTINGS} context="reader" visible />}
     </SafeArea>

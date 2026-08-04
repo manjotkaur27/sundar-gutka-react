@@ -1,32 +1,15 @@
+// Remaining Settings styles.
+//
+// The screen's rows now come from `components/comon/SettingsRow`, which is
+// built on the shared `Row` primitive, so the row/section/header styles this
+// file used to carry are gone along with the eight keys that had no consumers
+// left (`nightBackColor`, `iconStyle`, `imageStyle`, `settingText`,
+// `settingsView`, `displayOptionsText`, `avatarStyleUntinted`,
+// `listItemSubtitle`).
+//
+// What is left serves the bottom sheet, the two picker rows and the BaniDB
+// update banner, and migrates when those do.
 const createStyles = (theme) => ({
-  headerTitleStyle: {
-    color: theme.colors.primaryText,
-    fontFamily: theme.typography.fonts.balooPaajiSemiBold,
-  },
-  headerStyle: {
-    backgroundColor: theme.colors.surface,
-  },
-  nightBackColor: { backgroundColor: theme.staticColors.NIGHT_BLACK },
-  iconStyle: { alignSelf: "flex-start" },
-  imageStyle: {},
-  settingText: {
-    fontSize: theme.typography.sizes.xl,
-    alignSelf: "center",
-    color: theme.colors.primaryText,
-    position: "absolute",
-    top: theme.spacing.xl,
-    fontFamily: theme.typography.fonts.balooPaaji,
-  },
-  settingsView: { backgroundColor: theme.colors.surface },
-  displayOptionsText: {
-    padding: theme.spacing.sm + theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.primaryText,
-    fontSize: theme.typography.sizes.md,
-    lineHeight: theme.typography.sizes.md * theme.typography.lineHeights.normal,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.separator,
-  },
   bottomSheetTitle: {
     textAlign: "center",
     fontSize: theme.typography.sizes.xxl,
@@ -39,11 +22,7 @@ const createStyles = (theme) => ({
     fontSize: theme.typography.sizes.sm,
     // Match the left-hand setting name (white in dark, near-black in light)
     // instead of the muted bluish-grey textDisabled.
-    color: theme.colors.primaryText,
-  },
-  end: {
-    padding: theme.spacing.xxl + theme.spacing.md,
-    backgroundColor: theme.colors.surface,
+    color: theme.c.textPrimary,
   },
   // tintColor recolors these monochrome PNG setting icons to match the vector
   // (@rneui) icons — near-black in light, near-white in dark — so none of them
@@ -52,14 +31,7 @@ const createStyles = (theme) => ({
     width: "100%",
     height: "100%",
     resizeMode: "contain",
-    tintColor: theme.colors.primaryText,
-  },
-  // Untinted variant for icons whose original colours carry meaning (e.g. the
-  // Theme row's colour-swatch icon), so they aren't flattened to a single colour.
-  avatarStyleUntinted: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
+    tintColor: theme.c.textPrimary,
   },
   iconContainerStyle: {
     width: 40,
@@ -93,7 +65,7 @@ const createStyles = (theme) => ({
   databaseUpdateBannerWrapper: {
     flex: 1,
     flexDirection: "row",
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
     justifyContent: "center",
     alignItems: "center",
     padding: theme.spacing.sm,
@@ -104,30 +76,24 @@ const createStyles = (theme) => ({
     marginRight: theme.spacing.md,
   },
   updateText: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontSize: theme.typography.sizes.md,
   },
   listItemTitle: {
-    color: theme.colors.primaryText,
+    color: theme.c.textPrimary,
     fontSize: theme.typography.sizes.lg,
     // Baloo Paaji carries Devanagari/Gurmukhi matras above and below the
     // baseline, which clip at the 1.4 line height sized for Latin. 1.6 also
     // keeps the two lines of a long translation from touching.
     lineHeight: theme.typography.sizes.lg * theme.typography.lineHeights.relaxed,
   },
-  listItemSubtitle: {
-    color: theme.colors.textDisabled,
-    fontSize: theme.typography.sizes.sm,
-    fontFamily: theme.typography.fonts.balooPaaji,
-    marginTop: 2,
-  },
   containerNightStyles: {
-    backgroundColor: theme.colors.surfaceGrey,
+    backgroundColor: theme.c.backgroundAlt,
     // Override RNEUI's `bottomDivider` hairline (1px ÷ pixelRatio ≈ 0.38dp),
     // which rounds to 0 on every other row on non-integer-density screens,
     // making alternating dividers vanish. A solid 1dp line never collapses.
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.separator,
+    borderBottomColor: theme.c.border,
   },
 });
 export default createStyles;

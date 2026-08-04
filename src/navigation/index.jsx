@@ -133,14 +133,18 @@ const Navigation = () => {
         />
         {/* Stack screens - these push with animation */}
         <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="About" component={AboutScreen} />
-        <Stack.Screen name="FolderScreen" component={FolderScreen} />
+        <Stack.Screen name="About" component={AboutScreen} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="FolderScreen"
+          component={FolderScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           options={{ headerShown: false }}
           name="EditBaniOrder"
           component={EditBaniOrder}
         />
-        <Stack.Screen name="Bookmarks" component={Bookmarks} />
+        <Stack.Screen name="Bookmarks" component={Bookmarks} options={{ headerShown: false }} />
         <Stack.Screen
           name="DonationWebView"
           component={DonationWebView}
@@ -151,8 +155,20 @@ const Navigation = () => {
           component={SevaMeansScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="ReminderOptions" component={ReminderOptions} />
-        <Stack.Screen name="DatabaseUpdate" component={DatabaseUpdateScreen} />
+        <Stack.Screen
+          name="ReminderOptions"
+          component={ReminderOptions}
+          options={{ headerShown: false }}
+        />
+        {/* Declared here rather than switched off at runtime: the stack
+            defaults to headerShown:true, so a screen that renders its own
+            header must opt out. Doing it in an effect lets the native bar paint
+            for a frame first, which is the stacked double header. */}
+        <Stack.Screen
+          name="DatabaseUpdate"
+          component={DatabaseUpdateScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="ManageDownloads"
           component={ManageDownloads}

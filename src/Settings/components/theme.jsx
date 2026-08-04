@@ -1,37 +1,43 @@
 import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setTheme } from "@common/actions";
+import { ThemeIcon } from "@common/icons";
 import { STRINGS } from "@common";
-import { BottomSheetComponent, ListItemComponent } from "./comon";
+import SelectSheet from "./comon/SelectSheet";
+import SettingsRow from "./comon/SettingsRow";
 import { getTheme } from "./comon/strings";
 
 const ThemeComponent = () => {
   const [isVisible, toggleVisible] = useState(false);
   const theme = useSelector((state) => state.theme);
-  const themeIcon = require("../../../images/bgcoloricon.png");
+  const dispatch = useDispatch();
   const THEMES = getTheme(STRINGS);
+  const current = THEMES.find((t) => t.key === theme);
 
   return (
     <>
-      <ListItemComponent
-        icon={themeIcon.toString()}
+      {/* A themed vector, not the old `bgcoloricon.png`. The PNG was rendered
+          with tinting turned OFF, so it kept one fixed colour in both themes
+          while every other row's icon followed the theme — and being a raster
+          asset it softened on high-density screens. */}
+      <SettingsRow
         title={STRINGS.theme}
-        value={theme}
-        isAvatar
-        tintIcon={false}
-        actionConstant={THEMES}
-        onPressAction={() => toggleVisible(true)}
+        value={current ? current.title : theme}
+        IconComponent={ThemeIcon}
+        onPress={() => toggleVisible(true)}
       />
-      {isVisible && (
-        <BottomSheetComponent
-          isVisible={isVisible}
-          actionConstant={THEMES}
-          value={theme}
-          toggleVisible={toggleVisible}
-          title={STRINGS.theme}
-          action={setTheme}
-        />
-      )}
+      <SelectSheet
+        visible={isVisible}
+        title={STRINGS.theme}
+        options={THEMES}
+        value={theme}
+        closeLabel={STRINGS.cancel}
+        onClose={() => toggleVisible(false)}
+        onSelect={(key) => {
+          dispatch(setTheme(key));
+          toggleVisible(false);
+        }}
+      />
     </>
   );
 };
