@@ -1,11 +1,33 @@
 import borderRadius from "./borderRadius";
 import components from "./components";
+import { light as lightElevation } from "./elevation";
+import layout from "./layout";
+import palette from "./palette";
+import radii from "./radii";
+import { light as lightColors } from "./semanticColors";
+import space from "./space";
 import spacing from "./spacing";
 import staticColors from "./staticColors";
+import type from "./type";
 import typography from "./typography";
 
 const lightTheme = {
   mode: "light",
+  // ── The design system ──────────────────────────────────────────────────
+  // `c` is the semantic colour layer — the one new code should use. The legacy
+  // `colors`/`staticColors` maps below it are deprecated and migrate away
+  // screen by screen. See docs/UI_OVERHAUL_PLAN.md.
+  c: lightColors,
+  palette,
+  space,
+  radii,
+  type,
+  layout,
+  elevation: lightElevation,
+
+  // ── Deprecated ─────────────────────────────────────────────────────────
+  // Everything below predates the token layer and is being migrated out. Do
+  // not add new consumers.
   colors: {
     primary: "#113979",
     surface: "rgba(255, 255, 255, 1)",
