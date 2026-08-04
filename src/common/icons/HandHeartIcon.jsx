@@ -24,6 +24,5 @@ const HandHeartIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => (
 );
 
 HandHeartIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
-HandHeartIcon.defaultProps = { size: 24, color: colors.READER_HEADER_COLOR };
 
 export default HandHeartIcon;

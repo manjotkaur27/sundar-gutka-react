@@ -21,8 +21,8 @@ const HomeIcon = ({ size = 24, color = colors.WHITE }) => (
 );
 
 HomeIcon.propTypes = {
-  size: PropTypes.number.isRequired,
-  color: PropTypes.string.isRequired,
+  size: PropTypes.number,
+  color: PropTypes.string,
 };
 
 export default HomeIcon;

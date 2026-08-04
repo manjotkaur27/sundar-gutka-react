@@ -21,6 +21,5 @@ const StarIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => (
 );
 
 StarIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
-StarIcon.defaultProps = { size: 24, color: colors.READER_HEADER_COLOR };
 
 export default StarIcon;

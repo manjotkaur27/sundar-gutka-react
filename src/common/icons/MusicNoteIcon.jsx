@@ -21,9 +21,9 @@ export const MusicIcon = ({ size = 28, color = colors.READER_HEADER_COLOR, strok
 );
 
 MusicIcon.propTypes = {
-  size: PropTypes.number.isRequired,
-  color: PropTypes.string.isRequired,
-  strokeWidth: PropTypes.number.isRequired,
+  size: PropTypes.number,
+  color: PropTypes.string,
+  strokeWidth: PropTypes.number,
 };
 
 export default MusicIcon;

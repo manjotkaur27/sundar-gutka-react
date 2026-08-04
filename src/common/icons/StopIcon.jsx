@@ -20,8 +20,8 @@ const StopIcon = ({ size = 24, color = colors.WHITE }) => (
 );
 
 StopIcon.propTypes = {
-  size: PropTypes.number.isRequired,
-  color: PropTypes.string.isRequired,
+  size: PropTypes.number,
+  color: PropTypes.string,
 };
 
 export default StopIcon;

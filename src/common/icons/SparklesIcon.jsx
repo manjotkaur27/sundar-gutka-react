@@ -21,6 +21,5 @@ const SparklesIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => (
 );
 
 SparklesIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
-SparklesIcon.defaultProps = { size: 24, color: colors.READER_HEADER_COLOR };
 
 export default SparklesIcon;

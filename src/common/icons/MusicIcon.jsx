@@ -19,9 +19,9 @@ const MusicIcon = ({ size = 24, color = colors.WHITE, isActive = false }) => (
 );
 
 MusicIcon.propTypes = {
-  size: PropTypes.number.isRequired,
-  color: PropTypes.string.isRequired,
-  isActive: PropTypes.bool.isRequired,
+  size: PropTypes.number,
+  color: PropTypes.string,
+  isActive: PropTypes.bool,
 };
 
 export default MusicIcon;

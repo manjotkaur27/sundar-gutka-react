@@ -23,11 +23,6 @@ const ChevronLeftIcon = ({ size = 24, color = constant.READER_HEADER_COLOR }) =>
 
 export default ChevronLeftIcon;
 
-ChevronLeftIcon.defaultProps = {
-  size: 24,
-  color: constant.READER_HEADER_COLOR,
-};
-
 ChevronLeftIcon.propTypes = {
   size: PropTypes.number,
   color: PropTypes.string,

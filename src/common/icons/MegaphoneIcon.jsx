@@ -22,6 +22,5 @@ const MegaphoneIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => (
 );
 
 MegaphoneIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
-MegaphoneIcon.defaultProps = { size: 24, color: colors.READER_HEADER_COLOR };
 
 export default MegaphoneIcon;

@@ -23,6 +23,5 @@ const ClipboardCheckIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) =
 );
 
 ClipboardCheckIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
-ClipboardCheckIcon.defaultProps = { size: 24, color: colors.READER_HEADER_COLOR };
 
 export default ClipboardCheckIcon;

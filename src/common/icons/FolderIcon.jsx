@@ -27,9 +27,4 @@ FolderIcon.propTypes = {
   color: PropTypes.string,
 };
 
-FolderIcon.defaultProps = {
-  size: 26,
-  color: colors.WHITE,
-};
-
 export default FolderIcon;

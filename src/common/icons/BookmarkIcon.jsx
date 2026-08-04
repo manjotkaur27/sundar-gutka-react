@@ -20,8 +20,8 @@ const BookmarkIcon = ({ size = 24, color = colors.WHITE }) => (
 );
 
 BookmarkIcon.propTypes = {
-  size: PropTypes.number.isRequired,
-  color: PropTypes.string.isRequired,
+  size: PropTypes.number,
+  color: PropTypes.string,
 };
 
 export default BookmarkIcon;

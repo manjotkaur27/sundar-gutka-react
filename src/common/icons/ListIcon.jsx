@@ -29,9 +29,4 @@ ListIcon.propTypes = {
   color: PropTypes.string,
 };
 
-ListIcon.defaultProps = {
-  size: 24,
-  color: colors.WHITE,
-};
-
 export default ListIcon;

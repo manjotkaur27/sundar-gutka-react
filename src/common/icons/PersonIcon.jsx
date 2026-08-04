@@ -10,8 +10,8 @@ const PersonIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => (
 );
 
 PersonIcon.propTypes = {
-  size: PropTypes.number.isRequired,
-  color: PropTypes.string.isRequired,
+  size: PropTypes.number,
+  color: PropTypes.string,
 };
 
 export default PersonIcon;

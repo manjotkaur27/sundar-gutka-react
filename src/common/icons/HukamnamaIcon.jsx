@@ -10,7 +10,7 @@ import PropTypes from "prop-types";
  * The artwork is drawn in a 512 box and scaled down by the width/height props,
  * so it stays crisp at any tile size.
  */
-const HukamnamaIcon = ({ size, color }) => (
+const HukamnamaIcon = ({ size = 22, color }) => (
   <Svg width={size} height={size} viewBox="0 0 512 512" fill={color}>
     <Path d="M174,163.713a7,7,0,0,0-14,0V170h14Z" />
     <Rect width={11} height={17} x={284} y={182} />
@@ -46,7 +46,5 @@ HukamnamaIcon.propTypes = {
   size: PropTypes.number,
   color: PropTypes.string.isRequired,
 };
-
-HukamnamaIcon.defaultProps = { size: 22 };
 
 export default HukamnamaIcon;

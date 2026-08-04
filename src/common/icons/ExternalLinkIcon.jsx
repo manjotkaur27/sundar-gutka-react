@@ -29,11 +29,6 @@ const ExternalLinkIcon = ({ size = 24, color = constant.READER_HEADER_COLOR }) =
 
 export default ExternalLinkIcon;
 
-ExternalLinkIcon.defaultProps = {
-  size: 24,
-  color: constant.READER_HEADER_COLOR,
-};
-
 ExternalLinkIcon.propTypes = {
   size: PropTypes.number,
   color: PropTypes.string,

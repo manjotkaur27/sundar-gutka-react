@@ -29,10 +29,4 @@ ResizeIcon.propTypes = {
   strokeWidth: PropTypes.number,
 };
 
-ResizeIcon.defaultProps = {
-  size: 28,
-  color: colors.READER_HEADER_COLOR,
-  strokeWidth: 2,
-};
-
 export default ResizeIcon;
