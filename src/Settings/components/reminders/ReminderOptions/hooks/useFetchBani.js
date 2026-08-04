@@ -30,13 +30,31 @@ const useFetchBani = (setBaniListData, setReminderBaniData, setStateData, parsed
       // setting reminder data for modal Selector to create new reminder
       setReminderBaniData(baniOptions);
       if (parsedReminderBanis.length > 0) {
-        // setting reminder data for accordian or reminder data selected by user
+        // Names are re-resolved from the database on every visit rather than
+        // trusted from storage.
+        //
+        // A cloud restore writes reminders from the server payload, which only
+        // carries the bani ID — it had been filling `gurmukhi` and `translit`
+        // with empty strings, so after a restore every row rendered a blank
+        // name. Backfilling here heals reminders already stored that way on a
+        // device, which a fix at the writing end alone would not.
+        //
+        // `find` may legitimately miss: a bani can disappear from the database
+        // across an update while a reminder for it is still stored. It used to
+        // read `.translit` straight off the result, which threw and took the
+        // whole screen down. Now the stored value stands in.
         setStateData(
-          parsedReminderBanis.map((bani) => ({
-            ...bani,
-            translit: data.find((key) => key.id === bani.id).translit,
-            label: isTransliteration ? bani.translit : bani.gurmukhi,
-          }))
+          parsedReminderBanis.map((bani) => {
+            const match = data.find((item) => item.id === bani.id);
+            const translit = match?.translit || bani.translit || "";
+            const gurmukhi = match?.gurmukhi || bani.gurmukhi || "";
+            return {
+              ...bani,
+              translit,
+              gurmukhi,
+              label: isTransliteration ? translit : gurmukhi,
+            };
+          })
         );
       } else {
         await setDefaultReminders(data, dispatch, isReminders, reminderSound);

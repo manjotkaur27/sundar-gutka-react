@@ -1,21 +1,22 @@
 import React, { useEffect, useCallback } from "react";
 import { View, Pressable, Alert, Linking, StyleSheet } from "react-native";
-import Svg, { Circle, Path, Line, Polyline } from "react-native-svg";
+import Svg, { Circle, Path, Line } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import moment from "moment";
 import PropTypes from "prop-types";
+import { SunriseIcon, SunsetIcon } from "@common/icons";
 import {
   CustomText,
   STRINGS,
   actions,
   ThemedSwitch,
-  updateReminders,
+  scheduleReminders,
   checkPermissions,
   logError,
 } from "@common";
 import { getBaniList } from "@database";
-import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 import useBaniLookup, { toTitleCase } from "./useBaniLookup";
 
@@ -49,45 +50,6 @@ const SunIcon = ({ color }) => (
 );
 SunIcon.propTypes = { color: PropTypes.string.isRequired };
 
-// Arrow rising from the horizon (Amrit Vela / dawn) — mirror of the sunset icon.
-const SunriseIcon = ({ color }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-    <Line x1="12" y1="12" x2="12" y2="2" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-    <Polyline
-      points="8 6 12 2 16 6"
-      stroke={color}
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-    <Line x1="5" y1="17" x2="19" y2="17" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-    <Circle cx="8" cy="19.5" r="1" fill={color} />
-    <Circle cx="12" cy="19.5" r="1" fill={color} />
-    <Circle cx="16" cy="19.5" r="1" fill={color} />
-  </Svg>
-);
-SunriseIcon.propTypes = { color: PropTypes.string.isRequired };
-
-// Arrow descending onto the ground/horizon (evening).
-const SunsetIcon = ({ color }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-    <Line x1="12" y1="2" x2="12" y2="12" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-    <Polyline
-      points="8 8 12 12 16 8"
-      stroke={color}
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-    <Line x1="5" y1="17" x2="19" y2="17" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-    <Circle cx="8" cy="19.5" r="1" fill={color} />
-    <Circle cx="12" cy="19.5" r="1" fill={color} />
-    <Circle cx="16" cy="19.5" r="1" fill={color} />
-  </Svg>
-);
-SunsetIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const MoonIcon = ({ color }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill={color} stroke="none">
@@ -154,29 +116,32 @@ const kindForTime = (time) => {
   return "night"; // Night (20:00–03:00)
 };
 
+// Sunrise/sunset are shared icons from common/icons; sun and moon are still
+// local. All four are rendered at 20 to fit the tinted circle.
 const ICON_FOR_KIND = { sunrise: SunriseIcon, sun: SunIcon, sunset: SunsetIcon, night: MoonIcon };
 
-const buildIconStyles = (isDark, accentBlue, mutedText, gold) => ({
+// `c` is the semantic role map, passed in because this is module scope.
+const buildIconStyles = (c, accentBlue, mutedText, gold) => ({
   // Amrit Vela (dawn) shares the warm gold tint with the daytime sun.
-  sunrise: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
-  sun: { color: gold, bg: isDark ? "rgba(210,144,48,0.14)" : "#FBF1E2" },
-  sunset: { color: accentBlue, bg: isDark ? "rgba(85,141,231,0.14)" : BRAND.tint88 },
-  night: { color: mutedText, bg: isDark ? "rgba(255,255,255,0.06)" : "#ECEEF2" },
+  sunrise: { color: gold, bg: c.goldSurface },
+  sun: { color: gold, bg: c.goldSurface },
+  sunset: { color: accentBlue, bg: c.surfaceSelected },
+  night: { color: mutedText, bg: c.surfaceSelected },
 });
 
 const RemindersCard = () => {
-  const { isDark, accentBlue, gold, primaryText, mutedText, separator } = useDashboardTheme();
+  const { accentBlue, gold, mutedText, separator, c } = useDashboardTheme();
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const { nameOf } = useBaniLookup();
-  const iconStyles = buildIconStyles(isDark, accentBlue, mutedText, gold);
-  const sectionColor = isDark ? "#566684" : "#8D9FBD";
-  const titleColor = isDark ? primaryText : "#0F3677";
-  const timeColor = isDark ? "#a1bee7ff" : "#8D9FBD";
+  const iconStyles = buildIconStyles(c, accentBlue, mutedText, gold);
+  const sectionColor = c.textSecondary;
+  const titleColor = c.textPrimary;
+  const timeColor = c.textSecondary;
   // Dark-mode reminder toggle: bright-blue ON track, navy OFF track + navy thumb.
-  const offThumbColor = isDark ? "#33456A" : null;
-  const onTrackColor = isDark ? "#5A8DEF" : null;
-  const offTrackColor = isDark ? "#1B2B47" : null;
+  const offThumbColor = null;
+  const onTrackColor = null;
+  const offTrackColor = null;
   // "Add a reminder" matches the "Edit banis" link (light blue in dark, accent in light).
   const addColor = accentBlue;
 
@@ -248,7 +213,7 @@ const RemindersCard = () => {
         array[idx] = { ...array[idx], enabled: value };
         const json = JSON.stringify(array);
         dispatch(actions.setReminderBanis(json));
-        await updateReminders(remindersOn, reminderSound, json);
+        await scheduleReminders(remindersOn, reminderSound, json);
       } catch (err) {
         logError(err);
       }
@@ -269,7 +234,7 @@ const RemindersCard = () => {
               <View key={r.key}>
                 <View style={styles.row}>
                   <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                    <Icon color={iconColor} />
+                    <Icon color={iconColor} size={20} />
                   </View>
                   <View style={styles.textBlock}>
                     <CustomText style={[styles.title, { color: titleColor }]} numberOfLines={1}>

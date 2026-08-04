@@ -32,6 +32,7 @@ import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard"
 import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
 import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
+import useReminderRearm from "./src/common/hooks/useReminderRearm";
 
 const { store, persistor } = createStore();
 
@@ -56,6 +57,7 @@ const GlobalServices = () => {
   usePauseAudioOnExit();
   useOnboardingTrigger();
   useOfflineSyncToast();
+  useReminderRearm();
   return null;
 };
 

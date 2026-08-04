@@ -50,12 +50,28 @@ const useDashboardSync = () => {
         const payload = await getDashboardLatest({ deviceId });
         if (!active) return;
         if (payload) {
-          await applyDashboardRestore(payload, dispatch, { reschedule: true });
+          // Marked BEFORE applying, not after. The restore overwrites user
+          // preferences with the snapshot's — including `reminders.enabled`
+          // (see applyDashboardRestore). If anything inside it threw, the
+          // marker below was never written, so the next launch restored again
+          // and silently re-applied the snapshot's reminder state over
+          // whatever the user had just set. Once we have a payload the restore
+          // has had its one attempt, so it must not run a second time.
+          await AsyncStorage.setItem(RESTORED_KEY, "1");
+          restoredRef.current = true;
+          // The language is needed to resolve each restored reminder's bani
+          // name out of the local database — the payload carries only IDs.
+          await applyDashboardRestore(payload, dispatch, {
+            reschedule: true,
+            transliterationLanguage: store.getState().transliterationLanguage,
+          });
           await seedAnalyticsFromSnapshot(payload);
+        } else {
+          // Mark restored on a 404 too (first run on this device) so we don't
+          // retry every launch.
+          await AsyncStorage.setItem(RESTORED_KEY, "1");
+          restoredRef.current = true;
         }
-        // Mark restored even on a 404 (first run on this device) so we don't retry every launch.
-        await AsyncStorage.setItem(RESTORED_KEY, "1");
-        restoredRef.current = true;
       } catch (err) {
         logError(err);
       } finally {

@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { constant, actions, updateReminders, logError } from "@common";
+import { constant, actions, updateReminders, logError, STRINGS } from "@common";
+import { getBaniList } from "@database";
 import {
   getOrCreateSummary,
   getDailyActivity,
@@ -70,7 +71,11 @@ const to12h = (t) => {
 // reschedule=false by default: notifications are device-local and permission-gated,
 // so the caller should reschedule (after a permission check) when appropriate.
 // Returns the list of blocks that were applied.
-export const applyDashboardRestore = async (payload, dispatch, { reschedule = false } = {}) => {
+export const applyDashboardRestore = async (
+  payload,
+  dispatch,
+  { reschedule = false, transliterationLanguage = undefined } = {}
+) => {
   const applied = [];
   if (!payload || !dispatch) return applied;
 
@@ -102,15 +107,36 @@ export const applyDashboardRestore = async (payload, dispatch, { reschedule = fa
   if (payload.reminders && Array.isArray(payload.reminders.items)) {
     const enabled = !!payload.reminders.enabled;
     const sound = payload.reminders.sound || "";
-    const items = payload.reminders.items.map((it) => ({
-      key: it.baaniId,
-      id: it.baaniId,
-      enabled: !!it.enabled,
-      time: to12h(it.time),
-      gurmukhi: "",
-      translit: "",
-      title: "",
-    }));
+
+    // The server stores a reminder as an ID and a time — the bani's NAMES live
+    // in the local database, not in the payload. These three fields were being
+    // filled with empty strings, which meant a restored reminder rendered with
+    // a blank name in Settings and fired a notification with no title.
+    //
+    // A failed lookup must not lose the reminder: the times are the part the
+    // user actually set, so on any database error the names stay empty and the
+    // Reminder Options screen backfills them on its next visit.
+    let byId = new Map();
+    try {
+      const list = await getBaniList(transliterationLanguage);
+      byId = new Map(list.map((b) => [b.id, b]));
+    } catch (err) {
+      logError(err);
+    }
+
+    const items = payload.reminders.items.map((it) => {
+      const bani = byId.get(it.baaniId);
+      const translit = bani?.translit || "";
+      return {
+        key: it.baaniId,
+        id: it.baaniId,
+        enabled: !!it.enabled,
+        time: to12h(it.time),
+        gurmukhi: bani?.gurmukhi || "",
+        translit,
+        title: translit ? `${STRINGS.time_for} ${translit}` : "",
+      };
+    });
     const json = JSON.stringify(items);
     dispatch(actions.setReminderBanis(json));
     dispatch(actions.toggleReminders(enabled));

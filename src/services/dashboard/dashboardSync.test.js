@@ -23,6 +23,7 @@ jest.mock("@common", () => ({
     DASHBOARD_SYNC_API_URL: "http://api.test/dashboard/cache",
   },
   logError: jest.fn(),
+  STRINGS: { time_for: "Time for" },
   updateReminders: (...a) => mockUpdateReminders(...a),
   actions: {
     setUserProfile: (value) => ({ type: "SET_USER_PROFILE", value }),
@@ -32,6 +33,16 @@ jest.mock("@common", () => ({
     toggleReminders: (value) => ({ type: "TOGGLE_REMINDERS", value }),
     setReminderSound: (value) => ({ type: "SET_REMINDER_SOUND", value }),
   },
+}));
+
+// The restore resolves each reminder's bani NAMES out of the local database —
+// the server payload carries only IDs. Without this the names come back blank,
+// which is what made restored reminders render with no title.
+jest.mock("@database", () => ({
+  getBaniList: jest.fn().mockResolvedValue([
+    { id: 1, gurmukhi: "jpujI swihb", translit: "Japji Sahib" },
+    { id: 2, gurmukhi: "jwpu swihb", translit: "Jaap Sahib" },
+  ]),
 }));
 
 jest.mock("../../database/analytics", () => ({
@@ -112,6 +123,33 @@ describe("applyDashboardRestore", () => {
     const items = JSON.parse(json);
     expect(items[0].time).toBe("3:30 AM");
     expect(items[1].time).toBe("6:00 PM");
+  });
+
+  it("resolves each reminder's bani names from the database, not the payload", async () => {
+    // The payload carries only baaniId. These three fields used to be written
+    // as empty strings, so a restored reminder showed a blank name in Settings
+    // and fired a notification with no title.
+    const dispatch = jest.fn();
+    await applyDashboardRestore(samplePayload, dispatch);
+    const json = dispatch.mock.calls.find((c) => c[0].type === "SET_REMINDER_BANIS")[0].value;
+    const [first] = JSON.parse(json);
+
+    expect(first.translit).toBe("Jaap Sahib");
+    expect(first.gurmukhi).toBe("jwpu swihb");
+    expect(first.title).toBe("Time for Jaap Sahib");
+  });
+
+  it("keeps the reminder when its bani is not in the database", async () => {
+    // baaniId 21 is absent from the mocked list. The TIME is what the user set,
+    // so it must survive; the Reminder Options screen backfills the name later.
+    const dispatch = jest.fn();
+    await applyDashboardRestore(samplePayload, dispatch);
+    const json = dispatch.mock.calls.find((c) => c[0].type === "SET_REMINDER_BANIS")[0].value;
+    const items = JSON.parse(json);
+
+    expect(items).toHaveLength(2);
+    expect(items[1].time).toBe("6:00 PM");
+    expect(items[1].translit).toBe("");
   });
 
   it("does not reschedule by default, but does when asked", async () => {

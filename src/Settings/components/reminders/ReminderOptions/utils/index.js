@@ -1,5 +1,5 @@
 import { setReminderBanis } from "@common/actions";
-import { updateReminders, constant, trackReminderEvent, STRINGS } from "@common";
+import { scheduleReminders, constant, trackReminderEvent, STRINGS } from "@common";
 
 const setDefaultReminders = async (baniListData, dispatch, isReminders, reminderSound) => {
   const baniList = baniListData;
@@ -24,7 +24,7 @@ const setDefaultReminders = async (baniListData, dispatch, isReminders, reminder
 
   dispatch(setReminderBanis(JSON.stringify(data)));
 
-  await updateReminders(isReminders, reminderSound, JSON.stringify(data));
+  await scheduleReminders(isReminders, reminderSound, JSON.stringify(data));
   trackReminderEvent(constant.RESET_REMINDER, true);
 };
 
