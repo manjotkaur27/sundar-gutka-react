@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { neutral } from "@theme/palette";
 import { CustomText, STRINGS, constant, actions, showErrorToast } from "@common";
 import useDashboardTheme from "./dashboardTheme";
 import { sectionLabel } from "./sectionRegistry";
@@ -38,7 +39,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  saveText: { fontSize: 15, color: "#FFFFFF" },
+  // See EditBanisModal: colour comes from c.onAccent at render.
+  saveText: { fontSize: 15 },
   pressed: { opacity: 0.7 },
   hint: { fontSize: 12, paddingHorizontal: 20, paddingTop: 14 },
   row: {
@@ -51,7 +53,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: { flex: 1, fontSize: 15 },
   switch: { width: 46, height: 28, borderRadius: 14, padding: 3, justifyContent: "center" },
-  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
+  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: neutral[0] },
   knobOn: { alignSelf: "flex-end" },
   resetBtn: { alignItems: "center", paddingVertical: 18 },
   resetText: { fontSize: 14 },
@@ -87,7 +89,7 @@ ThemedSwitchLite.propTypes = {
 };
 
 const LayoutEditOverlay = ({ visible, onClose }) => {
-  const { cardBg, accentBlue, primaryText, mutedText, separator, theme } = useDashboardTheme();
+  const { cardBg, accentBlue, primaryText, mutedText, separator, theme, c } = useDashboardTheme();
   // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
   // fontWeight with a custom TTF makes Android synthesize a fake bold and
   // silently fall back off the real glyph, which was making the title/Save
@@ -206,7 +208,7 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
               ]}
               hitSlop={8}
             >
-              <CustomText style={[styles.saveText, { fontFamily: boldFont }]}>
+              <CustomText style={[styles.saveText, { fontFamily: boldFont, color: c.onAccent }]}>
                 {STRINGS.SAVE}
               </CustomText>
             </Pressable>

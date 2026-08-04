@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Pressable, StyleSheet, PanResponder } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import { hexToRgb } from "@theme/colorUtils";
 import { weekdayNarrowRow, formatMonthYear } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
@@ -55,7 +56,7 @@ const buildWeekRows = (year, month) => {
 // (Android in particular falls back to a square outline), so the "missed
 // day" marker has to be an actual stroked circle instead. Used standalone
 // only for the small legend swatch below.
-const DashedCircle = ({ size, color, strokeWidth, dash }) => (
+const DashedCircle = ({ size, color, strokeWidth = 1.5, dash = "4 3" }) => (
   <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
     <Circle
       cx={size / 2}
@@ -74,7 +75,6 @@ DashedCircle.propTypes = {
   strokeWidth: PropTypes.number,
   dash: PropTypes.string,
 };
-DashedCircle.defaultProps = { strokeWidth: 1.5, dash: "4 3" };
 
 // Every ring/fill state for a day cell (heat fill, today's accent ring, missed
 // dashed ring) drawn in one SVG sharing a single cx/cy — so the fill and the
@@ -90,7 +90,7 @@ DashedCircle.defaultProps = { strokeWidth: 1.5, dash: "4 3" };
 //  2. Everything is inset by EDGE_PAD (and rings by half their stroke on top of
 //     that), so no shape's edge ever lands exactly on the viewport boundary,
 //     where subpixel rounding would shave it off.
-const DayMarker = ({ size, fillColor, todayColor, missedColor }) => {
+const DayMarker = ({ size, fillColor = null, todayColor = null, missedColor = null }) => {
   const c = size / 2;
   const fillR = c - EDGE_PAD;
   const missedR = c - EDGE_PAD - 1.5 / 2;
@@ -127,9 +127,23 @@ DayMarker.propTypes = {
   todayColor: PropTypes.string,
   missedColor: PropTypes.string,
 };
-DayMarker.defaultProps = { fillColor: null, todayColor: null, missedColor: null };
 
 const MISSED_COLOR = "rgba(150, 150, 150, 0.12)";
+
+/**
+ * Text colour for a heat cell at `level` (0–4).
+ *
+ * A named function rather than a nested ternary inline: the rule is a real
+ * decision about contrast, and it reads once here instead of five levels deep
+ * in the JSX.
+ */
+const levelTextColor = (level, c, accent, muted) => {
+  // Strong fill — the accent at (near) full strength, so its contrast partner.
+  if (level >= 3) return c.onAccent;
+  // Faint fill — still mostly the card behind it, so the accent reads best.
+  if (level > 0) return accent;
+  return muted;
+};
 
 // Heatmap bucket 0..4 from total activity seconds.
 const intensity = (row) => {
@@ -143,12 +157,12 @@ const intensity = (row) => {
   return 4;
 };
 
-const MonthCalendar = ({ refreshKey }) => {
-  const { accentBlue, mutedText, isDark, theme } = useDashboardTheme();
+const MonthCalendar = ({ refreshKey = 0 }) => {
+  const { accentBlue, mutedText, theme, c } = useDashboardTheme();
   // Month arrows are controls, not secondary text: mutedText only reached
   // 2.4:1 against the light card, under the 3:1 WCAG asks of a non-text UI
   // element. primaryText also matches the arrows in ActivityCalendar.
-  const navColor = theme.colors.primaryText;
+  const navColor = c.textPrimary;
   // Real SemiBold glyph for today's number (heavier than the Regular the other
   // days use). fontWeight alone does nothing on these custom TTFs.
   const numFont = theme.typography.fonts.balooPaajiSemiBold;
@@ -284,7 +298,9 @@ const MonthCalendar = ({ refreshKey }) => {
 
   // Brand navy in light mode; the lighter same-hue accent in dark, where the
   // navy would be indistinguishable from the card behind it.
-  const heatRgb = isDark ? "85,141,231" : "17,57,121";
+  // Derived from THE Dashboard blue rather than a hand-written rgb pair, so
+  // the heat ramp and every other blue on the screen cannot drift apart.
+  const heatRgb = hexToRgb(c.textBrand);
   const heatColor = (level) => {
     if (level === 0) return "transparent";
     const opacity = [0, 0.28, 0.5, 0.74, 1][level];
@@ -293,7 +309,7 @@ const MonthCalendar = ({ refreshKey }) => {
 
   // Today is always a light-blue fill + accent ring (not the activity heat fill),
   // so it reads as a distinct "today" marker regardless of how active the day is.
-  const todayFill = isDark ? "rgba(85,141,231,0.22)" : "rgba(17,57,121,0.15)";
+  const todayFill = c.accentSubtle;
 
   return (
     <View style={styles.wrap}>
@@ -321,7 +337,7 @@ const MonthCalendar = ({ refreshKey }) => {
               style={styles.monthLabelBtn}
             >
               <CustomText
-                style={[styles.monthText, { color: isDark ? "#FFFFFF" : "#113979" }]}
+                style={[styles.monthText, { color: c.textPrimary }]}
                 numberOfLines={1}
               >
                 {monthYearLabel}
@@ -397,16 +413,21 @@ const MonthCalendar = ({ refreshKey }) => {
                         <CustomText
                           style={[
                             styles.dayNum,
-                            // Today always uses the accent (matches its ring/border colour);
-                            // otherwise white on a filled heat cell, accent on a light one, muted else.
+                            // Today always uses the accent (matches its ring/border
+                            // colour). Otherwise: `onAccent` once the heat fill is
+                            // strong enough to read as a solid blue, the accent on a
+                            // faint one, muted on an empty one.
+                            //
+                            // The threshold is 3, not 2. `onAccent` is the contrast
+                            // partner of a FULL-strength fill; at level 2 the fill is
+                            // half-transparent and composites toward the card, so the
+                            // accent still reads better against it. It was a hardcoded
+                            // "#fff", which in dark mode meant white text on a LIGHT
+                            // blue cell — invisible.
                             {
                               color: isToday
                                 ? accentBlue
-                                : level >= 2
-                                ? "#fff"
-                                : level > 0
-                                ? accentBlue
-                                : mutedText,
+                                : levelTextColor(level, c, accentBlue, mutedText),
                             },
                             // Today reads bolder via the real SemiBold face.
                             isToday && { fontFamily: numFont },
@@ -488,7 +509,6 @@ const MonthCalendar = ({ refreshKey }) => {
 };
 
 MonthCalendar.propTypes = { refreshKey: PropTypes.number };
-MonthCalendar.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },

@@ -18,9 +18,9 @@ const SectionLabel = ({
   titleStyle = null,
   uppercase = true,
 }) => {
-  const { mutedText, isDark } = useDashboardTheme();
+  const { c } = useDashboardTheme();
   // Client-specified section-title accent in dark mode (matches the header date line).
-  const defaultColor = isDark ? "#a1bee7" : mutedText;
+  const defaultColor = c.textSecondary;
   return (
     <View style={styles.row}>
       <CustomText

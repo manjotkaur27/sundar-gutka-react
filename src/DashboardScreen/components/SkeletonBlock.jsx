@@ -5,8 +5,8 @@ import useDashboardTheme from "./dashboardTheme";
 
 // Lightweight pulsing placeholder shown only while a section's first data
 // fetch is in flight (see useAsyncSection) — never re-shown after that.
-const SkeletonBlock = ({ style }) => {
-  const { isDark } = useDashboardTheme();
+const SkeletonBlock = ({ style = null }) => {
+  const { c } = useDashboardTheme();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
@@ -33,7 +33,7 @@ const SkeletonBlock = ({ style }) => {
     <Animated.View
       style={[
         styles.base,
-        { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#E7ECF5", opacity },
+        { backgroundColor: c.surfaceSelected, opacity },
         style,
       ]}
     />
@@ -41,7 +41,6 @@ const SkeletonBlock = ({ style }) => {
 };
 
 SkeletonBlock.propTypes = { style: PropTypes.oneOfType([PropTypes.object, PropTypes.array]) };
-SkeletonBlock.defaultProps = { style: null };
 
 const styles = StyleSheet.create({
   base: { borderRadius: 8 },

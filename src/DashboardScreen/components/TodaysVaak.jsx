@@ -40,11 +40,13 @@ ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 // card's content mirrors.
 const HUKAMNAMA_URL = "https://www.sikhitothemax.org/hukamnama";
 
-const TodaysVaak = ({ refreshKey, embedded }) => {
-  const { accentBlue, gold, mutedText, separator, theme } = useDashboardTheme();
+const TodaysVaak = ({ refreshKey = 0, embedded = false }) => {
+  const { gold, mutedText, theme, c } = useDashboardTheme();
   // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
-  const gurmukhiColor = "#fff";
-  const translationColor = "#c9ced5ff";
+  // Ordinary card text. These were white, pairing with a navy card fill that
+  // has been dropped — the card is a standard dashboard surface now.
+  const gurmukhiColor = c.textPrimary;
+  const translationColor = c.textSecondary;
   const gurmukhiFont = theme.typography.fonts.gurbaniHeavy;
   const [vaak, setVaak] = useState(null);
   const [offline, setOffline] = useState(false);
@@ -166,7 +168,6 @@ const TodaysVaak = ({ refreshKey, embedded }) => {
 };
 
 TodaysVaak.propTypes = { refreshKey: PropTypes.number, embedded: PropTypes.bool };
-TodaysVaak.defaultProps = { refreshKey: 0, embedded: false };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },

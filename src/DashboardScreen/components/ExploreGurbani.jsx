@@ -18,7 +18,7 @@ import { CustomText, STRINGS, constant, actions, openInAppBrowser } from "@commo
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
 import DashboardCard, { CARD_SHADOW_BLEED } from "./DashboardCard";
-import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
@@ -125,16 +125,16 @@ const openAppTile = async (t) => {
   Linking.openURL(t.url).catch(() => {});
 };
 
-const ExploreGurbani = ({ refreshKey }) => {
-  const { isDark, accentBlue, gold, mutedText, theme } = useDashboardTheme();
+const ExploreGurbani = ({ refreshKey = 0 }) => {
+  const { gold, mutedText, theme, c } = useDashboardTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { nameOf } = useBaniLookup();
-  const iconBg = isDark ? "rgba(255,255,255,0.08)" : BRAND.tint88;
+  const iconBg = c.fillSubtle;
   // Tile titles match the streak count / username navy.
-  const titleColor = isDark ? "#ffffffff" : BRAND.base;
+  const titleColor = c.textPrimary;
   // Tile icons (search / read / listen) go white in dark mode for contrast on the navy card.
-  const iconColor = isDark ? "#fff" : accentBlue;
+  const iconColor = c.textPrimary;
   // Explicit SemiBold (no fontWeight) — same convention as the header name/streak
   // count, so the titles render the real SemiBold glyph instead of a fake-bold
   // (fontWeight + custom TTF) or Regular fallback that looks like a different font.
@@ -277,7 +277,7 @@ const ExploreGurbani = ({ refreshKey }) => {
                 </View>
                 {badge ? (
                   <View style={[styles.badge, { backgroundColor: gold }]}>
-                    <CustomText style={styles.badgeText}>{badge}</CustomText>
+                    <CustomText style={[styles.badgeText, { color: c.onGold }]}>{badge}</CustomText>
                   </View>
                 ) : null}
               </View>
@@ -304,7 +304,6 @@ const ExploreGurbani = ({ refreshKey }) => {
 };
 
 ExploreGurbani.propTypes = { refreshKey: PropTypes.number };
-ExploreGurbani.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   // A horizontal ScrollView clips to its bounds, so the row reserves the card
@@ -329,7 +328,10 @@ const styles = StyleSheet.create({
   iconBox: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: 14 },
   iconImg: { width: 32, height: 32 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: 900, letterSpacing: 0.5 },
+  // Colour comes from c.onGold at render: white on the mid-yellow gold fill
+  // measures about 2:1 and fails 1.4.3 outright, in BOTH themes.
+  // No fontWeight either — Baloo is a named TTF, so a weight loses the glyph.
+  badgeText: { fontSize: 10, letterSpacing: 0.5 },
   // 18 was tighter than the 1.4 ratio that already clipped Baloo's Gurmukhi and
   // Devanagari matras in Settings, and it now has to hold up to three lines.
   title: { fontSize: 16, lineHeight: 24 },

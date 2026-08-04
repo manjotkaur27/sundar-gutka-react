@@ -3,6 +3,7 @@ import { View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import PropTypes from "prop-types";
+import { gold } from "@theme/palette";
 import { CustomText, useTheme, STRINGS, GradientDivider } from "@common";
 
 const styles = StyleSheet.create({
@@ -46,7 +47,7 @@ const styles = StyleSheet.create({
   streakNum: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#F5A623",
+    color: gold[400],
   },
 });
 
@@ -60,14 +61,15 @@ FlameIcon.propTypes = {
   color: PropTypes.string.isRequired,
 };
 
-const JourneyHeader = ({ streak }) => {
+const JourneyHeader = ({ streak = 0 }) => {
   const { theme } = useTheme();
+  const { c } = theme;
   const { top: safeTop } = useSafeAreaInsets();
   const isDark = theme.mode === "dark";
 
-  const invocationColor = isDark ? "#8A99AD" : "#718096";
-  const bg = isDark ? "#041126" : theme.colors.surface;
-  const titleColor = isDark ? "#ffffff" : theme.colors.primary;
+  const invocationColor = c.textSecondary;
+  const bg = c.surface;
+  const titleColor = c.textPrimary;
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 4, backgroundColor: bg }]}>
@@ -83,10 +85,10 @@ const JourneyHeader = ({ streak }) => {
           <View
             style={[
               styles.streakPill,
-              { backgroundColor: isDark ? "rgba(245,166,35,0.13)" : "#FFF3E0" },
+              { backgroundColor: c.goldSurface },
             ]}
           >
-            <FlameIcon size={12} color="#F5A623" />
+            <FlameIcon size={12} color={gold[400]} />
             <CustomText style={styles.streakNum}>{streak}</CustomText>
           </View>
         </View>
@@ -97,10 +99,6 @@ const JourneyHeader = ({ streak }) => {
 
 JourneyHeader.propTypes = {
   streak: PropTypes.number,
-};
-
-JourneyHeader.defaultProps = {
-  streak: 0,
 };
 
 export default JourneyHeader;

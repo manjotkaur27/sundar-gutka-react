@@ -15,6 +15,7 @@ import useDashboardSync from "./useDashboardSync";
 // sectionRegistry.js + reducer.js DEFAULT_DASHBOARD_ORDER.
 const DashboardScreen = () => {
   const { theme } = useTheme();
+  const { c } = theme;
   const navigation = useNavigation();
   useSelector((state) => state.language);
   const layout = useSelector((state) => state.dashboardLayout);
@@ -61,7 +62,7 @@ const DashboardScreen = () => {
     }, [])
   );
 
-  const bg = theme.mode === "dark" ? "#031329" : "#F1F4F9";
+  const bg = c.backgroundAlt;
   const visibleSections = layout.order.filter(
     (key) => !layout.hidden.includes(key) && SECTION_REGISTRY[key]
   );

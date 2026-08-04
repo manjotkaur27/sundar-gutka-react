@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
  */
 const SPIN_DURATION_MS = 850;
 
-const RefreshSpinner = ({ color, size, spinning }) => {
+const RefreshSpinner = ({ color, size = 15, spinning = false }) => {
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -64,7 +64,5 @@ RefreshSpinner.propTypes = {
   size: PropTypes.number,
   spinning: PropTypes.bool,
 };
-
-RefreshSpinner.defaultProps = { size: 15, spinning: false };
 
 export default RefreshSpinner;

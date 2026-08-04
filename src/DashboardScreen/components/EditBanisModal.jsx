@@ -35,7 +35,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  saveText: { fontSize: 15, color: "#FFFFFF" },
+  // Colour is set at render from c.onAccent: the Save pill is filled with the
+  // Dashboard blue, which is a LIGHT blue in dark mode — a hardcoded white
+  // vanished on it.
+  saveText: { fontSize: 15 },
   pressed: { opacity: 0.7 },
   listContent: { padding: 16 },
   card: {
@@ -61,7 +64,7 @@ const styles = StyleSheet.create({
   translit: { fontSize: 12, marginTop: 2 },
 });
 
-const Check = ({ filled, muted, gold }) => (
+const Check = ({ filled, muted, gold, tick }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
     <Circle
       cx="12"
@@ -75,7 +78,7 @@ const Check = ({ filled, muted, gold }) => (
       <Polyline
         points="17 9 10.5 15.5 7 12"
         fill="none"
-        stroke="#fff"
+        stroke={tick}
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -87,10 +90,12 @@ Check.propTypes = {
   filled: PropTypes.bool.isRequired,
   muted: PropTypes.string.isRequired,
   gold: PropTypes.string.isRequired,
+  /** The tick, drawn ON the filled circle — must be its contrast partner. */
+  tick: PropTypes.string.isRequired,
 };
 
 const EditBanisModal = ({ visible, onClose, selectedIds }) => {
-  const { cardBg, primaryText, mutedText, accentBlue, separator, gold, theme } =
+  const { cardBg, primaryText, mutedText, accentBlue, separator, gold, theme, c } =
     useDashboardTheme();
   // Explicit fontFamily and NO fontWeight beside it. Baloo ships as separate
   // named TTFs, so a numeric weight makes Android try to synthesize bold and
@@ -110,7 +115,13 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
 
   useEffect(() => {
     if (baniListRedux?.length) {
-      setAllBanis(baniListRedux);
+      // Banis only. `EditBaniOrder` writes the user's FOLDERS into this same
+      // redux list (`[...baniListData, ...folders]`), and a folder carries no
+      // `id` — it is literally defined there as the entries whose `id` is
+      // undefined. Rendering them here gave every folder row `key={undefined}`,
+      // which is the "unique key prop" warning this screen was throwing, and
+      // put rows in a bani picker that are not banis.
+      setAllBanis(baniListRedux.filter((b) => b.id !== undefined));
     } else {
       getBaniList(language).then(setAllBanis).catch(logError);
     }
@@ -153,7 +164,7 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
             ]}
             hitSlop={8}
           >
-            <CustomText style={[styles.saveText, { fontFamily: boldFont }]}>
+            <CustomText style={[styles.saveText, { fontFamily: boldFont, color: c.onAccent }]}>
               {STRINGS.SAVE}
             </CustomText>
           </Pressable>
@@ -181,7 +192,7 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isPicked }}
                 >
-                  <Check filled={isPicked} muted={mutedText} gold={gold} />
+                  <Check filled={isPicked} muted={mutedText} gold={gold} tick={c.onGold} />
                   <View style={styles.rowText}>
                     {/* Some banis (Amrit Bani, Bhagat Bani, 22 Vaaran,
                         Savaiye) carry no GurmukhiUni in the database, which

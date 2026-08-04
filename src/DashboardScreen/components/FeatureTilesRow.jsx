@@ -122,14 +122,16 @@ const styles = StyleSheet.create({
 const FeatureTilesRow = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
+  const { c } = theme;
 
-  const cardBg = isDark ? theme.colors.inactiveView : "#ffffff";
-  const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
-  const accentColor = isDark ? theme.colors.enabledText : theme.colors.primary;
-  const textPrimary = theme.colors.primaryText;
-  const textSecondary = theme.colors.textDisabled;
-  const iconBg = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)";
+  const cardBg = c.surface;
+  const borderColor = c.border;
+  // The one Dashboard blue. This was the seventh copy of the same local
+  // ternary; see ActivityCalendar.
+  const accentColor = c.textBrand;
+  const textPrimary = c.textPrimary;
+  const textSecondary = c.textSecondary;
+  const iconBg = c.fillSubtle;
 
   const [lastRead, setLastRead] = useState(null);
   const [lastListened, setLastListened] = useState(null);

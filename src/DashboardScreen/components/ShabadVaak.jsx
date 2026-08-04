@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet, Image } from "react-native";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS } from "@common";
 import DashboardCard, { CARD_RADIUS } from "./DashboardCard";
-import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 import RandomShabad from "./RandomShabad";
 import RefreshSpinner from "./RefreshSpinner";
 import TodaysVaak from "./TodaysVaak";
@@ -17,8 +17,8 @@ const DARBAR_SAHIB = require("../../assets/images/darbar-sahib.jpg");
 // children stay mounted (toggled via display) so the shabad pre-fetches while the
 // user is on the Vaak tab — switching is then instant. The active child renders
 // "embedded" (bare, no own card/title) since this card + the active tab frame it.
-const ShabadVaak = ({ refreshKey }) => {
-  const { isDark, mutedText, gold } = useDashboardTheme();
+const ShabadVaak = ({ refreshKey = 0 }) => {
+  const { isDark, mutedText, gold, c } = useDashboardTheme();
   const [tab, setTab] = useState("vaak");
   const [shabadNonce, setShabadNonce] = useState(0);
   // Mirrors RandomShabad's fetch state so the shuffle can show progress and
@@ -26,10 +26,8 @@ const ShabadVaak = ({ refreshKey }) => {
   // another swap that lands seconds later.
   const [shabadLoading, setShabadLoading] = useState(false);
 
-  const inactiveBg = isDark ? "rgba(255,255,255,0.06)" : BRAND.tint88;
-  const goldTint = isDark ? "rgba(210,144,48,0.16)" : "#FBF1E2";
-  // Client-specified navy card for Today's Vaak / Random Shabad.
-  const cardBgOverride = { backgroundColor: isDark ? "#062346" : "#042f67" };
+  const inactiveBg = c.fillSubtle;
+  const goldTint = c.goldSurface;
   const tabs = [
     { id: "vaak", label: STRINGS.TODAYS_VAAK },
     { id: "shabad", label: STRINGS.RANDOM_SHABAD },
@@ -37,7 +35,7 @@ const ShabadVaak = ({ refreshKey }) => {
 
   return (
     <View style={styles.wrap}>
-      <DashboardCard style={[styles.card, cardBgOverride]}>
+      <DashboardCard style={styles.card}>
         {/* Sri Darbar Sahib behind the Hukamnama tab, to place where the
             hukamnama comes from. Only on that tab — the random shabad is not
             from the darbar. Clipped by its own wrapper rather than by the card,
@@ -113,7 +111,6 @@ const ShabadVaak = ({ refreshKey }) => {
 };
 
 ShabadVaak.propTypes = { refreshKey: PropTypes.number };
-ShabadVaak.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },

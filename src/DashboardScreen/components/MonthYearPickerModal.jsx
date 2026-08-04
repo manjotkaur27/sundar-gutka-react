@@ -1,19 +1,15 @@
-import React, { useEffect, useRef, useState } from "react";
-import { View, Modal, StyleSheet, Pressable, Animated, Easing } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Modal, StyleSheet, Pressable, Animated } from "react-native";
 import PropTypes from "prop-types";
+import useSheetPresentation from "@common/components/ui/useSheetPresentation";
+import { monthShort } from "@common/dateLocale";
 import { ChevronLeftIcon, ChevronRight, CloseIcon } from "@common/icons";
 import { CustomText } from "@common";
 import useDashboardTheme from "./dashboardTheme";
-import { monthShort } from "@common/dateLocale";
 
 // Localised short month labels (Jan…Dec in the app language), built at render
 // time so a language switch is reflected immediately.
 const monthLabels = () => Array.from({ length: 12 }, (_, i) => monthShort(i));
-
-// How far below its resting position the sheet starts/ends — must clear the
-// sheet's own rendered height (handle + header + 3 grid rows) so the slide
-// never shows a hard cut at the bottom edge.
-const SHEET_TRAVEL = 420;
 
 const getToday = () => {
   const n = new Date();
@@ -31,7 +27,7 @@ const getToday = () => {
 // sheet that slides up/down under its own Animated control, matching the
 // hand-rolled slide DayDetailModal-style sheets elsewhere in the dashboard.
 const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
-  const { isDark, cardBg, accentBlue, primaryText, mutedText, separator } = useDashboardTheme();
+  const { cardBg, accentBlue, primaryText, mutedText, separator, c, layout } = useDashboardTheme();
   const today = getToday();
 
   // Defaults to today's year every time the picker opens — same "show
@@ -39,71 +35,30 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   // whichever month the calendar happens to be showing underneath.
   const [viewYear, setViewYear] = useState(today.year);
 
-  // Modal stays mounted through the close animation, then unmounts — same
-  // pattern as the dashboard's other hand-animated sheets. translateY/dim
-  // are driven manually (animationType="none" on the Modal) for a real
-  // slide instead of the OS's flat cross-fade.
-  const [mounted, setMounted] = useState(visible);
-  const translateY = useRef(new Animated.Value(visible ? 0 : SHEET_TRAVEL)).current;
-  const dimOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
-  const animRef = useRef(null);
+  // The entrance comes from the shared hook, so this picker, the Dashboard's
+  // other sheets and the Settings sheets all open the same way. It used to
+  // hand-roll its own Animated.parallel with its own durations — a third
+  // implementation of the same thing.
+  const { mounted, translateY } = useSheetPresentation(visible);
 
+  // The picker always opens on today's year, whichever month the calendar
+  // behind it happens to be showing.
   useEffect(() => {
-    if (visible) {
-      setViewYear(today.year);
-      setMounted(true);
-      animRef.current = Animated.parallel([
-        Animated.timing(dimOpacity, {
-          toValue: 1,
-          duration: 200,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]);
-      animRef.current.start();
-    } else if (mounted) {
-      animRef.current = Animated.parallel([
-        Animated.timing(dimOpacity, {
-          toValue: 0,
-          duration: 180,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: SHEET_TRAVEL,
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]);
-      animRef.current.start(() => setMounted(false));
-    }
-    // Stop the in-flight native-driven slide on unmount (e.g. the dashboard
-    // itself unmounts while the sheet is still animating open/closed).
-    // Otherwise the driver keeps updating props on a node whose backing value
-    // may already be torn down, crashing in PropsAnimatedNode.updateView with
-    // "Mapped property node does not exist".
-    return () => animRef.current?.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (visible) setViewYear(today.year);
   }, [visible]);
 
   if (!mounted) return null;
 
   // Every month and year is reachable. A month with no data reads as an empty
   // calendar, which tells the user more than an arrow that refuses to move.
-  const chipBg = isDark ? "rgba(255,255,255,0.06)" : "#f1f4f9";
+  const chipBg = c.surfaceSelected;
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
-        <Animated.View
-          style={[styles.dim, { opacity: dimOpacity }]}
+        {/* Instant, like every other scrim in the app. */}
+        <View
+          style={[styles.dim, { backgroundColor: c.scrim }]}
           onStartShouldSetResponder={() => true}
           onResponderRelease={onClose}
         />
@@ -130,7 +85,7 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
               <ChevronRight size={18} color={primaryText} />
             </Pressable>
             <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
-              <CloseIcon size={20} color={mutedText} />
+              <CloseIcon size={layout.header.closeIconSize} color={mutedText} />
             </Pressable>
           </View>
 
@@ -155,7 +110,7 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
                   ]}
                 >
                   <CustomText
-                    style={[styles.cellText, { color: isSelected ? "#FFFFFF" : primaryText }]}
+                    style={[styles.cellText, { color: isSelected ? c.onAccent : primaryText }]}
                   >
                     {label}
                   </CustomText>
@@ -184,7 +139,7 @@ const styles = StyleSheet.create({
   },
   dim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    // Set at render from c.scrim — dark mode needs a heavier one.
   },
   sheet: {
     borderTopLeftRadius: 24,

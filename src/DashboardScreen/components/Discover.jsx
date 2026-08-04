@@ -11,8 +11,8 @@ import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
 
-const Discover = ({ refreshKey }) => {
-  const { isDark, accentBlue, gold, primaryText, mutedText, theme } = useDashboardTheme();
+const Discover = ({ refreshKey = 0 }) => {
+  const { accentBlue, gold, theme, c } = useDashboardTheme();
   // Thick (bolder) Gurbani weight so the featured word carries the same visual
   // prominence a fontWeight override would have given a Latin font — already
   // the boldest Gurbani variant registered, so no further bolding is applied.
@@ -22,9 +22,9 @@ const Discover = ({ refreshKey }) => {
   // upcoming "days away" number instead gets its own dark-mode value.
   // Hero values (featured word + days-away count) match the "This week" / month
   // title color exactly.
-  const cardMainColor = isDark ? primaryText : "#113979";
-  const cardSecondaryColor = isDark ? mutedText : "#97A5C2";
-  const upcomingNumColor = isDark ? "#ffffffff" : "#113979";
+  const cardMainColor = c.textPrimary;
+  const cardSecondaryColor = c.textSecondary;
+  const upcomingNumColor = c.textPrimary;
   const [word, setWord] = useState(null);
   const [event, setEvent] = useState(null);
 
@@ -167,7 +167,6 @@ const Discover = ({ refreshKey }) => {
 };
 
 Discover.propTypes = { refreshKey: PropTypes.number };
-Discover.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 14, paddingHorizontal: 20 },

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { View, Modal, StyleSheet, Pressable } from "react-native";
-import { BlurView } from "@react-native-community/blur";
 import Svg, { Path } from "react-native-svg";
 import { formatDayMonth } from "@common/dateLocale";
 import PropTypes from "prop-types";
@@ -111,12 +110,13 @@ const formatDate = (dateStr) => {
   return formatDayMonth(new Date(y, mo - 1, d));
 };
 
-const DayDetailModal = ({ visible, date, onClose }) => {
+const DayDetailModal = ({ visible, date = null, onClose }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
-  const bg = isDark ? theme.colors.inactiveView : "#ffffff";
-  const iconBg = isDark ? "rgba(100,150,255,0.15)" : "#EEF2FF";
+  const { c } = theme;
+  // The Dashboard blue, from the token layer — see ActivityCalendar.
+  const accentBlue = c.textBrand;
+  const bg = c.surface;
+  const iconBg = c.surfaceSelected;
 
   const [detail, setDetail] = useState(null);
   const [dayActivity, setDayActivity] = useState(null);
@@ -159,29 +159,28 @@ const DayDetailModal = ({ visible, date, onClose }) => {
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      {/* Same presentation as the Settings selectors (e.g. transliteration): the
-          card fades in over a dark blur backdrop instead of a custom slide. */}
+      {/* The same plain scrim every other overlay in the app uses. This was the
+          last native BlurView left: it rendered differently on iOS and Android,
+          and it was the only backdrop on the Dashboard that did not match the
+          sheets beside it. */}
       <View style={styles.root}>
-        <BlurView
-          style={StyleSheet.absoluteFill}
-          blurType="dark"
-          reducedTransparencyFallbackColor={theme.staticColors.NIGHT_OPACITY_BLACK}
-          enabled
-        />
         {/* Tap anywhere outside the card to dismiss. */}
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: c.scrim }]}
+          onPress={onClose}
+        />
         <View
           style={[styles.sheet, { backgroundColor: bg }]}
           onStartShouldSetResponder={() => true}
         >
-          <View style={[styles.handle, { backgroundColor: theme.colors.separator }]} />
+          <View style={[styles.handle, { backgroundColor: c.border }]} />
 
-          <CustomText style={[styles.dateText, { color: theme.colors.primaryText }]}>
+          <CustomText style={[styles.dateText, { color: c.textPrimary }]}>
             {formatDate(date)}
           </CustomText>
 
           {loading && (
-            <CustomText style={[styles.emptyText, { color: theme.colors.textDisabled }]}>
+            <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
               Loading...
             </CustomText>
           )}
@@ -194,10 +193,10 @@ const DayDetailModal = ({ visible, date, onClose }) => {
                     <BookIcon color={accentBlue} />
                   </View>
                   <View style={styles.actMid}>
-                    <CustomText style={[styles.actTitle, { color: theme.colors.primaryText }]}>
+                    <CustomText style={[styles.actTitle, { color: c.textPrimary }]}>
                       Reading
                     </CustomText>
-                    <CustomText style={[styles.actDuration, { color: theme.colors.textDisabled }]}>
+                    <CustomText style={[styles.actDuration, { color: c.textSecondary }]}>
                       {Math.floor((hasRead ? totalReadSecs : aggregateReadSecs) / 60)}m
                     </CustomText>
                   </View>
@@ -210,10 +209,10 @@ const DayDetailModal = ({ visible, date, onClose }) => {
                     <HeadphoneIcon color={accentBlue} />
                   </View>
                   <View style={styles.actMid}>
-                    <CustomText style={[styles.actTitle, { color: theme.colors.primaryText }]}>
+                    <CustomText style={[styles.actTitle, { color: c.textPrimary }]}>
                       Listening
                     </CustomText>
-                    <CustomText style={[styles.actDuration, { color: theme.colors.textDisabled }]}>
+                    <CustomText style={[styles.actDuration, { color: c.textSecondary }]}>
                       {Math.floor((hasListen ? totalListenSecs : aggregateListenSecs) / 60)}m
                     </CustomText>
                   </View>
@@ -221,7 +220,7 @@ const DayDetailModal = ({ visible, date, onClose }) => {
               )}
 
               {!hasRead && !hasListen && !showAggregateRead && !showAggregateListen && (
-                <CustomText style={[styles.emptyText, { color: theme.colors.textDisabled }]}>
+                <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
                   No activity recorded for this day
                 </CustomText>
               )}
@@ -237,10 +236,6 @@ DayDetailModal.propTypes = {
   visible: PropTypes.bool.isRequired,
   date: PropTypes.string,
   onClose: PropTypes.func.isRequired,
-};
-
-DayDetailModal.defaultProps = {
-  date: null,
 };
 
 export default DayDetailModal;

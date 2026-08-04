@@ -5,12 +5,11 @@ import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant } from "@common";
 import { getDayActivity } from "../../database/analytics";
-import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 import SectionError from "./SectionError";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
-
 
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
@@ -31,10 +30,10 @@ const daysForOffset = (offsetWeeks) => {
   });
 };
 
-const WeekChart = ({ refreshKey }) => {
-  const { isDark, mutedText } = useDashboardTheme();
+const WeekChart = ({ refreshKey = 0 }) => {
+  const { mutedText, c } = useDashboardTheme();
   // Highlighted (today) bar + label color.
-  const barColor = isDark ? "#429aff" : "#006bde";
+  const barColor = c.accent;
   const [weekOffset, setWeekOffset] = useState(0);
   const [bars, setBars] = useState([]);
   const [avg, setAvg] = useState(0);
@@ -64,7 +63,7 @@ const WeekChart = ({ refreshKey }) => {
 
   const { loading, error, retry } = useAsyncSection(task);
 
-  const inactiveBar = isDark ? "rgba(85,141,231,0.25)" : BRAND.tint75;
+  const inactiveBar = c.accentSubtle;
 
   // No activity data exists before DASHBOARD_HISTORY_FLOOR (see MonthCalendar,
   // which enforces the same floor). Block stepping back once the NEXT window
@@ -93,7 +92,7 @@ const WeekChart = ({ refreshKey }) => {
     <View>
       <SectionLabel
         title={rangeLabel}
-        color={isDark ? "#FFFFFF" : "#113979"}
+        color={c.textPrimary}
         uppercase={false}
         titleStyle={{ fontSize: 20, fontWeight: "600", letterSpacing: 0 }}
         right={
@@ -163,7 +162,6 @@ const WeekChart = ({ refreshKey }) => {
 };
 
 WeekChart.propTypes = { refreshKey: PropTypes.number };
-WeekChart.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },

@@ -126,15 +126,15 @@ HeroStat.propTypes = {
 //   mutedText: PropTypes.string.isRequired,
 // };
 
-const YourPractice = ({ refreshKey }) => {
-  const { isDark, accentBlue, primaryText, mutedText, theme } = useDashboardTheme();
+const YourPractice = ({ refreshKey = 0 }) => {
+  const { mutedText, theme, c } = useDashboardTheme();
   const numFont = theme.typography.fonts.balooPaajiSemiBold;
   const labelFont = theme.typography.fonts.balooPaaji;
   // Hero numbers match the username / streak count exactly (color + faux-bold).
-  const heroNumColor = isDark ? "#ffffffff" : "#113979";
-  const heroLabelColor = isDark ? primaryText : "#5E7090";
+  const heroNumColor = c.textPrimary;
+  const heroLabelColor = c.textPrimary;
   // Book/clock icon tint — light blue in dark mode, accent in light.
-  const iconColor = isDark ? "#a1bee7ff" : accentBlue;
+  const iconColor = c.accent;
   const [data, setData] = useState(null);
 
   const task = useCallback(async () => {
@@ -270,7 +270,6 @@ const YourPractice = ({ refreshKey }) => {
 };
 
 YourPractice.propTypes = { refreshKey: PropTypes.number };
-YourPractice.defaultProps = { refreshKey: 0 };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },

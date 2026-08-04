@@ -26,7 +26,7 @@ AlertIcon.propTypes = { color: PropTypes.string.isRequired };
 // Shared inline error state for a dashboard section whose FIRST load failed
 // (a background refresh failure keeps showing last-known-good data instead —
 // see useAsyncSection). Retry re-runs just that section's own fetch.
-const SectionError = ({ onRetry, compact }) => {
+const SectionError = ({ onRetry, compact = false }) => {
   const { mutedText } = useDashboardTheme();
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
@@ -40,7 +40,6 @@ const SectionError = ({ onRetry, compact }) => {
 };
 
 SectionError.propTypes = { onRetry: PropTypes.func.isRequired, compact: PropTypes.bool };
-SectionError.defaultProps = { compact: false };
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 28 },

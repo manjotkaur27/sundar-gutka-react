@@ -32,7 +32,7 @@ WifiOffIcon.propTypes = { color: PropTypes.string.isRequired };
 // show context-specific copy (e.g. Today's Vaak) instead of the generic line.
 // `onRetry`, when given, adds a manual re-check instead of making the user
 // wait for the next screen focus / background refetch.
-const OfflineNotice = ({ compact, message, onRetry }) => {
+const OfflineNotice = ({ compact = false, message = "", onRetry = null }) => {
   const { mutedText } = useDashboardTheme();
   return (
     <View style={styles.wrap}>
@@ -56,7 +56,6 @@ OfflineNotice.propTypes = {
   message: PropTypes.string,
   onRetry: PropTypes.func,
 };
-OfflineNotice.defaultProps = { compact: false, message: "", onRetry: null };
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },

@@ -6,21 +6,21 @@ import { CustomText, useTheme, logError } from "@common";
 import { getTopListenedBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
 
-const HeadphoneIcon = ({ size, color }) => (
+const HeadphoneIcon = ({ size = 22, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M3 18v-6a9 9 0 0 1 18 0v6" />
     <Path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
     <Path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
   </Svg>
 );
-HeadphoneIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
+HeadphoneIcon.propTypes = { size: PropTypes.number, color: PropTypes.string.isRequired };
 
-const PlayIcon = ({ size, color }) => (
+const PlayIcon = ({ size = 22, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
     <Path d="M8 5v14l11-7z" />
   </Svg>
 );
-PlayIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
+PlayIcon.propTypes = { size: PropTypes.number, color: PropTypes.string.isRequired };
 
 const formatDuration = (secs) => {
   if (!secs) return "0m";
@@ -31,12 +31,13 @@ const formatDuration = (secs) => {
   return `${m}m`;
 };
 
-const MostListenedSection = ({ refreshKey }) => {
+const MostListenedSection = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
-  const bg = isDark ? theme.colors.inactiveView : "#ffffff";
-  const playBtnBg = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const { c } = theme;
+  // The Dashboard blue, from the token layer — see ActivityCalendar.
+  const accentBlue = c.textBrand;
+  const bg = c.surface;
+  const playBtnBg = c.fillSubtle;
 
   const [banis, setBanis] = useState([]);
 
@@ -68,13 +69,13 @@ const MostListenedSection = ({ refreshKey }) => {
     return (
       <View style={[styles.container, { backgroundColor: bg }]}>
         <View style={styles.titleRow}>
-          <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
+          <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
             Top Listened
           </CustomText>
           <HeadphoneIcon size={22} color={accentBlue} />
         </View>
         <View style={styles.emptyCard}>
-          <CustomText style={[styles.emptyText, { color: theme.colors.textDisabled }]}>
+          <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
             Listen to a track to see your top listens here
           </CustomText>
         </View>
@@ -85,7 +86,7 @@ const MostListenedSection = ({ refreshKey }) => {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.titleRow}>
-        <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
+        <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
           Top Listened
         </CustomText>
         <HeadphoneIcon size={22} color={accentBlue} />
@@ -95,19 +96,19 @@ const MostListenedSection = ({ refreshKey }) => {
         return (
           <View key={b.bani_id ?? i} style={styles.card}>
             <View style={[styles.playBtn, { backgroundColor: playBtnBg }]}>
-              <PlayIcon size={22} color={theme.colors.primaryText} />
+              <PlayIcon size={22} color={c.textPrimary} />
             </View>
 
             <View style={styles.textBlock}>
               <CustomText
-                style={[styles.baniTitle, { color: theme.colors.primaryText }]}
+                style={[styles.baniTitle, { color: c.textPrimary }]}
                 numberOfLines={1}
               >
                 {b.bani_title ?? `Bani ${b.bani_id}`}
               </CustomText>
               {artistName ? (
                 <CustomText
-                  style={[styles.artistName, { color: theme.colors.textDisabled }]}
+                  style={[styles.artistName, { color: c.textSecondary }]}
                   numberOfLines={1}
                 >
                   {artistName}
@@ -116,10 +117,10 @@ const MostListenedSection = ({ refreshKey }) => {
             </View>
 
             {/* Vertical divider */}
-            <View style={[styles.vertDivider, { backgroundColor: theme.colors.separator }]} />
+            <View style={[styles.vertDivider, { backgroundColor: c.border }]} />
 
             {/* Duration */}
-            <CustomText style={[styles.duration, { color: theme.colors.primaryText }]}>
+            <CustomText style={[styles.duration, { color: c.textPrimary }]}>
               {formatDuration(b.total_seconds)}
             </CustomText>
           </View>
@@ -131,10 +132,6 @@ const MostListenedSection = ({ refreshKey }) => {
 
 MostListenedSection.propTypes = {
   refreshKey: PropTypes.number,
-};
-
-MostListenedSection.defaultProps = {
-  refreshKey: 0,
 };
 
 const styles = StyleSheet.create({

@@ -7,7 +7,6 @@ import { CustomText, useTheme, constant, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
 import DayDetailModal from "./DayDetailModal";
 
-
 const ChevronLeft = ({ color }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <Polyline points="15 18 9 12 15 6" />
@@ -22,12 +21,12 @@ const ChevronRight = ({ color }) => (
 );
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
-const FlameIcon = ({ size, color }) => (
+const FlameIcon = ({ size = 20, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
     <Path d="M12 23c-4.4 0-8-3.6-8-8 0-2.1.8-4.1 2.2-5.6C7.4 8 8.5 6.3 9 4.4c.1-.3.4-.5.8-.4.3.1.5.3.5.6.1 1.2.6 2.3 1.4 3.2C12.4 6.4 13 4.6 13 2.8c0-.4.3-.7.7-.7.2 0 .4.1.5.2 2.3 2 3.8 4.9 3.8 8 0 4.4-3.6 8-8 8z" />
   </Svg>
 );
-FlameIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
+FlameIcon.propTypes = { size: PropTypes.number, color: PropTypes.string.isRequired };
 
 const getLocalYM = () => {
   const now = new Date();
@@ -56,10 +55,13 @@ const buildWeekRows = (year, month) => {
   return rows;
 };
 
-const ActivityCalendar = ({ refreshKey }) => {
+const ActivityCalendar = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
+  const { c } = theme;
+  // The Dashboard blue, from the token layer. This was a local ternary
+  // duplicated across six components, which is how dark mode drifted to a
+  // different blue to the rest of the page.
+  const accentBlue = c.textBrand;
   const todayStr = getTodayStr();
   const curYM = getLocalYM();
 
@@ -124,16 +126,16 @@ const ActivityCalendar = ({ refreshKey }) => {
       (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
   ).length;
 
-  const navColor = theme.colors.primaryText;
-  const disabledColor = theme.colors.textDisabled;
-  const bg = isDark ? theme.colors.inactiveView : "#ffffff";
+  const navColor = c.textPrimary;
+  const disabledColor = c.textSecondary;
+  const bg = c.surface;
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       {/* Header: month+year left, nav arrows right */}
       <View style={styles.header}>
         <View style={styles.monthYearRow}>
-          <CustomText style={[styles.monthText, { color: theme.colors.primaryText }]}>
+          <CustomText style={[styles.monthText, { color: c.textPrimary }]}>
             {monthName}
           </CustomText>
           <CustomText style={[styles.yearText, { color: accentBlue }]}>
@@ -158,7 +160,7 @@ const ActivityCalendar = ({ refreshKey }) => {
       <View style={styles.weekRow}>
         {weekdayNarrowRow(true).map((l, i) => (
           <View key={i} style={styles.cell}>
-            <CustomText style={[styles.dayLabel, { color: theme.colors.textDisabled }]}>{l}</CustomText>
+            <CustomText style={[styles.dayLabel, { color: c.textSecondary }]}>{l}</CustomText>
           </View>
         ))}
       </View>
@@ -178,14 +180,14 @@ const ActivityCalendar = ({ refreshKey }) => {
                     !qualifies && hasAny && { borderWidth: 1.5, borderColor: accentBlue },
                     isToday && !qualifies && !hasAny && {
                       borderWidth: 2,
-                      borderColor: theme.colors.textDisabled,
+                      borderColor: c.borderStrong,
                     },
                   ]}
                 >
                   <CustomText
                     style={[
                       styles.dayNum,
-                      { color: qualifies ? "#ffffff" : (hasAny ? accentBlue : theme.colors.primaryText) },
+                      { color: qualifies ? c.onAccent : (hasAny ? accentBlue : c.textPrimary) },
                       isToday && !qualifies && { fontWeight: "700" },
                     ]}
                   >
@@ -200,14 +202,14 @@ const ActivityCalendar = ({ refreshKey }) => {
 
       {/* Active badge — no card background */}
       <View style={styles.activeBadge}>
-        <View style={[styles.flameCircle, { backgroundColor: isDark ? "rgba(245,166,35,0.15)" : "#FFF3E0" }]}>
-          <FlameIcon size={16} color="#F5A623" />
+        <View style={[styles.flameCircle, { backgroundColor: c.goldSurface }]}>
+          <FlameIcon size={16} color={c.goldFill} />
         </View>
         <CustomText>
-          <CustomText style={[styles.activeBold, { color: theme.colors.primaryText }]}>
+          <CustomText style={[styles.activeBold, { color: c.textPrimary }]}>
             {activeDaysCount} days
           </CustomText>
-          <CustomText style={[styles.activeSuffix, { color: theme.colors.textDisabled }]}>
+          <CustomText style={[styles.activeSuffix, { color: c.textSecondary }]}>
             {" "}connected this month
           </CustomText>
         </CustomText>
@@ -224,10 +226,6 @@ const ActivityCalendar = ({ refreshKey }) => {
 
 ActivityCalendar.propTypes = {
   refreshKey: PropTypes.number,
-};
-
-ActivityCalendar.defaultProps = {
-  refreshKey: 0,
 };
 
 const CIRCLE_SIZE = 36;

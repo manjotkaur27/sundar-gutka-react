@@ -4,6 +4,7 @@ import Svg, { Circle, Polyline, Path, Line } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
+import { neutral } from "@theme/palette";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
 import { getDayDetail } from "../../database/analytics";
 import DashboardCard from "./DashboardCard";
@@ -55,7 +56,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 14,
   },
-  primaryBtnText: { color: "#fff", fontSize: 13, fontWeight: "600", flexShrink: 1 },
+  // Colour comes from c.onAccent at render — the button is filled with the
+  // Dashboard blue, which is a LIGHT blue in dark mode.
+  primaryBtnText: { fontSize: 13, flexShrink: 1 },
   secondaryBtn: {
     flex: 1,
     flexDirection: "row",
@@ -180,7 +183,7 @@ const Check = ({ filled, accent, muted }) => (
       <Polyline
         points="17 9 10.5 15.5 7 12"
         fill="none"
-        stroke="#fff"
+        stroke={neutral[0]}
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -271,10 +274,10 @@ const ONES = [
 ];
 const numberToWords = (n) => ONES[n] ?? String(n);
 
-const TodaysNitnem = ({ refreshKey }) => {
-  const { isDark, accentBlue: baseAccentBlue, mutedText, separator, theme } = useDashboardTheme();
+const TodaysNitnem = ({ refreshKey = 0 }) => {
+  const { isDark, accentBlue: baseAccentBlue, mutedText, separator, theme, c } = useDashboardTheme();
   // Matches the username/streak accent color (blue in light, off-white in dark).
-  const accentTextColor = isDark ? "#E8EEF7" : "#133a78";
+  const accentTextColor = c.textPrimary;
   // Client-specified "light blue" accent for this section in dark mode only —
   // scoped locally rather than changing the shared accentBlue theme value,
   // which every other dashboard section also relies on.
@@ -369,7 +372,7 @@ const TodaysNitnem = ({ refreshKey }) => {
               done={doneCount}
               total={selectedBaniIds.length}
               accent={accentBlue}
-              track={isDark ? "rgba(255,255,255,0.12)" : "#e6ebf5"}
+              track={c.surfaceSelected}
               numColor={accentTextColor}
               labelColor={mutedText}
               numFont={boldFont}
@@ -440,12 +443,10 @@ const TodaysNitnem = ({ refreshKey }) => {
               onPress={() => firstIncomplete && openBani(firstIncomplete)}
               disabled={!firstIncomplete}
             >
-              <PlayIcon color="#fff" />
+              <PlayIcon color={c.onAccent} />
               <CustomText
-                style={styles.primaryBtnText}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
+                style={[styles.primaryBtnText, { color: c.onAccent, fontFamily: boldFont }]}
+                numberOfLines={2}
               >
                 {firstIncomplete
                   ? `${STRINGS.CONTINUE} · ${nameOf(firstIncomplete) || ""}`
@@ -463,9 +464,7 @@ const TodaysNitnem = ({ refreshKey }) => {
               <CheckIcon color={accentBlue} />
               <CustomText
                 style={[styles.secondaryBtnText, { color: accentTextColor, fontFamily: boldFont }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
+                numberOfLines={2}
               >
                 {STRINGS.MARK_DONE}
               </CustomText>
@@ -484,6 +483,5 @@ const TodaysNitnem = ({ refreshKey }) => {
 };
 
 TodaysNitnem.propTypes = { refreshKey: PropTypes.number };
-TodaysNitnem.defaultProps = { refreshKey: 0 };
 
 export default TodaysNitnem;

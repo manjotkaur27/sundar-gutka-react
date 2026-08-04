@@ -15,18 +15,19 @@ const formatDuration = (secs) => {
   return `${m}m`;
 };
 
-const SparkleIcon = ({ size, color }) => (
+const SparkleIcon = ({ size = 22, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
   </Svg>
 );
-SparkleIcon.propTypes = { size: PropTypes.number, color: PropTypes.string };
+SparkleIcon.propTypes = { size: PropTypes.number, color: PropTypes.string.isRequired };
 
-const MostReadSection = ({ refreshKey }) => {
+const MostReadSection = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
-  const bg = isDark ? theme.colors.inactiveView : "#ffffff";
+  const { c } = theme;
+  // The Dashboard blue, from the token layer — see ActivityCalendar.
+  const accentBlue = c.textBrand;
+  const bg = c.surface;
   const [banis, setBanis] = useState([]);
 
   useEffect(() => {
@@ -57,13 +58,13 @@ const MostReadSection = ({ refreshKey }) => {
     return (
       <View style={[styles.container, { backgroundColor: bg }]}>
         <View style={styles.titleRow}>
-          <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
+          <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
             {STRINGS.MOST_READ}
           </CustomText>
           <SparkleIcon size={22} color={accentBlue} />
         </View>
-        <View style={[styles.emptyCard, { backgroundColor: theme.colors.actionButton }]}>
-          <CustomText style={[styles.emptyText, { color: theme.colors.textDisabled }]}>
+        <View style={[styles.emptyCard, { backgroundColor: c.controlAccent }]}>
+          <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
             Read a Bani to see your top reads here
           </CustomText>
         </View>
@@ -76,7 +77,7 @@ const MostReadSection = ({ refreshKey }) => {
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.titleRow}>
-        <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
+        <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
           {STRINGS.MOST_READ}
         </CustomText>
         <SparkleIcon size={22} color={accentBlue} />
@@ -85,17 +86,17 @@ const MostReadSection = ({ refreshKey }) => {
         const pct = maxSeconds > 0 ? ((b.total_seconds ?? 0) / maxSeconds) * 100 : 0;
         return (
           <View key={b.bani_id ?? i} style={styles.row}>
-            <CustomText style={[styles.rank, { color: theme.colors.textDisabled }]}>
+            <CustomText style={[styles.rank, { color: c.textSecondary }]}>
               {i + 1}
             </CustomText>
             <View style={styles.middle}>
               <CustomText
-                style={[styles.baniTitle, { color: theme.colors.primaryText }]}
+                style={[styles.baniTitle, { color: c.textPrimary }]}
                 numberOfLines={1}
               >
                 {b.bani_title ?? `Bani ${b.bani_id}`}
               </CustomText>
-              <View style={[styles.barBg, { backgroundColor: theme.colors.activeView }]}>
+              <View style={[styles.barBg, { backgroundColor: c.surfaceSelected }]}>
                 <View style={[styles.bar, { width: `${pct}%`, backgroundColor: accentBlue }]} />
               </View>
             </View>
@@ -111,10 +112,6 @@ const MostReadSection = ({ refreshKey }) => {
 
 MostReadSection.propTypes = {
   refreshKey: PropTypes.number,
-};
-
-MostReadSection.defaultProps = {
-  refreshKey: 0,
 };
 
 const styles = StyleSheet.create({

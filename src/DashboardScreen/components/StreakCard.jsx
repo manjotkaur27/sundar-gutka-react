@@ -36,7 +36,6 @@ const FLOWERS = [
 // Streak (days) required to reach each of the 13 stages. Stage 1 starts at day 1.
 const THRESHOLDS = [1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 180, 270, 365];
 
-
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
   topRow: { flexDirection: "row", alignItems: "center", gap: 16 },
@@ -140,14 +139,14 @@ const weekDatesForOffset = (offsetWeeks) => {
   });
 };
 
-const StreakCard = ({ refreshKey }) => {
-  const { mutedText, accentBlue, gold, separator, isDark, theme } = useDashboardTheme();
+const StreakCard = ({ refreshKey = 0 }) => {
+  const { mutedText, accentBlue, gold, separator, theme, c } = useDashboardTheme();
   // Streak number matches the username: brand blue (light) / off-white (dark).
-  const numColor = isDark ? "#ffffffff" : "#113979";
-  const dayStreakColor = isDark ? "#a1bee7ff" : "#5E7090";
+  const numColor = c.textPrimary;
+  const dayStreakColor = c.textSecondary;
   // Text below the streak count — same client-specified accent as the date
   // line under the username in DashboardHeader.
-  const belowStreakColor = isDark ? "#a1bee7ff" : "#7C92B5";
+  const belowStreakColor = c.textSecondary;
   // Explicit fontFamily (no fontWeight alongside it) — these are custom TTFs, not
   // system fonts, so pairing them with a numeric fontWeight makes Android
   // synthesize a fake bold/medium and silently fall back off the real glyph.
@@ -367,7 +366,7 @@ const StreakCard = ({ refreshKey }) => {
                   !s.done && s.isToday && { borderColor: gold, borderWidth: 2 },
                 ]}
               >
-                {s.done ? <CheckIcon color="#fff" /> : null}
+                {s.done ? <CheckIcon color={c.onAccent} /> : null}
               </View>
               <CustomText style={[styles.dayLabel, { color: s.isToday ? gold : mutedText }]}>
                 {s.letter}
@@ -395,6 +394,5 @@ const StreakCard = ({ refreshKey }) => {
 };
 
 StreakCard.propTypes = { refreshKey: PropTypes.number };
-StreakCard.defaultProps = { refreshKey: 0 };
 
 export default StreakCard;

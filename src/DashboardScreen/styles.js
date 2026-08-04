@@ -1,19 +1,21 @@
 import { StyleSheet } from "react-native";
 
-const createStyles = (theme) =>
-  StyleSheet.create({
+const createStyles = (theme) => {
+  const { c } = theme;
+
+  return StyleSheet.create({
     scrollContent: {
       flexGrow: 1,
-      backgroundColor: theme.mode === "dark" ? theme.colors.inactiveView : "#ffffff",
+      backgroundColor: c.surface,
     },
     divider: {
       height: 1,
-      backgroundColor: theme.colors.separator,
+      backgroundColor: c.border,
       marginHorizontal: 20,
     },
     sectionSpacer: {
       height: 8,
-      backgroundColor: theme.mode === "dark" ? theme.colors.inactiveView : "#ffffff",
+      backgroundColor: c.surface,
     },
     floatingHeader: {
       position: "absolute",
@@ -29,5 +31,6 @@ const createStyles = (theme) =>
       zIndex: 9,
     },
   });
+};
 
 export default createStyles;

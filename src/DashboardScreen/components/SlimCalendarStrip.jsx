@@ -5,7 +5,6 @@ import PropTypes from "prop-types";
 import { CustomText, useTheme, constant, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
 
-
 const getTodayStr = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -27,10 +26,11 @@ const getCurrentWeek = () => {
   });
 };
 
-const SlimCalendarStrip = ({ refreshKey }) => {
+const SlimCalendarStrip = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
+  const { c } = theme;
+  // The Dashboard blue, from the token layer — see ActivityCalendar.
+  const accentBlue = c.textBrand;
   const todayStr = getTodayStr();
   const weekDays = getCurrentWeek();
   const [activityMap, setActivityMap] = useState({});
@@ -66,7 +66,7 @@ const SlimCalendarStrip = ({ refreshKey }) => {
       .catch(logError);
   }, [refreshKey]);
 
-  const bg = isDark ? theme.colors.inactiveView : "#ffffff";
+  const bg = c.surface;
 
   return (
     <Animated.View
@@ -90,7 +90,7 @@ const SlimCalendarStrip = ({ refreshKey }) => {
           styles.container,
           {
             backgroundColor: bg,
-            borderBottomColor: theme.colors.separator,
+            borderBottomColor: c.border,
           },
         ]}
       >
@@ -104,7 +104,7 @@ const SlimCalendarStrip = ({ refreshKey }) => {
           const hasAny = row && row.reading_seconds + row.listening_seconds > 0;
           return (
             <View key={dow} style={styles.cell}>
-              <CustomText style={[styles.dayLetter, { color: theme.colors.textDisabled }]}>
+              <CustomText style={[styles.dayLetter, { color: c.textSecondary }]}>
                 {weekdayNarrow(dow)}
               </CustomText>
               <View
@@ -114,13 +114,13 @@ const SlimCalendarStrip = ({ refreshKey }) => {
                   !qualifies && hasAny && { borderWidth: 1.5, borderColor: accentBlue },
                   isToday &&
                     !qualifies &&
-                    !hasAny && { borderWidth: 2, borderColor: theme.colors.textDisabled },
+                    !hasAny && { borderWidth: 2, borderColor: c.borderStrong },
                 ]}
               >
                 <CustomText
                   style={[
                     styles.dayNum,
-                    { color: qualifies ? "#ffffff" : theme.colors.primaryText },
+                    { color: qualifies ? c.onAccent : c.textPrimary },
                     isToday && !qualifies && { fontWeight: "700" },
                   ]}
                 >
@@ -137,10 +137,6 @@ const SlimCalendarStrip = ({ refreshKey }) => {
 
 SlimCalendarStrip.propTypes = {
   refreshKey: PropTypes.number,
-};
-
-SlimCalendarStrip.defaultProps = {
-  refreshKey: 0,
 };
 
 const CIRCLE = 30;

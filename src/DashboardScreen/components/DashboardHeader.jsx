@@ -9,7 +9,7 @@ import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { getNanakshahiDate } from "../../services/dashboard";
 import { LAST_PUSH_KEY } from "../useDashboardSync";
-import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 
 const MenuIcon = ({ color }) => (
   <Svg
@@ -34,16 +34,17 @@ MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 // be orphaned even if a half has to wrap on a very narrow screen.
 const FATEH = "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥\nਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥";
 
-const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
-  const { isDark, gold, primaryText, mutedText, brandText, theme } = useDashboardTheme();
+const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refreshKey = 0 }) => {
+  const { gold, primaryText, mutedText, theme, c, layout } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
 
   // Date line under the Fateh — a brand tint, quieter than the Fateh itself.
-  const belowNameColor = isDark ? "#a1bee7ff" : BRAND.tint45;
-  const avatarTextColor = isDark ? BRAND.accentOnDark : BRAND.base;
-  // Close button: white in dark mode, brand navy in light, independent of the
-  // golden Fateh it sits next to.
-  const closeIconColor = isDark ? "#FFFFFF" : brandText;
+  const belowNameColor = c.textSecondary;
+  // The one Dashboard blue, not a second brand pair.
+  const avatarTextColor = c.textBrand;
+  // The one header foreground — brand navy in light, white in dark, independent
+  // of the golden Fateh it sits next to. Matches the Seva header's cross.
+  const closeIconColor = c.headerFg;
 
   const dateLine = useMemo(() => {
     const now = new Date();
@@ -75,7 +76,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
     // re-localise when the user switches language.
   }, [refreshKey, STRINGS.getLanguage()]);
 
-  const bg = isDark ? "#031329" : BRAND.tint94;
+  const bg = c.backgroundAlt;
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 8, backgroundColor: bg }]}>
@@ -93,8 +94,14 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
         </CustomText>
         {/* Top-right dismiss, level with the golden salutation line rather
             than down in the avatar/menu row. */}
-        <Pressable onPress={onClosePress} hitSlop={8} style={styles.closeBtn}>
-          <CloseIcon size={20} color={closeIconColor} />
+        <Pressable
+          onPress={onClosePress}
+          hitSlop={8}
+          style={styles.closeBtn}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.CLOSE}
+        >
+          <CloseIcon size={layout.header.closeIconSize} color={closeIconColor} />
         </Pressable>
       </View>
 
@@ -120,7 +127,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : BRAND.tint88 },
+              { backgroundColor: c.fillSubtle },
             ]}
           >
             <MenuIcon color={primaryText} />
@@ -128,7 +135,7 @@ const DashboardHeader = ({ onMenuPress, onClosePress, refreshKey }) => {
           <View
             style={[
               styles.avatar,
-              { backgroundColor: isDark ? "rgba(85,141,231,0.25)" : BRAND.tint75 },
+              { backgroundColor: c.accentSubtle },
             ]}
           >
             {/* Generic account glyph — there is no login/account system yet
@@ -146,12 +153,6 @@ DashboardHeader.propTypes = {
   onMenuPress: PropTypes.func,
   onClosePress: PropTypes.func,
   refreshKey: PropTypes.number,
-};
-
-DashboardHeader.defaultProps = {
-  onMenuPress: () => {},
-  onClosePress: () => {},
-  refreshKey: 0,
 };
 
 const styles = StyleSheet.create({

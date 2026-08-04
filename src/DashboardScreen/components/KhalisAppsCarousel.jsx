@@ -111,7 +111,7 @@ const KhalisAppsCarousel = () => {
 
   return (
     <View style={styles.container}>
-      <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
+      <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
         Explore
       </CustomText>
       <ScrollView
@@ -141,7 +141,7 @@ const KhalisAppsCarousel = () => {
                 )}
               </View>
               <CustomText
-                style={[styles.appName, { color: theme.colors.primaryText }]}
+                style={[styles.appName, { color: c.textPrimary }]}
                 numberOfLines={2}
               >
                 {app.name}

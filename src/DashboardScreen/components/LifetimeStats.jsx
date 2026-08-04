@@ -14,12 +14,12 @@ const formatStatTime = (secs) => {
 const StatBlock = ({ value, unit, label, theme, accentBlue }) => (
   <View style={styles.statBlock}>
     <View style={styles.valueRow}>
-      <CustomText style={[styles.bigNumber, { color: theme.colors.primaryText }]}>
+      <CustomText style={[styles.bigNumber, { color: c.textPrimary }]}>
         {value}
       </CustomText>
       <CustomText style={[styles.unit, { color: accentBlue }]}> {unit}</CustomText>
     </View>
-    <CustomText style={[styles.statLabel, { color: theme.colors.textDisabled }]}>
+    <CustomText style={[styles.statLabel, { color: c.textSecondary }]}>
       {label}
     </CustomText>
   </View>
@@ -33,11 +33,12 @@ StatBlock.propTypes = {
   accentBlue: PropTypes.string.isRequired,
 };
 
-const LifetimeStats = ({ refreshKey }) => {
+const LifetimeStats = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const isDark = theme.mode === "dark";
-  const accentBlue = isDark ? theme.colors.enabledText : theme.colors.primary;
-  const bg = isDark ? theme.colors.inactiveView : "#ffffff";
+  const { c } = theme;
+  // The Dashboard blue, from the token layer — see ActivityCalendar.
+  const accentBlue = c.textBrand;
+  const bg = c.surface;
 
   const [summary, setSummary] = useState(null);
   const [totals, setTotals] = useState(null);
@@ -59,7 +60,7 @@ const LifetimeStats = ({ refreshKey }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <CustomText style={[styles.sectionTitle, { color: theme.colors.primaryText }]}>
+      <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
         {STRINGS.LIFETIME}
       </CustomText>
 
@@ -107,10 +108,6 @@ const LifetimeStats = ({ refreshKey }) => {
 
 LifetimeStats.propTypes = {
   refreshKey: PropTypes.number,
-};
-
-LifetimeStats.defaultProps = {
-  refreshKey: 0,
 };
 
 const styles = StyleSheet.create({

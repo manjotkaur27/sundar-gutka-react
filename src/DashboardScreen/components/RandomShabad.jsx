@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 import { CustomText, STRINGS, openInAppBrowser } from "@common";
 import { getRandomShabad } from "../../services/dashboard";
 import DashboardCard from "./DashboardCard";
-import useDashboardTheme, { BRAND } from "./dashboardTheme";
+import useDashboardTheme from "./dashboardTheme";
 import RefreshSpinner from "./RefreshSpinner";
 import SectionError from "./SectionError";
 import SkeletonBlock from "./SkeletonBlock";
@@ -28,11 +28,13 @@ const ChevronRight = ({ color }) => (
 );
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
-const RandomShabad = ({ refreshKey, embedded, reloadNonce, onLoadingChange }) => {
-  const { isDark, accentBlue, gold, mutedText, separator, theme } = useDashboardTheme();
+const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoadingChange = () => {} }) => {
+  const { accentBlue, gold, mutedText, theme, c } = useDashboardTheme();
   // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
-  const gurmukhiColor = "#fff";
-  const translationColor = "#c9ced5ff";
+  // Ordinary card text. These were white, pairing with a navy card fill that
+  // has been dropped — the card is a standard dashboard surface now.
+  const gurmukhiColor = c.textPrimary;
+  const translationColor = c.textSecondary;
   const gurmukhiFont = theme.typography.fonts.gurbaniHeavy;
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const [shabad, setShabad] = useState(null);
@@ -75,7 +77,7 @@ const RandomShabad = ({ refreshKey, embedded, reloadNonce, onLoadingChange }) =>
             hitSlop={8}
             style={({ pressed }) => [
               styles.shuffleBtn,
-              { backgroundColor: isDark ? "rgba(85,141,231,0.16)" : BRAND.tint88 },
+              { backgroundColor: c.accentSubtle },
               pressed && styles.shuffleBtnPressed,
               busy && styles.shuffleBtnBusy,
             ]}
@@ -150,12 +152,6 @@ RandomShabad.propTypes = {
   embedded: PropTypes.bool,
   reloadNonce: PropTypes.number,
   onLoadingChange: PropTypes.func,
-};
-RandomShabad.defaultProps = {
-  refreshKey: 0,
-  embedded: false,
-  reloadNonce: 0,
-  onLoadingChange: () => {},
 };
 
 const styles = StyleSheet.create({
