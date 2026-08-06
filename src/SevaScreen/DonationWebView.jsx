@@ -1,7 +1,9 @@
 import React, { useState, useRef, useCallback } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
+import { themeForScreen } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
+import { ScreenHeader } from "@common/components/ui";
 import {
   SafeArea,
   StatusBarComponent,
@@ -11,7 +13,6 @@ import {
   useBackHandler,
   STRINGS,
 } from "@common";
-import { AppBar, BackIconComponent } from "@common/components";
 
 /**
  * Android-only donation surface.
@@ -39,11 +40,12 @@ const styles = StyleSheet.create({
 
 const DonationWebView = ({ route, navigation }) => {
   const { theme } = useTheme();
-  // The app's standard themed header. Two roles rather than two isDark
-  // ternaries: headerFg is brand navy in light and white in dark, exactly as
-  // every other header in the app.
-  const headerBg = theme.c.background;
-  const headerFg = theme.c.headerFg;
+  // The whole screen resolves the shared role names to Seva's own colours, so
+  // nothing here names a literal and the sub-pages match the landing page.
+  const { c } = themeForScreen(theme, "seva");
+  // The shared `ScreenHeader` colours its own title and back arrow from
+  // `headerFg`, so this screen only supplies the ground behind it.
+  const headerBg = c.backgroundAlt;
 
   const { url } = route.params || {};
   const [isLoading, setIsLoading] = useState(true);
@@ -73,24 +75,25 @@ const DonationWebView = ({ route, navigation }) => {
   return (
     <SafeArea backgroundColor={headerBg}>
       <StatusBarComponent backgroundColor={headerBg} />
-      <AppBar
+      {/* The shared header — same clearance, row height and back control as
+          every other screen. */}
+      <ScreenHeader
         title={STRINGS.donate}
-        backgroundColor={headerBg}
-        titleColor={headerFg}
-        titleStyle={{
-          fontFamily: theme.typography.fonts.balooPaajiSemiBold,
-          fontSize: theme.typography.sizes.xxl,
-          fontWeight: theme.typography.weights.normal,
-        }}
-        leftComponent={<BackIconComponent size={30} color={headerFg} onPress={handleBack} />}
+        surface={headerBg}
+        onBack={handleBack}
+        backAccessibilityLabel={STRINGS.GO_BACK}
+        showBorder={false}
       />
       <GradientDivider />
-      <View style={[styles.container, { backgroundColor: theme.c.surface }]}>
+      <View style={[styles.container, { backgroundColor: c.surface }]}>
         {hasError ? (
           <View style={styles.centerFill}>
-            <CustomText style={{ color: theme.c.textBrand }}>
-              {STRINGS.SOMETHING_WENT_WRONG || "Something went wrong. Please try again."}
-            </CustomText>
+            {/* `SOMETHING_WENT_WRONG` was never defined in any language, so this
+                fell through the `||` to a hardcoded English sentence — the same
+                English for a Punjabi, Hindi, French, Italian or Spanish reader.
+                These two keys already say exactly that, in all six. */}
+            <CustomText style={{ color: c.textBrand }}>{STRINGS.errorTitle}</CustomText>
+            <CustomText style={{ color: c.textBrand }}>{STRINGS.RETRY}</CustomText>
           </View>
         ) : (
           <WebView
@@ -130,12 +133,12 @@ const DonationWebView = ({ route, navigation }) => {
               setIsLoading(false);
               setHasError(true);
             }}
-            style={{ backgroundColor: theme.c.surface }}
+            style={{ backgroundColor: c.surface }}
           />
         )}
         {isLoading && !hasError && (
           <View style={styles.loadingOverlay} pointerEvents="none">
-            <ActivityIndicator size="large" color={theme.c.accent} />
+            <ActivityIndicator size="large" color={c.accent} />
           </View>
         )}
       </View>

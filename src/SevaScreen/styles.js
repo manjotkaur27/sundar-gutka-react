@@ -1,7 +1,11 @@
 import { StyleSheet } from "react-native";
+import { themeForScreen } from "@theme/screenPalettes";
 
 const createStyles = (theme) => {
-  const { c } = theme;
+  // Seva draws with its OWN colours, resolved through the same role names the
+  // rest of the app uses, so every c.x below is unchanged and only the values
+  // differ. Roles Seva does not override still come from the semantic layer.
+  const { c } = themeForScreen(theme, "seva");
 
   return StyleSheet.create({
     scrollView: {
@@ -65,7 +69,7 @@ const createStyles = (theme) => {
       // Light mode sits on the page's own pale-blue ground rather than pure
       // white, so the figure reads as part of the page instead of a floating
       // white slab. The shadow below still separates it from the ground.
-      backgroundColor: c.surfaceSelected,
+      backgroundColor: c.surface,
       borderRadius: 16,
       paddingTop: 8,
       paddingBottom: 10,
@@ -186,7 +190,9 @@ const createStyles = (theme) => {
       height: 22,
       borderRadius: 7,
       borderWidth: 2,
-      borderColor: c.controlAccent,
+      // The radio ring is the link blue, not the donate button navy: the same
+      // colour in light, its own brighter blue in dark.
+      borderColor: c.accent,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: "transparent",
@@ -195,7 +201,8 @@ const createStyles = (theme) => {
       width: 12,
       height: 12,
       borderRadius: 6,
-      backgroundColor: c.controlAccent,
+      // Matches the ring around it.
+      backgroundColor: c.accent,
     },
     frequencyText: {
       fontSize: 14,
@@ -210,7 +217,7 @@ const createStyles = (theme) => {
       width: 26,
       height: 26,
       borderRadius: 13,
-      backgroundColor: c.surface,
+      backgroundColor: c.surfaceBright,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -280,7 +287,7 @@ const createStyles = (theme) => {
       borderRadius: 16,
       borderWidth: 1,
       borderColor: c.border,
-      backgroundColor: c.surface,
+      backgroundColor: c.surfaceElevated,
       padding: 16,
       gap: 14,
     },
@@ -321,7 +328,7 @@ const createStyles = (theme) => {
       borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,
-      backgroundColor: c.surface,
+      backgroundColor: c.surfaceElevated,
       paddingVertical: 13,
       paddingHorizontal: 14,
     },
@@ -364,7 +371,7 @@ const createStyles = (theme) => {
       width: "100%",
     },
     retentionText: {
-      color: c.gold,
+      color: c.goldText,
       fontSize: 14,
       textAlign: "center",
       fontWeight: "600",

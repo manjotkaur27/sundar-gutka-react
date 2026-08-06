@@ -8,8 +8,9 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSelector } from "react-redux";
+import { themeForScreen } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
-import { AppBar, BackIconComponent } from "@common/components";
+import { ScreenHeader } from "@common/components/ui";
 import {
   SafeArea,
   StatusBarComponent,
@@ -31,11 +32,11 @@ import { parseHtmlBlocks, blockText } from "./utils/parseHtmlBlocks";
  * the Seva page's own content pipeline: the backend returns a constrained HTML
  * fragment, the app parses it (parseSevaContent → parseHtmlBlocks) and renders
  * real native, themed elements (no WebView). Content is cached / falls back
- * offline by services/sevaMeans.js. Only the AppBar/back button are app-native
+ * offline by services/sevaMeans.js. Only the header/back button are app-native
  * chrome. Links open in the in-app browser.
  */
 
-// Route page key → the AppBar title shown before content (and its language) load.
+// Route page key → the header title shown before content (and its language) load.
 const TITLE_KEYS = {
   social: "SEVA_SPREAD_WORD",
   coding: "SEVA_FOR_CODERS",
@@ -45,7 +46,9 @@ const TITLE_KEYS = {
 
 const SevaMeansScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The whole screen resolves the shared role names to Seva's own colours, so
+  // nothing here names a literal and the sub-pages match the landing page.
+  const { c } = themeForScreen(theme, "seva");
   const isDark = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const language = useSelector((state) => state.language);
@@ -66,10 +69,9 @@ const SevaMeansScreen = ({ route, navigation }) => {
 
   const page = route?.params?.page;
   // Bar background matches the page body (dark navy / cream), not a black strip.
-  // Same bar as the Seva landing page: dashboard ground, brand-navy title and
-  // back arrow rather than near-black.
+  // Same bar as the Seva landing page. The shared `ScreenHeader` colours its own
+  // title and back arrow from `headerFg`, so only the ground is supplied here.
   const headerBg = c.backgroundAlt;
-  const headerFg = c.textPrimary;
 
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -191,7 +193,7 @@ const SevaMeansScreen = ({ route, navigation }) => {
     if (loading) {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.c.accent} />
+          <ActivityIndicator size="large" color={c.accent} />
         </View>
       );
     }
@@ -237,18 +239,14 @@ const SevaMeansScreen = ({ route, navigation }) => {
   return (
     <SafeArea backgroundColor={headerBg}>
       <StatusBarComponent backgroundColor={headerBg} />
-      <AppBar
+      {/* The shared header — same clearance, row height and back control as
+          every other screen. */}
+      <ScreenHeader
         title={title}
-        backgroundColor={headerBg}
-        titleColor={headerFg}
-        titleStyle={{
-          fontFamily: theme.typography.fonts.balooPaajiSemiBold,
-          fontSize: theme.typography.sizes.xxl,
-          fontWeight: theme.typography.weights.normal,
-        }}
-        leftComponent={
-          <BackIconComponent size={30} color={headerFg} onPress={() => navigation.goBack()} />
-        }
+        surface={headerBg}
+        onBack={() => navigation.goBack()}
+        backAccessibilityLabel={STRINGS.GO_BACK}
+        showBorder={false}
       />
       <GradientDivider />
       <View style={styles.container}>{renderBody()}</View>

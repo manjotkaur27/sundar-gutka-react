@@ -47,11 +47,13 @@ jest.mock("@common", () => {
   };
 });
 
-jest.mock("@common/components", () => {
-  const { View, Text } = require("react-native");
+// The screens render the SHARED header now, not a Seva-only AppBar. Stubbed for
+// the same reason the AppBar was: these tests are about the server-driven body,
+// and rendering the real header would drag the whole token layer in behind it.
+jest.mock("@common/components/ui", () => {
+  const { Text } = require("react-native");
   return {
-    AppBar: ({ title }) => <Text>{title}</Text>,
-    BackIconComponent: (props) => <View {...props} />,
+    ScreenHeader: ({ title }) => <Text>{title}</Text>,
   };
 });
 
@@ -77,7 +79,7 @@ beforeEach(() => {
 });
 
 describe("SevaMeansScreen", () => {
-  it("renders server-driven content natively (intro + link) and the AppBar title", async () => {
+  it("renders server-driven content natively (intro + link) and the header title", async () => {
     getSevaMeansPage.mockResolvedValue({
       title: "Seva for Coders",
       version: 1,

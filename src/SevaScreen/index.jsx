@@ -16,8 +16,9 @@ import LinearGradient from "react-native-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
-import { AppBar } from "@common/components";
+import { ScreenHeader } from "@common/components/ui";
 import {
   SafeArea,
   StatusBarComponent,
@@ -86,14 +87,13 @@ const stepNameOf = (v) => SEVA_STEP_NAMES[v - 1] || "landing_view";
 // (`seva-means:<page>`) maps to a native icon + accent tint. The app supplies
 // the icon/colour/navigation chrome; the backend supplies the text + order.
 const MEANS_META = {
-  // `tint` names a semantic role, resolved per theme at render. These were
-  // four bespoke hues (indigo/teal/green/gold); they now draw on three roles
-  // the palette already defines, since the icon beside each row is what
-  // actually distinguishes it.
-  social: { Icon: MegaphoneIcon, tint: "accent" },
-  coding: { Icon: CodeIcon, tint: "accent" },
-  qa: { Icon: ClipboardCheckIcon, tint: "success" },
-  other: { Icon: StarIcon, tint: "gold" },
+  // One hue per means — indigo / teal / green / gold. They are fixed in both
+  // themes: the hue is what tells the rows apart, so it is not a role. The
+  // values live in the Seva palette, keyed by these same page names.
+  social: { Icon: MegaphoneIcon },
+  coding: { Icon: CodeIcon },
+  qa: { Icon: ClipboardCheckIcon },
+  other: { Icon: StarIcon },
 };
 
 // A blinking text cursor for the custom-amount inline display (the real
@@ -123,7 +123,9 @@ BlinkingCursor.propTypes = {
 
 const SevaScreen = () => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // Seva's own colours, through the same role names — see theme/screenPalettes.
+  const { c } = themeForScreen(theme, "seva");
+  const palette = paletteFor("seva", theme.mode);
   const isDarkMode = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -552,6 +554,7 @@ const SevaScreen = () => {
     }
     const meta = MEANS_META[page] || MEANS_META.other;
     const { Icon } = meta;
+    const meansTint = palette.meansTints[page] || palette.meansTints.other;
     const trailingIconColor = c.textSecondary;
     return (
       <Pressable
@@ -564,10 +567,9 @@ const SevaScreen = () => {
         accessibilityRole={openUrl ? "link" : "button"}
         accessibilityLabel={`seva-means-${page}`}
       >
-        {/* `meta.tint` names a role; resolve it, then derive the 13%-opacity
-            disc behind the icon from the resolved colour. */}
-        <View style={[styles.meansIconCircle, { backgroundColor: `${c[meta.tint]}22` }]}>
-          <Icon size={20} color={c[meta.tint]} />
+        {/* The disc behind the icon is the same hue at 13% opacity. */}
+        <View style={[styles.meansIconCircle, { backgroundColor: `${meansTint}22` }]}>
+          <Icon size={20} color={meansTint} />
         </View>
         <View style={styles.meansTextWrap}>
           <CustomText style={styles.meansTitle}>{title}</CustomText>
@@ -944,21 +946,19 @@ const SevaScreen = () => {
   // the "Seva" title and the close cross. `textPrimary`'s near-black read as a
   // heavy, unbranded mark against the light bar.
   const headerFg = c.headerFg;
+  // The shared header, like every other screen. This used to be `AppBar`, a
+  // second header component that duplicated ScreenHeader and drifted from it —
+  // it padded by the raw safe-area inset and stood its row at 52 instead of 56,
+  // so the Seva title and the divider under it sat lower than everywhere else.
+  //
+  // The title size comes from the `title` type role rather than a hand-set 26.
   const renderHeader = () => (
-    <AppBar
+    <ScreenHeader
       title={STRINGS.SEVA}
-      backgroundColor={headerBg}
-      titleColor={headerFg}
-      titleStyle={{
-        fontFamily: theme.typography.fonts.balooPaajiSemiBold,
-        // Swapped with the hero: the AppBar "Seva" is now the prominent heading
-        // (26) and the hero line drops to the smaller size (see styles.heroTitle).
-        fontSize: 26,
-        // No fontWeight beside the family. Baloo ships as separate named TTFs,
-        // so a weight makes Android try to synthesize and fall back to the
-        // system font — the family named above already IS the SemiBold face.
-      }}
-      rightComponent={
+      surface={headerBg}
+      titleVariant="title"
+      showBorder={false}
+      actions={
         <Pressable
           onPress={() => navigation.navigate("Home")}
           hitSlop={12}

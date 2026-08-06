@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { themeForScreen } from "@theme/screenPalettes";
 
 // Native styling for the server-driven "Seva by other means" pages. Colours
 // mirror the Seva page (createStyles in ./styles) so both screens read as one
@@ -10,7 +11,8 @@ import { StyleSheet } from "react-native";
 // page — so spacing stays consistent between every element and scales with the
 // device instead of being a pile of mismatched hardcoded margins.
 const createStyles = (theme) => {
-  const { c } = theme;
+  // Same colours as the main Seva page, resolved through the same role names.
+  const { c } = themeForScreen(theme, "seva");
 
   return StyleSheet.create({
     container: {
@@ -56,7 +58,7 @@ const createStyles = (theme) => {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      backgroundColor: c.surface,
+      backgroundColor: c.surfaceElevated,
       borderColor: c.border,
       borderWidth: 1,
       borderRadius: 14,

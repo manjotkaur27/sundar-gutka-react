@@ -128,16 +128,19 @@ jest.mock("@common", () => {
 
 // Mock the components barrel directly so the real one (which pulls in
 // BaniLengthSelector → firebase ESM) is never loaded in the test.
-jest.mock("@common/components", () => {
+// The screen renders the SHARED header now, not a Seva-only AppBar. Stubbed for
+// the same reason the AppBar was: these tests cover the server-driven body, and
+// the real header would drag the whole token layer in behind it. `actions` is
+// rendered so the close-cross assertions still exercise it.
+jest.mock("@common/components/ui", () => {
   const { View, Text } = require("react-native");
   return {
-    AppBar: ({ title, rightComponent }) => (
+    ScreenHeader: ({ title, actions }) => (
       <View>
         <Text>{title}</Text>
-        {rightComponent}
+        {actions}
       </View>
     ),
-    BackIconComponent: (props) => <View {...props} />,
   };
 });
 
@@ -327,7 +330,7 @@ describe("SevaScreen", () => {
     });
   });
 
-  it("shows the regular AppBar with a 'Seva' title (no in-page SG heading)", async () => {
+  it("shows the regular header with a 'Seva' title (no in-page SG heading)", async () => {
     getSevaConfig.mockResolvedValue(nativeFallbackConfig);
     const { getAllByText } = render(<SevaScreen />);
     await waitFor(() => expect(getAllByText("Seva").length).toBeGreaterThan(0));
