@@ -1,7 +1,7 @@
 const createStyles = (theme) => ({
   container: {
     width: "100%",
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
     minHeight: theme.components.bottomNavigation.height,
     justifyContent: "center",
   },
@@ -22,7 +22,7 @@ const createStyles = (theme) => ({
     paddingVertical: 4,
   },
   activeIconContainer: {
-    backgroundColor: theme.staticColors.WHITE_COLOR,
+    backgroundColor: theme.c.onPrimary,
     borderRadius: 15,
     width: 48,
     height: 48,
@@ -31,7 +31,7 @@ const createStyles = (theme) => ({
   },
   iconText: {
     fontSize: theme.typography.sizes.xs,
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     marginTop: 2,
     textAlign: "center",

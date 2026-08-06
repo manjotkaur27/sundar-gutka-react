@@ -1,7 +1,9 @@
+import { withAlpha } from "@theme/colorUtils";
+
 // Themed styles for the onboarding carousel. Colors come from the theme; only
-// neutral spacing/sizes are hard-coded. We deliberately do NOT alpha-blend theme
-// colors (their format isn't guaranteed hex), using solid accents + the `opacity`
-// style prop instead.
+// neutral spacing/sizes are hard-coded. Where a translucent fill is needed it
+// goes through `withAlpha` on a role rather than a hand-written rgba, so the
+// value tracks the theme.
 const createStyles = (theme) => ({
   overlay: {
     position: "absolute",
@@ -9,7 +11,7 @@ const createStyles = (theme) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.c.surface,
     // Android paints by elevation, not just tree order — sit above every screen
     // (the reader's bottom nav and player have elevation of their own).
     elevation: 9999,
@@ -29,11 +31,11 @@ const createStyles = (theme) => ({
     paddingHorizontal: 12,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+    borderColor: theme.c.headerFg,
   },
   globeLabel: {
     marginLeft: 6,
-    color: theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary,
+    color: theme.c.headerFg,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 13,
   },
@@ -72,14 +74,14 @@ const createStyles = (theme) => ({
     maxHeight: 460,
     borderRadius: 24,
     borderWidth: 2,
-    borderColor: theme.colors.primary,
+    borderColor: theme.c.primary,
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
   placeholderText: {
     marginTop: 10,
-    color: theme.colors.primaryText,
+    color: theme.c.textPrimary,
     opacity: 0.45,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 13,
@@ -88,14 +90,14 @@ const createStyles = (theme) => ({
     paddingBottom: 8,
   },
   title: {
-    color: theme.colors.primaryText,
+    color: theme.c.textPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 24,
     textAlign: "center",
     marginBottom: 10,
   },
   body: {
-    color: theme.colors.primaryText,
+    color: theme.c.textPrimary,
     opacity: 0.7,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 16,
@@ -113,12 +115,12 @@ const createStyles = (theme) => ({
     height: 8,
     borderRadius: 4,
     marginHorizontal: 4,
-    backgroundColor: theme.colors.primaryText,
+    backgroundColor: theme.c.textPrimary,
     opacity: 0.2,
   },
   dotActive: {
     width: 22,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
     opacity: 1,
   },
   controls: {
@@ -136,13 +138,13 @@ const createStyles = (theme) => ({
     minWidth: 80,
   },
   skipText: {
-    color: theme.colors.primaryText,
+    color: theme.c.textPrimary,
     opacity: 0.6,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 16,
   },
   nextButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
     borderRadius: 26,
     paddingVertical: 12,
     paddingHorizontal: 28,
@@ -150,7 +152,7 @@ const createStyles = (theme) => ({
     alignItems: "center",
   },
   nextText: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 16,
   },
@@ -160,17 +162,17 @@ const createStyles = (theme) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: withAlpha(theme.c.shadow, 0.35),
   },
   langCard: {
     position: "absolute",
     right: 16,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.c.surface,
     borderRadius: 14,
     paddingVertical: 6,
     minWidth: 190,
     elevation: 8,
-    shadowColor: "#000",
+    shadowColor: theme.c.shadow,
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -183,12 +185,12 @@ const createStyles = (theme) => ({
     paddingHorizontal: 16,
   },
   langItemText: {
-    color: theme.colors.primaryText,
+    color: theme.c.textPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 16,
   },
   langItemTextActive: {
-    color: theme.colors.primary,
+    color: theme.c.primary,
   },
 });
 

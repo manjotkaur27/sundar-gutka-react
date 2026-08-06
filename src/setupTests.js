@@ -14,6 +14,28 @@ jest.mock("@common/context", () => {
   return createContextMock();
 });
 
+// The SAME theme, reached through the OTHER door.
+//
+// "@common/context" is the default-export useTheme. The shared UI primitives
+// reach the theme through useTokens, which imports the NAMED useTheme from
+// "context/ThemeContext" directly. Mocking only the first left the second
+// unmocked, so any test rendering a screen built on ScreenHeader threw
+// "useTheme must be used within a ThemeProvider" — which is exactly what
+// happened the moment the Seva screens moved onto the shared header.
+jest.mock("@common/context/ThemeContext", () => {
+  // Delegates to the SAME factory that mocks "@common/context", so both doors
+  // hand back one theme. Requiring a whole theme module here instead would drag
+  // in "@theme/type" -> "@common", which some suites mock, and the constants it
+  // reads for font names come back undefined.
+  const { createContextMock } = require("@common/test-utils/mocks/context");
+  const useTheme = createContextMock().default;
+  return {
+    __esModule: true,
+    useTheme,
+    default: { Provider: ({ children }) => children },
+  };
+});
+
 // Mock useThemedStyles to return a stable style object
 jest.mock("@common/hooks/useThemedStyles", () => {
   const { createUseThemedStylesMock } = require("@common/test-utils/mocks/useThemedStyles");

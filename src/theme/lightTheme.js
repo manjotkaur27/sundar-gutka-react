@@ -7,16 +7,13 @@ import radii from "./radii";
 import { light as lightColors } from "./semanticColors";
 import space from "./space";
 import spacing from "./spacing";
-import staticColors from "./staticColors";
 import type from "./type";
 import typography from "./typography";
 
 const lightTheme = {
   mode: "light",
   // ── The design system ──────────────────────────────────────────────────
-  // `c` is the semantic colour layer — the one new code should use. The legacy
-  // `colors`/`staticColors` maps below it are deprecated and migrate away
-  // screen by screen. See docs/UI_OVERHAUL_PLAN.md.
+  // `c` is the semantic colour layer — the only colour surface components read.
   c: lightColors,
   palette,
   space,
@@ -25,43 +22,27 @@ const lightTheme = {
   layout,
   elevation: lightElevation,
 
-  // ── Deprecated ─────────────────────────────────────────────────────────
-  // Everything below predates the token layer and is being migrated out. Do
-  // not add new consumers.
-  colors: {
-    primary: "#113979",
-    surface: "rgba(255, 255, 255, 1)",
-    // Raised surface for floating elements. Light mode conveys elevation with a
-    // real shadow, so this matches the base surface.
-    surfaceElevated: "#ffffff",
-    primaryText: "#121212",
-    primaryVariant: "#DEBB0A",
-    surfaceGrey: "#faf9f6",
-    textDisabled: "#a3a3a3",
-    underlayColor: "#009bff",
-    headerVariant: "#003436",
-    baniDB: "#eaa040",
-    shadow: "#000",
-    highlightTuk: "#0066ff",
-    activeView: "#C7C7D7",
-    inactiveView: "#e9e9ee",
-    componentColor: "#232323",
-    enabledText: "#0066ff",
-    disabledText: "#a3a3a3",
-    primaryHeader: "#113979",
-    primaryHeaderVariant: "#113979",
-    actionButton: "#D3E1F7",
-    audioPlayer: "rgba(17, 57, 121, 0.5)",
-    overlay: staticColors.SEMI_TRANSPARENT,
-    audioTitleText: "#113979",
-    trackBorderColor: staticColors.TRACK_COLOR,
-    trackBackgroundColor: staticColors.TRACK_COLOR,
-    controlBarBackgroundColor: "#ffffff",
-    separator: "#eeeeee",
-    transparentOverlay: "rgba(255, 255, 255, 0.95)",
-    audioSettingsModalText: "#666666",
+  // ── Native chrome ──────────────────────────────────────────────────────
+  // Theme values that are not colours: platform enums whose correct setting is
+  // decided by the theme. They live here so a component reads a token instead of
+  // branching on the mode itself — the same rule as `c`, applied to the handful
+  // of native props that take a keyword rather than a colour.
+  chrome: {
+    /** Status bar glyphs. Dark glyphs on the light ground. */
+    statusBarStyle: "dark-content",
+    /** Native scroll indicator. */
+    scrollIndicator: "black",
+    /** BlurView tint, where a native blur is still used. */
+    blurType: "light",
   },
-  staticColors,
+  // ── Opacity ────────────────────────────────────────────────────────────
+  // Theme-dependent opacities. A decorative image needs to sit back further on a
+  // dark ground, where the same value reads brighter against less light behind
+  // it.
+  opacity: {
+    /** Decorative photograph behind a card. */
+    backdropImage: 0.16,
+  },
   typography,
   spacing,
   components,

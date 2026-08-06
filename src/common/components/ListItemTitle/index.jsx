@@ -20,7 +20,17 @@ import useTheme from "@common/context";
 // consistent, and the row grows to fit.
 const ListItemTitle = ({ title, style = null, numberOfLines = 2 }) => {
   const { theme } = useTheme();
-  const base = { fontFamily: theme.typography.fonts.balooPaaji, flexShrink: 1 };
+  // A DEFAULT colour, not just a font. Without one this fell through to the
+  // platform's default text colour — black — so any caller whose style omitted
+  // `color` rendered black-on-near-black in dark mode. The Database Update
+  // screen did exactly that: its header style sets size and spacing only.
+  //
+  // Callers that do pass a colour still win, because `style` is spread after.
+  const base = {
+    fontFamily: theme.typography.fonts.balooPaaji,
+    color: theme.c.textPrimary,
+    flexShrink: 1,
+  };
   const textStyle = Array.isArray(style) ? [base, ...style] : [base, style];
 
   return (

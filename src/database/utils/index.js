@@ -1,4 +1,5 @@
-import { constant, colors } from "@common";
+import { vishraam } from "@theme/palette";
+import { constant } from "@common";
 
 export const getTranslitText = (translit, language) => {
   const json = JSON.parse(translit);
@@ -32,7 +33,14 @@ export const getWordStyle = (
   { isVishraam, vishraamOption, isLarivar, isLarivarAssist }
 ) => {
   let style = "";
-  const { VISHRAM_LONG, VISHRAM_SHORT, VISHRAM_LONG_GRADIENT, VISHRAM_SHORT_GRADIENT } = colors;
+  // From the palette, not a component theme: this builds a plain HTML style
+  // string for the Reader WebView and has no hook context.
+  const {
+    long: VISHRAM_LONG,
+    short: VISHRAM_SHORT,
+    longGradient: VISHRAM_LONG_GRADIENT,
+    shortGradient: VISHRAM_SHORT_GRADIENT,
+  } = vishraam;
   const { VISHRAAM_GRADIENT, VISHRAAM_COLORED } = constant;
   if (isVishraam && vishraamPositions[index]) {
     switch (vishraamOption) {

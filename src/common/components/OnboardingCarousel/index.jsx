@@ -3,6 +3,7 @@ import { View, Image, Pressable, FlatList, useWindowDimensions, BackHandler } fr
 import { useDispatch, useSelector } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@rneui/themed";
+import { pickByMode } from "@theme/colorUtils";
 import { getLanguages } from "@settings/components/comon/strings";
 import CustomText from "../CustomText";
 import STRINGS from "../../localization";
@@ -114,7 +115,7 @@ const OnboardingCarousel = () => {
       const titleSize = Math.round(22 * scale);
       const bodySize = Math.round(15 * scale);
       const bodyLineHeight = Math.round(22 * scale);
-      const screenshot = theme.mode === "dark" ? (item.imageDark || item.image) : (item.imageLight || item.image);
+      const screenshot = pickByMode(theme, { dark: item.imageDark, light: item.imageLight }, item.image);
       return (
         <View style={{ width, height: listHeight }}>
           <View style={styles.slide}>
@@ -125,7 +126,7 @@ const OnboardingCarousel = () => {
                 </View>
               ) : (
                 <View style={styles.placeholder}>
-                  <Icon name="image" type="material" size={Math.round(48 * scale)} color={theme.colors.primary} />
+                  <Icon name="image" type="material" size={Math.round(48 * scale)} color={theme.c.primary} />
                   <CustomText style={styles.placeholderText}>{item.key}</CustomText>
                 </View>
               )}
@@ -165,7 +166,7 @@ const OnboardingCarousel = () => {
             name="language"
             type="material"
             size={20}
-            color={theme.mode === "dark" ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
+            color={theme.c.headerFg}
           />
           {!!currentLangTitle && <CustomText style={styles.globeLabel}>{currentLangTitle}</CustomText>}
         </Pressable>
@@ -225,7 +226,7 @@ const OnboardingCarousel = () => {
                   {title}
                 </CustomText>
                 {effectiveLanguage === key && (
-                  <Icon name="check" type="material" size={18} color={theme.colors.primary} />
+                  <Icon name="check" type="material" size={18} color={theme.c.primary} />
                 )}
               </Pressable>
             ))}

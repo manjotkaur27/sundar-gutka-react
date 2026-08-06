@@ -16,6 +16,13 @@ jest.mock("@common/context", () => ({
   default: () => ({ theme: jest.requireActual("@theme/lightTheme").default }),
 }));
 
+// `CustomText` renders through `ui/Text` now, so the theme has to be reachable
+// by the primitive's own route as well — `useTokens` reads `ThemeContext`
+// directly rather than going through `@common/context`.
+jest.mock("../context/ThemeContext", () => ({
+  useTheme: () => ({ theme: jest.requireActual("@theme/lightTheme").default }),
+}));
+
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ goBack: jest.fn() }),
 }));

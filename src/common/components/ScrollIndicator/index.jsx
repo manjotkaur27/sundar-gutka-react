@@ -1,12 +1,15 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Animated, Platform, StyleSheet } from "react-native";
+import { withAlpha } from "@theme/colorUtils";
+import { accent } from "@theme/palette";
 
 // iOS does not expose the native scroll-indicator colour (only default/black/
 // white), so on iOS we hide the native indicator and draw our own to match the
 // Android themed scrollbar exactly. On Android this hook is a no-op — the native
 // themed scrollbar (res/values/colors.xml → scrollbar_thumb) already renders.
 const IS_IOS = Platform.OS === "ios";
-const THUMB_COLOR = "rgba(122, 153, 201, 0.5)";
+// The scroll thumb, on the same accent as every other progress affordance.
+const THUMB_COLOR = withAlpha(accent[300], 0.5);
 const THUMB_WIDTH = 3;
 const MIN_THUMB_HEIGHT = 36;
 const FADE_OUT_DELAY_MS = 1200;

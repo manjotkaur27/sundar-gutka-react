@@ -1,8 +1,9 @@
 import { Linking } from "react-native";
 import { InAppBrowser } from "react-native-inappbrowser-reborn";
+import { brandMarks } from "@theme/palette";
 
-const BRAND_COLOR = "#113979";
-const BRAND_CONTRAST = "#FAF9F6";
+const BRAND_COLOR = brandMarks.inAppBrowser.chrome;
+const BRAND_CONTRAST = brandMarks.inAppBrowser.onChrome;
 
 /**
  * Open a URL in the in-app browser with the app's brand chrome, falling back to

@@ -1,22 +1,23 @@
 import React from "react";
-import { Text, StyleSheet } from "react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
+import { StyleSheet } from "react-native";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
+import Text from "../ui/Text";
 
-// The legacy text component, still used across ~70 files. New code should use
-// `common/components/ui/Text`, which carries size, line height and face
-// together as a named role; this stays until those call sites migrate.
+// The style-driven text component, used across ~59 files.
 //
-// Font scaling is ON. It was hardcoded `allowFontScaling={false}` with no way
-// to override, so the OS text-size setting did nothing anywhere in the app —
-// the most-used accessibility setting on both platforms, and WCAG 1.4.4. It is
-// capped at FONT_SCALE_MAX so an extreme setting degrades the layout rather
-// than shattering it.
+// It is no longer a second implementation. It renders the design system's
+// `ui/Text` with `variant="inherit"`, so the app has ONE text primitive and one
+// place that decides the scaling policy. This component only adds the thing
+// `ui/Text` deliberately does not do: resolve a Baloo face from whatever
+// `fontWeight` the caller happened to put in its style.
 //
-// `adjustsFontSizeToFit` is gone. It sized each label from its own string
-// length, so a column of them rendered at many different sizes, and it
-// silently overrode the user's font-size setting. Text wraps instead.
+// `variant="inherit"` carries no metrics, so a call site's size and line height
+// are exactly what they were when this rendered `RNText` directly. New code
+// should name a real role (`<Text variant="body">`) rather than reach for this.
+//
+// Font scaling and the deliberate absence of `adjustsFontSizeToFit` now live in
+// `ui/Text`; see the note there for why both matter.
 const CustomText = ({
   style = null,
   children = null,
@@ -52,9 +53,13 @@ const CustomText = ({
 
   return (
     <Text
+      variant="inherit"
+      // The caller's own colour still wins — `ui/Text` applies `style` last.
+      // This only decides the colour for call sites that never set one, which
+      // previously fell through to the platform default black and was therefore
+      // invisible in dark mode.
+      color="textPrimary"
       style={textStyle}
-      allowFontScaling
-      maxFontSizeMultiplier={FONT_SCALE_MAX}
       numberOfLines={numberOfLines}
       onPress={onPress}
       onLongPress={onLongPress}

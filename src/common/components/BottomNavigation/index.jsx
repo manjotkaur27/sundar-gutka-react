@@ -223,7 +223,7 @@ const BottomNavigation = ({
         transform: [{ translateY }],
       }}
     >
-      <SafeArea backgroundColor={theme.colors.primary} edges={["bottom"]} flex={0}>
+      <SafeArea backgroundColor={theme.c.primary} edges={["bottom"]} flex={0}>
         <View style={[styles.container, { paddingBottom: bottomPad }]}>
           <View style={styles.navigationBar}>
             {navigationItems.map((item) => {
@@ -243,8 +243,8 @@ const BottomNavigation = ({
                         size={24}
                         color={
                           item.key === activeKey
-                            ? theme.colors.primary
-                            : theme.staticColors.WHITE_COLOR
+                            ? theme.c.primary
+                            : theme.c.onPrimary
                         }
                       />
                       {item.showDot > 0 && (
@@ -257,7 +257,7 @@ const BottomNavigation = ({
                             // further out to clear the icon).
                             top: item.showDot > 1 ? -7 : -4,
                             right: item.showDot > 1 ? -9 : -5,
-                            backgroundColor: "#E53E3E",
+                            backgroundColor: theme.c.error,
                             borderRadius: item.showDot > 1 ? 9 : 5,
                             minWidth: item.showDot > 1 ? 16 : 10,
                             height: item.showDot > 1 ? 16 : 10,
@@ -267,15 +267,15 @@ const BottomNavigation = ({
                             borderWidth: 1.2,
                             borderColor:
                               item.key === activeKey
-                                ? theme.staticColors.WHITE_COLOR
-                                : theme.colors.primary,
+                                ? theme.c.onPrimary
+                                : theme.c.primary,
                           }}
                         >
                           {/* 1 = plain dot, no text; 2+ = the real count */}
                           {item.showDot > 1 && (
                             <CustomText
                               style={{
-                                color: "#FFFFFF",
+                                color: theme.c.onError,
                                 fontSize: 9,
                                 fontWeight: "bold",
                                 fontFamily: theme.typography.fonts.balooPaajiSemiBold,
