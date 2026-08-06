@@ -12,7 +12,7 @@ export const fontColorForReader = (header, theme, text) => {
   // `textBrand`, not a pair of hex literals: it is the app's one blue, so the
   // Reader matches the rest of the app instead of carrying its own two shades.
   const getHeaderColor1 = () => theme.c.textBrand;
-  const getHeaderColor2 = () => theme.colors.primaryText;
+  const getHeaderColor2 = () => theme.c.textPrimary;
 
   const defaultColor = getHeaderColor2();
   const gurmukhiMapping = {
@@ -98,8 +98,9 @@ export const loadHTML = (
   isLarivaar
 ) => {
   try {
-    const isDarkMode = theme.mode === "dark";
-    const backColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#FFFFFF";
+    // Same role as the Reader header and the rest of the app's screens, so the
+    // page, its chrome and every other screen always agree.
+    const backColor = theme.c.backgroundAlt;
     const content = shabad
       .map((item) => {
         const textAlignMap = {

@@ -144,3 +144,65 @@ describe("dark mode has ONE blue, and light mode is untouched", () => {
     expect(contrast(BLUE, darkTheme.c.background)).toBeGreaterThan(4);
   });
 });
+
+// Gurmukhi titles must not carry a fixed lineHeight.
+//
+// This one cost a long chase. The Reader header showed "ਗੁਰ" for "ਗੁਰ ਮੰਤ੍ਰ" and
+// "ਜਪੁਜੀ" for "ਜਪੁਜੀ ਸਾਹਿਬ". The string reaching the component was verified
+// complete and correct on device — logged code point by code point — and the
+// container measured 329dp wide with the text on a single 28dp line, so it was
+// neither the data, the route, the field, nor the width.
+//
+// It was `lineHeight`. Rendering the identical string in a Text WITHOUT one drew
+// it in full, side by side with the styled copy that truncated. Gurmukhi
+// clusters carry marks above and below the baseline, and pinning the line box
+// makes Android drop the clusters that do not fit rather than overflow them.
+//
+// The face's own line height is what it needs, so titles in Gurmukhi leave it
+// unset. This is why `adjustsFontSizeToFit` is banned in this codebase too: both
+// are attempts to force text into a box it does not fit.
+describe("Gurmukhi title metrics", () => {
+  const readerStyles = require("../ReaderScreen/styles").default;
+
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ])("[%s] the Reader header title sets no lineHeight", (_name, theme) => {
+    expect(readerStyles(theme).headerTitleStyle.lineHeight).toBeUndefined();
+  });
+
+  it("still sets a size, so the title is not left to a default", () => {
+    expect(readerStyles(lightTheme).headerTitleStyle.fontSize).toBe(
+      lightTheme.type.heading.fontSize
+    );
+  });
+});
+
+// A settings row is as thick as a bani row on the home list.
+//
+// The bani list pads by space.lg around a 24pt title (about 66pt tall at the
+// default font); a settings row wraps a 16/24 body line and stopped at 56, so
+// two otherwise-identical list screens sat at visibly different heights.
+describe("list row thickness", () => {
+  it("gives a single-line row room for the bani list's own height", () => {
+    expect(lightTheme.layout.row.minHeight).toBeGreaterThanOrEqual(64);
+  });
+
+  it("keeps the two-line row a step above it", () => {
+    expect(lightTheme.layout.row.minHeightTwoLine).toBeGreaterThan(
+      lightTheme.layout.row.minHeight
+    );
+  });
+
+  it("pads both row types by the same step the bani list uses", () => {
+    expect(lightTheme.layout.row.paddingVertical).toBe(lightTheme.space.lg);
+  });
+});
+
+// The header's trailing control needs a real gutter. At space.xs the Seva close
+// cross sat almost against the right edge of the display.
+describe("header gutter", () => {
+  it("uses the screen gutter, not a hairline inset", () => {
+    expect(lightTheme.layout.header.paddingHorizontal).toBe(lightTheme.space.lg);
+  });
+});

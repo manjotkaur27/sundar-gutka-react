@@ -8,6 +8,7 @@ import useReadingSession from "@common/hooks/useReadingSession";
 import { pauseTrack } from "@common/TrackPlayerUtils";
 import {
   constant,
+  convertToUnicode,
   actions,
   logError,
   SafeArea,
@@ -33,8 +34,26 @@ const BARS_IDLE_HIDE_MS = 4000;
 const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const isDarkMode = theme.mode === "dark";
-  const readerBgColor = isDarkMode ? "rgba(18, 18, 18, 1)" : "#FFFFFF";
+  // How far the floating header covers the page.
+  //
+  // The header is absolutely positioned so it can slide away, which means the
+  // top of the WebView viewport sits BEHIND it. A restore that scrolls an
+  // element to "top of viewport" therefore parks that line under the header,
+  // and the only way to read it is to scroll back up — which is what made a
+  // freshly opened bani look like it had opened part-scrolled. Restores offset
+  // by this instead.
+  //
+  // Built from the same two tokens as the header itself, so they cannot drift.
+  const headerOverlayHeight =
+    theme.layout.header.topClearance + theme.layout.header.minHeight;
+  // Same role as the Reader header and the WebView page itself.
+  // The SAME ground the Dashboard and Settings sit on, in both themes.
+  //
+  // `backgroundAlt`, not `background`: the two are identical in dark mode, but in
+  // light mode the rest of the app sits on a slightly recessed #f3f4f6 while this
+  // screen was pure white. The Reader was the one page that did not match, on the
+  // screen people spend the most time in.
+  const readerBgColor = theme.c.backgroundAlt;
   const bookmarkPosition = useSelector((state) => state.bookmarkPosition);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudio = useSelector((state) => state.isAudio);
@@ -42,7 +61,6 @@ const Reader = ({ navigation, route }) => {
   const isAudioFeatureOn = isAudioFeatureEnabled ?? true;
   const isTransliteration = useSelector((state) => state.isTransliteration);
   const fontSize = useSelector((state) => state.fontSize);
-  const fontFace = useSelector((state) => state.fontFace);
   const baniFontFace = useSelector((state) => state.baniFontFace);
   const isLarivaar = useSelector((state) => state.isLarivaar);
   const isLarivaarAssist = useSelector((state) => state.isLarivaarAssist);
@@ -59,7 +77,11 @@ const Reader = ({ navigation, route }) => {
   const webViewRef = useRef(null);
   const { webView } = styles;
   const { title, id, titleUni } = route.params.params || {};
-  const [isHeader, toggleHeader] = useState(false);
+  // A bani OPENS with its chrome showing. It used to start hidden, so arriving
+  // on the screen gave no header and no bottom navigation until you tapped —
+  // there was nothing on screen to tell you a tap would bring them back. The
+  // idle timer still hides them once you settle into reading.
+  const [isHeader, toggleHeader] = useState(true);
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());
@@ -242,11 +264,33 @@ const Reader = ({ navigation, route }) => {
     );
   }, [navChromeHeight, webViewLoadTick]);
 
+  // The header title, resolved the SAME way the bani list resolves its rows.
+  //
+  // It used to show the ASCII-mapped `gurmukhi` name whenever the bani font was
+  // anything but Baloo, and for many banis that name is an abbreviation — the
+  // list said "ਜਪੁਜੀ ਸਾਹਿਬ" while the Reader header said "ਜਪੁਜੀ". The Unicode
+  // name is the full one, so it is preferred outright and the ASCII name is
+  // converted when no Unicode name exists.
+  //
+  // This is header CHROME, not bani content: it renders in the header face like
+  // every other screen's title rather than in the user's chosen bani font, which
+  // is what made the ASCII form necessary in the first place.
+  // Resolved the SAME way the bani list resolves its rows, and rendered in the
+  // header face rather than the user's bani font.
+  //
+  // Not font-dependent. The old form fell back to the ASCII name whenever the
+  // bani font was not Baloo, and the ASCII name is the abbreviated one for many
+  // banis — so the header read "ਜਪੁਜੀ" where the list read "ਜਪੁਜੀ ਸਾਹਿਬ".
+  //
+  // The other half of this lives at the CALLERS: every screen that opens the
+  // Reader must hand over a proper name. The dashboard's Continue and Explore
+  // tiles used to pass the server's abbreviated `bani_title`, and because those
+  // tiles only appear ONCE A BANI HAS BEEN READ, the header looked correct for
+  // the first opening or two and then truncated — the later opens were coming
+  // from a different screen.
   useEffect(() => {
-    // Handle undefined titleUni gracefully - fallback to title if titleUni is not available
-    const displayTitle = fontFace === constant.BALOO_PAAJI ? titleUni || title : title;
-    setTitleText(displayTitle);
-  }, [fontFace, titleUni, title]);
+    setTitleText(titleUni || convertToUnicode(title));
+  }, [titleUni, title]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -287,6 +331,7 @@ const Reader = ({ navigation, route }) => {
       if (webViewRef.current && currentElementIdRef.current) {
         const scrollMessage = {
           action: "scrollToPosition",
+          topInset: headerOverlayHeight,
           elementId: currentElementIdRef.current,
           sequence: currentSequenceRef.current,
         };
@@ -497,6 +542,7 @@ const Reader = ({ navigation, route }) => {
     if (webViewRef.current && currentElementIdRef.current) {
       const scrollMessage = {
         action: "scrollToPosition",
+        topInset: headerOverlayHeight,
         elementId: currentElementIdRef.current,
         sequence: currentSequenceRef.current,
       };
@@ -549,7 +595,7 @@ const Reader = ({ navigation, route }) => {
         handleBookmarkPress={handleBookmarkPress}
         isHeader={isHeader}
       />
-      {isLoading && <ActivityIndicator size="small" color={theme.colors.primary} />}
+      {isLoading && <ActivityIndicator size="small" color={theme.c.primary} />}
       {/* Don't mount the WebView until the shabad has loaded. Mounting on the
           initial empty shabad ([]) renders a placeholder page whose height equals
           the viewport, which the "not scrollable" check misreads as a completed
@@ -611,6 +657,7 @@ const Reader = ({ navigation, route }) => {
       )}
       {isAutoScroll && (
         <View
+          testID="auto-scroll-bar-wrapper"
           style={[
             styles.autoScrollFixedView,
             {

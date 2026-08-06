@@ -16,7 +16,7 @@ const TrackItem = ({ track, selectedTrack, handleSelectTrack }) => {
       style={[
         styles.trackItem,
         {
-          backgroundColor: theme.colors.overlay,
+          backgroundColor: theme.c.surfaceSelected,
         },
         selectedTrack && track.id === selectedTrack?.id && styles.selectedTrackItem,
       ]}
@@ -27,7 +27,7 @@ const TrackItem = ({ track, selectedTrack, handleSelectTrack }) => {
         style={[
           styles.trackName,
           {
-            color: theme.colors.audioPlayer,
+            color: theme.c.textPrimary,
           },
           selectedTrack && track.id === selectedTrack.id && styles.selectedTrackName,
         ]}
@@ -39,8 +39,8 @@ const TrackItem = ({ track, selectedTrack, handleSelectTrack }) => {
         size={30}
         color={
           selectedTrack && selectedTrack.id === track.id
-            ? theme.staticColors.WHITE_COLOR
-            : theme.colors.audioPlayer
+            ? theme.c.onPrimary
+            : theme.c.textBrand
         }
       />
     </Pressable>

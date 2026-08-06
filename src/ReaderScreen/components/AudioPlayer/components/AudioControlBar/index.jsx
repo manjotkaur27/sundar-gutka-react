@@ -179,9 +179,9 @@ const AudioControlBar = ({
 
   // Memoize slider color to avoid recalculating on every render
   const sliderMinTrackColor = useMemo(() => {
-    if (!isAudioEnabled) return theme.staticColors.LIGHT_GRAY;
-    return theme.colors.primary;
-  }, [isAudioEnabled, theme.staticColors.LIGHT_GRAY, theme.colors.primary]);
+    if (!isAudioEnabled) return theme.c.border;
+    return theme.c.textBrand;
+  }, [isAudioEnabled, theme.c.border, theme.c.textBrand]);
 
   useEffect(() => {
     // Avoid showing stale duration from a previous track while new metadata is loading.
@@ -623,9 +623,9 @@ const AudioControlBar = ({
         {Platform.OS === "ios" && (
           <BlurView
             style={styles.blurOverlay}
-            blurType={theme.mode === "dark" ? "dark" : "light"}
+            blurType={theme.chrome.blurType}
             blurAmount={5}
-            reducedTransparencyFallbackColor={theme.colors.transparentOverlay}
+            reducedTransparencyFallbackColor={theme.c.surface}
           />
         )}
         {/* Top Control Bar */}
@@ -648,12 +648,12 @@ const AudioControlBar = ({
                 style={styles.controlIcon}
                 onPress={() => setIsMinimized(true)}
               >
-                <ExpandCollapseIcon size={26} color={theme.colors.audioTitleText} />
+                <ExpandCollapseIcon size={26} color={theme.c.textBrand} />
               </Pressable>
             )}
             {actionItems.map((item) => (
               <Pressable key={item.id} style={styles.controlIcon} onPress={item.onPress}>
-                <item.Icon size={30} color={theme.colors.audioTitleText} />
+                <item.Icon size={30} color={theme.c.textBrand} />
               </Pressable>
             ))}
           </View>
@@ -729,13 +729,13 @@ const AudioControlBar = ({
                 <ActivityIndicator
                   testID="player-action-loading-indicator"
                   size="small"
-                  color={theme.colors.audioTitleText}
+                  color={theme.c.textBrand}
                   style={styles.playButtonLoadingSpinner}
                 />
               ) : isPlaying ? (
-                <PauseIcon size={30} color={theme.colors.audioTitleText} />
+                <PauseIcon size={30} color={theme.c.textBrand} />
               ) : (
-                <PlayIcon size={30} color={theme.colors.audioTitleText} />
+                <PlayIcon size={30} color={theme.c.textBrand} />
               )}
             </Pressable>
 
@@ -743,7 +743,7 @@ const AudioControlBar = ({
               <View style={styles.progressBar}>
                 {isSeekLoading && (
                   <View style={styles.seekLoadingOverlay} testID="seek-loading-indicator">
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                    <ActivityIndicator size="small" color={theme.c.textBrand} />
                   </View>
                 )}
                 <Slider
@@ -752,12 +752,13 @@ const AudioControlBar = ({
                   maximumValue={sliderMax}
                   onSlidingComplete={handleSliderSeekComplete}
                   minimumTrackTintColor={sliderMinTrackColor}
-                  maximumTrackTintColor={theme.staticColors.SLIDER_TRACK_COLOR}
+                  maximumTrackTintColor={theme.c.surfaceSelected}
                   disabled={!isAudioEnabled || isSeekLoading}
                   trackStyle={{
                     height: 6,
                     borderRadius: 3,
                   }}
+                  thumbTintColor={sliderMinTrackColor}
                   thumbStyle={{
                     width: 10,
                     height: 10,

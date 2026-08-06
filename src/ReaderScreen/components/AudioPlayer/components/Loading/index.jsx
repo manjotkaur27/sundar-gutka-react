@@ -8,7 +8,7 @@ const Loading = () => {
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <ActivityIndicator size="large" color={theme.c.textBrand} />
     </View>
   );
 };

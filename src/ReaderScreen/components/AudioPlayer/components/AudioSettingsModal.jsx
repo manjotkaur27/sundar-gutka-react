@@ -62,7 +62,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRa
                     {STRINGS.SYNC_UNAVAILABLE}
                   </CustomText>
                 ) : setting.disabled && isLyricsChecking ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <ActivityIndicator size="small" color={theme.c.textBrand} />
                 ) : (
                   <ThemedSwitch
                     value={setting.defaultValue}
@@ -84,7 +84,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRa
               onPress={() => handleSpeedChange(audioPlaybackSpeed - 0.1)}
               disabled={audioPlaybackSpeed <= 0.5}
             >
-              <MinusIcon size={24} color={theme.colors.audioSettingsModalText} />
+              <MinusIcon size={24} color={theme.c.textSecondary} />
             </Pressable>
             <CustomText style={styles.settingValueText}>
               {audioPlaybackSpeed.toFixed(1)}x
@@ -95,7 +95,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRa
               onPress={() => handleSpeedChange(audioPlaybackSpeed + 0.1)}
               disabled={audioPlaybackSpeed > 1.6}
             >
-              <PlusIcon size={24} color={theme.colors.audioSettingsModalText} />
+              <PlusIcon size={24} color={theme.c.textSecondary} />
             </Pressable>
           </View>
         </View>
@@ -105,7 +105,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRa
         <View style={styles.divider} />
         <Pressable style={styles.modalContainer} onPress={() => navigate("ManageDownloads")}>
           <CustomText style={styles.settingItemTitle}>{STRINGS.MANAGE_DOWNLOADS}</CustomText>
-          <ChevronRight size={22} color={theme.colors.audioSettingsModalText} />
+          <ChevronRight size={22} color={theme.c.textSecondary} />
         </Pressable>
       </View>
     </ScrollView>

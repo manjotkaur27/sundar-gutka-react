@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { View, Animated, Pressable } from "react-native";
-import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
+import useTokens from "@common/hooks/useTokens";
 import { BackArrowIcon, BookmarkIcon } from "@common/icons";
 import { CustomText, useTheme, useThemedStyles, GradientDivider } from "@common";
 import createStyles from "../styles";
@@ -9,7 +9,15 @@ import createStyles from "../styles";
 const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const fontFace = useSelector((state) => state.fontFace);
+  // The SAME resolved numbers the shared ScreenHeader uses.
+  //
+  // `useThemedStyles` hands `createStyles` the RAW theme, while ScreenHeader
+  // reads `useTokens`, which scales layout for the device width and OS font
+  // size. `minHeight` is a container key, so the shared header's row grew with
+  // the font setting and this one did not — the title centred in a taller box
+  // sat lower there than here, which is the last way the two disagreed. Taking
+  // the resolved value directly makes them the same number by construction.
+  const { layout } = useTokens();
   const animationPosition = useRef(new Animated.Value(0)).current;
 
   const headerLeft = () => (
@@ -18,7 +26,7 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
         handleBackPress();
       }}
     >
-      <BackArrowIcon size={25} color={theme.colors.primaryHeaderVariant} />
+      <BackArrowIcon size={25} color={theme.c.headerFg} />
     </Pressable>
   );
 
@@ -28,7 +36,7 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
         handleBookmarkPress();
       }}
     >
-      <BookmarkIcon size={25} color={theme.colors.primaryHeaderVariant} />
+      <BookmarkIcon size={25} color={theme.c.headerFg} />
     </Pressable>
   );
 
@@ -79,12 +87,12 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
       pointerEvents="box-none" // Ensure touch events pass through
     >
       <View style={styles.headerStyle} pointerEvents="auto">
-        <View style={styles.headerWrapper}>
+        <View style={[styles.headerWrapper, { minHeight: layout.header.minHeight }]}>
           <View style={styles.headerLeft}>{headerLeft()}</View>
           <View style={styles.headerCenter}>
-            <CustomText style={[styles.headerTitleStyle, { fontFamily: fontFace }]}>
-              {title}
-            </CustomText>
+            {/* Header chrome, so the header face — NOT the user's bani font.
+                The title is the Unicode name, which Baloo renders correctly. */}
+            <CustomText style={styles.headerTitleStyle}>{title}</CustomText>
           </View>
           <View style={styles.headerRight}>{headerRight()}</View>
         </View>

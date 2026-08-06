@@ -62,16 +62,14 @@ const ScrollViewComponent = ({
     // Offline + not downloaded → greyed out and non-interactive.
     const unavailableOffline = isOffline && !downloaded;
     const isSelected = selectedTrack && track.id === selectedTrack.id;
-    const rightIconColor = isSelected ? theme.staticColors.WHITE_COLOR : theme.colors.audioPlayer;
+    const rightIconColor = isSelected ? theme.c.onPrimary : theme.c.textBrand;
     return (
       <Pressable
         key={track.id}
         style={[
           styles.trackItem,
           {
-            backgroundColor: theme.colors.trackBackgroundColor,
-            borderColor: theme.mode === "dark" ? theme.staticColors.NIGHT_BLACK : "transparent",
-            borderWidth: TRACK_ROW_BORDER_WIDTH,
+            backgroundColor: theme.c.accentSubtle,
           },
           selectedTrack && track.id === selectedTrack?.id && styles.selectedTrackItem,
           unavailableOffline && styles.trackItemDisabled,
@@ -97,7 +95,7 @@ const ScrollViewComponent = ({
           style={[
             styles.trackName,
             {
-              color: theme.colors.audioTitleText,
+              color: theme.c.textPrimary,
             },
             selectedTrack && track.id === selectedTrack.id && styles.selectedTrackName,
           ]}
@@ -113,7 +111,7 @@ const ScrollViewComponent = ({
               name="offline-pin"
               type="material"
               size={20}
-              color={isSelected ? theme.staticColors.WHITE_COLOR : theme.colors.primary}
+              color={isSelected ? theme.c.onPrimary : theme.c.textBrand}
             />
           )}
           {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
@@ -133,7 +131,7 @@ const ScrollViewComponent = ({
       style={styles.trackList}
       contentContainerStyle={styles.trackListContent}
       showsVerticalScrollIndicator
-      indicatorStyle={theme.mode === "dark" ? "white" : "black"}
+      indicatorStyle={theme.chrome.scrollIndicator}
       nestedScrollEnabled
     >
       {downloadedTracks.length > 0 && (

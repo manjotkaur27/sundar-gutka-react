@@ -484,9 +484,9 @@ const AudioTrackDialog = ({
         {Platform.OS === "ios" && (
           <BlurView
             style={styles.blurOverlay}
-            blurType={theme.mode === "dark" ? "dark" : "light"}
+            blurType={theme.chrome.blurType}
             blurAmount={10}
-            reducedTransparencyFallbackColor={theme.colors.transparentOverlay}
+            reducedTransparencyFallbackColor={theme.c.surface}
           />
         )}
 
@@ -499,7 +499,7 @@ const AudioTrackDialog = ({
             onCloseTrackModal();
           }}
         >
-          <CloseIcon size={30} color={theme.colors.audioTitleText} />
+          <CloseIcon size={30} color={theme.c.textBrand} />
         </Pressable>
 
         {isHeader && tracks.length > 0 && (
@@ -546,14 +546,14 @@ const AudioTrackDialog = ({
               {isNextLoading && (
                 <ActivityIndicator
                   size="small"
-                  color={theme.staticColors.WHITE_COLOR}
+                  color={theme.c.onPrimary}
                   style={styles.nextLoadingSpinner}
                 />
               )}
               <CustomText style={styles.playButtonText}>
                 {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}
               </CustomText>
-              <ArrowRightIcon size={24} color={theme.staticColors.WHITE_COLOR} />
+              <ArrowRightIcon size={24} color={theme.c.onPrimary} />
             </Pressable>
           </View>
         )}

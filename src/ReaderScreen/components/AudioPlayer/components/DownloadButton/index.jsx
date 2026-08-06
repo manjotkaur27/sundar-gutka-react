@@ -173,8 +173,17 @@ const DownloadButton = ({ track = null, baniTitle = "", baniNameUni = "", baniId
 
   if (!track?.audioUrl) return null;
 
-  const primary = theme.colors.primary;
-  const mutedIcon = theme.colors.audioTitleText;
+  // Every download state — idle, downloading, downloaded, waiting, offline —
+  // draws in the one interactive blue, so the control keeps a single identity as
+  // it changes state.
+  //
+  // `textBrand`, NOT `primary`. `primary` is brand chrome and stays navy in both
+  // themes, which is right behind white on the bottom bar but measures about
+  // 1.3:1 on the dark Reader ground — these icons were all but invisible there.
+  // `textBrand` is the role that stays navy in light mode and lifts to the
+  // bright blue in dark, which is exactly "the primary blue of each mode".
+  const primary = theme.c.textBrand;
+  const mutedIcon = theme.c.textBrand;
   const HIT = { top: 8, bottom: 8, left: 8, right: 8 };
 
   // ── COMPLETED ──────────────────────────────────────────────────────────────
@@ -253,7 +262,7 @@ const DownloadButton = ({ track = null, baniTitle = "", baniNameUni = "", baniId
           }
         }}
       >
-        <Icon name="error-outline" type="material" size={22} color="#D32F2F" />
+        <Icon name="error-outline" type="material" size={22} color={theme.c.error} />
       </Pressable>
     );
   }

@@ -16,6 +16,12 @@ jest.mock("@common/context", () => ({
   default: () => ({
     theme: {
       mode: "light",
+      // Native-prop enums that the theme decides. This suite stubs `@common`,
+      // so it cannot require the real theme (which reads `constant` for its
+      // font names) and states them directly instead.
+      chrome: { statusBarStyle: "dark-content", scrollIndicator: "black", blurType: "light" },
+      c: require("@theme/semanticColors").light,
+
       colors: {
         primary: "#123456",
         audioPlayer: "#654321",

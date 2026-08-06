@@ -100,8 +100,15 @@ jest.mock("./hooks", () => ({
 }));
 
 // Mock theme + styles
+// Built ON the real theme, not hand-rolled beside it. A mock that lists its own
+// keys silently goes stale the moment the theme grows one — the styles then read
+// `undefined` in the app while every test here still passes. The overrides below
+// are deliberate; everything else comes from the real object.
 const mockTheme = {
+  ...require("@theme/lightTheme").default,
   mode: "light",
+  c: require("@theme/semanticColors").light,
+
   colors: {
     surface: "#FFFFFF",
     primary: "#123456",
@@ -163,12 +170,27 @@ jest.mock("@common/hooks/useThemedStyles", () => {
 });
 
 // Mock @common exports
+// Name resolution is the bani list's job, not this screen's. Stubbed so these
+// tests do not drag the database layer in behind it; the title assertions below
+// exercise the ROUTE fallback, and a dedicated test covers the lookup winning.
+let mockNameOf = () => null;
+jest.mock("@common/hooks/useBaniLookup", () => ({
+  __esModule: true,
+  default: () => ({ map: {}, nameOf: (...args) => mockNameOf(...args) }),
+}));
+
 jest.mock("@common", () => ({
+  // The header title is resolved through this, the same way the bani list
+  // resolves its rows. Identity is enough here — the tests assert which title
+  // is chosen, not how the script is converted.
+  convertToUnicode: (value) => value,
   constant: {
     READER: "READER",
     BOOKMARKS: "BOOKMARKS",
     BALOO_PAAJI: "BalooPaaji2-Regular",
   },
+  c: require("@theme/semanticColors").light,
+
   colors: {
     VISHRAM_SHORT: "#FF0000",
   },
@@ -601,15 +623,29 @@ describe("Reader", () => {
     mockState.isAutoScroll = true;
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
-    // The auto-scroll bar is only shown (display: flex) when the bars are
-    // visible. Tap detection now lives in the WebView's injected JS, which posts
-    // a "toggle" message — simulate that to reveal the bar.
+    // A bani OPENS with its chrome showing, so the auto-scroll bar is there
+    // straight away. It used to open hidden, and this test had to simulate a tap
+    // to reveal it — which left nothing on screen to tell a new reader that a
+    // tap was what brought the controls back.
+    expect(getByTestId("auto-scroll-component")).toBeTruthy();
+  });
+
+  it("hides the chrome when the reader taps the page", () => {
+    mockState.isAutoScroll = true;
+    const { getByTestId, queryByTestId } = render(
+      <Reader navigation={mockNavigation} route={mockRoute} />
+    );
+    expect(queryByTestId("auto-scroll-component")).toBeTruthy();
+
+    // Tap detection lives in the WebView's injected JS, which posts "toggle".
     const webview = getByTestId("webview");
     act(() => {
       webview.props.onMessage({ nativeEvent: { data: "toggle" } });
     });
 
-    expect(getByTestId("auto-scroll-component")).toBeTruthy();
+    // The wrapper stays mounted but is display:none, which the query layer
+    // treats as hidden — the same thing the reader sees.
+    expect(queryByTestId("auto-scroll-component")).toBeNull();
   });
 
   it("restores saved position on mount", async () => {
@@ -821,4 +857,48 @@ afterAll(() => {
   if (appStateSpy) {
     appStateSpy.mockRestore();
   }
+});
+
+// The header title is the FULL name, whatever route opened the Reader and
+// whatever bani font is set.
+//
+// Two things made it truncate, and each hid the other. The Reader fell back to
+// the ASCII name whenever the bani font was not Baloo, and that name is the
+// abbreviated one for many banis. And the dashboard Continue/Explore tiles
+// passed the server's abbreviated `bani_title` — those tiles only appear ONCE
+// A BANI HAS BEEN READ, so the header looked right for the first opening or two
+// and then truncated, because the later opens came from a different screen.
+describe("Reader header title", () => {
+  const routeFor = (params) => ({ params: { params: { id: 2, ...params } } });
+
+  it.each(["GurbaniAkharTrue", "BalooPaaji2-Regular"])(
+    "shows the full Unicode name with the %s bani font",
+    (font) => {
+      mockState.fontFace = font;
+      const route = routeFor({ title: "jpujI", titleUni: "ਜਪੁਜੀ ਸਾਹਿਬ" });
+
+      const { getByTestId } = render(<Reader navigation={mockNavigation} route={route} />);
+
+      expect(getByTestId("header-title").props.children).toBe("ਜਪੁਜੀ ਸਾਹਿਬ");
+    }
+  );
+
+  it("converts an ASCII name when no Unicode one was passed", () => {
+    const route = routeFor({ title: "jpujI", titleUni: undefined });
+
+    const { getByTestId } = render(<Reader navigation={mockNavigation} route={route} />);
+
+    // convertToUnicode is mocked to identity here; the point is that it is used
+    // rather than the raw ASCII being handed to a font that cannot draw it.
+    expect(getByTestId("header-title").props.children).toBe("jpujI");
+  });
+
+  it("does not render the title in the user's bani font", () => {
+    // Header chrome takes the header face. Tying it to the bani font is what
+    // forced the ASCII name to be used in the first place.
+    const fs2 = require("fs");
+    const path2 = require("path");
+    const header = fs2.readFileSync(path2.join(__dirname, "components/header.jsx"), "utf8");
+    expect(header).not.toMatch(/fontFamily: fontFace/);
+  });
 });

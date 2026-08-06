@@ -1,37 +1,23 @@
-import { Platform, StyleSheet } from "react-native";
+import { Platform } from "react-native";
+import { withAlpha } from "@theme/colorUtils";
 import { constant } from "@common";
 
-const SHADOW = {
-  light: {
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 1.5,
-    elevation: 1,
-  },
-  medium: {
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-};
-
-// Light, "electric" blue glow for the minimized player in light mode (replaces
-// the black elevation shadow Android was drawing as a square). It must read as a
-// soft halo, not a hard outline: a faint translucent light-blue hairline plus a
-// wide, soft blue shadow on iOS. elevation stays 0 so Android draws no rectangle.
-const ELECTRIC_BLUE = "#5AC8FA";
-
-const LIGHT_GLOW = (radius) => ({
-  // Translucent + hairline so it diffuses into a glow rather than a solid border.
-  borderWidth: StyleSheet.hairlineWidth,
-  borderColor: "rgba(90, 200, 250, 0.45)",
-  shadowColor: ELECTRIC_BLUE,
-  shadowOffset: { width: 0, height: 0 },
-  shadowOpacity: Platform.OS === "ios" ? 0.9 : 0,
-  shadowRadius: radius,
-  elevation: 0,
-});
+// Depth here is the SHARED elevation scale, the same one the Dashboard cards
+// use: theme.elevation.{card,raised,overlay} paired with c.surface.
+//
+// This file used to carry two depth systems of its own. A local SHADOW map
+// whose "light" preset was shadowOpacity 0.04 / elevation 1 -- effectively
+// invisible -- and a bespoke coloured glow halo. Light mode's surface is the
+// same white as the Reader page behind it, so that invisible shadow left the
+// player with nothing separating it from the page, while dark mode separated
+// perfectly well on its surface ladder. The two modes disagreed for no reason.
+//
+// The fill is `surface` — the SAME grey as a Settings or Dashboard card, so the
+// player belongs to the same family rather than floating a step lighter than
+// everything around it. Separation is then carried the way a card carries it:
+// a real shadow in light mode, where surface is the same white as the Reader
+// page, and the surface/background step in dark mode, where a black shadow
+// would be invisible and the presets zero out.
 
 const createStyles = (theme) => ({
   mainContainer: {
@@ -41,7 +27,7 @@ const createStyles = (theme) => ({
     right: 0,
     borderRadius: theme.borderRadius.sm,
     margin: theme.spacing.md_12,
-    ...SHADOW.light,
+    ...theme.elevation.raised,
   },
 });
 
@@ -53,8 +39,6 @@ export const audioControlBarStyles = (theme) => ({
     right: 0,
     top: 0,
     borderRadius: theme.borderRadius.md,
-    borderColor: theme.colors.separator,
-    borderWidth: 1,
     overflow: "hidden",
   },
   container: {
@@ -69,16 +53,10 @@ export const audioControlBarStyles = (theme) => ({
     marginLeft: "auto",
     marginRight: "auto",
     borderRadius: theme.borderRadius.md,
-    borderColor: theme.colors.separator,
-    borderWidth: 1,
-    ...SHADOW.light,
+    ...theme.elevation.raised,
     // Android draws the elevation shadow as a RECTANGLE (ignoring borderRadius)
-    // unless the background is fully opaque — the 0.95-alpha transparentOverlay
-    // was leaving a square behind the rounded bar in light mode. Use an opaque
-    // surface on Android; iOS keeps the translucent overlay (its BlurView sits on
-    // top and its shadow already clips to the rounded shape).
-    backgroundColor:
-      Platform.OS === "android" ? theme.colors.surface : theme.colors.transparentOverlay,
+    // unless the background is fully opaque, so this stays an opaque surface.
+    backgroundColor: theme.c.surface,
   },
 
   minimizePlayerAnimation: {
@@ -93,8 +71,12 @@ export const audioControlBarStyles = (theme) => ({
   minimizePlayerAnimationActive: {
     zIndex: 1,
   },
+  // The player is ONE surface: the bar, the full player, the expansion behind
+  // Audios/Options and the settings panel all take `surface`. Splitting them
+  // across two roles is invisible in light mode, where both resolve to the same
+  // white, but in dark mode it drew the expansion as a slab of a different grey.
   modalAnimation: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.c.surface,
     overflow: "hidden",
     justifyContent: "center",
     zIndex: 1,
@@ -110,11 +92,11 @@ export const audioControlBarStyles = (theme) => ({
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.lg,
     textAlign: "center",
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     marginBottom: theme.spacing.sm,
   },
   timestampWithColor: {
-    color: theme.colors.audioPlayer,
+    color: theme.c.textPrimary,
   },
   topControlBar: {
     flexDirection: "row",
@@ -168,7 +150,7 @@ export const audioControlBarStyles = (theme) => ({
   },
   separator: {
     height: 2,
-    backgroundColor: theme.colors.separator,
+    backgroundColor: theme.c.border,
     zIndex: 1,
   },
   mainSection: {
@@ -191,7 +173,7 @@ export const audioControlBarStyles = (theme) => ({
   trackName: {
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
   },
   trackInfoText: {
     fontSize: theme.typography.sizes.md,
@@ -237,15 +219,15 @@ export const audioControlBarStyles = (theme) => ({
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 2,
     borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.c.surface,
     alignItems: "center",
     justifyContent: "center",
   },
 });
 
-// Border drawn around every artist row. Shared with the preview sweep, which
-// has to cancel it out to cover the whole pill.
-export const TRACK_ROW_BORDER_WIDTH = 1;
+// No border on a track row. Kept as a constant because the preview sweep is
+// positioned by its negative, so the two can never fall out of step.
+export const TRACK_ROW_BORDER_WIDTH = 0;
 
 export const audioTrackDialogStyles = (theme) => ({
   modalWrapper: {
@@ -271,8 +253,6 @@ export const audioTrackDialogStyles = (theme) => ({
     padding: theme.spacing.lg,
     gap: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.staticColors.TRACK_COLOR,
     width: "95%",
     marginLeft: "auto",
     marginRight: "auto",
@@ -283,7 +263,7 @@ export const audioTrackDialogStyles = (theme) => ({
   containerIOS: {
     // Fallback tint under the BlurView so the card is never fully see-through
     // (e.g. when reduce-transparency is enabled and the blur renders solid).
-    backgroundColor: theme.colors.transparentOverlay,
+    backgroundColor: theme.c.surface,
   },
   containerAndroid: {
     // Android has no BlurView compositing over this card (that's iOS-only, see
@@ -292,7 +272,7 @@ export const audioTrackDialogStyles = (theme) => ({
     // strip wherever it overlapped the system nav bar when not hidden. Use a
     // fully opaque surface on Android, matching the same fix already applied to
     // AudioControlBar's mainContainer for the identical reason.
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.c.surface,
   },
   header: {
     alignItems: "center",
@@ -309,7 +289,7 @@ export const audioTrackDialogStyles = (theme) => ({
     fontFamily: constant.BALOO_PAAJI_SEMI_BOLD,
     fontSize: theme.typography.sizes.xxl,
     textAlign: "center",
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     // Reserve room on BOTH sides for the absolutely-positioned close (X) button
     // (icon 30 + right inset) so the centered title never slides under it in
     // longer translations (e.g. Italian/German) — symmetric so it stays centred
@@ -321,19 +301,19 @@ export const audioTrackDialogStyles = (theme) => ({
     fontFamily: constant.BALOO_PAAJI,
     fontSize: theme.typography.sizes.lg,
     textAlign: "center",
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
   },
   previewHintText: {
     marginTop: theme.spacing.xs,
     fontFamily: constant.BALOO_PAAJI,
     fontSize: theme.typography.sizes.md,
     textAlign: "center",
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     opacity: 0.85,
   },
   offlineBanner: {
     alignSelf: "stretch",
-    backgroundColor: theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+    backgroundColor: theme.c.fillSubtle,
     borderRadius: theme.borderRadius.lg,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
@@ -344,7 +324,7 @@ export const audioTrackDialogStyles = (theme) => ({
     fontFamily: constant.BALOO_PAAJI,
     fontSize: theme.typography.sizes.md,
     textAlign: "center",
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     opacity: 0.9,
   },
   trackList: {
@@ -355,7 +335,7 @@ export const audioTrackDialogStyles = (theme) => ({
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.semibold,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     opacity: 0.6,
     marginTop: theme.spacing.xs,
     marginBottom: theme.spacing.xs,
@@ -374,14 +354,11 @@ export const audioTrackDialogStyles = (theme) => ({
     paddingHorizontal: theme.spacing.xl_20,
     marginBottom: theme.spacing.md,
     marginRight: 2,
-    // borderWidth: 2,
-    borderColor: "transparent",
     minHeight: 36, // Consistent height for Android
   },
   selectedTrackItem: {
-    backgroundColor: theme.colors.primary,
-    color: theme.staticColors.WHITE_COLOR,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
+    color: theme.c.onPrimary,
   },
   // Right-hand group of each artist row: optional offline tick + play/stop icon.
   trackItemRight: {
@@ -397,7 +374,7 @@ export const audioTrackDialogStyles = (theme) => ({
     flex: 1,
   },
   selectedTrackName: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
   },
   // Offline + not downloaded: greyed and non-interactive.
   trackItemDisabled: {
@@ -410,7 +387,7 @@ export const audioTrackDialogStyles = (theme) => ({
     justifyContent: "flex-end",
   },
   playButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
     borderRadius: theme.borderRadius.lg,
     paddingVertical: theme.spacing.md_12,
     paddingHorizontal: theme.spacing.xl,
@@ -425,7 +402,7 @@ export const audioTrackDialogStyles = (theme) => ({
     overflow: "hidden",
   },
   playButtonText: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
     marginRight: theme.spacing.md,
@@ -463,7 +440,7 @@ export const audioTrackDialogStyles = (theme) => ({
   // name that sits on top of it.
   previewSweepFill: {
     height: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    backgroundColor: withAlpha(theme.c.onPrimary, 0.22),
   },
 });
 
@@ -475,7 +452,7 @@ export const downloadBadgeStyles = (theme) => ({
     borderTopLeftRadius: theme.borderRadius.xl,
     borderTopRightRadius: theme.borderRadius.xl,
     marginRight: theme.spacing.xl_20,
-    backgroundColor: theme.colors.separator,
+    backgroundColor: theme.c.border,
     // Size to the content (icon + label) instead of a fixed 35%, so longer
     // localized strings ("Téléchargement en cours", etc.) don't overflow.
     // maxWidth keeps it from spanning the whole player on small screens.
@@ -500,7 +477,7 @@ export const downloadBadgeStyles = (theme) => ({
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.light,
-    color: theme.colors.primaryHeaderVariant,
+    color: theme.c.headerFg,
     flexShrink: 1,
     minWidth: 0,
   },
@@ -533,31 +510,8 @@ export const minimizePlayerStyles = (theme) => ({
     paddingHorizontal: theme.spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.colors.surface,
-    ...SHADOW.medium,
-    // Dark mode: no shadow at all. A shadow has too little contrast against the
-    // dark bani to read as depth, and colouring it light turns it into a halo
-    // rather than a lift. Elevation is expressed the way Material does on dark
-    // surfaces instead — a lighter surface plus a hairline edge.
-    // The cast shadow also rendered inconsistently across the supported range:
-    // shadowColor only tints Android's elevation shadow from API 28, so the
-    // same pill glowed white on Android 9+ and drew a plain (invisible) black
-    // shadow on API 24-27. shadowOpacity/Radius are iOS-only throughout.
-    // Light mode: the black elevation shadow rendered as a square — replace it
-    // with a soft, light electric-blue glow halo.
-    ...(theme.mode === "dark"
-      ? {
-          backgroundColor: theme.colors.surfaceElevated,
-          // Explicit zeroes: SHADOW.medium above sets elevation 4 and an
-          // offset, which would otherwise still cast on both platforms.
-          shadowOpacity: 0,
-          shadowRadius: 0,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 0,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: "rgba(255, 255, 255, 0.16)",
-        }
-      : LIGHT_GLOW(12)),
+    backgroundColor: theme.c.surface,
+    ...theme.elevation.raised,
   },
   progressContainer: {
     width: 28,
@@ -602,7 +556,7 @@ export const minimizePlayerStyles = (theme) => ({
     // Tight line box (≈ font size) strips the font's bottom leading, which is the
     // main source of the gap down to the artist name below.
     lineHeight: theme.typography.sizes.sm + 2,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     opacity: 0.7,
     includeFontPadding: false,
     textAlignVertical: "center",
@@ -615,7 +569,7 @@ export const minimizePlayerStyles = (theme) => ({
     // the name look stuck together; -1.5 gives back ~2px of breathing room
     // without letting the pair drift apart. Do not push this below ~-2 again.
     lineHeight: theme.typography.sizes.md + 2,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     marginTop: -1.5,
     includeFontPadding: false,
     textAlignVertical: "center",
@@ -627,7 +581,7 @@ export const audioSettingModalStyles = (theme) => ({
     width: "95%",
     marginLeft: "auto",
     marginRight: "auto",
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.c.surface,
     padding: theme.spacing.md,
   },
   settingItemTitle: {
@@ -635,12 +589,17 @@ export const audioSettingModalStyles = (theme) => ({
     marginRight: theme.spacing.md,
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
-    color: theme.colors.audioSettingsModalText,
+    // A row's LABEL, so it takes the same near-black/near-white every other
+    // label in the app uses. It read as `textSecondary` grey, which made these
+    // rows look disabled beside the identical rows on the Settings screen.
+    // Only the value and the helper line below stay secondary, matching how a
+    // Settings row weights its title against its value.
+    color: theme.c.textPrimary,
   },
   settingValueText: {
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
-    color: theme.colors.audioSettingsModalText,
+    color: theme.c.textSecondary,
   },
   switchStyle: Platform.select({
     android: { transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }] },
@@ -672,12 +631,12 @@ export const audioSettingModalStyles = (theme) => ({
   },
   divider: {
     height: 1,
-    backgroundColor: theme.colors.separator,
+    backgroundColor: theme.c.border,
   },
   settingHelperText: {
     fontSize: theme.typography.sizes.sm,
     fontFamily: theme.typography.fonts.balooPaaji,
-    color: theme.colors.textDisabled,
+    color: theme.c.textSecondary,
   },
   settingHelperTextContainer: {
     flexDirection: "row",

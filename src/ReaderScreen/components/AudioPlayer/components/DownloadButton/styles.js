@@ -26,11 +26,11 @@ export const createStyles = (theme) => ({
   label: {
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.xs ?? 11,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     flexShrink: 1,
   },
   errorLabel: {
-    color: theme.colors.error ?? '#D32F2F',
+    color: theme.c.error,
   },
   pulseDot: {
     width: 8,

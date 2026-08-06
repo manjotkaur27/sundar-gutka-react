@@ -142,9 +142,22 @@ const MinimizePlayer = ({
     textWidthRef.current = textWidth;
   }, [textWidth]);
 
+  // Pausing from the circle opens the full player; resuming changes nothing but
+  // the playback state.
+  //
+  // Pausing is the point at which someone wants the controls — to scrub, change
+  // track or close — so the full player comes to them rather than making them
+  // hunt for it. Resuming is the opposite: they are settling back into
+  // listening, so the player must not grow, expand or move under them.
   const onPlayPausePress = () => {
+    const wasPlaying = isPlaying;
     handlePlayPause();
-    if (isExpanded) armCollapse();
+    if (wasPlaying) {
+      setIsMinimized(false);
+      return;
+    }
+    // Resuming: leave the pill exactly as it is. Re-arming the collapse timer
+    // here is what made it flip back to the pill form on resume.
   };
 
   // Widest the text panel may be before the expanded pill would run off-screen.
@@ -351,9 +364,7 @@ const MinimizePlayer = ({
             cx={circleSize / 2}
             cy={circleSize / 2}
             r={radius}
-            stroke={
-              theme.mode === "dark" ? "rgba(255,255,255,0.22)" : theme.staticColors.TERTIARY_COLOR
-            }
+            stroke={theme.c.border}
             strokeWidth={strokeWidth}
             fill="transparent"
           />
@@ -362,7 +373,7 @@ const MinimizePlayer = ({
             cx={circleSize / 2}
             cy={circleSize / 2}
             r={radius}
-            stroke={theme.colors.primary}
+            stroke={theme.c.textBrand}
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeDasharray={circumference}
@@ -375,9 +386,9 @@ const MinimizePlayer = ({
             audioTitleText = white-ish (#BED2F2) in dark, brand blue in light. */}
         <View style={styles.playPauseButton}>
           {isPlaying ? (
-            <PauseIcon size={metrics.iconSize} color={theme.colors.audioTitleText} />
+            <PauseIcon size={metrics.iconSize} color={theme.c.textBrand} />
           ) : (
-            <PlayIcon size={metrics.iconSize} color={theme.colors.audioTitleText} />
+            <PlayIcon size={metrics.iconSize} color={theme.c.textBrand} />
           )}
         </View>
       </Pressable>

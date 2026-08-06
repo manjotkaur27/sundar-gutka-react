@@ -8,9 +8,9 @@ const createStyles = (theme) => ({
     gap: theme.spacing.md_12,
     margin: theme.spacing.md_12,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.separator,
+    // Stands in place of the player, so it takes the player's surface — see the
+    // note in the Loading styles beside it.
+    backgroundColor: theme.c.surface,
   },
   closeButton: {
     position: "absolute",
@@ -27,25 +27,25 @@ const createStyles = (theme) => ({
   noTracksText: {
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     fontSize: theme.typography.sizes.xxl,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
   },
   noTracksSubtext: {
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     fontSize: theme.typography.sizes.xxl,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
     textAlign: "center",
   },
   titleText: {
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     fontSize: theme.typography.sizes.xxl,
-    color: theme.colors.audioTitleText,
+    color: theme.c.textPrimary,
   },
   joinMailingListButton: {
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md_12,
   },
   joinMailingListText: {
-    color: theme.colors.primary,
+    color: theme.c.link,
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
     textDecorationLine: "underline",

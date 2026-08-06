@@ -14,6 +14,7 @@ import {
   STRINGS,
 } from "@common";
 
+import { withAlpha } from "@theme/colorUtils";
 import { Slider } from "@miblanchard/react-native-slider";
 
 const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActivity = undefined }) => {
@@ -91,11 +92,13 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActi
     onActivity?.();
   }, [onActivity]);
 
-  const barBg = theme.colors.primary;
-  const textColor = theme.staticColors.WHITE_COLOR;
+  const barBg = theme.c.primary;
+  const textColor = theme.c.onPrimary;
 
   return (
-    <View style={[localStyles.outerContainer, { backgroundColor: barBg }]}>
+    <View
+      style={[localStyles.outerContainer, { backgroundColor: barBg, shadowColor: theme.c.shadow }]}
+    >
       <View style={localStyles.row}>
         {/* Play/Pause */}
         <Pressable
@@ -122,10 +125,16 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActi
               onActivity?.();
             }}
             onSlidingComplete={handleSlidingComplete}
-            thumbStyle={localStyles.sliderThumb}
+            thumbStyle={localStyles.sliderThumb}
+            // The library's own prop, NOT a backgroundColor in `thumbStyle`.
+            // It renders the thumb as { backgroundColor: thumbTintColor, ...thumbStyle },
+            // so an ARRAY passed as thumbStyle spreads to { 0: ..., 1: ... } and the
+            // colour inside it is silently dropped — leaving the default #343434,
+            // which is why the dot stayed blackish grey.
+            thumbTintColor={textColor}
             trackStyle={localStyles.sliderTrack}
             minimumTrackTintColor={textColor}
-            maximumTrackTintColor="rgba(255, 255, 255, 0.3)"
+            maximumTrackTintColor={withAlpha(theme.c.onPrimary, 0.3)}
           />
         </View>
 
@@ -145,7 +154,6 @@ const localStyles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 20,
     paddingVertical: 14,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -169,12 +177,12 @@ const localStyles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
+    // No shadow, and the fill comes from the theme at the call site.
+    //
+    // The dot and the filled track are the SAME white (`c.onPrimary`), but a
+    // black shadow under a 12pt dot darkened its edges enough that it read as a
+    // duller grey than the track it sits on. There is nothing for it to lift off
+    // either — the bar behind it is one solid fill.
   },
   currentValueText: {
     fontSize: 16,

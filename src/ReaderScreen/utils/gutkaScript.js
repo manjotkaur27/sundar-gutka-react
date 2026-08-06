@@ -494,6 +494,13 @@ ${listener}.addEventListener(
           block: "start",
           inline: "nearest"
         });
+        // The header FLOATS over the page, so "top of the viewport" is behind it.
+        // Without this the restored line landed underneath the header and the
+        // only way to see it was to scroll back up — which is what made a bani
+        // look like it had opened part-scrolled.
+        if (message.topInset) {
+          window.scrollBy(0, -message.topInset);
+        }
         // The normal scroll-progress report above is suppressed during
         // restoreScrollUntil (a restore isn't genuine reading), which also leaves
         // the visual progress bar empty despite the restored scroll position.
@@ -572,7 +579,7 @@ ${listener}.addEventListener(
         const originalMargin = element.dataset.origMargin || '';
 
         // Apply highlight
-        element.style.backgroundColor = "${theme.staticColors.HIGHLIGHT_COLOR}";
+        element.style.backgroundColor = "${theme.c.accentSubtle}";
         element.style.borderRadius = "15px";
         element.style.width = "fit-content";
 

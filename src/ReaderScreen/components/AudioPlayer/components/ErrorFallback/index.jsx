@@ -21,7 +21,7 @@ const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle 
   return (
     <View testID="error-fallback-container" style={styles.statusContainer}>
       <Pressable testID="close-button" style={styles.closeButton} onPress={handleClose}>
-        <CloseIcon size={30} color={theme.colors.audioTitleText} />
+        <CloseIcon size={30} color={theme.c.textBrand} />
       </Pressable>
       <View style={styles.noTracksContainer}>
         <CustomText style={styles.noTracksText}>{STRINGS.MAAFI_JI}</CustomText>

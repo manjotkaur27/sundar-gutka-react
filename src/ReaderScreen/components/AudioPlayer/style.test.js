@@ -1,7 +1,10 @@
-import { Platform } from "react-native";
 import darkTheme from "../../../theme/darkTheme";
 import lightTheme from "../../../theme/lightTheme";
+import errorFallbackStyles from "./components/ErrorFallback/styles";
+import loadingStyles from "./components/Loading/styles";
 import {
+  audioControlBarStyles,
+  audioSettingModalStyles,
   minimizePlayerStyles,
   audioTrackDialogStyles,
   MINIMIZED_PLAYER_FOOTPRINT,
@@ -26,28 +29,38 @@ describe("minimized audio player elevation", () => {
       expect(style.shadowOffset).toEqual({ width: 0, height: 0 });
     });
 
-    it("does not inherit the elevation from SHADOW.medium", () => {
-      // SHADOW.medium is spread in before the dark branch and sets elevation 4.
-      expect(style.elevation).not.toBe(4);
+    it("draws no Android elevation, which would be an invisible cost here", () => {
+      // The shared dark presets zero the shadow out rather than paying for a
+      // render pass nobody can see against a near-black ground.
+      expect(style.elevation).toBe(0);
     });
 
     it("never colours a shadow light, which renders as a glow not a lift", () => {
       // shadowColor tints Android's elevation shadow from API 28 only, so a
       // light value also made the pill look different above and below API 28.
-      const light = [darkTheme.staticColors.WHITE_COLOR, "#fff", "#ffffff", "#faf9f6"];
+      const light = [darkTheme.c.onPrimary, "#fff", "#ffffff", "#faf9f6"];
       if (style.shadowColor) {
         expect(light).not.toContain(String(style.shadowColor).toLowerCase());
       }
     });
 
-    it("lifts by using a surface lighter than the base surface", () => {
-      expect(style.backgroundColor).toBe(darkTheme.colors.surfaceElevated);
-      expect(style.backgroundColor).not.toBe(darkTheme.colors.surface);
+    it("uses the SAME grey as a settings or dashboard card", () => {
+      // Not `surfaceElevated`. On that role the player sat a step lighter than
+      // every card in the app, so the audio surfaces read as a separate family.
+      expect(style.backgroundColor).toBe(darkTheme.c.surface);
     });
 
-    it("keeps a hairline edge for separation", () => {
-      expect(style.borderWidth).toBeGreaterThan(0);
-      expect(style.borderColor).toBeTruthy();
+    it("still stands clear of the Reader page behind it", () => {
+      // Matching the cards must not cost the separation: the surface/background
+      // step is what carries depth here, since a black shadow is invisible.
+      expect(darkTheme.c.surface).not.toBe(darkTheme.c.background);
+    });
+
+    it("carries NO border — depth is the surface step alone", () => {
+      // These surfaces used to carry five different border treatments between
+      // them, which is what made the player look inconsistent.
+      expect(style.borderWidth).toBeFalsy();
+      expect(style.backgroundColor).toBe(darkTheme.c.surface);
     });
   });
 
@@ -59,15 +72,28 @@ describe("minimized audio player elevation", () => {
   describe("light mode", () => {
     const style = container(lightTheme);
 
-    it("keeps its elevation off so Android draws no square behind the pill", () => {
-      expect(style.elevation).toBe(0);
+    it("separates from the page with a real shadow, since the surface cannot", () => {
+      // Light mode's surface is the same white as the Reader page behind it, so
+      // colour alone cannot separate the two. A local preset used to try, at
+      // shadowOpacity 0.04 / elevation 1 — invisible in practice, which left the
+      // player looking pasted onto the page while dark mode separated fine.
+      expect(style.shadowOpacity).toBeGreaterThan(0);
+      expect(style.elevation).toBeGreaterThan(0);
     });
 
-    it("still carries the electric-blue glow on iOS", () => {
-      expect(String(style.shadowColor).toLowerCase()).toBe("#5ac8fa");
-      if (Platform.OS === "ios") {
-        expect(style.shadowOpacity).toBeGreaterThan(0);
-      }
+    it("takes that depth from the SHARED scale the dashboard cards use", () => {
+      // Not a shadow of its own. Two bespoke depth systems lived in this file
+      // and neither matched anything else in the app.
+      expect(style).toMatchObject(lightTheme.elevation.raised);
+      expect(style.borderWidth).toBeFalsy();
+    });
+
+    it("needs no theme branch — one surface role serves both modes", () => {
+      // The card fill in both. Light mode cannot separate on colour, because
+      // this white IS the Reader page, so the shadow above does that job.
+      expect(style.backgroundColor).toBe(lightTheme.c.surface);
+      expect(container(darkTheme).backgroundColor).toBe(darkTheme.c.surface);
+      expect(lightTheme.c.surface).toBe(lightTheme.c.background);
     });
   });
 });
@@ -117,15 +143,15 @@ describe("preview sweep on the artist row", () => {
       expect(styles.trackItem.overflow).toBeUndefined();
     });
 
-    it("covers the row's border instead of stopping inside it", () => {
-      // Absolute children sit inside the parent's border, so zero insets leave
-      // a hairline of the row showing above the sweep. Each inset must cancel
-      // the row's border exactly — and stay negative, or the gap returns.
+    it("stays flush with the row, which now has no border", () => {
+      // The insets are derived from the row border rather than hardcoded, so
+      // the sweep cannot drift out of step with it. The border is 0 now, so
+      // they are 0 — and if a border ever comes back, they follow it.
       const sweep = styles.previewSweepTrack;
       ["top", "left", "right", "bottom"].forEach((edge) => {
         expect(sweep[edge]).toBe(-TRACK_ROW_BORDER_WIDTH);
       });
-      expect(TRACK_ROW_BORDER_WIDTH).toBeGreaterThan(0);
+      expect(TRACK_ROW_BORDER_WIDTH).toBe(0);
     });
 
     it("stays visible against the selected row without hiding its label", () => {
@@ -133,7 +159,7 @@ describe("preview sweep on the artist row", () => {
       // Distinguishable from the untouched part of the row...
       expect(ratio(swept, parse(rowFill).rgb)).toBeGreaterThan(1.2);
       // ...while the artist name on top still clears AA for body text.
-      const label = theme.staticColors.WHITE_COLOR;
+      const label = theme.c.onPrimary;
       expect(ratio(parse(label).rgb, swept)).toBeGreaterThanOrEqual(4.5);
     });
   });
@@ -142,5 +168,50 @@ describe("preview sweep on the artist row", () => {
     const styles = audioTrackDialogStyles(darkTheme);
     expect(styles.previewProgressTrack).toBeUndefined();
     expect(styles.previewProgressFill).toBeUndefined();
+  });
+});
+
+// The player is assembled from several style modules, and every one of them
+// draws a piece of the SAME floating surface: the bar, the full player, the
+// expansion behind Audios/Options, the settings panel, and the loading and
+// error panels that stand in place of the player entirely.
+//
+// They had drifted between `surface` and `surfaceElevated`. That is invisible in
+// light mode, where both roles resolve to the same white, so it survived review
+// — but in dark mode the two are a full step apart (#1c1e21 against #26282c),
+// and the loading panel appears for only as long as a track buffers. The result
+// was a player that twitched a step darker, toward the Reader ground, on every
+// load and then corrected itself.
+//
+// This asserts they agree rather than asserting a specific colour, so it holds
+// if the ladder is ever retuned, and fails the moment a new player surface
+// reaches for the wrong role.
+describe("the audio player is ONE surface", () => {
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ])("[%s] every panel that replaces or extends the player agrees", (_name, theme) => {
+    // The SAME fill as a Settings or Dashboard card — the player is part of the
+    // same family, not a lighter thing floating above it.
+    const expected = theme.c.surface;
+
+    expect(audioControlBarStyles(theme).mainContainer.backgroundColor).toBe(expected);
+    expect(audioControlBarStyles(theme).modalAnimation.backgroundColor).toBe(expected);
+    expect(audioSettingModalStyles(theme).settingsModalContainer.backgroundColor).toBe(expected);
+    expect(minimizePlayerStyles(theme).container.backgroundColor).toBe(expected);
+    expect(loadingStyles(theme).loadingContainer.backgroundColor).toBe(expected);
+    expect(errorFallbackStyles(theme).statusContainer.backgroundColor).toBe(expected);
+  });
+
+  it("dark mode really does separate the player from the Reader ground", () => {
+    // The twitch was only visible because two greys were in play at all.
+    expect(darkTheme.c.surface).not.toBe(darkTheme.c.background);
+  });
+
+  it("light mode separates with a shadow, because the fill cannot", () => {
+    // Here `surface` IS the Reader page white, so depth has to come from the
+    // shared elevation preset — the same way a dashboard card does it.
+    expect(lightTheme.c.surface).toBe(lightTheme.c.background);
+    expect(lightTheme.elevation.raised.shadowOpacity).toBeGreaterThan(0);
   });
 });

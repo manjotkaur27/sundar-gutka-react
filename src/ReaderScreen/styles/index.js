@@ -1,5 +1,17 @@
-import { colors } from "@common";
+import { withAlpha } from "@theme/colorUtils";
 
+// A NOTE ON `elevation` IN THIS FILE
+//
+// Some of these set `elevation` for STACKING, not for depth. On Android zIndex
+// alone does not reliably order sibling views -- the platform sorts by
+// elevation -- so both are set together. Android only casts a shadow from
+// elevation when the view has a background, so a stacking-only layer with no
+// background costs nothing and needs no iOS counterpart.
+//
+// Where a layer DOES have a background, the Android shadow is real and iOS must
+// be given a matching one, or the same screen has depth on one platform and not
+// the other. Those cases take the shared elevation preset and then restate
+// `elevation` at the value the stacking order requires.
 const createStyles = (theme) => ({
   gurmukhiText: {
     margin: theme.spacing.sm,
@@ -28,7 +40,7 @@ const createStyles = (theme) => ({
   },
 
   vishraamShort: {
-    color: colors.VISHRAM_SHORT,
+    color: theme.c.vishraamShort,
   },
   larivaarAssist: {
     opacity: 0.65,
@@ -51,32 +63,43 @@ const createStyles = (theme) => ({
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
     overflow: "hidden",
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
+    // Has a background, so Android casts a real shadow here — iOS gets the
+    // matching one from the shared preset.
+    ...theme.elevation.raised,
+    // Restated ABOVE the preset's value: this must stack over the bottom chrome
+    // and the progress bar, which sit at 10 and 11.
     elevation: 12,
   },
   progressBarContainer: {
     height: 5,
     width: "100%",
-    backgroundColor: theme.colors.disabled || "#E0E0E0",
+    backgroundColor: theme.c.surfaceSelected,
     zIndex: 100,
   },
   progressBar: {
     height: "100%",
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.textBrand,
   },
   sliderText: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontSize: theme.typography.sizes.md,
   },
 
   headerWrapper: {
     flexDirection: "row",
-    height: 80,
     width: "100%",
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    // The shared clearance, replacing a hand-tuned 80pt box whose content was
+    // bottom aligned to fake the same effect. Every other header reads the same
+    // token, so the Reader and the rest of the app now start at one height.
+    // The row itself, matching the shared header's inner row. The clearance
+    // above it lives on `headerStyle` — see the note there.
+    minHeight: theme.layout.header.minHeight,
+    // No marginBottom. The divider below is drawn immediately after the row, as
+    // it is on every other screen — an extra gap here pushed the Reader's rule
+    // lower than the one under the Settings header.
     justifyContent: "space-between",
-    alignItems: "flex-end",
+    alignItems: "center",
   },
 
   headerLeft: {
@@ -110,17 +133,30 @@ const createStyles = (theme) => ({
     height: theme.components.header.height + theme.spacing.sm,
   },
   headerTitleStyle: {
-    color: theme.colors.primaryHeaderVariant,
-    fontSize: theme.typography.sizes.xxl,
+    color: theme.c.headerFg,
+    fontSize: theme.type.heading.fontSize,
+    // NO lineHeight. Pinning one here truncated Gurmukhi titles mid-string on
+    // Android — "ਗੁਰ ਮੰਤ੍ਰ" drew as "ਗੁਰ" — while the identical string in a
+    // Text without it rendered in full. Gurmukhi clusters carry marks above and
+    // below the baseline, and a fixed line box makes the platform drop the
+    // clusters that do not fit rather than overflow them. The face's own line
+    // height is what it needs.
     zIndex: 1,
   },
   footerTitleStyle: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontFamily: theme.typography.fonts.gurbaniPrimary,
     fontSize: theme.typography.sizes.lg,
   },
   headerStyle: {
-    backgroundColor: theme.mode === "dark" ? "rgba(18, 18, 18, 1)" : "#FFFFFF",
+    // Matches the page it sits on, and the page matches every other screen.
+    backgroundColor: theme.c.backgroundAlt,
+    // The clearance lives on the OUTER view and the row height on the inner one,
+    // exactly as the shared ScreenHeader splits them. Both on one view does not
+    // work: React Native measures minHeight against the border box, so the
+    // padding is counted INSIDE it and a 48pt clearance simply swallows a 56pt
+    // minimum, collapsing the row to its content.
+    paddingTop: theme.layout.header.topClearance,
   },
   animatedView: {
     position: "absolute",
@@ -134,6 +170,7 @@ const createStyles = (theme) => ({
     left: 0,
     right: 0,
     bottom: theme.components.bottomNavigation.height + theme.spacing.sm + 5,
+    // Stacking only — no background, so no shadow is cast on either platform.
     zIndex: 10,
     elevation: 10,
     alignItems: "center",
@@ -147,6 +184,7 @@ const createStyles = (theme) => ({
     left: 0,
     right: 0,
     bottom: 0,
+    // Stacking only — no background, so no shadow is cast on either platform.
     zIndex: 10,
     elevation: 10,
   },
@@ -165,9 +203,13 @@ const createStyles = (theme) => ({
     width: "100%",
     height: 5,
     overflow: "hidden",
+    // Has a background, so this one does cast on Android; the preset supplies
+    // the iOS half. `elevation` is restated at the stacking value it needs.
+    ...theme.elevation.card,
     zIndex: 11,
     elevation: 11,
-    backgroundColor: "rgba(37, 105, 214, 0.2)",
+    // The unfilled remainder of the progress track.
+    backgroundColor: withAlpha(theme.c.accent, 0.2),
   },
   // Width-driven, not transform: scaleX — scaleX stretches/squishes the
   // already-painted pixels non-uniformly along X. Animating width directly
@@ -180,7 +222,8 @@ const createStyles = (theme) => ({
     // 100% complete on a bani's first open.
     alignSelf: "flex-start",
     width: 0,
-    backgroundColor: "#7A99C980",
+    // The filled portion, on the same accent as the track behind it.
+    backgroundColor: withAlpha(theme.c.accent, 0.5),
   },
 });
 export default createStyles;
