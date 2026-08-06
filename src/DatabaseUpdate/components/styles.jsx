@@ -3,19 +3,19 @@ export const checkUpdateStyles = (theme) => ({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.c.surface,
+    backgroundColor: theme.c.background,
   },
   header: {
     fontSize: 20,
     marginBottom: 5,
-    backgroundColor: theme.c.surface,
+    backgroundColor: theme.c.background,
   },
   status: {
     marginTop: 20,
     fontSize: 18,
   },
   mainWrapper: {
-    backgroundColor: theme.c.surface,
+    backgroundColor: theme.c.background,
   },
 });
 
@@ -23,7 +23,7 @@ export const baniDBAboutStyles = (theme) => ({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: theme.c.surface,
+    backgroundColor: theme.c.background,
   },
   header: {
     fontSize: 24,

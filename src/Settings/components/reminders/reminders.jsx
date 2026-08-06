@@ -13,6 +13,7 @@ import {
   logError,
   logMessage,
   FallBack,
+  scheduleReminders,
 } from "@common";
 import { getBaniList } from "@database";
 import { ListItemComponent, BottomSheetComponent } from "../comon";
@@ -24,11 +25,29 @@ const RemindersComponent = ({ navigation }) => {
   const REMINDER_SOUNDS = getReminderSound(STRINGS);
   const isReminders = useSelector((state) => state.isReminders);
   const reminderSound = useSelector((state) => state.reminderSound);
+  const reminderBanis = useSelector((state) => state.reminderBanis);
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const [isReminderSound, toggleReminderSound] = useState(false);
 
   const dispatch = useDispatch();
   const { navigate } = navigation;
+
+  // The chosen sound is baked into every notification AT SCHEDULE TIME: on
+  // Android it selects the channel, on iOS it names the sound file. Changing the
+  // setting therefore does nothing to the reminders already sitting in the OS
+  // queue — they keep firing with the old sound until the schedule is rewritten.
+  //
+  // That is why editing a reminder TIME appeared to fix the sound: it happened
+  // to reschedule as a side effect. This does it for the sound change itself.
+  const handleSoundChange = async (sound) => {
+    if (!isReminders) return;
+    try {
+      await scheduleReminders(true, sound, reminderBanis);
+    } catch (error) {
+      logError(error);
+      logMessage("handleSoundChange: failed to reschedule reminders");
+    }
+  };
 
   const redirectToSettings = async () => {
     Alert.alert(STRINGS.permissionTitle, STRINGS.premissionDescription, [
@@ -123,6 +142,7 @@ const RemindersComponent = ({ navigation }) => {
           toggleVisible={toggleReminderSound}
           title={STRINGS.reminder_sound}
           action={actions.setReminderSound}
+          onChange={handleSoundChange}
         />
       )}
     </>

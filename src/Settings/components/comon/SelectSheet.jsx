@@ -23,6 +23,15 @@ import { Row, Sheet } from "../../../common/components/ui";
 // makes its row taller instead of being clipped — and the checkmark stays put
 // because only the label column flexes.
 
+// Reads its colour and size from the tokens ITSELF rather than being handed
+// them. It renders inside the sheet, so it resolves the Settings sheet's own
+// roles — a colour computed by the parent would resolve outside that scope and
+// come back as the app accent.
+export const SelectedMark = () => {
+  const { c, layout } = useTokens();
+  return <Icon name="check" type="material" size={layout.icon.md} color={c.accent} />;
+};
+
 const SelectSheet = ({
   visible,
   title,
@@ -31,32 +40,32 @@ const SelectSheet = ({
   onSelect,
   onClose,
   closeLabel = undefined,
-}) => {
-  const { c, layout } = useTokens();
-
-  return (
-    <Sheet visible={visible} onClose={onClose} title={title} closeAccessibilityLabel={closeLabel}>
-      {options.map((item) => {
-        const selected = item.key === value;
-        return (
-          <Row
-            key={item.key}
-            title={item.title}
-            onPress={() => onSelect(item.key)}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-            showDivider
-            trailing={
-              selected ? (
-                <Icon name="check" type="material" size={layout.icon.md} color={c.accent} />
-              ) : null
-            }
-          />
-        );
-      })}
-    </Sheet>
-  );
-};
+}) => (
+  <Sheet
+    visible={visible}
+    onClose={onClose}
+    title={title}
+    closeAccessibilityLabel={closeLabel}
+    // The ONE sheet on the old presentation: a dark blur behind, a centred
+    // title over a rule, rows edge to edge, no drag handle.
+    variant="flush"
+  >
+    {options.map((item) => {
+      const selected = item.key === value;
+      return (
+        <Row
+          key={item.key}
+          title={item.title}
+          onPress={() => onSelect(item.key)}
+          accessibilityRole="radio"
+          accessibilityState={{ selected }}
+          showDivider
+          trailing={selected ? <SelectedMark /> : null}
+        />
+      );
+    })}
+  </Sheet>
+);
 
 SelectSheet.propTypes = {
   visible: PropTypes.bool.isRequired,

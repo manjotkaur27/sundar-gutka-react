@@ -36,9 +36,21 @@ const Bookmarks = ({ navigation, route }) => {
   };
 
   const formattedData = bookmarksData?.map((item, index) => {
-    const { gurmukhi, gurmukhiUni, tukGurmukhi, tukGurmukhiUni, translit, shabadID } = item;
+    const { gurmukhi, gurmukhiUni, tukGurmukhi, tukGurmukhiUni, shabadID } = item;
     const title = isBaloo && gurmukhiUni ? gurmukhiUni : gurmukhi;
-    const subtitle = isBaloo && tukGurmukhiUni ? tukGurmukhiUni : tukGurmukhi || translit || "";
+    // The tuk line ONLY, and only in a script the current bani font can draw.
+    //
+    // The subtitle renders in the bani font, so the old fallback chain produced
+    // two kinds of nonsense on banis that carry no tuk for a bookmark:
+    //   • under Baloo it fell through to the ASCII `tukGurmukhi`, which that
+    //     font cannot render — Mool Mantar's first bookmark showed a garbled
+    //     "mool ma(n)tar" beneath a perfectly good Gurmukhi title, and
+    //   • failing that it fell through to `translit`, the Roman name, so Tav
+    //     Prasad Sawaiye read "ਪਉੜੀ ੧" with "Pauree 1" repeated underneath.
+    //
+    // An empty string means the row simply has no second line, which is the
+    // right answer when there is no tuk to show.
+    const subtitle = isBaloo ? tukGurmukhiUni || "" : tukGurmukhi || "";
 
     return {
       ...item,

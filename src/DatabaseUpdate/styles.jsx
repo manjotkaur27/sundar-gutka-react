@@ -1,6 +1,9 @@
 const createStyles = (theme) => ({
   baniDBLogoImage: { alignSelf: "center" },
-  mainWrapper: { flex: 1, backgroundColor: theme.c.surface },
+  // The SCREEN ground, not a card fill. On `surface` the whole page was one
+  // step lighter than every other screen in dark mode, so Database Update read
+  // as a different app.
+  mainWrapper: { flex: 1, backgroundColor: theme.c.background },
   container: {
     padding: theme.spacing.lg,
     margin: theme.spacing.lg,

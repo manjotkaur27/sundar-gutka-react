@@ -257,7 +257,7 @@ const ManageDownloads = ({ navigation }) => {
         <CustomText
           style={[styles.sectionHeader, isFirst && styles.sectionHeaderFirst, nameFontStyle]}
         >
-          {getDisplayName(section).toUpperCase()}
+          {getDisplayName(section)}
         </CustomText>
       );
     },
@@ -324,8 +324,8 @@ const ManageDownloads = ({ navigation }) => {
   const isEmpty = sections.length === 0 && validated;
 
   return (
-    <SafeArea backgroundColor={c.background} edges={['left', 'right']}>
-      <StatusBarComponent backgroundColor={c.background} />
+    <SafeArea backgroundColor={c.backgroundAlt} edges={['left', 'right']}>
+      <StatusBarComponent backgroundColor={c.backgroundAlt} />
 
       <ScreenHeader
         title={STRINGS.MANAGE_DOWNLOADS}

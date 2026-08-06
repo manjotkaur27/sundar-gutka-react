@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Modal, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
+import Overlay from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
 import { scheduleReminders, STRINGS } from "@common";
 import { Button, Text } from "../../../../../common/components/ui";
@@ -35,7 +36,7 @@ const LabelModal = ({ section, onHide }) => {
   };
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onHide}>
+    <Overlay animationType="fade" onRequestClose={onHide}>
       <View
         style={{
           flex: 1,
@@ -104,7 +105,7 @@ const LabelModal = ({ section, onHide }) => {
           </View>
         </View>
       </View>
-    </Modal>
+    </Overlay>
   );
 };
 

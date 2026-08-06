@@ -32,15 +32,24 @@ const createStyles = ({ c, space, layout, radii, type }) => ({
   cardTop: {
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
+    borderTopWidth: layout.borderWidth.hairline,
   },
   cardBottom: {
     borderBottomLeftRadius: radii.lg,
     borderBottomRightRadius: radii.lg,
+    borderBottomWidth: layout.borderWidth.hairline,
   },
   rowSeparator: {
     height: layout.borderWidth.hairline,
     backgroundColor: c.border,
-    marginHorizontal: space.md + layout.row.paddingHorizontal,
+    // Full bleed across the card, exactly like a Settings row's divider — that
+    // one is a `borderBottomWidth` ON the row, so it spans the card's whole
+    // width. Insetting this by the row's own padding as well produced the
+    // gap-at-each-end treatment the bani list uses, which is what made this
+    // screen read as a mix of the two. Matching the card inset alone also keeps
+    // the card's side edges unbroken, since the separator is the full width of
+    // the rows above and below it.
+    marginHorizontal: space.md,
   },
 
   // ── Selection toolbar ──────────────────────────────────────────────────
@@ -90,6 +99,10 @@ const createStyles = ({ c, space, layout, radii, type }) => ({
     alignItems: "center",
     backgroundColor: c.surface,
     marginHorizontal: space.md,
+    // The card edge, matching a Settings group exactly.
+    borderLeftWidth: layout.borderWidth.hairline,
+    borderRightWidth: layout.borderWidth.hairline,
+    borderColor: c.border,
     paddingVertical: layout.row.paddingVertical,
     paddingHorizontal: layout.row.paddingHorizontal,
     // A minimum, so a long track name in any language makes the row taller

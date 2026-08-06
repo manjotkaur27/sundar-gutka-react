@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { withScreenRoles } from "@theme/ScreenRolesProvider";
 import {
   navigationRef,
   constant,
@@ -26,6 +27,22 @@ import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
 import SevaScreen from "../SevaScreen";
 import DonationWebView from "../SevaScreen/DonationWebView";
 import SevaMeansScreen from "../SevaScreen/SevaMeansScreen";
+
+// Settings and every utility page reachable from it share one palette — the
+// navy hierarchy the bani list and Seva already use — in dark mode. Declared
+// here because the navigation graph is the place that already says which
+// screens belong to which part of the app.
+//
+// Bookmarks is in the list for the same reason the bani list was: its body is
+// a BaniList already drawing the navy ground, so leaving its frame on the
+// semantic one left a dark strip above the content.
+const SettingsScreen = withScreenRoles(Settings, "settings");
+const ReminderOptionsScreen = withScreenRoles(ReminderOptions, "settings");
+const EditBaniOrderScreen = withScreenRoles(EditBaniOrder, "settings");
+const DatabaseUpdate = withScreenRoles(DatabaseUpdateScreen, "settings");
+const ManageDownloadsScreen = withScreenRoles(ManageDownloads, "settings");
+const About = withScreenRoles(AboutScreen, "settings");
+const BookmarksScreen = withScreenRoles(Bookmarks, "settings");
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,7 +74,7 @@ const MainTabs = () => {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Seva" component={SevaScreen} />
-      <Tab.Screen name="Settings" component={Settings} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 };
@@ -133,7 +150,7 @@ const Navigation = () => {
         />
         {/* Stack screens - these push with animation */}
         <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="About" component={AboutScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="About" component={About} options={{ headerShown: false }} />
         <Stack.Screen
           name="FolderScreen"
           component={FolderScreen}
@@ -142,9 +159,13 @@ const Navigation = () => {
         <Stack.Screen
           options={{ headerShown: false }}
           name="EditBaniOrder"
-          component={EditBaniOrder}
+          component={EditBaniOrderScreen}
         />
-        <Stack.Screen name="Bookmarks" component={Bookmarks} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="Bookmarks"
+          component={BookmarksScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="DonationWebView"
           component={DonationWebView}
@@ -157,7 +178,7 @@ const Navigation = () => {
         />
         <Stack.Screen
           name="ReminderOptions"
-          component={ReminderOptions}
+          component={ReminderOptionsScreen}
           options={{ headerShown: false }}
         />
         {/* Declared here rather than switched off at runtime: the stack
@@ -166,15 +187,15 @@ const Navigation = () => {
             for a frame first, which is the stacked double header. */}
         <Stack.Screen
           name="DatabaseUpdate"
-          component={DatabaseUpdateScreen}
+          component={DatabaseUpdate}
           options={{ headerShown: false }}
         />
         <Stack.Screen
           name="ManageDownloads"
-          component={ManageDownloads}
+          component={ManageDownloadsScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="Settings" component={Settings} options={{ headerShown: false }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

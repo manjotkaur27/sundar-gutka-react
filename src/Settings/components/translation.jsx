@@ -1,14 +1,13 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Icon } from "@rneui/themed";
 import {
   toggleEnglishTranslation,
   togglePunjabiTranslation,
   toggleSpanishTranslation,
 } from "@common/actions";
-import useTokens from "@common/hooks/useTokens";
 import { STRINGS } from "@common";
 import { Row, Sheet } from "../../common/components/ui";
+import { SelectedMark } from "./comon/SelectSheet";
 import SettingsRow from "./comon/SettingsRow";
 
 // Translations is multi-select, so it uses `Sheet` directly rather than
@@ -17,7 +16,6 @@ import SettingsRow from "./comon/SettingsRow";
 // `useWindowDimensions`; the shared Sheet sizes itself from the live window.
 const TranslationComponent = () => {
   const dispatch = useDispatch();
-  const { c, layout } = useTokens();
   const [isVisible, setIsVisible] = useState(false);
 
   const isEnglishTranslation = useSelector((state) => state.isEnglishTranslation);
@@ -60,8 +58,6 @@ const TranslationComponent = () => {
     setIsVisible(false);
   };
 
-  const check = <Icon name="check" type="material" size={layout.icon.md} color={c.accent} />;
-
   return (
     <>
       <SettingsRow
@@ -76,6 +72,9 @@ const TranslationComponent = () => {
         onClose={() => setIsVisible(false)}
         title={STRINGS.translations}
         closeAccessibilityLabel={STRINGS.cancel}
+        // Multi-select, so it cannot use SelectSheet — but it is still a
+        // Settings chooser and must look like every other one.
+        variant="flush"
       >
         <Row
           title={STRINGS.off}
@@ -83,7 +82,7 @@ const TranslationComponent = () => {
           accessibilityRole="radio"
           accessibilityState={{ selected: isAllOff }}
           showDivider
-          trailing={isAllOff ? check : null}
+          trailing={isAllOff ? <SelectedMark /> : null}
         />
         {options.map((item) => (
           <Row
@@ -93,7 +92,7 @@ const TranslationComponent = () => {
             accessibilityRole="checkbox"
             accessibilityState={{ checked: item.value }}
             showDivider
-            trailing={item.value ? check : null}
+            trailing={item.value ? <SelectedMark /> : null}
           />
         ))}
       </Sheet>
