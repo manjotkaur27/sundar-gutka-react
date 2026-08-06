@@ -21,7 +21,7 @@
 // worst it can do is look wrong, and `contrast.test.js` runs over every
 // registered theme, so it cannot even do that silently.
 
-import { accent, gold, green, navy, neutral, red } from "./palette";
+import { gold, green, navy, neutral, red, vishraam } from "./palette";
 
 /**
  * Every role a theme must define. Exported so `contrast.test.js` can assert a
@@ -64,7 +64,9 @@ export const ROLES = [
   "goldSurface",
   "onGold",
   "fillSubtle",
+  "edgeHighlight",
   "accentSubtle",
+  "vishraamShort",
   "shadow",
 ];
 
@@ -128,14 +130,23 @@ const light = {
   // A header icon that carries its own meaning — the destructive delete in
   // Manage Downloads — sets its own colour and does not use this.
   headerFg: navy[800],
-  link: accent[700],
-  accent: accent[600],
-  accentPressed: accent[700],
+  // ONE blue in light mode, exactly as dark mode has one.
+  //
+  // It is the navigation bar's navy, so every blue thing in the app agrees with
+  // the bar at the bottom of the screen. There used to be three — navy[800] for
+  // chrome and controls, accent[600] for accents, accent[700] for links — which
+  // no rule distinguished and which had no counterpart in dark mode, where all
+  // of these already collapse to a single value.
+  //
+  // 11.14:1 on white, the highest contrast of the three it replaces.
+  link: navy[800],
+  accent: navy[800],
+  accentPressed: navy[900],
   // Content drawn ON an accent fill — a checked checkbox's tick, a badge label.
   // Light mode's accent is dark enough to take white; dark mode's is a lighter
   // tint and needs near-black, which is why this is a role and not a literal.
   onAccent: neutral[0],
-  focusRing: accent[600],
+  focusRing: navy[800],
 
   error: red[600],
   errorSurface: "#fdecea",
@@ -160,8 +171,19 @@ const light = {
   // Dashboard for this; these are the two that replace them.
   /** Neutral tint — icon chips, inactive controls. */
   fillSubtle: neutral[100],
+  // The top edge of a raised card. Light mode gives it the surface colour so the
+  // edge reads as catching the light above it; dark mode has nothing above to
+  // catch, so it takes the plain border and the card reads flat — which is what
+  // dark wants anyway, depth there coming from the surface ladder.
+  edgeHighlight: neutral[0],
   /** Brand-tinted fill — today's date, an active chip, an inactive bar. */
   accentSubtle: navy[50],
+
+  // Marks a short vishraam (pause) in Gurbani. It is TEXT, so it has to clear
+  // 4.5:1 like any other text: the old fixed teal (#16a085) measured 3.28:1 on
+  // white and failed. Reusing the green ramp rather than adding a colour keeps
+  // the palette small.
+  vishraamShort: vishraam.short,
 
   shadow: neutral[1000],
 };
@@ -262,8 +284,13 @@ const dark = {
   // every surface it lands on, which is why the same chip looked like three
   // different greys depending on which card it sat in.
   fillSubtle: neutral[800],
+  /** See the light-mode note — flat on dark. */
+  edgeHighlight: neutral[800],
   /** Brand-tinted fill. Navy is invisible here, so this is a dark accent step. */
   accentSubtle: "#1b3454",
+
+  /** See the light-mode note. 8.8:1 on the dark surface. */
+  vishraamShort: vishraam.short,
 
   shadow: neutral[1000],
 };

@@ -39,3 +39,19 @@ export const withAlpha = (hex, alpha) => {
 };
 
 export default { hexToRgb, withAlpha };
+
+/**
+ * Picks the variant of a value that belongs to the active theme.
+ *
+ * For things that legitimately differ by mode but are NOT colours the token
+ * layer can hold — a screenshot shot against a dark UI, another company's icon
+ * ground. Keeping them keyed by mode means the call site reads a lookup instead
+ * of repeating `mode === "dark" ? … : …`, and a third theme later is a new key
+ * rather than a new branch at every site.
+ *
+ * @param {{mode: string}} theme The active theme.
+ * @param {Object} byMode `{ light, dark }`.
+ * @param {*} [fallback] Used when the active mode has no entry.
+ */
+export const pickByMode = (theme, byMode, fallback = undefined) =>
+  (byMode && byMode[theme.mode]) ?? fallback;

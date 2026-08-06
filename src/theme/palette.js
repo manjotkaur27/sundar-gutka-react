@@ -90,6 +90,17 @@ export const green = {
 // Gold is a fixed brand accent. The light-mode *text* step is much darker than
 // the decorative one, because saturated yellow cannot clear 4.5:1 on a light
 // ground at its natural lightness — the bright step is for fills and icons only.
+// Vishraam (pause) marks in Gurbani. Fixed in both themes: they are reading
+// marks whose meaning does not change with the theme, and the Reader renders
+// them inside a WebView from a plain style string, which has no access to the
+// React theme. The gradient pair is the same two colours in rgba form.
+export const vishraam = {
+  short: "#16a085",
+  long: "#d35400",
+  shortGradient: "rgba(22, 160, 133,1.0)",
+  longGradient: "rgba(211, 84, 0,1.0)",
+};
+
 export const gold = {
   200: "#fae7c6",
   400: "#f3b13f", // dark-mode gold text; fills in both themes
@@ -103,6 +114,12 @@ export const gold = {
 // They live here only so they are identifiable as deliberate literals rather
 // than stray hexes.
 export const brandMarks = {
+  /**
+   * Gurdham's mark: a vertical gradient with a faint light outline. Fixed brand
+   * artwork, so it does not track the theme — same reason the social marks below
+   * are literals rather than roles.
+   */
+  gurdham: { gradientTop: "#98A6FF", gradientBottom: "#13143C", outline: "#FFFFFF" },
   facebook: "#1877F2",
   linkedin: "#0A66C2",
   /** Instagram's mark is a gradient; stops in order. */
@@ -120,6 +137,18 @@ export const brandMarks = {
    */
   cutoutLight: "#FFFFFF",
   cutoutDark: "#000000",
+  /**
+   * Icon grounds for the other Khalis apps, taken from each app's own artwork so
+   * its logo sits on its colour rather than ours. Two per app, because a mark
+   * drawn for a light ground disappears on a dark one.
+   */
+  khalisApps: {
+    sahejPath: { dark: "#0a1628", light: "#E2E8F1" },
+    sttm: { dark: "#0f2044", light: "#ffffff" },
+    shabadavali: { dark: "#0d1c10", light: "#ffffff" },
+  },
+  /** Browser chrome for in-app links — the brand navy and its off-white. */
+  inAppBrowser: { chrome: "#113979", onChrome: "#FAF9F6" },
 };
 
-export default { neutral, navy, accent, red, green, gold, brandMarks };
+export default { neutral, navy, accent, red, green, gold, vishraam, brandMarks };

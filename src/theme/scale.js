@@ -79,9 +79,17 @@ const scaleMap = (map, factor) =>
  * the full container rate; everything else (paddings, gaps) at the damped
  * spacing rate. Radii and border widths never scale — a 1px hairline is 1px at
  * every font size, and a corner radius is a shape, not a measurement.
+ *
+ * `topClearance` never scales either, and for a different reason: it describes a
+ * region of the DEVICE — the camera cutout and status bar strip — not a piece of
+ * layout. Raising the text size must not push a header further down the screen,
+ * and scaling it also made the same token resolve to two different numbers, as
+ * the shared header reads it through `useTokens` (scaled) while the Reader's own
+ * header reads the raw theme. That is exactly how the two drifted apart.
  */
 const CONTAINER_KEYS = /^(minHeight|minHeightTwoLine|height|touchTarget|actionSize)$/;
-const UNSCALED_KEYS = /^(maxHeightRatio|durationMs|borderWidth|hairline|thick|focus)$/;
+const UNSCALED_KEYS =
+  /^(maxHeightRatio|durationMs|borderWidth|hairline|thick|focus|topClearance)$/;
 
 export const scaleLayout = (layout, scale) => {
   const walk = (node) =>

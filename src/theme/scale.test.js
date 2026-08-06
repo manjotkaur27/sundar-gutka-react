@@ -5,6 +5,7 @@ import {
   FONT_SCALE_MIN,
   resolveScale,
   resolveTokens,
+  scaleLayout,
 } from "./scale";
 import space from "./space";
 
@@ -106,5 +107,31 @@ describe("resolved tokens stay renderable", () => {
     expect(s.md).toBe(space.md);
     expect(s.lg).toBe(space.lg);
     expect(s.xl).toBe(space.xl);
+  });
+});
+
+// The header clearance is a DEVICE fact — the camera cutout and status-bar strip
+// — not a piece of layout. Two things go wrong if it scales:
+//
+//   • raising the text size pushes every header further down the screen, and
+//   • the same token resolves to two different numbers, because the shared
+//     header reads it through `useTokens` (scaled) while the Reader's own header
+//     reads the raw theme. That is precisely how the two headers drifted apart
+//     after they were supposedly unified on one token.
+describe("header top clearance is a device fact, not layout", () => {
+  const headerLayout = { header: { topClearance: 48, minHeight: 56 } };
+
+  it("is identical at every font scale", () => {
+    const small = scaleLayout(headerLayout, { space: 1, container: 1 });
+    const large = scaleLayout(headerLayout, { space: 1.5, container: 1.5 });
+
+    expect(small.header.topClearance).toBe(48);
+    expect(large.header.topClearance).toBe(48);
+  });
+
+  it("does not freeze the rest of the header with it", () => {
+    // Only the clearance is exempt; row heights still grow so text fits.
+    const large = scaleLayout(headerLayout, { space: 1.5, container: 1.5 });
+    expect(large.header.minHeight).toBeGreaterThan(56);
   });
 });

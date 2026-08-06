@@ -42,6 +42,17 @@ const role = (fontSize, lineHeight, family = fonts.regular) => ({
 const type = {
   fonts,
 
+  /**
+   * No metrics at all — size, line height and face come entirely from the
+   * caller's own style.
+   *
+   * For text that is positioned by a style rather than by a role. It exists so
+   * `CustomText` can render through the same primitive as everything else
+   * without a role silently imposing a size the call site never asked for.
+   * New code should name a real role below instead.
+   */
+  inherit: {},
+
   /** Screen-dominating numerals and hero figures. Sparing use. */
   display: role(32, 40, fonts.semiBold),
   /** Screen title inside content (not the app bar). */

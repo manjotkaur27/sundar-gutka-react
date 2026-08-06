@@ -37,8 +37,25 @@ const layout = {
   // One height for every screen. Safe-area top inset is added by the
   // ScreenHeader primitive; it is not included here.
   header: {
+    /**
+     * Space above a header's content, clearing the camera cutout and status bar.
+     *
+     * ONE value for every header in the app. The Reader's own header arrived at
+     * the same clearance by hand — a fixed 80pt box with its content bottom
+     * aligned — and every other screen used the raw safe-area inset instead,
+     * which is a different number on every device and left a visible band above
+     * the title. Neither is derived from the other any more; both read this.
+     *
+     * Deliberately NOT the safe-area inset. The inset describes where the system
+     * bars MAY draw, and this app hides the status bar, so padding by it
+     * reserved room for a bar that was not there. The cutout still must be
+     * cleared either way, which is what this covers.
+     */
+    topClearance: 48,
     minHeight: 56,
-    paddingHorizontal: space.xs,
+    // The gutter every other screen uses. At space.xs the Seva close cross sat
+    // almost against the right edge of the display.
+    paddingHorizontal: space.lg,
     gap: space.sm,
     /** Leading/trailing icon button, square, meets `touchTarget`. */
     actionSize: 48,
@@ -55,12 +72,20 @@ const layout = {
 
   // ── List rows ──────────────────────────────────────────────────────────
   row: {
-    /** Single-line row. */
-    minHeight: 56,
-    /** Row with a subtitle underneath. */
-    minHeightTwoLine: 72,
+    /**
+     * Single-line row.
+     *
+     * Sized to match a bani row on the home list at the default font: that row
+     * is 2 x space.lg of padding around a 24pt title, about 66pt tall, while a
+     * settings row wraps a 16/24 body line and stopped at 56. The two sat
+     * visibly different heights on screens that are otherwise identical.
+     */
+    minHeight: 64,
+    /** Row with a subtitle underneath. Same step above the single-line row. */
+    minHeightTwoLine: 80,
     paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    /** Matches the bani list on the home screen, which pads by the same step. */
+    paddingVertical: space.lg,
     /** Space between a leading icon and the label. */
     gap: space.md,
     iconSize: 24,
@@ -98,7 +123,8 @@ const layout = {
   toast: {
     minHeight: 48,
     paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    /** Matches the bani list on the home screen, which pads by the same step. */
+    paddingVertical: space.lg,
     /** Distance from the bottom edge, above any bottom navigation. */
     offsetBottom: space.lg,
     marginHorizontal: space.lg,
