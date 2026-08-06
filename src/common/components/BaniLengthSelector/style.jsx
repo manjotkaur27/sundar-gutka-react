@@ -1,14 +1,13 @@
 const createStyles = (theme) => {
   // Mirrors ConfirmDialogHost's explicit light/dark branching — proven to render
   // correctly in both modes for modals over a dark backdrop, unlike
-  // theme.colors.surface/primaryText which read too close to the backdrop in dark mode.
-  const isDark = theme.mode === "dark";
-  const helpSurface = isDark ? theme.staticColors.NIGHT_BLACK : theme.colors.surface;
-  const helpTextColor = isDark ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
+  // theme.c.surface/primaryText which read too close to the backdrop in dark mode.
+  const helpSurface = theme.c.surface;
+  const helpTextColor = theme.c.textPrimary;
 
   return {
   heading: {
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     // Baloo Paaji supports both Latin and Gurmukhi, so a single font keeps this
     // first-run screen consistent (no mix of Gurbani-thick + system fonts).
     fontFamily: theme.typography.fonts.balooPaaji,
@@ -21,23 +20,23 @@ const createStyles = (theme) => {
   },
   wrapper: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.c.primary,
   },
   baniLengthMessage: {
     marginTop: theme.spacing.md,
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
   },
   textPreferrence: {
     marginTop: theme.spacing.md,
-    color: theme.staticColors.WHITE_COLOR,
+    color: theme.c.onPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.xl,
   },
   button: {
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.primaryText,
+    backgroundColor: theme.c.surface,
+    color: theme.c.textPrimary,
     fontFamily: theme.typography.fonts.balooPaaji,
     padding: theme.spacing.lg,
     marginTop: theme.spacing.md,
@@ -48,7 +47,7 @@ const createStyles = (theme) => {
     minHeight: theme.components.button.minHeight * 0.9,
   },
   helpText: {
-    color: theme.colors.primaryVariant,
+    color: theme.c.goldFill,
     fontFamily: theme.typography.fonts.balooPaaji,
     // No fontWeight/fontStyle: both make Android fall back off the Baloo asset font.
     fontSize: theme.typography.sizes.sm,
@@ -70,7 +69,7 @@ const createStyles = (theme) => {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: theme.c.scrim,
   },
   helpCenterWrapper: {
     flex: 1,
@@ -118,7 +117,7 @@ const createStyles = (theme) => {
     paddingHorizontal: theme.spacing.md,
   },
   helpCloseText: {
-    color: theme.colors.primary,
+    color: theme.c.primary,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: theme.typography.sizes.md,
   },

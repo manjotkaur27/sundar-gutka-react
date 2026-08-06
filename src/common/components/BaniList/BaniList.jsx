@@ -11,6 +11,7 @@ import {
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import constant from "@common/constant";
+import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { FolderIcon } from "@common/icons";
 import { convertToUnicode, baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
@@ -19,6 +20,8 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
   const { c, space, layout } = useTokens();
+  // The bani list keeps its own ground; every other colour here is a role.
+  const baniListPalette = useScreenPalette("baniList");
   const { scrollViewProps, Indicator } = useCustomScrollbar();
   const fontSize = useSelector((state) => state.fontSize);
   const fontFace = useSelector((state) => state.fontFace);
@@ -135,10 +138,14 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
     // One flat ground, the same one the header sits on, so the list reads as a
     // continuation of the screen rather than a panel dropped onto it. It fills
     // the viewport so a short folder (e.g. Sawaiye) shows no seam.
-    <View style={{ flex: 1, backgroundColor: c.background }}>
+    <View style={{ flex: 1, backgroundColor: baniListPalette.surface }}>
       <AnimatedFlatList
         style={!isPotrait && Platform.OS === "ios" && { marginLeft: 30 }}
-        contentContainerStyle={{ paddingTop: space.sm, paddingBottom: space.xxl }}
+        // No paddingTop. Each row already pads itself, so an extra 8pt here sat
+        // ONLY above the first row and nowhere else, reading as a stray gap
+        // between the header and the start of the list. The trailing space stays
+        // — that one clears the bottom navigation.
+        contentContainerStyle={{ paddingBottom: space.xxl }}
         data={data}
         renderItem={renderBanis}
         ItemSeparatorComponent={ItemSeparator}

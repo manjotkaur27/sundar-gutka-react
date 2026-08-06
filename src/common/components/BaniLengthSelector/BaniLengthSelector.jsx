@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Pressable, Modal, ScrollView } from "react-native";
+import { View, Pressable, ScrollView } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
 import { Icon } from "@rneui/themed";
 import { CustomText, STRINGS, useThemedStyles, useTheme } from "@common";
+import Overlay from "@common/components/ui/Overlay";
 import constant from "@common/constant";
 import { setBaniLength } from "../../actions";
 import createStyles from "./style";
@@ -57,17 +58,15 @@ const BaniLengthSelector = () => {
             </Pressable>
           ))}
           <Pressable style={styles.helpWrapper} onPress={() => setHelpVisible(true)}>
-            <Icon color={theme.colors.primaryVariant} name="info" size={30} />
+            <Icon color={theme.c.goldFill} name="info" size={30} />
             <CustomText style={styles.helpText}>{STRINGS.need_help_deciding}</CustomText>
           </Pressable>
         </View>
       </SafeAreaView>
 
-      <Modal
-        transparent
+      <Overlay
         visible={helpVisible}
         animationType="fade"
-        statusBarTranslucent
         onRequestClose={() => setHelpVisible(false)}
       >
         <View style={styles.helpRoot}>
@@ -90,7 +89,7 @@ const BaniLengthSelector = () => {
             </View>
           </View>
         </View>
-      </Modal>
+      </Overlay>
     </SafeAreaProvider>
   );
 };

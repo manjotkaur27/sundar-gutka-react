@@ -1,3 +1,5 @@
+import { paletteFor } from "@theme/screenPalettes";
+
 const createStyles = (theme) => ({
   container: {
     flex: 1,
@@ -10,7 +12,10 @@ const createStyles = (theme) => ({
   // `staticColors` read in this screen. `react-native/no-unused-styles` cannot
   // see them because the styles live in this file and are consumed in another.
   newHeaderContainer: {
-    backgroundColor: theme.c.background,
+    // The bani list keeps its OWN ground — the navy this screen had before the
+    // token migration. Only the ground: every other colour here still comes
+    // from the semantic roles. See theme/screenPalettes.js.
+    backgroundColor: paletteFor("baniList", theme.mode).surface,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
     alignItems: "center",
@@ -23,10 +28,10 @@ const createStyles = (theme) => ({
     textAlign: "center",
     opacity: 0.8,
   },
-  // Ik Onkar ੴ — Baloo Paaji, like the rest of the invocation line. Colour is
-  // inherited from newHeaderInvocationText to stay on-theme.
+  // Ik Onkar "<>" ligature — Gurbani font, so it keeps the elongated stroke
+  // over the onkar. Colour is inherited from newHeaderInvocationText.
   ikOnkarGlyph: {
-    fontFamily: theme.typography.fonts.balooPaaji,
+    fontFamily: theme.typography.fonts.gurbaniPrimary,
     fontSize: 18,
   },
   // Floral ornaments ("Œ"/"‰") flanking the title — Gurbani font, tinted with
