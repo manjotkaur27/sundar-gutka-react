@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing } from "react-native";
 
 // How every bottom sheet in the app enters and leaves.
@@ -16,6 +16,21 @@ import { Animated, Easing } from "react-native";
 //
 // `useNativeDriver` keeps the slide on the UI thread, which matters on the low
 // end of the supported range where a JS-driven transform stutters.
+//
+// ── Why the entrance hangs off `onShow` and not an effect ──────────────────
+// A Modal is a separate native window. Its children are not attached when the
+// commit that renders the Modal runs its effects, so a native-driven animation
+// started there targets a view that does not exist yet — the driver drops it
+// silently, and the sheet simply stays at its off-screen start value. The
+// symptom is brutal and total: the scrim covers the screen, no panel ever
+// arrives, and the only way out is to tap the scrim.
+//
+// `onShow` is React Native's documented "the modal is now on screen" callback,
+// and on Android it is dispatched straight from the Dialog's own
+// `setOnShowListener` (ReactModalHostManager.addEventEmitters). Starting the
+// slide there is therefore ordered by the platform rather than by a guess about
+// how many frames the window takes to appear — no timers, no retries, and
+// nothing to tune per device.
 
 /**
  * Distance below its resting position that a sheet starts and ends at. Must
@@ -30,22 +45,23 @@ const CLOSE_DURATION = 110;
  * Drives a bottom sheet's slide and keeps it mounted through its exit.
  *
  * @param {boolean} visible Whether the sheet should be shown.
- * @returns {{ mounted: boolean, translateY: Animated.Value }} `mounted` stays
- *   true until the closing slide has finished, so the caller can return null
- *   and unmount only once the sheet is actually off screen.
+ * @returns {{ mounted: boolean, translateY: Animated.Value, onShow: Function }}
+ *   `mounted` stays true until the closing slide has finished, so the caller can
+ *   return null and unmount only once the sheet is actually off screen. `onShow`
+ *   MUST be handed to the Modal's prop of the same name — it is what starts the
+ *   entrance, so a sheet that does not wire it up never appears.
  */
 const useSheetPresentation = (visible) => {
   const [mounted, setMounted] = useState(visible);
   const translateY = useRef(new Animated.Value(visible ? 0 : SHEET_TRAVEL)).current;
   const animRef = useRef(null);
 
-  // Opening is two steps on purpose. This effect only MOUNTS the sheet; the one
-  // below starts the slide, and it cannot run until the Modal — and therefore
-  // the animated node — is actually in the tree. Starting a native-driven
-  // animation in the same tick as the mount means it begins against a node that
-  // does not exist yet, and the first frames are dropped.
   useEffect(() => {
     if (visible) {
+      // Always enter from a known position. A close that was interrupted part
+      // way leaves the value somewhere in between, and without this the next
+      // opening would slide up from wherever it happened to stop.
+      translateY.setValue(SHEET_TRAVEL);
       setMounted(true);
     } else if (mounted) {
       animRef.current = Animated.timing(translateY, {
@@ -54,7 +70,13 @@ const useSheetPresentation = (visible) => {
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       });
-      animRef.current.start(() => setMounted(false));
+      // Only unmount if the slide actually RAN to the end. `stop()` still
+      // invokes this callback, with `finished: false` — so reopening mid-close
+      // would otherwise stop the close, fire this, and unmount a sheet that was
+      // supposed to be on screen, leaving the scrim up with no sheet under it.
+      animRef.current.start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
     }
     // Stop an in-flight native-driven slide on unmount, or the driver keeps
     // updating props on a node whose backing value may already be torn down.
@@ -66,21 +88,22 @@ const useSheetPresentation = (visible) => {
     return () => animRef.current?.stop();
   }, [visible]);
 
-  // Runs on the commit that first rendered the Modal, so the sheet slides up
-  // from off screen rather than snapping into place.
-  useEffect(() => {
-    if (!mounted || !visible) return undefined;
-    const anim = Animated.timing(translateY, {
+  /**
+   * Starts the entrance. Hand straight to the Modal's `onShow` — by the time
+   * the platform calls it, the sheet's native view exists and the native driver
+   * has something real to animate.
+   */
+  const onShow = useCallback(() => {
+    animRef.current = Animated.timing(translateY, {
       toValue: 0,
       duration: OPEN_DURATION,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
-    anim.start();
-    return () => anim.stop();
-  }, [mounted, visible, translateY]);
+    animRef.current.start();
+  }, [translateY]);
 
-  return { mounted, translateY };
+  return { mounted, translateY, onShow };
 };
 
 export default useSheetPresentation;

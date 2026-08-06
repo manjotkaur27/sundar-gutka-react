@@ -1,4 +1,3 @@
-import AppBar from "./AppBar";
 import BackIconComponent from "./BackIconComponent";
 import BaniLengthSelector from "./BaniLengthSelector";
 import BaniList from "./BaniList/BaniList";
@@ -16,7 +15,6 @@ import StatusBarComponent from "./StatusBar";
 import ThemedSwitch from "./ThemedSwitch";
 
 export {
-  AppBar,
   FallBack,
   GradientDivider,
   useCustomScrollbar,

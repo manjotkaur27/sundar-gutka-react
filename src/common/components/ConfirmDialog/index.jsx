@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Modal, View, Pressable, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet } from "react-native";
 import constant from "@common/constant";
+import Overlay from "@common/components/ui/Overlay";
 import useTheme from "@common/context";
 import CustomText from "../CustomText";
 
@@ -96,16 +97,21 @@ const ConfirmDialogHost = () => {
     onConfirm,
     onNeutral,
   } = options;
-  const isDark = theme.mode === "dark";
-  const surface = isDark ? theme.staticColors.NIGHT_BLACK : theme.colors.surface;
-  const textColor = isDark ? theme.staticColors.WHITE_COLOR : theme.staticColors.NIGHT_BLACK;
-  const confirmColor = destructive ? "#E53935" : theme.colors.primary;
+  const surface = theme.c.surfaceElevated;
+  const textColor = theme.c.textPrimary;
+  // `accent`, not `primary`: primary is the fixed brand navy in BOTH themes, so
+  // the confirm label was drawing deep navy on a dark card while the cancel
+  // button beside it used the theme-aware `textBrand`. One pairing for both.
+  const confirmColor = destructive ? theme.c.error : theme.c.accent;
 
   return (
-    <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={close}>
-      <Pressable style={styles.backdrop} onPress={close}>
+    <Overlay animationType="fade" onRequestClose={close}>
+      <Pressable style={[styles.backdrop, { backgroundColor: theme.c.scrim }]} onPress={close}>
         {/* Inner Pressable swallows taps so they don't dismiss via the backdrop. */}
-        <Pressable style={[styles.card, { backgroundColor: surface }]} onPress={() => {}}>
+        <Pressable
+          style={[styles.card, { backgroundColor: surface, shadowColor: theme.c.shadow }]}
+          onPress={() => {}}
+        >
           {!!title && (
             <CustomText style={[styles.title, { color: textColor }]}>{title}</CustomText>
           )}
@@ -123,7 +129,7 @@ const ConfirmDialogHost = () => {
                 hitSlop={8}
                 onLayout={onBtnLayout("cancel")}
               >
-                <CustomText style={[styles.btnText, { color: theme.colors.audioTitleText }]}>
+                <CustomText style={[styles.btnText, { color: theme.c.textBrand }]}>
                   {cancelText}
                 </CustomText>
               </Pressable>
@@ -143,7 +149,7 @@ const ConfirmDialogHost = () => {
                     styles.btnText,
                     // Primary (navy) on a dark grey surface is hard to read, so
                     // use white in dark mode.
-                    { color: isDark ? theme.staticColors.WHITE_COLOR : theme.colors.primary },
+                    { color: theme.c.textBrand },
                   ]}
                 >
                   {neutralText}
@@ -164,14 +170,14 @@ const ConfirmDialogHost = () => {
           </View>
         </Pressable>
       </Pressable>
-    </Modal>
+    </Overlay>
   );
 };
 
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    // Colour applied at the call site from `c.scrim`.
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
@@ -184,7 +190,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingBottom: 8,
     elevation: 8,
-    shadowColor: "#000",
+    // Shadow colour applied at the call site from `c.shadow`.
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

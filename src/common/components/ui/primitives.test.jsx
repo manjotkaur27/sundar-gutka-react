@@ -1,9 +1,9 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen } from "@testing-library/react-native";
 import darkTheme from "@theme/darkTheme";
 import lightTheme from "@theme/lightTheme";
-import { FONT_SCALE_MAX } from "@theme/scale";
+import { FONT_SCALE_MAX } from "@theme/scale";
 
 import Button from "./Button";
 import Card from "./Card";
@@ -221,10 +221,24 @@ describe("Dialog", () => {
 });
 
 describe("ScreenHeader", () => {
-  it.each(themes)("[%s] is one height everywhere, plus the safe-area inset", (_name, theme) => {
+  it.each(themes)("[%s] clears the camera cutout by the shared amount", (_name, theme) => {
     withTheme(theme, <ScreenHeader testID="h" title="Settings" />);
-    // The inset is a device fact and is added here, never baked into a token.
-    expect(flat(screen.getByTestId("h").props.style).paddingTop).toBe(24);
+    expect(flat(screen.getByTestId("h").props.style).paddingTop).toBe(
+      theme.layout.header.topClearance
+    );
+  });
+
+  // Every header in the app starts its content at the same height. The Reader's
+  // header reached this clearance by hand — a fixed 80pt box with bottom-aligned
+  // content — while every other screen used the raw safe-area inset, a different
+  // number per device that left a visible band above the title. Both now read
+  // one token, so they cannot drift apart again.
+  it("takes that clearance from a token, not from the device inset", () => {
+    withTheme(lightTheme, <ScreenHeader testID="h" title="Settings" />);
+    const padding = flat(screen.getByTestId("h").props.style).paddingTop;
+    // The mocked inset is 24; the token is not, so this cannot pass by accident.
+    expect(padding).not.toBe(24);
+    expect(padding).toBe(lightTheme.layout.header.topClearance);
   });
 
   it("wraps a long title to two lines rather than shrinking it", () => {
@@ -294,6 +308,32 @@ describe("Sheet", () => {
     withTheme(lightTheme, <Sheet visible={false} onClose={() => {}} title="Choose" />);
     expect(screen.queryByText("Choose")).toBeNull();
   });
+
+  // A Modal is its own window, and under Android's edge-to-edge enforcement that
+  // window is inset by the system bars while `useWindowDimensions` keeps
+  // reporting the full display. Giving the scrim a measured height therefore
+  // made it taller than the window it lived in, and `justifyContent: flex-end`
+  // pushed the sheet that far BELOW the screen — the lower options could not be
+  // seen or tapped, and all that was left on screen was the scrim.
+  it("sizes its scrim from the window, never from a measured height", () => {
+    withTheme(
+      lightTheme,
+      <Sheet visible onClose={() => {}} title="Choose" closeAccessibilityLabel="Close" />
+    );
+    const scrim = flat(screen.getByLabelText("Close").props.style);
+    expect(scrim.minHeight).toBeUndefined();
+    expect(scrim.height).toBeUndefined();
+    expect(scrim.position).toBe("absolute");
+    expect(scrim.bottom).toBe(0);
+  });
+
+  it("declares both translucency flags so its window spans the display", () => {
+    withTheme(lightTheme, <Sheet visible onClose={() => {}} title="Choose" testID="s" />);
+    const modal = screen.getByTestId("s");
+    // RN warns if the navigation flag is set without the status bar one.
+    expect(modal.props.statusBarTranslucent).toBe(true);
+    expect(modal.props.navigationBarTranslucent).toBe(true);
+  });
 });
 
 describe("Toast", () => {
@@ -315,5 +355,60 @@ describe("Toast", () => {
     withTheme(lightTheme, <Toast testID="t" type="error" message="Download failed" />);
     // The dot is decorative; the message itself states the outcome.
     expect(screen.getByText("Download failed")).toBeTruthy();
+  });
+});
+
+// A row's padding is the one that makes a Settings row as thick as a bani row on
+// the home screen. Both read the same token precisely so they cannot drift.
+describe("row thickness", () => {
+  it("pads a row by the same step the bani list uses", () => {
+    expect(lightTheme.layout.row.paddingVertical).toBe(lightTheme.space.lg);
+  });
+});
+
+// A header title is centred by the two side slots being EQUAL — the middle
+// column is flexible, so it fills whatever they leave. Seva has a close cross
+// and no back button; with only one slot its title sat left of centre. Pinning
+// the trailing slot to the leading slot's width then clipped Reminder Options,
+// which carries TWO actions, off the screen edge. The trailing slot therefore
+// sizes to its content and the leading spacer mirrors its measured width.
+describe("ScreenHeader title centring", () => {
+  const trailingSlotOf = () => screen.getByTestId("screen-header-actions");
+
+  it("mirrors the trailing slot width on the leading side", () => {
+    withTheme(
+      lightTheme,
+      <ScreenHeader testID="h" title="Seva" actions={<Text testID="act">x</Text>} />
+    );
+
+    act(() => trailingSlotOf().props.onLayout({ nativeEvent: { layout: { width: 72 } } }));
+
+    const widths = [];
+    const walk = (node) => {
+      if (!node || typeof node !== "object") return;
+      const st = flat(node.props?.style);
+      if (st && st.width === 72) widths.push(72);
+      (node.children ?? []).forEach(walk);
+    };
+    walk(screen.toJSON());
+    expect(widths.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("never pins the trailing slot to a fixed width, so actions cannot clip", () => {
+    withTheme(
+      lightTheme,
+      <ScreenHeader
+        testID="h"
+        title="Reminders"
+        onBack={() => {}}
+        actions={<Text testID="act">xx</Text>}
+      />
+    );
+    expect(flat(trailingSlotOf().props.style).width).toBeUndefined();
+  });
+
+  it("adds no leading spacer when there is a back button already", () => {
+    withTheme(lightTheme, <ScreenHeader testID="h" title="Settings" onBack={() => {}} />);
+    expect(screen.getByTestId("screen-header-back")).toBeTruthy();
   });
 });

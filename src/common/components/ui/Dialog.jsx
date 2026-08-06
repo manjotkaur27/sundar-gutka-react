@@ -1,8 +1,9 @@
 import React from "react";
-import { Modal, ScrollView, useWindowDimensions, View } from "react-native";
+import { ScrollView, useWindowDimensions, View } from "react-native";
 import PropTypes from "prop-types";
 import useTokens from "../../hooks/useTokens";
 import Button from "./Button";
+import Overlay from "./Overlay";
 import Text from "./Text";
 
 // One confirm dialog, for every destructive or blocking question the app asks —
@@ -34,12 +35,10 @@ const Dialog = ({
   const { height } = useWindowDimensions();
 
   return (
-    <Modal
+    <Overlay
       visible={visible}
-      transparent
       animationType="fade"
       onRequestClose={onCancel}
-      statusBarTranslucent
       testID={testID}
     >
       <View
@@ -108,7 +107,7 @@ const Dialog = ({
           </View>
         </View>
       </View>
-    </Modal>
+    </Overlay>
   );
 };
 

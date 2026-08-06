@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PropTypes from "prop-types";
 import { BackArrowIcon } from "@common/icons";
 import useTokens from "../../hooks/useTokens";
@@ -26,9 +25,10 @@ import Text from "./Text";
 // so a title on a root screen centres on the full width rather than on the
 // space between two invisible boxes.
 //
-// The safe-area top inset is added HERE and is not part of `layout.header`: the
-// inset is a device fact from the OS, so baking it into a token would make the
-// token wrong on every other device.
+// Top clearance comes from `layout.header.topClearance` — the same token the
+// Reader's header reads — so every header in the app starts its content at the
+// same height. It is not the safe-area inset: this app hides the status bar, so
+// the inset reserved room for a bar that was not drawn.
 //
 // ── Foreground ─────────────────────────────────────────────────────────────
 // The title and the back arrow take `c.headerFg` — brand navy in light, white
@@ -48,7 +48,14 @@ const ScreenHeader = ({
   testID = undefined,
 }) => {
   const { c, space, layout } = useTokens();
-  const insets = useSafeAreaInsets();
+  // Width of the trailing slot, measured rather than assumed.
+  //
+  // The title is centred by the two sides being EQUAL — the middle column is
+  // flexible, so it fills whatever they leave. Pinning the trailing slot to the
+  // leading slot's width is wrong: Reminder Options carries TWO actions and they
+  // were clipped straight off the screen edge. Mirroring the real width instead
+  // centres the title for any number of actions and can never clip them.
+  const [actionsWidth, setActionsWidth] = useState(0);
 
   // Both dimensions, not just width: without an explicit height the pressable
   // shrinks to the icon and the tap target drops under the 44pt floor.
@@ -64,7 +71,7 @@ const ScreenHeader = ({
       testID={testID}
       style={{
         backgroundColor: c[surface] ?? surface,
-        paddingTop: insets.top,
+        paddingTop: layout.header.topClearance,
         borderBottomWidth: showBorder ? layout.borderWidth.hairline : 0,
         borderBottomColor: c.border,
       }}
@@ -89,6 +96,12 @@ const ScreenHeader = ({
             <BackArrowIcon size={layout.header.iconSize} color={c.headerFg} />
           </Pressable>
         ) : null}
+        {/* Leading spacer for a header that has a trailing control but no back
+            button — Seva, with just a title and a close cross. The centre column
+            is flexible, so without something of equal width on this side it
+            takes all the room left of the cross and its title settles LEFT of
+            the screen's centre. This mirrors the spacer on the other side. */}
+        {actions && !onBack ? <View style={{ width: actionsWidth }} /> : null}
 
         {/* The flexible column. Titles wrap to two lines rather than shrink —
             `adjustsFontSizeToFit` here would render a different title size on
@@ -104,10 +117,16 @@ const ScreenHeader = ({
           ) : null}
         </View>
 
-        {/* Trailing slot. Rendered whenever the leading one is, so the centre
-            column stays optically centred rather than pushed off by the arrow. */}
+        {/* Trailing slot, sized to its own content — Reminder Options carries two
+            actions, and forcing this to the leading slot's width clipped the
+            second one off the screen edge. Its measured width is mirrored by the
+            spacer above, which is what actually centres the title. */}
         {actions ? (
-          <View style={[sideSlot, { flexDirection: "row", gap: space.xs, width: undefined }]}>
+          <View
+            testID="screen-header-actions"
+            onLayout={(e) => setActionsWidth(e.nativeEvent.layout.width)}
+            style={[sideSlot, { flexDirection: "row", gap: space.xs, width: undefined }]}
+          >
             {actions}
           </View>
         ) : null}

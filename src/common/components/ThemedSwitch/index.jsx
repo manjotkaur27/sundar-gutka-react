@@ -20,6 +20,8 @@ const ThemedSwitch = ({
   onValueChange = undefined,
   disabled = false,
   offThumbColor = null,
+  onThumbColor = null,
+  thumbBorderColor = null,
   onTrackColor = null,
   offTrackColor = null,
 }) => {
@@ -79,10 +81,15 @@ const ThemedSwitch = ({
             width: thumbSize,
             height: thumbSize,
             borderRadius: thumbSize / 2,
-            // offThumbColor only tints the OFF-state circle; ON keeps the
-            // default thumb. `c.surface` reads against both tracks in both
-            // themes, which a fixed white does not.
-            backgroundColor: !value && offThumbColor ? offThumbColor : c.surface,
+            // offThumbColor tints the OFF-state circle only; onThumbColor the
+            // ON one. Unset, both fall back to `c.surface`, which reads against
+            // either track in either theme where a fixed white does not — but a
+            // caller on a coloured card needs to say so, because there the
+            // surface role IS the card and the thumb would vanish into it.
+            backgroundColor:
+              (!value && offThumbColor) || (value && onThumbColor) || c.surface,
+            // A hairline keeps a pale thumb legible on a pale track.
+            ...(thumbBorderColor ? { borderWidth: 0.5, borderColor: thumbBorderColor } : {}),
             transform: [{ translateX }],
           }}
         />
@@ -96,6 +103,8 @@ ThemedSwitch.propTypes = {
   onValueChange: PropTypes.func,
   disabled: PropTypes.bool,
   offThumbColor: PropTypes.string,
+  onThumbColor: PropTypes.string,
+  thumbBorderColor: PropTypes.string,
   onTrackColor: PropTypes.string,
   offTrackColor: PropTypes.string,
 };
