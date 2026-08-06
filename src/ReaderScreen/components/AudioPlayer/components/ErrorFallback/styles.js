@@ -58,6 +58,11 @@ const createStyles = (theme) => ({
     // identically across OEMs. Not underlined, unlike the label it follows.
     fontFamily: Platform.select({ android: "sans-serif", ios: "Helvetica" }),
     textDecorationLine: "none",
+    // Named explicitly, NOT inherited from joinMailingListText. CustomText
+    // always passes `color="textPrimary"` down and a caller's style only wins
+    // when it names a colour, so an unstyled nested glyph came out as body
+    // text beside a link-coloured label.
+    color: theme.c.link,
   },
 });
 export default createStyles;

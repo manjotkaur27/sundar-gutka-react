@@ -28,11 +28,22 @@ const createStyles = (theme) => ({
     textAlign: "center",
     opacity: 0.8,
   },
-  // Ik Onkar "<>" ligature — Gurbani font, so it keeps the elongated stroke
-  // over the onkar. Colour is inherited from newHeaderInvocationText.
+  // Ik Onkar "<>" ligature. The Gurbani face is not a choice — it is the only
+  // one that draws the elongated stroke over the onkar; Baloo would render the
+  // two characters literally.
+  //
+  // Colour is set EXPLICITLY and must stay that way. It does not inherit from
+  // newHeaderInvocationText: CustomText always passes `color="textPrimary"`
+  // down, and a caller's style only wins when it names a colour of its own. A
+  // glyph with no colour therefore came out textPrimary while the line around
+  // it was textSecondary — a visible mismatch in both themes.
+  //
+  // Size matches the line for the same reason: at 18 against the line's 15 it
+  // read as heavier as well as larger.
   ikOnkarGlyph: {
     fontFamily: theme.typography.fonts.gurbaniPrimary,
-    fontSize: 18,
+    fontSize: 15,
+    color: theme.c.textSecondary,
   },
   // Floral ornaments ("Œ"/"‰") flanking the title — Gurbani font, tinted with
   // the title colour so they track light/dark like the rest of the header.

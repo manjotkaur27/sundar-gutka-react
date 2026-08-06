@@ -192,17 +192,32 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
   ymRef.current = { year, month };
 
   // First day activity data can exist for — see constant.DASHBOARD_HISTORY_FLOOR.
-  // This bounds the "missed" marker only. Browsing is deliberately unbounded:
-  // a month outside the data range simply reads as empty, which is clearer than
-  // a dead arrow the user cannot explain.
+  // It bounds the "missed" marker AND how far back the calendar can be browsed:
+  // the back arrow is withdrawn at the floor and the swipe is guarded, since
+  // every earlier month is necessarily empty.
   const { year: floorYear, month: floorMonth } = constant.DASHBOARD_HISTORY_FLOOR;
   const historyStart = `${floorYear}-${String(floorMonth).padStart(2, "0")}-01`;
 
+  // True when the calendar is already showing the earliest month there is any
+  // history for, so there is nothing further back to reach.
+  const atHistoryFloor = year === floorYear && month === floorMonth;
+
+  // A month that has not happened yet. "0 days" and "no activity recorded" are
+  // both statements about the past — on a future month they read as a failure
+  // rather than as a month that simply has not arrived. Real activity IS still
+  // shown if any exists (a bani read ahead of time, a clock skew), so the
+  // suppression is of the empty states only, never of data.
+  const [todayYear, todayMonth] = todayStr.split("-").map(Number);
+  const isFutureMonth = year > todayYear || (year === todayYear && month > todayMonth);
+
   const prevMonth = useCallback(() => {
-    const { month: m } = ymRef.current;
+    const { year: y, month: m } = ymRef.current;
+    // Guarded HERE, not just on the arrow: the horizontal swipe calls this too,
+    // so hiding the control alone would still let a drag cross the floor.
+    if (y === floorYear && m === floorMonth) return;
     setYear((yy) => (m === 1 ? yy - 1 : yy));
     setMonth((mm) => (mm === 1 ? 12 : mm - 1));
-  }, []);
+  }, [floorYear, floorMonth]);
 
   const nextMonth = useCallback(() => {
     const { month: m } = ymRef.current;
@@ -321,13 +336,20 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
       >
         <View style={styles.header}>
           <View style={styles.monthNav}>
-            <Pressable
-              onPress={prevMonth}
-              hitSlop={8}
-              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-            >
-              <ChevronLeftIcon size={16} color={navColor} />
-            </Pressable>
+            {/* Withdrawn at the floor rather than left as a dead control. The
+                placeholder keeps the month label in the same place, so the
+                header does not shift when the arrow goes. */}
+            {atHistoryFloor ? (
+              <View style={styles.navBtnPlaceholder} />
+            ) : (
+              <Pressable
+                onPress={prevMonth}
+                hitSlop={8}
+                style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
+              >
+                <ChevronLeftIcon size={16} color={navColor} />
+              </Pressable>
+            )}
             {/* Tap the label to jump to an arbitrary month via the date picker,
                 bounded by DASHBOARD_HISTORY_FLOOR..today (see below). flexShrink
                 lets it give up width to the arrows/daysCount before overflowing
@@ -352,12 +374,16 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
               <ChevronRight size={16} color={navColor} />
             </Pressable>
           </View>
-          <CustomText style={[styles.daysCount, { color: mutedText }]} numberOfLines={1}>
-            {STRINGS.formatString(
-              activeDaysCount === 1 ? STRINGS.DAY_THIS_MONTH : STRINGS.DAYS_THIS_MONTH,
-              { count: activeDaysCount }
-            )}
-          </CustomText>
+          {/* Suppressed only when a future month has nothing to report; a
+              future month WITH activity still shows its count. */}
+          {isFutureMonth && activeDaysCount === 0 ? null : (
+            <CustomText style={[styles.daysCount, { color: mutedText }]} numberOfLines={1}>
+              {STRINGS.formatString(
+                activeDaysCount === 1 ? STRINGS.DAY_THIS_MONTH : STRINGS.DAYS_THIS_MONTH,
+                { count: activeDaysCount }
+              )}
+            </CustomText>
+          )}
         </View>
 
         <View style={styles.weekRow}>
@@ -444,9 +470,11 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
             ))
           : null}
 
-        {/* Months outside the recorded range are reachable, so say why one is
-            blank rather than leaving the user with a silent empty grid. */}
-        {!loading && !error && activeDaysCount === 0 ? (
+        {/* Months after the floor but before today are reachable and can be
+            genuinely empty, so say why rather than leaving a silent grid. A
+            future month is not "empty" — it has not happened — so it says
+            nothing at all. */}
+        {!loading && !error && !isFutureMonth && activeDaysCount === 0 ? (
           <CustomText style={[styles.emptyNote, { color: mutedText }]}>
             {STRINGS.NO_ACTIVITY_MONTH}
           </CustomText>
@@ -529,6 +557,8 @@ const styles = StyleSheet.create({
   monthNav: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   monthLabelBtn: { flexShrink: 1 },
   navBtn: { padding: 4, flexShrink: 0 },
+  /** Holds the back arrow's footprint at the history floor. Matches navBtn. */
+  navBtnPlaceholder: { padding: 4, flexShrink: 0, width: 16 },
   // Month navigation is never disabled, so the only state to express is the
   // touch itself — without it a tap that lands on an empty month gives no
   // sign it registered.

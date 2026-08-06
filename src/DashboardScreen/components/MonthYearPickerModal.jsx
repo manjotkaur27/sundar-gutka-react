@@ -12,6 +12,9 @@ import useDashboardTheme from "./dashboardTheme";
 // time so a language switch is reflected immediately.
 const monthLabels = () => Array.from({ length: 12 }, (_, i) => monthShort(i));
 
+/** Earliest month any activity can exist for. Nothing before it is reachable. */
+const FLOOR = constant.DASHBOARD_HISTORY_FLOOR;
+
 const getToday = () => {
   const n = new Date();
   return { year: n.getFullYear(), month: n.getMonth() + 1 };
@@ -35,15 +38,6 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   // today's date by default" behavior the native picker had, independent of
   // whichever month the calendar happens to be showing underneath.
   const [viewYear, setViewYear] = useState(today.year);
-  // The year sits between a single back arrow on the left and TWO controls on
-  // the right, so centring it in the leftover space pushes it off-centre in the
-  // sheet. The leading spacer mirrors the close button's measured width, which
-  // is the only one without a counterpart.
-  //
-  // Declared with the other hooks, ABOVE the `mounted` early return — below it
-  // the hook is only called on some renders, which is what React counts.
-  const [closeWidth, setCloseWidth] = useState(0);
-
   // The entrance comes from the shared hook, so this picker, the Dashboard's
   // other sheets and the Settings sheets all open the same way. It used to
   // hand-roll its own Animated.parallel with its own durations — a third
@@ -63,7 +57,7 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   const chipBg = c.surfaceSelected;
   // Stepping back a whole year from the earliest year with any history would
   // land entirely before it, so the control is not offered.
-  const canGoBack = viewYear - 1 >= constant.DASHBOARD_HISTORY_FLOOR.year;
+  const canGoBack = viewYear - 1 >= FLOOR.year;
 
   return (
     // Entrance starts on `onShow` — see `useSheetPresentation`.
@@ -81,32 +75,31 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
         >
 
           <View style={styles.header}>
-            <View style={{ width: closeWidth }} />
-            {canGoBack ? (
+            {/* The arrows sit either side of the year as one cluster, centred
+                in the sheet. The close button is taken out of the flow so it
+                cannot pull that cluster off-centre. */}
+            <View style={styles.yearCluster}>
+              {canGoBack ? (
+                <Pressable
+                  onPress={() => setViewYear((y) => y - 1)}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
+                >
+                  <ChevronLeftIcon size={18} color={primaryText} />
+                </Pressable>
+              ) : (
+                <View style={styles.navBtnPlaceholder} />
+              )}
+              <CustomText style={[styles.yearText, { color: primaryText }]}>{viewYear}</CustomText>
               <Pressable
-                onPress={() => setViewYear((y) => y - 1)}
+                onPress={() => setViewYear((y) => y + 1)}
                 hitSlop={8}
                 style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
               >
-                <ChevronLeftIcon size={18} color={primaryText} />
+                <ChevronRight size={18} color={primaryText} />
               </Pressable>
-            ) : (
-              <View style={styles.navBtnPlaceholder} />
-            )}
-            <CustomText style={[styles.yearText, { color: primaryText }]}>{viewYear}</CustomText>
-            <Pressable
-              onPress={() => setViewYear((y) => y + 1)}
-              hitSlop={8}
-              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-            >
-              <ChevronRight size={18} color={primaryText} />
-            </Pressable>
-            <Pressable
-              onPress={onClose}
-              hitSlop={8}
-              style={styles.closeBtn}
-              onLayout={(e) => setCloseWidth(e.nativeEvent.layout.width)}
-            >
+            </View>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
               <CloseIcon size={layout.header.closeIconSize} color={mutedText} />
             </Pressable>
           </View>
@@ -116,10 +109,17 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
               const m = i + 1;
               const isSelected = viewYear === year && m === month;
               const isToday = viewYear === today.year && m === today.month;
+              // In the floor year the months before the floor have no history
+              // and never will. Shown but not selectable, rather than removed —
+              // pulling four chips out of a 12-cell grid reflows the rest and
+              // makes the year look like it starts in July.
+              const beforeFloor = viewYear === FLOOR.year && m < FLOOR.month;
               return (
                 <Pressable
                   key={label}
                   onPress={() => onSelect(viewYear, m)}
+                  disabled={beforeFloor}
+                  accessibilityState={{ disabled: beforeFloor, selected: isSelected }}
                   style={({ pressed }) => [
                     styles.cell,
                     // Every cell keeps the same chip shape/size so the grid
@@ -128,11 +128,16 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
                     { backgroundColor: chipBg },
                     isSelected && { backgroundColor: accentBlue },
                     !isSelected && isToday && { borderWidth: 1.5, borderColor: accentBlue },
-                    pressed && styles.cellPressed,
+                    beforeFloor && styles.cellDisabled,
+                    pressed && !beforeFloor && styles.cellPressed,
                   ]}
                 >
                   <CustomText
-                    style={[styles.cellText, { color: isSelected ? c.onAccent : primaryText }]}
+                    style={[
+                      styles.cellText,
+                      { color: isSelected ? c.onAccent : primaryText },
+                      beforeFloor && { color: mutedText },
+                    ]}
                   >
                     {label}
                   </CustomText>
@@ -174,8 +179,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
     marginBottom: 20,
+  },
+  // Arrows hug the year rather than being pushed to the sheet's edges.
+  yearCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   navBtn: { padding: 4 },
   navBtnPlaceholder: { padding: 4, width: 18 },
@@ -183,12 +194,14 @@ const styles = StyleSheet.create({
   // touch. Matches the month arrows in MonthCalendar.
   navBtnPressed: { opacity: 0.45 },
   yearText: {
-    flex: 1,
     fontSize: 18,
     fontWeight: "600",
     textAlign: "center",
+    // Wide enough that stepping 2026 -> 2027 does not shuffle the arrows.
+    minWidth: 64,
   },
-  closeBtn: { padding: 4 },
+  // Out of the flow entirely, so it cannot shift the centred year cluster.
+  closeBtn: { position: "absolute", right: 0, padding: 4 },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -203,6 +216,10 @@ const styles = StyleSheet.create({
   },
   cellPressed: {
     opacity: 0.6,
+  },
+  /** Unreachable months keep their chip but read as inert. */
+  cellDisabled: {
+    opacity: 0.4,
   },
   cellText: {
     fontSize: 15,
