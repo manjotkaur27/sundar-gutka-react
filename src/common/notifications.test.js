@@ -1,6 +1,12 @@
 import { Platform } from "react-native";
 import notifee, { AndroidNotificationSetting } from "@notifee/react-native";
-import { canScheduleExactAlarms, iosSoundName, rearmReminders, updateReminders } from "./notifications";
+import {
+  canScheduleExactAlarms,
+  channelIdFor,
+  iosSoundName,
+  rearmReminders,
+  updateReminders,
+} from "./notifications";
 
 // Reminders silently never fired: on Android 12+ the exact-alarm permission is
 // not granted on install, and without it `createTriggerNotification` schedules
@@ -14,6 +20,8 @@ jest.mock("@notifee/react-native", () => ({
   __esModule: true,
   default: {
     createChannel: jest.fn().mockResolvedValue("ch"),
+    getChannels: jest.fn().mockResolvedValue([]),
+    deleteChannel: jest.fn().mockResolvedValue(undefined),
     createTriggerNotification: jest.fn().mockResolvedValue(undefined),
     cancelAllNotifications: jest.fn().mockResolvedValue(undefined),
     cancelTriggerNotifications: jest.fn().mockResolvedValue(undefined),
@@ -160,8 +168,10 @@ describe("the scheduled trigger", () => {
 
     const created = notifee.createChannel.mock.calls.map(([ch]) => ch.id);
     const [notification] = notifee.createTriggerNotification.mock.calls[0];
-    expect(notification.android.channelId).toBe("waheguru_soul");
-    expect(created).toContain("waheguru_soul");
+    // Asserted through the helper, so bumping CHANNEL_VERSION cannot leave the
+    // scheduled notification pointing at a channel that no longer exists.
+    expect(notification.android.channelId).toBe(channelIdFor("waheguru_soul.mp3"));
+    expect(created).toContain(channelIdFor("waheguru_soul.mp3"));
     // iOS cannot play mp3 — it gets the .caf name instead.
     expect(notification.ios.sound).toBe("waheguru_soul.caf");
   });
@@ -209,5 +219,61 @@ describe("re-arming on app foreground", () => {
 
   it("survives corrupt stored reminders", async () => {
     expect(await rearmReminders("default", "{not json")).toBe(0);
+  });
+});
+
+// The sound is baked into a notification AT SCHEDULE TIME — on Android it picks
+// the channel, on iOS it names the file. Storing a new sound therefore changes
+// nothing already sitting in the OS queue, which is why a reminder kept firing
+// with the previous tone until something else happened to reschedule it.
+// Editing a reminder's TIME did, which made the bug look intermittent.
+describe("changing the sound rewrites what is already scheduled", () => {
+  it("reschedules every enabled reminder against the new sound", async () => {
+    await updateReminders(true, "default", listOf(reminder()));
+    notifee.createTriggerNotification.mockClear();
+
+    await updateReminders(true, "wake_up_jap.mp3", listOf(reminder()));
+
+    const [notification] = notifee.createTriggerNotification.mock.calls[0];
+    expect(notification.android.channelId).toBe(channelIdFor("wake_up_jap.mp3"));
+    expect(notification.ios.sound).toBe("wake_up_jap.caf");
+  });
+
+  it("clears the old schedule first, so no reminder fires twice", async () => {
+    await updateReminders(true, "wake_up_jap.mp3", listOf(reminder()));
+    expect(notifee.cancelAllNotifications).toHaveBeenCalled();
+  });
+});
+
+describe("channels are versioned, because Android will not let them change", () => {
+  it("keeps the id stable for one version and distinct per sound", () => {
+    expect(channelIdFor("wake_up_jap.mp3")).toBe(channelIdFor("wake_up_jap.mp3"));
+    expect(channelIdFor("wake_up_jap.mp3")).not.toBe(channelIdFor("waheguru_soul.mp3"));
+  });
+
+  it("gives the default sound its own channel rather than none", () => {
+    expect(channelIdFor("default")).toContain("sound");
+    expect(channelIdFor(undefined)).toBe(channelIdFor("default"));
+  });
+
+  it("carries a version marker, so a future tone change can migrate", () => {
+    // A channel is immutable once created: calling createChannel again with a
+    // new sound silently keeps the old one. A new id is the documented way out.
+    expect(channelIdFor("wake_up_jap.mp3")).toMatch(/_v\d+$/);
+  });
+
+  it("deletes channels left behind by an earlier version", async () => {
+    notifee.getChannels.mockResolvedValueOnce([
+      { id: "wake_up_jap_v0" },
+      { id: channelIdFor("wake_up_jap.mp3") },
+      { id: "some_other_channel" },
+    ]);
+
+    await updateReminders(true, "wake_up_jap.mp3", listOf(reminder()));
+
+    expect(notifee.deleteChannel).toHaveBeenCalledWith("wake_up_jap_v0");
+    // The one in use, and anything not ours, are left alone.
+    expect(notifee.deleteChannel).not.toHaveBeenCalledWith(channelIdFor("wake_up_jap.mp3"));
+    expect(notifee.deleteChannel).not.toHaveBeenCalledWith("some_other_channel");
   });
 });

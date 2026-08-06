@@ -101,3 +101,67 @@ describe("localization parity", () => {
     });
   });
 });
+
+// ── The two gaps the parity checks above could not see ──────────────────────
+
+describe("localization completeness", () => {
+  // Every key a language defines must also exist in en-US.
+  //
+  // Parity was only checked in one direction, so a key could live in some
+  // languages and not others without failing: `click_more_info` sat in fr, it
+  // and es alone. Harmless there because nothing read it, but the same shape —
+  // a key three languages have and three do not — is exactly how a string ends
+  // up rendering as `undefined` for half the users.
+  describe.each(SUPPORTED.filter((l) => l !== "en-US"))("%s", (lang) => {
+    it("defines no key that en-US does not", () => {
+      const english = keysOf(blockFor("en-US"));
+      const extra = [...keysOf(blockFor(lang))].filter((key) => !english.has(key));
+      expect(extra).toEqual([]);
+    });
+  });
+
+  // Every STRINGS.<KEY> the app reads must actually exist.
+  //
+  // `STRINGS.SOMETHING_WENT_WRONG` was referenced by the donation web view and
+  // defined in NO language. It was written as `STRINGS.SOMETHING_WENT_WRONG ||
+  // "Something went wrong. Please try again."`, so it never crashed and never
+  // looked broken in English — it just silently showed English to Punjabi,
+  // Hindi, French, Italian and Spanish readers. Nothing else in the suite could
+  // catch that, because the fallback made it look deliberate.
+  it("defines every key the app actually reads", () => {
+    const defined = keysOf(blockFor("en-US"));
+    // Methods on the LocalizedStrings instance, not translation keys.
+    const API = new Set([
+      "formatString",
+      "getLanguage",
+      "setLanguage",
+      "getInterfaceLanguage",
+      "getString",
+      "getAvailableLanguages",
+    ]);
+
+    const referenced = new Map();
+    const walk = (dir) => {
+      fs.readdirSync(dir, { withFileTypes: true }).forEach((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== "node_modules") walk(full);
+          return;
+        }
+        if (!/\.(js|jsx)$/.test(entry.name)) return;
+        if (/localization/.test(entry.name)) return;
+        const text = fs.readFileSync(full, "utf8");
+        [...text.matchAll(/STRINGS\.([A-Za-z_][A-Za-z0-9_]*)/g)].forEach((m) => {
+          if (!API.has(m[1])) referenced.set(m[1], full);
+        });
+      });
+    };
+    walk(path.join(__dirname, ".."));
+
+    const undefinedKeys = [...referenced.entries()]
+      .filter(([key]) => !defined.has(key))
+      .map(([key, file]) => `${key} (${path.basename(file)})`);
+
+    expect(undefinedKeys).toEqual([]);
+  });
+});

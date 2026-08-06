@@ -91,11 +91,62 @@ export const iosSoundName = (sound) => {
   return sound.replace(/\.[^.]+$/, ".caf");
 };
 
+/**
+ * Bump this whenever a channel's SOUND, importance or vibration changes.
+ *
+ * An Android notification channel is IMMUTABLE once created: after the first
+ * `createChannel`, only its name and description can ever be changed again.
+ * Calling `createChannel` with new sound on an existing id is not an error and
+ * not a no-op you can see — it silently keeps the OLD sound, for as long as the
+ * app stays installed. The documented way out is to create a channel under a new
+ * id and delete the old one.
+ *   https://developer.android.com/develop/ui/views/notifications/channels
+ *
+ * Without this version the app could ship a new reminder tone and every existing
+ * user would keep hearing the previous one, with nothing in the code to explain
+ * why. Bumping it is the whole migration.
+ */
+export const CHANNEL_VERSION = 1;
+
+/**
+ * The Android channel a given reminder sound plays through.
+ *
+ * One channel per sound, because the sound belongs to the channel and cannot be
+ * set per-notification on Android 8+. Versioned — see `CHANNEL_VERSION`.
+ */
+export const channelIdFor = (sound) => {
+  const base =
+    !sound || sound === constant.DEFAULT.toLowerCase()
+      ? constant.SOUND.toLowerCase()
+      : sound.split(".")[0];
+  return `${base}_v${CHANNEL_VERSION}`;
+};
+
+/**
+ * Removes channels this build no longer uses.
+ *
+ * Old-version channels would otherwise sit in the system settings screen for
+ * ever, so the user sees several near-identical "Reminders" entries and can
+ * silence one that is not the one being used.
+ */
+export const pruneStaleChannels = async (keepIds) => {
+  if (Platform.OS !== "android") return;
+  try {
+    const existing = await notifee.getChannels();
+    await Promise.all(
+      existing
+        .filter((ch) => /_v\d+$/.test(ch.id) && !keepIds.includes(ch.id))
+        .map((ch) => notifee.deleteChannel(ch.id))
+    );
+  } catch (error) {
+    // Never let housekeeping stop a reminder being scheduled.
+    logError(error);
+  }
+};
+
 export const createReminder = async (notification, sound) => {
-  const channelName =
-    sound !== constant.DEFAULT.toLowerCase() ? sound.split(".")[0] : constant.SOUND.toLowerCase();
   const androidChannel = {
-    channelId: channelName,
+    channelId: channelIdFor(sound),
     smallIcon: "ic_launcher_foreground",
     pressAction: {
       id: "default",
@@ -218,17 +269,22 @@ export const updateReminders = async (remindersOn, sound, remindersList) => {
     },
   ];
 
-  const channelCreationPromises = channels.map((channel) =>
-    notifee.createChannel({
-      id: channel.id,
-      name: channel.name,
-      sound: channel.sound,
-      description: constant.ALERT_DESCRIPTION,
-      importance: AndroidImportance.HIGH,
-    })
-  );
+  const channelIds = channels.map((channel) => channelIdFor(channel.sound));
 
-  await Promise.all(channelCreationPromises);
+  await Promise.all(
+    channels.map((channel, i) =>
+      notifee.createChannel({
+        id: channelIds[i],
+        name: channel.name,
+        sound: channel.sound,
+        description: constant.ALERT_DESCRIPTION,
+        importance: AndroidImportance.HIGH,
+      })
+    )
+  );
+  // Drop channels from earlier versions so the settings screen does not fill up
+  // with near-identical entries the app no longer posts to.
+  await pruneStaleChannels(channelIds);
 
   if (!remindersOn) return { scheduled: 0, blocked: false };
 
