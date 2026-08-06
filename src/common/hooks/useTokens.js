@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useWindowDimensions } from "react-native";
 import { resolveTokens } from "@theme/scale";
+import { layoutFor } from "@theme/screenPalettes";
+import { useScreenRolesScope } from "@theme/ScreenRolesProvider";
 import { useTheme } from "../context/ThemeContext";
 
 // The single entry point for design tokens in a component.
@@ -18,6 +20,10 @@ import { useTheme } from "../context/ThemeContext";
 const useTokens = () => {
   const { theme } = useTheme();
   const { width, fontScale } = useWindowDimensions();
+  // A subtree can be scoped to one screen's colours (see ScreenRolesProvider).
+  // Outside a provider this is null and `c` is the semantic layer untouched, so
+  // every existing caller is unaffected.
+  const screen = useScreenRolesScope();
 
   return useMemo(() => {
     const { scale, space, layout } = resolveTokens({
@@ -27,7 +33,7 @@ const useTokens = () => {
       fontScale,
     });
     return {
-      /** Semantic colours for the active theme. */
+      /** Colours for the active theme, already scoped by useTheme. */
       c: theme.c,
       /** Unscaled type roles — RN applies the user's text scale at render. */
       type: theme.type,
@@ -36,14 +42,19 @@ const useTokens = () => {
       /** Theme-dependent assets — the Khalis mark has a light and a dark file. */
       images: theme.images,
       space,
-      layout,
+      // A scoped screen's layout overrides go on AFTER resolution, so they land
+      // as the exact numbers they declare. The Settings sheet's padding was a
+      // flat 16/24 that never scaled with the device — putting the override in
+      // before resolution multiplied it and made the sheet visibly taller.
+      // Row height still follows the text, because the height floor is 0.
+      layout: layoutFor(screen, layout),
       scale,
       mode: theme.mode,
       isDark: theme.mode === "dark",
       /** Escape hatch for the deprecated maps, during migration only. */
       theme,
     };
-  }, [theme, width, fontScale]);
+  }, [theme, width, fontScale, screen]);
 };
 
 export default useTokens;
