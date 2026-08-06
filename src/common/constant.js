@@ -159,9 +159,18 @@ export default {
   // allowed to reach — there is no activity data before this, by product
   // decision, regardless of what a device's local SQLite table might contain.
   DASHBOARD_HISTORY_FLOOR: { year: 2026, month: 7 },
-  // Default daily Nitnem bani set (classic Sat Bania by Banis.ID). ID 6 is Tav
-  // Prasad Savaiye — sixth in the bani list — not ID 3, Shabad Hazare.
-  DEFAULT_NITNEM_BANI_IDS: [2, 6, 4, 9, 5, 21, 1],
+  // Default daily Nitnem bani set, by Banis.ID, in reading order:
+  //   2  Japji Sahib
+  //   6  Tav Prasad Savaiye (Sraavag Sudh)
+  //   4  Jaap Sahib
+  //   9  Benati Chaupai Sahib
+  //   21 Rehras Sahib
+  //   1  Gur Mantar
+  //
+  // Savaiye is ID 6. NEITHER Shabad Hazare (ID 3) nor Shabad Hazare Patishahi
+  // 10 (ID 5) belongs in the default — they are two distinct banis and the
+  // similar names make the wrong one easy to reach for.
+  DEFAULT_NITNEM_BANI_IDS: [2, 6, 4, 9, 21, 1],
 
   // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
   DASHBOARD_API_BASE_URL: KHALIS_API_BASE,

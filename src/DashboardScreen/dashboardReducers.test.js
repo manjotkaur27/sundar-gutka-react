@@ -72,6 +72,22 @@ describe("Dashboard redesign reducers", () => {
     expect(todaysNitnem.completed).toEqual({});
   });
 
+  // The assertion above compares the constant to itself, so it passes whatever
+  // the constant holds. These pin the actual IDs.
+  it("defaults to the six Nitnem banis in reading order", () => {
+    expect(constant.DEFAULT_NITNEM_BANI_IDS).toEqual([2, 6, 4, 9, 21, 1]);
+  });
+
+  it("includes Tav Prasad Savaiye and neither Shabad Hazare", () => {
+    const ids = constant.DEFAULT_NITNEM_BANI_IDS;
+    // ID 6 is Savaiye. ID 3 (Shabad Hazare) and ID 5 (Shabad Hazare Patishahi
+    // 10) are two different banis, and the near-identical names are why the
+    // wrong one kept ending up here.
+    expect(ids).toContain(6);
+    expect(ids).not.toContain(3);
+    expect(ids).not.toContain(5);
+  });
+
   it("setNitnemBanis replaces the selected bani set", () => {
     const state0 = init();
     const state1 = rootReducer(state0, actions.setNitnemBanis([1, 2, 3]));
