@@ -1,5 +1,4 @@
 import * as actions from "./actions";
-import colors from "./colors";
 import {
   FallBack,
   BaniLengthSelector,
@@ -87,7 +86,7 @@ import {
 import convertToUnicode from "./utils";
 
 export {
-  colors,
+
   constant,
   actions,
   STRINGS,

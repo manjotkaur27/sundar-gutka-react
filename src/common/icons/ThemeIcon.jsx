@@ -1,7 +1,12 @@
 import React from "react";
 import Svg, { Path } from "react-native-svg";
+import { navy } from "@theme/palette";
 import PropTypes from "prop-types";
-import { colors } from "@common";
+
+// Fallback only — every call site passes an explicit, themed colour. It exists
+// so the stroke is never undefined, which is what the old colors module
+// returned: it never defined the keys these icons referenced.
+const ICON_FALLBACK = navy[800];
 
 // Painter's palette — the Theme row in Settings.
 //
@@ -19,7 +24,7 @@ import { colors } from "@common";
 //
 // Takes the same `size`/`color` props as every other icon in this folder, so it
 // tints from the theme — replacing a fixed-colour PNG that could not.
-const ThemeIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => {
+const ThemeIcon = ({ size = 24, color = ICON_FALLBACK }) => {
   return (
     <Svg
       width={size}

@@ -1,12 +1,17 @@
 import React from "react";
 import Svg, { Path } from "react-native-svg";
+import { navy } from "@theme/palette";
 import PropTypes from "prop-types";
-import { colors } from "@common";
+
+// Fallback only — every call site passes an explicit, themed colour. It exists
+// so the stroke is never undefined, which is what the old colors module
+// returned: it never defined the keys these icons referenced.
+const ICON_FALLBACK = navy[800];
 
 // Folder glyph for the Banis folder rows (Amrit Baani, Bhagat Baani, 22 Vaaran,
 // …). A clean rounded outline in the app's stroke-icon style, theme-aware via
 // `color` — replaces the old flat grey foldericon.png.
-const FolderIcon = ({ size = 26, color = colors.WHITE }) => (
+const FolderIcon = ({ size = 26, color = ICON_FALLBACK }) => (
   <Svg
     width={size}
     height={size}

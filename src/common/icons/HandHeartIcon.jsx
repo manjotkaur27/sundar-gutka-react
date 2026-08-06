@@ -1,10 +1,15 @@
 import React from "react";
 import Svg, { Path } from "react-native-svg";
+import { navy } from "@theme/palette";
 import PropTypes from "prop-types";
-import { colors } from "@common";
+
+// Fallback only — every call site passes an explicit, themed colour. It exists
+// so the stroke is never undefined, which is what the old colors module
+// returned: it never defined the keys these icons referenced.
+const ICON_FALLBACK = navy[800];
 
 // Hand holding a heart — the "Seva with your support" card header icon.
-const HandHeartIcon = ({ size = 24, color = colors.READER_HEADER_COLOR }) => (
+const HandHeartIcon = ({ size = 24, color = ICON_FALLBACK }) => (
   <Svg
     width={size}
     height={size}

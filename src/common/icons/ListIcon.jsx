@@ -1,11 +1,16 @@
 import React from "react";
 import Svg, { Path, Circle } from "react-native-svg";
+import { navy } from "@theme/palette";
 import PropTypes from "prop-types";
-import { colors } from "@common";
+
+// Fallback only — every call site passes an explicit, themed colour. It exists
+// so the stroke is never undefined, which is what the old colors module
+// returned: it never defined the keys these icons referenced.
+const ICON_FALLBACK = navy[800];
 
 // "All Banis" tab — a clean bulleted list (solid dots + rounded lines), in the
 // app's stroke-icon style.
-const ListIcon = ({ size = 24, color = colors.WHITE }) => (
+const ListIcon = ({ size = 24, color = ICON_FALLBACK }) => (
   <Svg
     width={size}
     height={size}
