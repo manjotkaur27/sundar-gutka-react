@@ -1,7 +1,10 @@
 import { StyleSheet } from "react-native";
+import { themeForScreen } from "@theme/screenPalettes";
 
 const createStyles = (theme) => {
-  const { c } = theme;
+  // The Dashboard draws with its own colours through the shared role names, so
+  // every c.x below is unchanged and only the values differ.
+  const { c } = themeForScreen(theme, "dashboard");
 
   return StyleSheet.create({
     scrollContent: {

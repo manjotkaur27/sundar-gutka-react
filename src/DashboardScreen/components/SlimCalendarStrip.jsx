@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, Animated } from "react-native";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { weekdayNarrow } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, constant, logError } from "@common";
@@ -28,7 +29,9 @@ const getCurrentWeek = () => {
 
 const SlimCalendarStrip = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const { c } = themeForScreen(theme, "dashboard");
+  const palette = paletteFor("dashboard", theme.mode);
   // The Dashboard blue, from the token layer — see ActivityCalendar.
   const accentBlue = c.textBrand;
   const todayStr = getTodayStr();
@@ -66,7 +69,7 @@ const SlimCalendarStrip = ({ refreshKey = 0 }) => {
       .catch(logError);
   }, [refreshKey]);
 
-  const bg = c.surface;
+  const bg = palette.sectionBg;
 
   return (
     <Animated.View

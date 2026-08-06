@@ -3,6 +3,8 @@ import { View, ScrollView, Pressable, StyleSheet, Image } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
+import useBaniLookup from "@common/hooks/useBaniLookup";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { CustomText, useTheme, STRINGS, openInAppBrowser, logError, constant } from "@common";
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
@@ -121,17 +123,22 @@ const styles = StyleSheet.create({
 
 const FeatureTilesRow = () => {
   const navigation = useNavigation();
+  // The proper bani name, so the Reader header is not handed the server's
+  // abbreviated title.
+  const { nameOf } = useBaniLookup();
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const { c } = themeForScreen(theme, "dashboard");
+  const palette = paletteFor("dashboard", theme.mode);
 
-  const cardBg = c.surface;
-  const borderColor = c.border;
+  const cardBg = palette.sectionBg;
+  const borderColor = palette.tileBorder;
   // The one Dashboard blue. This was the seventh copy of the same local
   // ternary; see ActivityCalendar.
-  const accentColor = c.textBrand;
+  const accentColor = palette.sectionAccentBlue;
   const textPrimary = c.textPrimary;
   const textSecondary = c.textSecondary;
-  const iconBg = c.fillSubtle;
+  const iconBg = palette.tileIconBg;
 
   const [lastRead, setLastRead] = useState(null);
   const [lastListened, setLastListened] = useState(null);
@@ -169,8 +176,10 @@ const FeatureTilesRow = () => {
       key: `Reader-${item.bani_id}`,
       params: {
         id: item.bani_id,
-        title: item.bani_title ?? "",
-        titleUni: item.bani_title ?? "",
+        // The proper name rather than the server's abbreviated `bani_title` —
+        // see the note on the same call in ExploreGurbani.
+        title: nameOf(item.bani_id) || item.bani_title || "",
+        titleUni: nameOf(item.bani_id) || item.bani_title || "",
       },
     });
   };
@@ -200,7 +209,7 @@ const FeatureTilesRow = () => {
               <BookOpenIcon size={20} color={accentColor} />
             </View>
             <CustomText style={[styles.tileLabel, { color: textPrimary }]} numberOfLines={2}>
-              {lastRead.bani_title ?? `Bani ${lastRead.bani_id}`}
+              {nameOf(lastRead.bani_id) || lastRead.bani_title || `Bani ${lastRead.bani_id}`}
             </CustomText>
             {fmtDuration(lastRead.total_seconds) !== "" && (
               <CustomText style={[styles.tileMeta, { color: textSecondary }]}>
@@ -225,7 +234,7 @@ const FeatureTilesRow = () => {
               <HeadphonesIcon size={20} color={accentColor} />
             </View>
             <CustomText style={[styles.tileLabel, { color: textPrimary }]} numberOfLines={2}>
-              {lastListened.bani_title ?? `Bani ${lastListened.bani_id}`}
+              {nameOf(lastListened.bani_id) || lastListened.bani_title || `Bani ${lastListened.bani_id}`}
             </CustomText>
             {fmtDuration(lastListened.total_seconds) !== "" && (
               <CustomText style={[styles.tileMeta, { color: textSecondary }]}>

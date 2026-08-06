@@ -18,7 +18,7 @@ const DARBAR_SAHIB = require("../../assets/images/darbar-sahib.jpg");
 // user is on the Vaak tab — switching is then instant. The active child renders
 // "embedded" (bare, no own card/title) since this card + the active tab frame it.
 const ShabadVaak = ({ refreshKey = 0 }) => {
-  const { isDark, mutedText, gold, c } = useDashboardTheme();
+  const { mutedText, gold, palette } = useDashboardTheme();
   const [tab, setTab] = useState("vaak");
   const [shabadNonce, setShabadNonce] = useState(0);
   // Mirrors RandomShabad's fetch state so the shuffle can show progress and
@@ -26,8 +26,8 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
   // another swap that lands seconds later.
   const [shabadLoading, setShabadLoading] = useState(false);
 
-  const inactiveBg = c.fillSubtle;
-  const goldTint = c.goldSurface;
+  const inactiveBg = palette.vaakTabBg;
+  const goldTint = palette.vaakTabActiveBg;
   const tabs = [
     { id: "vaak", label: STRINGS.TODAYS_VAAK },
     { id: "shabad", label: STRINGS.RANDOM_SHABAD },
@@ -35,7 +35,8 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
 
   return (
     <View style={styles.wrap}>
-      <DashboardCard style={styles.card}>
+      {/* Deep navy in BOTH themes — this card is not a standard surface. */}
+      <DashboardCard style={[styles.card, { backgroundColor: palette.vaakCardBg }]}>
         {/* Sri Darbar Sahib behind the Hukamnama tab, to place where the
             hukamnama comes from. Only on that tab — the random shabad is not
             from the darbar. Clipped by its own wrapper rather than by the card,
@@ -46,7 +47,7 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
           <View style={styles.backdrop} pointerEvents="none">
             <Image
               source={DARBAR_SAHIB}
-              style={[styles.backdropImage, { opacity: isDark ? 0.12 : 0.16 }]}
+              style={[styles.backdropImage, { opacity: palette.backdropOpacity }]}
               resizeMode="cover"
             />
           </View>

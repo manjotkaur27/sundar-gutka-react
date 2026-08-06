@@ -29,12 +29,12 @@ const ChevronRight = ({ color }) => (
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
 const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoadingChange = () => {} }) => {
-  const { accentBlue, gold, mutedText, theme, c } = useDashboardTheme();
-  // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
-  // Ordinary card text. These were white, pairing with a navy card fill that
-  // has been dropped — the card is a standard dashboard surface now.
-  const gurmukhiColor = c.textPrimary;
-  const translationColor = c.textSecondary;
+  const { accentBlue, gold, mutedText, theme, palette } = useDashboardTheme();
+  // The card under these is a deep navy panel in BOTH themes, so the text on
+  // it is light in both. Following the theme's text roles here put near-black
+  // Gurbani on a navy card in light mode.
+  const gurmukhiColor = palette.onVaakCard;
+  const translationColor = palette.onVaakCardMuted;
   const gurmukhiFont = theme.typography.fonts.gurbaniHeavy;
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const [shabad, setShabad] = useState(null);
@@ -77,7 +77,7 @@ const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoa
             hitSlop={8}
             style={({ pressed }) => [
               styles.shuffleBtn,
-              { backgroundColor: c.accentSubtle },
+              { backgroundColor: palette.shufflePillBg },
               pressed && styles.shuffleBtnPressed,
               busy && styles.shuffleBtnBusy,
             ]}

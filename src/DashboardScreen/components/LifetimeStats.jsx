@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { CustomText, useTheme, logError, STRINGS } from "@common";
 import { getOrCreateSummary, getAllTimeTotals } from "../../database/analytics";
 
@@ -14,12 +15,12 @@ const formatStatTime = (secs) => {
 const StatBlock = ({ value, unit, label, theme, accentBlue }) => (
   <View style={styles.statBlock}>
     <View style={styles.valueRow}>
-      <CustomText style={[styles.bigNumber, { color: c.textPrimary }]}>
+      <CustomText style={[styles.bigNumber, { color: theme.c.textPrimary }]}>
         {value}
       </CustomText>
       <CustomText style={[styles.unit, { color: accentBlue }]}> {unit}</CustomText>
     </View>
-    <CustomText style={[styles.statLabel, { color: c.textSecondary }]}>
+    <CustomText style={[styles.statLabel, { color: theme.c.textSecondary }]}>
       {label}
     </CustomText>
   </View>
@@ -35,10 +36,12 @@ StatBlock.propTypes = {
 
 const LifetimeStats = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const { c } = themeForScreen(theme, "dashboard");
+  const palette = paletteFor("dashboard", theme.mode);
   // The Dashboard blue, from the token layer — see ActivityCalendar.
   const accentBlue = c.textBrand;
-  const bg = c.surface;
+  const bg = palette.sectionBg;
 
   const [summary, setSummary] = useState(null);
   const [totals, setTotals] = useState(null);
@@ -60,7 +63,7 @@ const LifetimeStats = ({ refreshKey = 0 }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
+      <CustomText style={[styles.sectionTitle, { color: theme.c.textPrimary }]}>
         {STRINGS.LIFETIME}
       </CustomText>
 

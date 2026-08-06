@@ -35,11 +35,11 @@ MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 const FATEH = "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥\nਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥";
 
 const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refreshKey = 0 }) => {
-  const { gold, primaryText, mutedText, theme, c, layout } = useDashboardTheme();
+  const { gold, primaryText, mutedText, theme, c, layout, palette } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
 
   // Date line under the Fateh — a brand tint, quieter than the Fateh itself.
-  const belowNameColor = c.textSecondary;
+  const belowNameColor = palette.subtleText;
   // The one Dashboard blue, not a second brand pair.
   const avatarTextColor = c.textBrand;
   // The one header foreground — brand navy in light, white in dark, independent
@@ -127,7 +127,7 @@ const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refr
             hitSlop={8}
             style={[
               styles.iconBtn,
-              { backgroundColor: c.fillSubtle },
+              { backgroundColor: palette.iconPlate },
             ]}
           >
             <MenuIcon color={primaryText} />
@@ -135,7 +135,7 @@ const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refr
           <View
             style={[
               styles.avatar,
-              { backgroundColor: c.accentSubtle },
+              { backgroundColor: palette.headerPill },
             ]}
           >
             {/* Generic account glyph — there is no login/account system yet

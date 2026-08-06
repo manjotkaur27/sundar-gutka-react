@@ -140,13 +140,13 @@ const weekDatesForOffset = (offsetWeeks) => {
 };
 
 const StreakCard = ({ refreshKey = 0 }) => {
-  const { mutedText, accentBlue, gold, separator, theme, c } = useDashboardTheme();
+  const { mutedText, accentBlue, gold, separator, theme, c, palette } = useDashboardTheme();
   // Streak number matches the username: brand blue (light) / off-white (dark).
-  const numColor = c.textPrimary;
-  const dayStreakColor = c.textSecondary;
+  const numColor = palette.brandText;
+  const dayStreakColor = palette.statLabel;
   // Text below the streak count — same client-specified accent as the date
   // line under the username in DashboardHeader.
-  const belowStreakColor = c.textSecondary;
+  const belowStreakColor = palette.subtleText;
   // Explicit fontFamily (no fontWeight alongside it) — these are custom TTFs, not
   // system fonts, so pairing them with a numeric fontWeight makes Android
   // synthesize a fake bold/medium and silently fall back off the real glyph.

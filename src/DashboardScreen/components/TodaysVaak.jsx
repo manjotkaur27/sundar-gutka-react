@@ -41,12 +41,12 @@ ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 const HUKAMNAMA_URL = "https://www.sikhitothemax.org/hukamnama";
 
 const TodaysVaak = ({ refreshKey = 0, embedded = false }) => {
-  const { gold, mutedText, theme, c } = useDashboardTheme();
-  // On the navy card: white Gurbani-Akhar (thick) gurmukhi + muted blue translation.
-  // Ordinary card text. These were white, pairing with a navy card fill that
-  // has been dropped — the card is a standard dashboard surface now.
-  const gurmukhiColor = c.textPrimary;
-  const translationColor = c.textSecondary;
+  const { gold, mutedText, theme, palette } = useDashboardTheme();
+  // The card under these is a deep navy panel in BOTH themes, so the text on
+  // it is light in both. Following the theme's text roles here put near-black
+  // Gurbani on a navy card in light mode.
+  const gurmukhiColor = palette.onVaakCard;
+  const translationColor = palette.onVaakCardMuted;
   const gurmukhiFont = theme.typography.fonts.gurbaniHeavy;
   const [vaak, setVaak] = useState(null);
   const [offline, setOffline] = useState(false);

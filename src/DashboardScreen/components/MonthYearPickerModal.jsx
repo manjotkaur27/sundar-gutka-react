@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Modal, StyleSheet, Pressable, Animated } from "react-native";
+import { View, StyleSheet, Pressable, Animated } from "react-native";
 import PropTypes from "prop-types";
 import useSheetPresentation from "@common/components/ui/useSheetPresentation";
+import Overlay from "@common/components/ui/Overlay";
 import { monthShort } from "@common/dateLocale";
 import { ChevronLeftIcon, ChevronRight, CloseIcon } from "@common/icons";
 import { CustomText } from "@common";
@@ -39,7 +40,7 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   // other sheets and the Settings sheets all open the same way. It used to
   // hand-roll its own Animated.parallel with its own durations — a third
   // implementation of the same thing.
-  const { mounted, translateY } = useSheetPresentation(visible);
+  const { mounted, translateY, onShow } = useSheetPresentation(visible);
 
   // The picker always opens on today's year, whichever month the calendar
   // behind it happens to be showing.
@@ -54,7 +55,8 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   const chipBg = c.surfaceSelected;
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    // Entrance starts on `onShow` — see `useSheetPresentation`.
+    <Overlay animationType="none" onRequestClose={onClose} onShow={onShow}>
       <View style={styles.root}>
         {/* Instant, like every other scrim in the app. */}
         <View
@@ -120,7 +122,7 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </Overlay>
   );
 };
 

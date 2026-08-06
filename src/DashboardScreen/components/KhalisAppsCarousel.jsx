@@ -1,5 +1,8 @@
 import React from "react";
 import { View, ScrollView, Pressable, Linking, StyleSheet, Image, Platform } from "react-native";
+import { pickByMode } from "@theme/colorUtils";
+import { brandMarks } from "@theme/palette";
+import { paletteFor } from "@theme/screenPalettes";
 import { CustomText, useTheme, logError, trackKhalisAppClicked } from "@common";
 
 const APPS = [
@@ -8,8 +11,7 @@ const APPS = [
     name: "Sahej Path",
     pkg: "antisoft.livesehajpath",
     image: require("../../assets/images/sahej_path.png"),
-    iconBgDark: "#0a1628",
-    iconBgLight: "#E2E8F1",
+    iconBg: brandMarks.khalisApps.sahejPath,
     url: "https://play.google.com/store/apps/details?id=antisoft.livesehajpath&hl=en_IN",
   },
   {
@@ -17,16 +19,14 @@ const APPS = [
     name: "Sikhi To The Max",
     pkg: "com.nest.sttm",
     image: require("../../assets/images/sikhi2max.webp"),
-    iconBgDark: "#0f2044",
-    iconBgLight: "#ffffff",
+    iconBg: brandMarks.khalisApps.sttm,
     url: "https://play.google.com/store/apps/details?id=com.nest.sttm&hl=en_IN",
   },
   {
     id: "shabadavali",
     name: "Shabadavali",
     image: require("../../assets/images/shabadavali.png"),
-    iconBgDark: "#0d1c10",
-    iconBgLight: "#ffffff",
+    iconBg: brandMarks.khalisApps.shabadavali,
     url: "https://shabadavali.com/en/login",
   },
 ];
@@ -81,10 +81,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Geometry only — the border and shadow colours are applied at the call site,
+  // since this is a plain StyleSheet with no access to the theme.
   iconBoxLight: {
     borderWidth: 1,
-    borderColor: "rgba(100, 116, 139, 0.3)",
-    shadowColor: "#64748B",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
@@ -108,10 +108,11 @@ const styles = StyleSheet.create({
 const KhalisAppsCarousel = () => {
   const { theme } = useTheme();
   const isDark = theme.mode === "dark";
+  const palette = paletteFor("dashboard", theme.mode);
 
   return (
     <View style={styles.container}>
-      <CustomText style={[styles.sectionTitle, { color: c.textPrimary }]}>
+      <CustomText style={[styles.sectionTitle, { color: theme.c.textPrimary }]}>
         Explore
       </CustomText>
       <ScrollView
@@ -120,7 +121,7 @@ const KhalisAppsCarousel = () => {
         contentContainerStyle={styles.scrollContent}
       >
         {APPS.map((app) => {
-          const iconBg = isDark ? app.iconBgDark : app.iconBgLight;
+          const iconBg = pickByMode(theme, app.iconBg);
           return (
             <Pressable
               key={app.id}
@@ -132,6 +133,11 @@ const KhalisAppsCarousel = () => {
                   styles.iconBox,
                   { backgroundColor: iconBg },
                   !isDark && !app.image && styles.iconBoxLight,
+                  !isDark &&
+                    !app.image && {
+                      borderColor: palette.appTileBorder,
+                      shadowColor: theme.c.shadow,
+                    },
                 ]}
               >
                 {app.image ? (
@@ -141,7 +147,7 @@ const KhalisAppsCarousel = () => {
                 )}
               </View>
               <CustomText
-                style={[styles.appName, { color: c.textPrimary }]}
+                style={[styles.appName, { color: theme.c.textPrimary }]}
                 numberOfLines={2}
               >
                 {app.name}

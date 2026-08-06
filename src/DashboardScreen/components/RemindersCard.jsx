@@ -18,7 +18,7 @@ import {
 import { getBaniList } from "@database";
 import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
-import useBaniLookup, { toTitleCase } from "./useBaniLookup";
+import useBaniLookup, { toTitleCase } from "@common/hooks/useBaniLookup";
 
 // Same default reminder set as Settings (setDefaultReminders): Gur Mantar, Japji,
 // Rehras, Sohila. Seeded disabled so the rows always show in the dashboard.
@@ -121,27 +121,31 @@ const kindForTime = (time) => {
 const ICON_FOR_KIND = { sunrise: SunriseIcon, sun: SunIcon, sunset: SunsetIcon, night: MoonIcon };
 
 // `c` is the semantic role map, passed in because this is module scope.
-const buildIconStyles = (c, accentBlue, mutedText, gold) => ({
+const buildIconStyles = (p, accentBlue, mutedText, gold) => ({
   // Amrit Vela (dawn) shares the warm gold tint with the daytime sun.
-  sunrise: { color: gold, bg: c.goldSurface },
-  sun: { color: gold, bg: c.goldSurface },
-  sunset: { color: accentBlue, bg: c.surfaceSelected },
-  night: { color: mutedText, bg: c.surfaceSelected },
+  sunrise: { color: gold, bg: p.goldSurface },
+  sun: { color: gold, bg: p.goldSurface },
+  sunset: { color: accentBlue, bg: p.accentSurface },
+  night: { color: mutedText, bg: p.neutralSurface },
 });
 
 const RemindersCard = () => {
-  const { accentBlue, gold, mutedText, separator, c } = useDashboardTheme();
+  const { accentBlue, gold, mutedText, separator, palette } = useDashboardTheme();
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const { nameOf } = useBaniLookup();
-  const iconStyles = buildIconStyles(c, accentBlue, mutedText, gold);
-  const sectionColor = c.textSecondary;
-  const titleColor = c.textPrimary;
-  const timeColor = c.textSecondary;
+  const iconStyles = buildIconStyles(palette, accentBlue, mutedText, gold);
+  const sectionColor = palette.sectionAccent;
+  const titleColor = palette.cardTitle;
+  const timeColor = palette.cardMeta;
   // Dark-mode reminder toggle: bright-blue ON track, navy OFF track + navy thumb.
-  const offThumbColor = null;
-  const onTrackColor = null;
-  const offTrackColor = null;
+  const offThumbColor = palette.switchOffThumb;
+  // The ON thumb is white with a hairline. Without this it falls back to the
+  // surface role, which on this navy card IS the card — a thumb you cannot see.
+  const onThumbColor = palette.switchOnThumb;
+  const thumbBorderColor = palette.switchThumbBorder;
+  const onTrackColor = palette.switchOnTrack;
+  const offTrackColor = palette.switchOffTrack;
   // "Add a reminder" matches the "Edit banis" link (light blue in dark, accent in light).
   const addColor = accentBlue;
 
@@ -248,6 +252,8 @@ const RemindersCard = () => {
                     value={isReminders && !!r.enabled}
                     onValueChange={(v) => toggleItem(r.key, v)}
                     offThumbColor={offThumbColor}
+                    onThumbColor={onThumbColor}
+                    thumbBorderColor={thumbBorderColor}
                     onTrackColor={onTrackColor}
                     offTrackColor={offTrackColor}
                   />

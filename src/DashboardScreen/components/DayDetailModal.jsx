@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Modal, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
+import Overlay from "@common/components/ui/Overlay";
 import { formatDayMonth } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { CustomText, useTheme, logError } from "@common";
@@ -112,11 +114,13 @@ const formatDate = (dateStr) => {
 
 const DayDetailModal = ({ visible, date = null, onClose }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const { c } = themeForScreen(theme, "dashboard");
+  const palette = paletteFor("dashboard", theme.mode);
   // The Dashboard blue, from the token layer — see ActivityCalendar.
   const accentBlue = c.textBrand;
-  const bg = c.surface;
-  const iconBg = c.surfaceSelected;
+  const bg = palette.sectionBg;
+  const iconBg = palette.dayIconBg;
 
   const [detail, setDetail] = useState(null);
   const [dayActivity, setDayActivity] = useState(null);
@@ -152,12 +156,10 @@ const DayDetailModal = ({ visible, date = null, onClose }) => {
   const showAggregateListen = !hasListen && aggregateListenSecs > 0;
 
   return (
-    <Modal
+    <Overlay
       visible={visible}
-      transparent
       animationType="fade"
       onRequestClose={onClose}
-      statusBarTranslucent
     >
       {/* The same plain scrim every other overlay in the app uses. This was the
           last native BlurView left: it rendered differently on iOS and Android,
@@ -228,7 +230,7 @@ const DayDetailModal = ({ visible, date = null, onClose }) => {
           )}
         </View>
       </View>
-    </Modal>
+    </Overlay>
   );
 };
 

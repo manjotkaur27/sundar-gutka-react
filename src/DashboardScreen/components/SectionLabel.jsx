@@ -6,8 +6,9 @@ import useDashboardTheme from "./dashboardTheme";
 
 // Small uppercase section heading used above each dashboard section, with an
 // optional right-aligned action (e.g. "Edit banis", "Shuffle"). `color`
-// overrides the default mutedText for sections with their own client-specified
-// heading accent (e.g. Reminders).
+// overrides the default for sections with their own heading accent
+// (e.g. Reminders), and the week range opts out of the caption treatment
+// entirely.
 // React 19 ignores defaultProps on function components, so `uppercase` must
 // default via a parameter default (not defaultProps) or it reads as undefined
 // (falsy) and every heading silently drops to Title Case.
@@ -19,7 +20,9 @@ const SectionLabel = ({
   uppercase = true,
 }) => {
   const { c } = useDashboardTheme();
-  // Client-specified section-title accent in dark mode (matches the header date line).
+  // Resolves to the Dashboard's own muted colour in each theme — the same two
+  // values this rendered before, now read from the palette rather than written
+  // out as an `isDark ? … : …` literal here.
   const defaultColor = c.textSecondary;
   return (
     <View style={styles.row}>

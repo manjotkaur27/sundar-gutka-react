@@ -1,7 +1,8 @@
 import React from "react";
-import { Animated, Modal, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import PropTypes from "prop-types";
+import Overlay from "@common/components/ui/Overlay";
 import useSheetPresentation from "@common/components/ui/useSheetPresentation";
 import useDashboardTheme from "./dashboardTheme";
 
@@ -10,7 +11,13 @@ export const getSheetTop = (heightRatio) =>
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
+    // Filled absolutely rather than `flex: 1` or a measured height — the sheet
+    // below is anchored to this root's `bottom: 0`, so the root has to be
+    // exactly the Modal's own window. See the note in `ui/Sheet`: pinning it to
+    // `useWindowDimensions().height` overflows that window by the status bar
+    // height once Android enforces edge-to-edge, which pushes the sheet's lower
+    // rows off the bottom of the screen.
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
   },
   dim: {
@@ -44,18 +51,13 @@ const styles = StyleSheet.create({
 const SheetBody = ({ onClose, heightRatio = null, translateY, children = null }) => {
   const { screenBg, mutedText, c } = useDashboardTheme();
   const { bottom } = useSafeAreaInsets();
-  // A definite height for the first layout pass. A Modal is a new window, so on
-  // its first frame `flex: 1` has nothing to fill and the root measures 0 —
-  // which would anchor the absolutely-positioned sheet's `bottom: 0` to the TOP
-  // of the screen for a frame.
-  const { height } = useWindowDimensions();
 
   // Opposing `top` and `bottom` edges form a hard layout constraint, so long
   // child content can only scroll instead of expanding the sheet.
   const sheetTop = getSheetTop(heightRatio);
 
   return (
-    <View style={[styles.root, { minHeight: height }]}>
+    <View style={styles.root}>
       {/* The same plain scrim the Settings sheets use, at full strength from the
           first frame. This was a native blur faded in over 100ms, which made the
           Dashboard's sheets read as a different component to the rest of the app
@@ -105,12 +107,13 @@ SheetBody.propTypes = {
  * definite height to the content tree, so long lists scroll within the sheet.
  */
 const SheetModal = ({ visible, onClose, heightRatio = null, children = null }) => {
-  const { mounted, translateY } = useSheetPresentation(visible);
+  const { mounted, translateY, onShow } = useSheetPresentation(visible);
 
   if (!mounted) return null;
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    // Entrance starts on `onShow` — see `useSheetPresentation`.
+    <Overlay animationType="none" onRequestClose={onClose} onShow={onShow}>
       {/* Modal content needs its own provider so the sheet can pad above the
           bottom system inset. */}
       <SafeAreaProvider>
@@ -118,7 +121,7 @@ const SheetModal = ({ visible, onClose, heightRatio = null, children = null }) =
           {children}
         </SheetBody>
       </SafeAreaProvider>
-    </Modal>
+    </Overlay>
   );
 };
 

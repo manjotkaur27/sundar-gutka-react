@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline, Path } from "react-native-svg";
 import { weekdayNarrowRow, monthLong } from "@common/dateLocale";
 import PropTypes from "prop-types";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { CustomText, useTheme, constant, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
 import DayDetailModal from "./DayDetailModal";
@@ -57,7 +58,9 @@ const buildWeekRows = (year, month) => {
 
 const ActivityCalendar = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const { c } = themeForScreen(theme, "dashboard");
+  const palette = paletteFor("dashboard", theme.mode);
   // The Dashboard blue, from the token layer. This was a local ternary
   // duplicated across six components, which is how dark mode drifted to a
   // different blue to the rest of the page.
@@ -128,7 +131,7 @@ const ActivityCalendar = ({ refreshKey = 0 }) => {
 
   const navColor = c.textPrimary;
   const disabledColor = c.textSecondary;
-  const bg = c.surface;
+  const bg = palette.sectionBg;
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
@@ -187,7 +190,7 @@ const ActivityCalendar = ({ refreshKey = 0 }) => {
                   <CustomText
                     style={[
                       styles.dayNum,
-                      { color: qualifies ? c.onAccent : (hasAny ? accentBlue : c.textPrimary) },
+                      { color: qualifies ? palette.onAccent : (hasAny ? accentBlue : c.textPrimary) },
                       isToday && !qualifies && { fontWeight: "700" },
                     ]}
                   >
@@ -202,8 +205,8 @@ const ActivityCalendar = ({ refreshKey = 0 }) => {
 
       {/* Active badge — no card background */}
       <View style={styles.activeBadge}>
-        <View style={[styles.flameCircle, { backgroundColor: c.goldSurface }]}>
-          <FlameIcon size={16} color={c.goldFill} />
+        <View style={[styles.flameCircle, { backgroundColor: palette.flameBg }]}>
+          <FlameIcon size={16} color={palette.flame} />
         </View>
         <CustomText>
           <CustomText style={[styles.activeBold, { color: c.textPrimary }]}>

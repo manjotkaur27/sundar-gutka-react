@@ -9,7 +9,8 @@ import {
   Platform,
   NativeModules,
 } from "react-native";
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import { brandMarks } from "@theme/palette";
 import PropTypes from "prop-types";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
@@ -22,9 +23,10 @@ import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
-import useBaniLookup from "./useBaniLookup";
+import useBaniLookup from "@common/hooks/useBaniLookup";
 
 const KHALIS_LOGO = require("../../assets/images/khalis.png");
+const STTM_LOGO = require("../../assets/images/sikhi2max.webp");
 const SEHAJ_PATH_LOGO = require("../../assets/images/sehajpath.webp");
 const SHABADAVALI_LOGO = require("../../assets/images/shabadavali.png");
 
@@ -65,22 +67,45 @@ const HeadphonesIcon = ({ color }) => (
 );
 HeadphonesIcon.propTypes = { color: PropTypes.string.isRequired };
 
-// Map pin for the Gurdham tile — no artwork was supplied for it, so it uses a
-// location glyph drawn in the same stroked style as the search icon above.
-const PinIcon = ({ color }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
-    <Circle cx="12" cy="10" r="3" />
+// The Gurdham mark, as supplied. It replaces the location pin that stood in
+// while no artwork existed.
+//
+// Its own colours, not the theme's: this is brand artwork, like the Khalis and
+// Shabadavali logos beside it, so it looks the same in both themes. The stops
+// come from `palette.brandMarks` for the same reason the social marks do —
+// fixed values still belong in one place.
+//
+// Sized to the same 32pt box as the logo IMAGES rather than the 22pt stroked
+// glyphs, since it reads as a logo; the viewBox is taller than it is wide, so
+// the width is derived from that ratio to avoid distorting it.
+const GurdhamIcon = () => (
+  <Svg width={(32 * 76) / 88} height={32} viewBox="0 0 76 88" fill="none">
+    <Defs>
+      <LinearGradient id="gurdham" x1={38} y1={2} x2={38} y2={86} gradientUnits="userSpaceOnUse">
+        <Stop stopColor={brandMarks.gurdham.gradientTop} />
+        <Stop offset={1} stopColor={brandMarks.gurdham.gradientBottom} />
+      </LinearGradient>
+    </Defs>
+    <Path
+      d="M71.5342 74.568C70.3507 76.1586 71.0411 82.8521 71.5342 86L4.46575 85.503C5.45206 84.0118 5.45206 76.5562 4.46575 74.568C3.67671 72.9775 4.13699 72.2485 4.46575 72.0828C2.49315 70.8899 2 68.9349 2 68.1065L3.47945 68.6036C-1.94521 48.2249 20.2466 37.787 24.6849 35.7988C28.2356 34.2083 30.4384 31.8225 31.0959 30.8284C29.9123 28.4426 31.9178 27.8462 33.0685 27.8462C33.8575 24.2675 35.3699 23.0414 36.0274 22.8757C36.8164 21.6828 36.6849 21.0533 36.5205 20.8876C35.337 19.297 36.3562 17.9053 37.0137 17.4083C37.4082 17.0107 37.1781 16.5799 37.0137 16.4142C35.0411 16.0166 36.1918 14.9231 37.0137 14.426C37.4082 13.2331 37.1781 12.6036 37.0137 12.4379C35.8301 10.8473 36.8223 9.78698 37.4663 9.45562V7.92178C36.734 7.11577 37.1839 5.63329 37.5069 4.98225V2H38.4932V4.98225C39.2822 6.57278 38.8219 7.63314 38.4932 7.9645V9.45562C39.9726 9.95266 39.4795 11.9408 38.9863 12.4379C38.5918 12.8355 38.8219 13.929 38.9863 14.426C40.5644 15.6189 39.6438 16.2485 38.9863 16.4142C38.5918 16.8118 38.8219 17.2426 38.9863 17.4083C40.5644 18.6012 39.9726 20.2249 39.4795 20.8876C39.0849 21.2852 39.6438 22.3787 39.9726 22.8757C41.1562 23.2734 42.4384 26.355 42.9315 27.8462C45.6932 28.2438 45.3973 29.6686 44.9041 30.3314C44.9041 31.9219 49.1781 34.6391 51.3151 35.7988C74.1973 45.7396 74.9863 61.8107 72.5205 68.6036L74 68.1065C73.5068 72.5799 70.5479 71.0888 71.5342 72.0828C72.3233 72.8781 71.863 74.071 71.5342 74.568Z"
+      fill="url(#gurdham)"
+    />
+    <Path
+      d="M37.5068 1C36.9546 1.00001 36.5068 1.44772 36.5068 2V4.77051C36.335 5.17091 36.1602 5.71088 36.0967 6.2832C36.034 6.8481 36.0646 7.59554 36.4658 8.24512V8.93164C36.1274 9.21664 35.7996 9.61665 35.6133 10.1377C35.2999 11.0146 35.4604 12.0208 36.209 13.0293C36.2141 13.0495 36.2231 13.084 36.2275 13.1348C36.2387 13.2623 36.2326 13.4793 36.1553 13.7969C36.0049 13.9048 35.8523 14.0253 35.71 14.1572C35.474 14.376 35.1818 14.6992 35.0293 15.1074C34.9482 15.3247 34.8954 15.5967 34.9424 15.8965C34.9908 16.2053 35.1342 16.4752 35.3379 16.6914C35.4956 16.8587 35.6865 16.9883 35.8945 17.0928C35.5852 17.4412 35.2912 17.8969 35.1221 18.4414C34.8499 19.3181 34.9284 20.3508 35.6387 21.3701C35.621 21.4846 35.5557 21.7134 35.3506 22.0684C34.8274 22.3258 34.2799 22.8118 33.7861 23.4961C33.2173 24.2845 32.6727 25.3965 32.2656 26.9189C31.6906 27.0199 31.0441 27.244 30.5381 27.6992C30.1222 28.0733 29.8149 28.5944 29.748 29.2559C29.7017 29.7149 29.7775 30.194 29.9531 30.6895C29.1245 31.7131 27.1931 33.5791 24.2764 34.8857C22.034 35.8902 15.2368 39.0574 9.67773 44.5967C4.40313 49.8525 0.174388 57.3293 2.10938 67.1133C1.86622 67.0865 1.61866 67.1492 1.41602 67.2949C1.1549 67.4828 1.00002 67.7847 1 68.1064C1 69.0602 1.4643 70.938 3.11914 72.3408C2.93137 73.0566 3.06506 73.9942 3.57031 75.0127C3.7359 75.3467 3.90662 76.0394 4.02832 77.0283C4.1456 77.9816 4.20507 79.1046 4.20508 80.2217C4.20508 81.3398 4.14548 82.4287 4.0293 83.3145C3.97112 83.7579 3.90047 84.1352 3.82227 84.4316C3.73961 84.7449 3.66545 84.9003 3.63184 84.9512C3.42947 85.2571 3.41054 85.6499 3.58301 85.9736C3.75548 86.2971 4.09145 86.5001 4.45801 86.5029L71.5264 87C71.8199 87.0022 72.1003 86.8756 72.292 86.6533C72.4835 86.4311 72.5677 86.1355 72.5225 85.8457C72.2801 84.2985 71.9887 81.8782 71.9043 79.6621C71.862 78.5521 71.8729 77.5204 71.96 76.6865C72.0532 75.7936 72.2181 75.3247 72.3369 75.165C72.3478 75.1504 72.3581 75.1353 72.3682 75.1201C72.5989 74.7712 72.8649 74.2042 72.9453 73.5615C72.996 73.1561 72.9745 72.6853 72.7969 72.2256C73.2351 71.9959 73.7057 71.6303 74.1035 71.0244C74.5438 70.3536 74.8587 69.4446 74.9941 68.2158C75.0314 67.8767 74.8926 67.5422 74.627 67.3281C74.446 67.1823 74.2232 67.1068 73.9971 67.1074C74.8303 63.4598 74.754 58.3473 72.335 52.9717C69.4694 46.6039 63.3559 39.9503 51.7617 34.9023C50.7237 34.3371 49.1856 33.4051 47.916 32.4326C47.2724 31.9396 46.7302 31.4605 46.3584 31.0352C46.173 30.8231 46.0489 30.6464 45.9756 30.5078C45.9731 30.5031 45.9721 30.4977 45.9697 30.4932C46.2115 29.9961 46.3636 29.3096 46.0576 28.5957C45.6972 27.7553 44.8559 27.2351 43.6836 26.9688C43.4152 26.2354 43.0357 25.3208 42.5957 24.4854C42.3152 23.9528 41.9946 23.4229 41.6455 22.9863C41.3949 22.6729 41.0711 22.3318 40.6738 22.1025C40.5721 21.9236 40.467 21.7137 40.4014 21.5215C40.3801 21.4592 40.368 21.4089 40.3594 21.3711C40.6766 20.904 40.9939 20.1875 41.0098 19.3662C41.0251 18.5717 40.7552 17.7373 40.0557 17.0215C40.3126 16.8485 40.6164 16.5666 40.7676 16.1367C41.0833 15.2387 40.5615 14.4528 39.8633 13.8506C39.8235 13.6866 39.7877 13.4975 39.7744 13.3203C39.7651 13.1959 39.7698 13.1072 39.7773 13.0527C40.0025 12.7927 40.164 12.4645 40.2695 12.1631C40.3946 11.806 40.4795 11.3827 40.4795 10.9463C40.4794 10.512 40.3938 10.0148 40.127 9.55762C39.9685 9.28614 39.756 9.04981 39.4932 8.8584V8.29395C39.9642 7.53764 40.1661 6.27769 39.4932 4.7666V2C39.4932 1.44772 39.0454 1.00001 38.4932 1H37.5068ZM40.2461 21.5254C40.2299 21.5472 40.2114 21.5696 40.1895 21.5918C40.21 21.5711 40.2275 21.5478 40.2461 21.5254Z"
+      stroke={brandMarks.gurdham.outline}
+      strokeOpacity={0.2}
+      strokeWidth={2}
+      strokeLinejoin="round"
+    />
   </Svg>
 );
-PinIcon.propTypes = { color: PropTypes.string.isRequired };
 
 // Tiles carry an `icon` key when they draw a vector glyph instead of a logo
 // image. Hukamnama's darbar artwork is solid-filled and detailed, so it gets a
 // slightly larger box than the stroked glyphs to stay legible.
 const TileIcon = ({ name, color }) => {
   if (name === "hukamnama") return <HukamnamaIcon size={26} color={color} />;
-  if (name === "gurdham") return <PinIcon color={color} />;
+  if (name === "gurdham") return <GurdhamIcon />;
   return <SearchIcon color={color} />;
 };
 TileIcon.propTypes = {
@@ -93,7 +118,7 @@ TileIcon.propTypes = {
 // proper-noun labels (SikhiToTheMax, Shabadavali, Sehaj Path, Khalis App,
 // Sri Darbar Sahib) stay as literal `title`/`subtitle` — they aren't translated.
 const APP_TILES = [
-  { id: "search", titleKey: "TILE_SEARCH_SHABAD", subtitle: "SikhiToTheMax", icon: "search", url: "https://www.sikhitothemax.org" },
+  { id: "search", titleKey: "TILE_SEARCH_SHABAD", subtitle: "SikhiToTheMax", image: STTM_LOGO, url: "https://www.sikhitothemax.org" },
   { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", icon: "hukamnama", url: "https://www.sikhitothemax.org/hukamnama" },
   { id: "khalis-ai", titleKey: "TILE_ASK_AI", subtitleKey: "TILE_GURBANI_QA", image: KHALIS_LOGO, badgeKey: "BADGE_NEW", url: "https://www.sikhitothemax.org/" },
   {
@@ -126,15 +151,15 @@ const openAppTile = async (t) => {
 };
 
 const ExploreGurbani = ({ refreshKey = 0 }) => {
-  const { gold, mutedText, theme, c } = useDashboardTheme();
+  const { gold, mutedText, theme, c, accentBlue, palette } = useDashboardTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { nameOf } = useBaniLookup();
-  const iconBg = c.fillSubtle;
+  const iconBg = palette.iconPlate;
   // Tile titles match the streak count / username navy.
-  const titleColor = c.textPrimary;
+  const titleColor = palette.exploreTitle;
   // Tile icons (search / read / listen) go white in dark mode for contrast on the navy card.
-  const iconColor = c.textPrimary;
+  const iconColor = palette.tileIcon;
   // Explicit SemiBold (no fontWeight) — same convention as the header name/streak
   // count, so the titles render the real SemiBold glyph instead of a fake-bold
   // (fontWeight + custom TTF) or Regular fallback that looks like a different font.
@@ -179,7 +204,16 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
     dispatch(actions.toggleAudio(withAudio));
     navigation.navigate(constant.READER, {
       key: `Reader-${item.bani_id}`,
-      params: { id: item.bani_id, title: item.bani_title ?? "", titleUni: item.bani_title ?? "" },
+      // The proper name, NOT the server's `bani_title`, which is often an
+      // abbreviation — the Reader header showed "ਜਪੁਜੀ" opened from here and
+      // "ਜਪੁਜੀ ਸਾਹਿਬ" opened from the bani list. This tile already renders
+      // `nameOf` for its own label, so it was displaying the full name while
+      // handing the Reader the short one.
+      params: {
+        id: item.bani_id,
+        title: nameOf(item.bani_id) || item.bani_title || "",
+        titleUni: nameOf(item.bani_id) || item.bani_title || "",
+      },
     });
   };
 

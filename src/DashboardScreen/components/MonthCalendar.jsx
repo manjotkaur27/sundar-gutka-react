@@ -128,7 +128,8 @@ DayMarker.propTypes = {
   missedColor: PropTypes.string,
 };
 
-const MISSED_COLOR = "rgba(150, 150, 150, 0.12)";
+// A missed day: a neutral wash, deliberately not the error red — a bani not
+// read is not a fault state.
 
 /**
  * Text colour for a heat cell at `level` (0–4).
@@ -158,7 +159,7 @@ const intensity = (row) => {
 };
 
 const MonthCalendar = ({ refreshKey = 0 }) => {
-  const { accentBlue, mutedText, theme, c } = useDashboardTheme();
+  const { accentBlue, mutedText, theme, c, palette } = useDashboardTheme();
   // Month arrows are controls, not secondary text: mutedText only reached
   // 2.4:1 against the light card, under the 3:1 WCAG asks of a non-text UI
   // element. primaryText also matches the arrows in ActivityCalendar.
@@ -309,7 +310,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
 
   // Today is always a light-blue fill + accent ring (not the activity heat fill),
   // so it reads as a distinct "today" marker regardless of how active the day is.
-  const todayFill = c.accentSubtle;
+  const todayFill = palette.todayFill;
 
   return (
     <View style={styles.wrap}>
@@ -408,7 +409,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
                           size={circle}
                           fillColor={isToday ? todayFill : level > 0 ? heatColor(level) : null}
                           todayColor={isToday ? accentBlue : null}
-                          missedColor={missed ? MISSED_COLOR : null}
+                          missedColor={missed ? palette.missedFill : null}
                         />
                         <CustomText
                           style={[
@@ -422,7 +423,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
                             // partner of a FULL-strength fill; at level 2 the fill is
                             // half-transparent and composites toward the card, so the
                             // accent still reads better against it. It was a hardcoded
-                            // "#fff", which in dark mode meant white text on a LIGHT
+                            // pure white, which in dark mode meant white text on a LIGHT
                             // blue cell — invisible.
                             {
                               color: isToday
@@ -467,7 +468,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
             {hasEverBeenActive ? (
               <>
                 <View style={styles.legendDot}>
-                  <DashedCircle size={14} strokeWidth={1.3} dash="2.5 2" color={MISSED_COLOR} />
+                  <DashedCircle size={14} strokeWidth={1.3} dash="2.5 2" color={palette.missedFill} />
                 </View>
                 <CustomText style={[styles.legendText, { color: mutedText }]}>
                   {STRINGS.MISSED}

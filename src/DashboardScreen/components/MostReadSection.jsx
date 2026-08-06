@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import PropTypes from "prop-types";
+import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { CustomText, useTheme, STRINGS, logError } from "@common";
 import { getTopReadBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
@@ -24,10 +25,12 @@ SparkleIcon.propTypes = { size: PropTypes.number, color: PropTypes.string.isRequ
 
 const MostReadSection = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const { c } = themeForScreen(theme, "dashboard");
+  const palette = paletteFor("dashboard", theme.mode);
   // The Dashboard blue, from the token layer — see ActivityCalendar.
   const accentBlue = c.textBrand;
-  const bg = c.surface;
+  const bg = palette.sectionBg;
   const [banis, setBanis] = useState([]);
 
   useEffect(() => {

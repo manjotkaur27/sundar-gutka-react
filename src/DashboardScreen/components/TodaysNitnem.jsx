@@ -11,7 +11,7 @@ import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import EditBanisModal from "./EditBanisModal";
 import SectionLabel from "./SectionLabel";
-import useBaniLookup from "./useBaniLookup";
+import useBaniLookup from "@common/hooks/useBaniLookup";
 
 const todayStr = () => {
   const n = new Date();
@@ -275,12 +275,13 @@ const ONES = [
 const numberToWords = (n) => ONES[n] ?? String(n);
 
 const TodaysNitnem = ({ refreshKey = 0 }) => {
-  const { isDark, accentBlue: baseAccentBlue, mutedText, separator, theme, c } = useDashboardTheme();
+  const { accentBlue: baseAccentBlue, mutedText, separator, theme, c, palette } = useDashboardTheme();
   // Matches the username/streak accent color (blue in light, off-white in dark).
   const accentTextColor = c.textPrimary;
-  // Client-specified "light blue" accent for this section in dark mode only —
-  // scoped locally rather than changing the shared accentBlue theme value,
-  // which every other dashboard section also relies on.
+  // The shared dashboard accent, with no local override. There used to be a
+  // dark-mode-only variant here; it is gone, because every blue role now
+  // resolves to the one app blue in dark mode, so a second value could only
+  // drift away from it.
   const accentBlue = baseAccentBlue;
   const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const dispatch = useDispatch();
@@ -357,6 +358,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
         title={STRINGS.TODAYS_NITNEM}
         right={
           <Pressable onPress={() => setEditVisible(true)} hitSlop={8} style={styles.editRow}>
+            {/* Icon and label are ONE control and share one colour. */}
             <EditIcon color={accentBlue} />
             <CustomText style={[styles.editLink, { color: accentBlue }]}>
               {STRINGS.EDIT_BANIS}
@@ -372,7 +374,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
               done={doneCount}
               total={selectedBaniIds.length}
               accent={accentBlue}
-              track={c.surfaceSelected}
+              track={palette.ringTrack}
               numColor={accentTextColor}
               labelColor={mutedText}
               numFont={boldFont}
@@ -393,7 +395,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
             style={styles.gridScroll}
             nestedScrollEnabled
             showsVerticalScrollIndicator
-            indicatorStyle={isDark ? "white" : "black"}
+            indicatorStyle={theme.chrome.scrollIndicator}
             persistentScrollbar
             contentContainerStyle={styles.grid}
           >

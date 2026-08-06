@@ -31,9 +31,11 @@ const daysForOffset = (offsetWeeks) => {
 };
 
 const WeekChart = ({ refreshKey = 0 }) => {
-  const { mutedText, c } = useDashboardTheme();
+  const { mutedText, brandText, theme, palette } = useDashboardTheme();
   // Highlighted (today) bar + label color.
-  const barColor = c.accent;
+  // The chart's own blue, brighter than the brand navy the rest of the screen
+  // uses: at bar size on a white card the navy reads as a black block.
+  const barColor = palette.chartBar;
   const [weekOffset, setWeekOffset] = useState(0);
   const [bars, setBars] = useState([]);
   const [avg, setAvg] = useState(0);
@@ -63,7 +65,7 @@ const WeekChart = ({ refreshKey = 0 }) => {
 
   const { loading, error, retry } = useAsyncSection(task);
 
-  const inactiveBar = c.accentSubtle;
+  const inactiveBar = palette.chartBarInactive;
 
   // No activity data exists before DASHBOARD_HISTORY_FLOOR (see MonthCalendar,
   // which enforces the same floor). Block stepping back once the NEXT window
@@ -92,9 +94,11 @@ const WeekChart = ({ refreshKey = 0 }) => {
     <View>
       <SectionLabel
         title={rangeLabel}
-        color={c.textPrimary}
+        // The week range is a heading, not a caption: brand navy in light,
+        // white in dark, at the shared heading size.
+        color={brandText}
         uppercase={false}
-        titleStyle={{ fontSize: 20, fontWeight: "600", letterSpacing: 0 }}
+        titleStyle={{ fontSize: theme.type.heading.fontSize, fontWeight: "600", letterSpacing: 0 }}
         right={
           <View style={styles.navRow}>
             <CustomText style={[styles.avg, { color: mutedText }]} numberOfLines={1}>

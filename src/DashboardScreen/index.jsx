@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { themeForScreen } from "@theme/screenPalettes";
 import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } from "@common";
 import { getOrCreateSummary } from "../database/analytics";
 import { computeStreaks } from "../services/streakEngine";
@@ -15,7 +16,8 @@ import useDashboardSync from "./useDashboardSync";
 // sectionRegistry.js + reducer.js DEFAULT_DASHBOARD_ORDER.
 const DashboardScreen = () => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, resolved through the shared role names.
+  const { c } = themeForScreen(theme, "dashboard");
   const navigation = useNavigation();
   useSelector((state) => state.language);
   const layout = useSelector((state) => state.dashboardLayout);

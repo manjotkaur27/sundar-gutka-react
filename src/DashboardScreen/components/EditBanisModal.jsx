@@ -7,7 +7,7 @@ import { convertToUnicode, CustomText, STRINGS, actions, logError } from "@commo
 import { getBaniList } from "@database";
 import useDashboardTheme from "./dashboardTheme";
 import SheetModal from "./SheetModal";
-import { toTitleCase } from "./useBaniLookup";
+import { toTitleCase } from "@common/hooks/useBaniLookup";
 
 const styles = StyleSheet.create({
   // The sheet supplies a fixed, bounded height. Transfer it through this

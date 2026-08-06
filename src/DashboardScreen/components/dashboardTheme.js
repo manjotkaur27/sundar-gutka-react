@@ -1,3 +1,5 @@
+import { rolesFor } from "@theme/screenPalettes";
+import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { accent, gold, navy } from "@theme/palette";
 
@@ -50,7 +52,15 @@ export const ACCENT_BLUE = navy[800];
 // the app's theme (and any future user-selected theme) automatically. The keys
 // are unchanged, so the components consuming this need no edit.
 const useDashboardTheme = () => {
-  const { c, theme, isDark, layout } = useTokens();
+  const { c: roles, theme, isDark, layout } = useTokens();
+  // The Dashboard's components read ROLES, not the aliases below, so the roles
+  // themselves resolve to the Dashboard's colours. Anything it does not override
+  // still falls through to the semantic layer.
+  const c = { ...roles, ...rolesFor("dashboard", theme.mode) };
+  // The Dashboard's OWN colours, restored. Structure, spacing and every other
+  // role still come from the token layer above — only the values below are
+  // screen-scoped. See `theme/screenPalettes.js`.
+  const palette = useScreenPalette("dashboard");
 
   return {
     theme,
@@ -60,7 +70,7 @@ const useDashboardTheme = () => {
     /** Sizes and spacing, so the Dashboard stops inventing its own numbers. */
     layout,
     /** Decorative accent — the streak flame, chart highlights. */
-    gold: c.goldFill,
+    gold: palette.gold,
     // THE Dashboard blue — text, icons, chart bars, selected fills, the lot.
     //
     // It resolves to the same navy as the nav bar in light mode, and to a light
@@ -69,14 +79,21 @@ const useDashboardTheme = () => {
     // this alias (`c.accent`), a local `isDark ? enabledText : primary` copied
     // into eight components, and a hardcoded `ACCENT_BLUE` — which is why the
     // page looked like a different app in dark mode.
-    accentBlue: c.textBrand,
-    screenBg: c.backgroundAlt,
-    cardBg: c.surface,
-    primaryText: c.textPrimary,
-    mutedText: c.textSecondary,
-    separator: c.border,
+    accentBlue: palette.accentBlue,
+    screenBg: palette.screenBg,
+    cardBg: palette.cardBg,
+    primaryText: palette.primaryText,
+    mutedText: palette.mutedText,
+    separator: palette.separator,
     /** Headline/number colour for cards. */
-    brandText: c.textBrand,
+    brandText: palette.brandText,
+    /**
+     * The Dashboard's full palette, for the colours that are specific to one
+     * card rather than a role the whole screen shares — the tinted icon
+     * plates, the reminder switch, a card's own title line. They live in
+     * `theme/screenPalettes` so no component writes a literal.
+     */
+    palette,
   };
 };
 

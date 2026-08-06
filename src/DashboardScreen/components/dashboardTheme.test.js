@@ -34,19 +34,17 @@ const contrastRatio = (fg, bg) => {
 };
 
 // Mirrors useDashboardTheme's cardBg: the surface the arrows are drawn on.
-const cardBg = { light: "#ffffff", dark: darkTheme.colors.activeView };
+const cardBg = { light: lightTheme.c.surface, dark: darkTheme.c.surfaceSelected };
 
 describe("dashboard calendar controls", () => {
   it("draws light-mode arrows with enough contrast on the card", () => {
-    expect(contrastRatio(lightTheme.colors.primaryText, cardBg.light)).toBeGreaterThanOrEqual(
+    expect(contrastRatio(lightTheme.c.textPrimary, cardBg.light)).toBeGreaterThanOrEqual(
       AA_NON_TEXT
     );
   });
 
   it("draws dark-mode arrows with enough contrast on the card", () => {
-    expect(contrastRatio(darkTheme.colors.primaryText, cardBg.dark)).toBeGreaterThanOrEqual(
-      AA_NON_TEXT
-    );
+    expect(contrastRatio(darkTheme.c.textPrimary, cardBg.dark)).toBeGreaterThanOrEqual(AA_NON_TEXT);
   });
 
   it("keeps the muted text colour out of the arrows in light mode", () => {

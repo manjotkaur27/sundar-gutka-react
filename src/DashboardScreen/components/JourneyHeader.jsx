@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import PropTypes from "prop-types";
 import { gold } from "@theme/palette";
+import { paletteFor } from "@theme/screenPalettes";
 import { CustomText, useTheme, STRINGS, GradientDivider } from "@common";
 
 const styles = StyleSheet.create({
@@ -63,13 +64,13 @@ FlameIcon.propTypes = {
 
 const JourneyHeader = ({ streak = 0 }) => {
   const { theme } = useTheme();
-  const { c } = theme;
+  // The Dashboard's own colours, not the semantic layer.
+  const palette = paletteFor("dashboard", theme.mode);
   const { top: safeTop } = useSafeAreaInsets();
-  const isDark = theme.mode === "dark";
 
-  const invocationColor = c.textSecondary;
-  const bg = c.surface;
-  const titleColor = c.textPrimary;
+  const invocationColor = palette.invocationText;
+  const bg = palette.journeyBg;
+  const titleColor = palette.journeyTitle;
 
   return (
     <View style={[styles.container, { paddingTop: safeTop + 4, backgroundColor: bg }]}>
@@ -85,7 +86,7 @@ const JourneyHeader = ({ streak = 0 }) => {
           <View
             style={[
               styles.streakPill,
-              { backgroundColor: c.goldSurface },
+              { backgroundColor: palette.journeyFlameBg },
             ]}
           >
             <FlameIcon size={12} color={gold[400]} />

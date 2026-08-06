@@ -45,7 +45,7 @@ const DashboardCard = ({ style = null, children = null }) => {
           // takes the plain border and the card reads flat — which is what dark
           // mode wants anyway, since a drop shadow is invisible on a dark
           // ground and depth has to come from the surface ladder instead.
-          borderTopColor: isDark ? c.border : c.surfaceElevated,
+          borderTopColor: c.edgeHighlight,
         },
         !isDark && styles.shadow,
         style,
