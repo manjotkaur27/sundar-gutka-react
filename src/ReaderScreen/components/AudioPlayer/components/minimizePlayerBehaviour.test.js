@@ -50,4 +50,24 @@ describe("circle player play/pause", () => {
     // The tap target on the pill itself is unchanged.
     expect(source).toMatch(/onPress=\{\(\) => setIsMinimized\(false\)\}/);
   });
+
+  it("opens the full player WITHOUT raising the Reader's chrome", () => {
+    // Pausing asks for the controls, not the nav bar and header.
+    const pauseBranch = handler.slice(handler.indexOf("if (wasPlaying)"));
+    expect(pauseBranch).toMatch(/onHideBars\(\)/);
+  });
+});
+
+describe("a tap on the bani expands the circle player", () => {
+  // Reaching the pill from the circle must not depend on what state the pill
+  // happens to be in. Toggling meant a tap while already expanded collapsed it.
+  const tapEffect = source.slice(
+    source.indexOf("// A tap anywhere in the bani WebView"),
+    source.indexOf("}, [tapTick]);")
+  );
+
+  it("expands rather than toggling", () => {
+    expect(tapEffect).toMatch(/setIsExpanded\(true\)/);
+    expect(tapEffect).not.toMatch(/setIsExpanded\(\(prev\) => !prev\)/);
+  });
 });

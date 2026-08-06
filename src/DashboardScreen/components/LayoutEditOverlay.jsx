@@ -49,9 +49,11 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 16,
     paddingHorizontal: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    // A solid 1dp, not a hairline: on a non-integer density a hairline rounds
+    // to zero on alternate rows, so half the rules simply vanish.
+    borderBottomWidth: 1,
   },
-  rowLabel: { flex: 1, fontSize: 15 },
+  rowLabel: { flex: 1, fontSize: 15, fontWeight: "600" },
   switch: { width: 46, height: 28, borderRadius: 14, padding: 3, justifyContent: "center" },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: neutral[0] },
   knobOn: { alignSelf: "flex-end" },
@@ -89,7 +91,8 @@ ThemedSwitchLite.propTypes = {
 };
 
 const LayoutEditOverlay = ({ visible, onClose }) => {
-  const { cardBg, accentBlue, primaryText, mutedText, separator, theme, c } = useDashboardTheme();
+  const { cardBg, accentBlue, primaryText, mutedText, separator, theme, c, palette } =
+    useDashboardTheme();
   // Explicit fontFamily (no fontWeight alongside it) — pairing a numeric
   // fontWeight with a custom TTF makes Android synthesize a fake bold and
   // silently fall back off the real glyph, which was making the title/Save
@@ -157,7 +160,7 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
               delayLongPress={150}
               style={[
                 styles.row,
-                { borderBottomColor: separator },
+                { borderBottomColor: palette.listDivider },
                 isActive && { backgroundColor: cardBg, borderBottomColor: "transparent" },
               ]}
             >

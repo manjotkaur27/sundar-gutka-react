@@ -15,9 +15,9 @@ const formatStatTime = (secs) => {
 const StatBlock = ({ value, unit, label, theme, accentBlue }) => (
   <View style={styles.statBlock}>
     <View style={styles.valueRow}>
-      <CustomText style={[styles.bigNumber, { color: theme.c.textPrimary }]}>
-        {value}
-      </CustomText>
+      {/* The figure reads as brand blue alongside its unit, rather than as
+          near-black copy with a blue suffix stuck on the end. */}
+      <CustomText style={[styles.bigNumber, { color: accentBlue }]}>{value}</CustomText>
       <CustomText style={[styles.unit, { color: accentBlue }]}> {unit}</CustomText>
     </View>
     <CustomText style={[styles.statLabel, { color: theme.c.textSecondary }]}>

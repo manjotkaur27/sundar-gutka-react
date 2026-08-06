@@ -275,9 +275,19 @@ const ONES = [
 const numberToWords = (n) => ONES[n] ?? String(n);
 
 const TodaysNitnem = ({ refreshKey = 0 }) => {
-  const { accentBlue: baseAccentBlue, mutedText, separator, theme, c, palette } = useDashboardTheme();
+  const {
+    accentBlue: baseAccentBlue,
+    mutedText,
+    separator,
+    theme,
+    c,
+    palette,
+  } = useDashboardTheme();
   // Matches the username/streak accent color (blue in light, off-white in dark).
-  const accentTextColor = c.textPrimary;
+  // Nitnem's own figure/label colour, NOT the body text colour: the ring count,
+  // "banis left today", a completed bani name and Mark Done all read as one
+  // accent rather than as ordinary near-black copy.
+  const accentTextColor = palette.accentText;
   // The shared dashboard accent, with no local override. There used to be a
   // dark-mode-only variant here; it is gone, because every blue role now
   // resolves to the one app blue in dark mode, so a second value could only

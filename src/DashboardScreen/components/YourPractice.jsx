@@ -127,14 +127,16 @@ HeroStat.propTypes = {
 // };
 
 const YourPractice = ({ refreshKey = 0 }) => {
-  const { mutedText, theme, c } = useDashboardTheme();
+  const { mutedText, theme, palette } = useDashboardTheme();
   const numFont = theme.typography.fonts.balooPaajiSemiBold;
   const labelFont = theme.typography.fonts.balooPaaji;
   // Hero numbers match the username / streak count exactly (color + faux-bold).
-  const heroNumColor = c.textPrimary;
-  const heroLabelColor = c.textPrimary;
-  // Book/clock icon tint — light blue in dark mode, accent in light.
-  const iconColor = c.accent;
+  // The headline figure is the brand blue in light and white in dark — it is
+  // the thing the card exists to show, not body copy.
+  const heroNumColor = palette.brandText;
+  const heroLabelColor = palette.heroLabel;
+  // Book/clock icon tint — light blue in dark mode, brand blue in light.
+  const iconColor = palette.heroIcon;
   const [data, setData] = useState(null);
 
   const task = useCallback(async () => {

@@ -26,7 +26,14 @@ import useListeningSession from "@common/hooks/useListeningSession";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 import { prefetchPreviews } from "./utils/audioDownloader";
 
-const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef, isNavBarVisible = false }) => {
+const AudioPlayer = ({
+  baniID,
+  title,
+  notificationTitle,
+  webViewRef,
+  isNavBarVisible = false,
+  onHideBars = () => {},
+}) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -534,6 +541,7 @@ const AudioPlayer = ({ baniID, title, notificationTitle, webViewRef, isNavBarVis
       isPlayerActionLoading={isPlayerActionLoading}
       skipNextLoadRef={skipNextLoadRef}
       isNavBarVisible={isNavBarVisible}
+      onHideBars={onHideBars}
     />
   );
 };
@@ -547,6 +555,8 @@ AudioPlayer.propTypes = {
     }),
   }).isRequired,
   isNavBarVisible: PropTypes.bool,
+  /** Asks the Reader to keep its chrome hidden. See MinimizePlayer's pause. */
+  onHideBars: PropTypes.func,
 };
 
 export default AudioPlayer;

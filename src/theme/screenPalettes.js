@@ -64,8 +64,11 @@ const dashboard = {
     gold: gold.light,
     /** The Reminders section heading carries its own, quieter accent. */
     sectionAccent: "#8D9FBD",
-    /** A card's own title and meta line, distinct from body text. */
-    cardTitle: "#0F3677",
+    /**
+     * A card's own title line. Pre-overhaul #0F3677, another near-navy off the
+     * brand blue by a few points; folded onto the brand blue with accentText.
+     */
+    cardTitle: brandRamp.base,
     cardMeta: "#8D9FBD",
     /** Tinted icon plates: warm for sun/sunrise, brand for sunset, neutral for night. */
     goldSurface: "#FBF1E2",
@@ -141,13 +144,35 @@ const dashboard = {
     /** The dashed "missed day" ring — equally faint on the light and dark card. */
     missedFill: "rgba(150, 150, 150, 0.12)",
     /**
-     * The week chart's bars are their OWN blue — brighter than the brand navy,
-     * which at bar size on a white card reads as a black block.
+     * The week chart's bars. Pre-overhaul this was its own brighter blue
+     * (#006bde); it is the brand navy now so the chart matches the nav bar and
+     * every other blue on the screen.
      */
-    chartBar: "#006bde",
+    chartBar: brandRamp.base,
     chartBarInactive: brandRamp.tint75,
     /** The unfilled part of the Nitnem progress ring. */
     ringTrack: "#e6ebf5",
+    /**
+     * The rule between rows in a sheet list. The card separator (#eeeeee) is
+     * all but invisible against the sheet's own pale ground, so a list that
+     * needs its rows told apart uses this instead.
+     */
+    listDivider: brandRamp.tint75,
+    /**
+     * Nitnem's figures and labels: the ring count, "banis left today", a
+     * completed bani name and Mark Done. Pre-overhaul this was #133a78 — a
+     * near-navy a few points off the brand blue for no reason anyone recorded.
+     * It is THE brand blue now, so every blue on this screen is one blue.
+     */
+    accentText: brandRamp.base,
+    /**
+     * "Your practice": the big figure is the brand blue (white in dark), its
+     * label a muted slate, its icon the brand blue (a pale blue in dark). All
+     * three had collapsed onto textPrimary/accent, which put the headline
+     * number in near-black.
+     */
+    heroLabel: "#5E7090",
+    heroIcon: brandRamp.base,
   },
   dark: {
     screenBg: "#031329",
@@ -206,6 +231,10 @@ const dashboard = {
     chartBar: "#429aff",
     chartBarInactive: "rgba(85,141,231,0.25)",
     ringTrack: "rgba(255,255,255,0.12)",
+    accentText: "#E8EEF7",
+    heroLabel: offWhite,
+    heroIcon: "#a1bee7ff",
+    listDivider: "rgba(190, 210, 242, 0.38)",
   },
 };
 

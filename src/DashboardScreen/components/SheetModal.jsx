@@ -33,15 +33,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     overflow: "hidden",
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 12,
-    // Never squeezed to nothing when tall content competes for space.
-    flexShrink: 0,
-  },
 });
 
 /**
@@ -49,7 +40,7 @@ const styles = StyleSheet.create({
  * and can therefore read real insets — see the note on that provider.
  */
 const SheetBody = ({ onClose, heightRatio = null, translateY, children = null }) => {
-  const { screenBg, mutedText, c } = useDashboardTheme();
+  const { screenBg, c } = useDashboardTheme();
   const { bottom } = useSafeAreaInsets();
 
   // Opposing `top` and `bottom` edges form a hard layout constraint, so long
@@ -75,9 +66,6 @@ const SheetBody = ({ onClose, heightRatio = null, translateY, children = null })
           },
         ]}
       >
-        {/* Muted text colour, not `separator` — separator is #eeeeee in light
-            mode, which is invisible against the sheet. */}
-        <View style={[styles.handle, { backgroundColor: mutedText }]} />
         {children}
       </Animated.View>
     </View>

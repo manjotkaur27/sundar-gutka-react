@@ -652,6 +652,9 @@ const Reader = ({ navigation, route }) => {
             notificationTitle={titleUni || titleText}
             webViewRef={webViewRef}
             isNavBarVisible={isHeader}
+            // Opening the full player from the circle must not bring the bars
+            // back with it — the user asked for the controls, not the chrome.
+            onHideBars={() => setBarsVisible(false, "player_expanded")}
           />
         </Animated.View>
       )}

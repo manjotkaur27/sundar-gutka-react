@@ -119,7 +119,16 @@ export const brandMarks = {
    * artwork, so it does not track the theme — same reason the social marks below
    * are literals rather than roles.
    */
-  gurdham: { gradientTop: "#98A6FF", gradientBottom: "#13143C", outline: "#FFFFFF" },
+  /**
+   * The Gurdham mark. Its gradient runs periwinkle → near-black indigo, and
+   * that bottom stop is all but invisible on the dark card, so dark mode lifts
+   * both stops while staying in the same indigo family.
+   */
+  gurdham: {
+    gradientTop: { light: "#98A6FF", dark: "#C2CCFF" },
+    gradientBottom: { light: "#13143C", dark: "#5B60A8" },
+    outline: "#FFFFFF",
+  },
   facebook: "#1877F2",
   linkedin: "#0A66C2",
   /** Instagram's mark is a gradient; stops in order. */
@@ -149,6 +158,19 @@ export const brandMarks = {
   },
   /** Browser chrome for in-app links — the brand navy and its off-white. */
   inAppBrowser: { chrome: "#113979", onChrome: "#FAF9F6" },
+  /**
+   * The scroll thumb over the bani text. ONE muted blue in both themes, at 50%
+   * — it floats over scripture on a light and a dark ground alike, and a
+   * theme-derived accent made it two different colours for no reason.
+   */
+  scrollThumb: "#7A99C9",
+  /**
+   * The reading-progress bar under the Reader. One track and one fill in both
+   * themes: it sits on the bani ground, not on a themed surface, and splitting
+   * it per theme made the same bar two different colours mid-session when the
+   * user switched.
+   */
+  readerProgress: { track: "#E0E0E0", fill: "#113979" },
 };
 
 export default { neutral, navy, accent, red, green, gold, vishraam, brandMarks };

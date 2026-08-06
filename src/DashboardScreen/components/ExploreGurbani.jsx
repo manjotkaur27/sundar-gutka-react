@@ -78,12 +78,14 @@ HeadphonesIcon.propTypes = { color: PropTypes.string.isRequired };
 // Sized to the same 32pt box as the logo IMAGES rather than the 22pt stroked
 // glyphs, since it reads as a logo; the viewBox is taller than it is wide, so
 // the width is derived from that ratio to avoid distorting it.
-const GurdhamIcon = () => (
+const GurdhamIcon = ({ mode }) => (
   <Svg width={(32 * 76) / 88} height={32} viewBox="0 0 76 88" fill="none">
     <Defs>
+      {/* Both stops lift in dark mode — the light-mode bottom stop is a
+          near-black indigo that disappears into the card. */}
       <LinearGradient id="gurdham" x1={38} y1={2} x2={38} y2={86} gradientUnits="userSpaceOnUse">
-        <Stop stopColor={brandMarks.gurdham.gradientTop} />
-        <Stop offset={1} stopColor={brandMarks.gurdham.gradientBottom} />
+        <Stop stopColor={brandMarks.gurdham.gradientTop[mode]} />
+        <Stop offset={1} stopColor={brandMarks.gurdham.gradientBottom[mode]} />
       </LinearGradient>
     </Defs>
     <Path
@@ -103,15 +105,19 @@ const GurdhamIcon = () => (
 // Tiles carry an `icon` key when they draw a vector glyph instead of a logo
 // image. Hukamnama's darbar artwork is solid-filled and detailed, so it gets a
 // slightly larger box than the stroked glyphs to stay legible.
-const TileIcon = ({ name, color }) => {
+const TileIcon = ({ name, color, mode }) => {
   if (name === "hukamnama") return <HukamnamaIcon size={26} color={color} />;
-  if (name === "gurdham") return <GurdhamIcon />;
+  if (name === "gurdham") return <GurdhamIcon mode={mode} />;
   return <SearchIcon color={color} />;
 };
 TileIcon.propTypes = {
   name: PropTypes.string.isRequired,
   color: PropTypes.string.isRequired,
+  /** The Gurdham mark's gradient is picked per theme; see brandMarks. */
+  mode: PropTypes.oneOf(["light", "dark"]).isRequired,
 };
+
+GurdhamIcon.propTypes = { mode: PropTypes.oneOf(["light", "dark"]).isRequired };
 
 // `titleKey`/`subtitleKey`/`badgeKey` hold STRINGS keys for the localisable
 // labels (resolved at render time so a language switch applies); brand and
@@ -151,7 +157,7 @@ const openAppTile = async (t) => {
 };
 
 const ExploreGurbani = ({ refreshKey = 0 }) => {
-  const { gold, mutedText, theme, c, accentBlue, palette } = useDashboardTheme();
+  const { gold, mutedText, theme, c, palette } = useDashboardTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const { nameOf } = useBaniLookup();
@@ -304,7 +310,7 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
               <View style={styles.iconRow}>
                 <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
                   {t.icon ? (
-                    <TileIcon name={t.icon} color={iconColor} />
+                    <TileIcon name={t.icon} color={iconColor} mode={theme.mode} />
                   ) : (
                     <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
                   )}

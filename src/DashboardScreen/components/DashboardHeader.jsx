@@ -35,7 +35,7 @@ MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 const FATEH = "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥\nਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥";
 
 const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refreshKey = 0 }) => {
-  const { gold, primaryText, mutedText, theme, c, layout, palette } = useDashboardTheme();
+  const { gold, mutedText, theme, c, layout, palette } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
 
   // Date line under the Fateh — a brand tint, quieter than the Fateh itself.
@@ -122,22 +122,17 @@ const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refr
         </View>
 
         <View style={styles.controls}>
+          {/* The menu button and the avatar are one pair: same circle, same
+              fill, same glyph colour. They previously differed in all three,
+              which read as two unrelated controls sitting next to each other. */}
           <Pressable
             onPress={onMenuPress}
             hitSlop={8}
-            style={[
-              styles.iconBtn,
-              { backgroundColor: palette.iconPlate },
-            ]}
+            style={[styles.iconBtn, { backgroundColor: palette.headerPill }]}
           >
-            <MenuIcon color={primaryText} />
+            <MenuIcon color={avatarTextColor} />
           </Pressable>
-          <View
-            style={[
-              styles.avatar,
-              { backgroundColor: palette.headerPill },
-            ]}
-          >
+          <View style={[styles.avatar, { backgroundColor: palette.headerPill }]}>
             {/* Generic account glyph — there is no login/account system yet
                 (see DEFAULT_NAME above), so this is a cosmetic placeholder
                 only, matching the non-interactive avatar it replaces. */}
@@ -203,10 +198,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  // The menu button and the avatar sit side by side, so they share one circle.
+  // They were 42 and 46, which reads as a mistake rather than a hierarchy.
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -31,6 +31,7 @@ const MinimizePlayer = ({
   opacityStyle = null,
   pointerEvents = "auto",
   isNavBarVisible = false,
+  onHideBars = () => {},
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(minimizePlayerStyles);
@@ -117,13 +118,17 @@ const MinimizePlayer = ({
     };
   }, [isExpanded, armCollapse]);
 
-  // A tap anywhere in the bani WebView toggles expansion.
+  // A tap anywhere in the bani WebView EXPANDS the player to the pill — it does
+  // not toggle. Toggling meant a tap while already expanded collapsed it back
+  // to the circle, so reaching the pill from the circle was a coin flip
+  // depending on what state it happened to be in. Collapsing is the idle
+  // timer's job, not the tap's.
   useEffect(() => {
     if (tickInitRef.current) {
       tickInitRef.current = false;
       return;
     }
-    setIsExpanded((prev) => !prev);
+    setIsExpanded(true);
   }, [tapTick]);
 
   // When the nav bar + header reappear (scroll up while this circular/pill
@@ -154,6 +159,10 @@ const MinimizePlayer = ({
     handlePlayPause();
     if (wasPlaying) {
       setIsMinimized(false);
+      // The full player is what was asked for — NOT the nav bar and header with
+      // it. Asserted rather than assumed: nothing here is supposed to raise the
+      // chrome, so if anything ever does, this still holds the requirement.
+      onHideBars();
       return;
     }
     // Resuming: leave the pill exactly as it is. Re-arming the collapse timer
@@ -448,6 +457,8 @@ MinimizePlayer.propTypes = {
   opacityStyle: PropTypes.shape(),
   pointerEvents: PropTypes.string,
   isNavBarVisible: PropTypes.bool,
+  /** Keeps the Reader's chrome down when pausing opens the full player. */
+  onHideBars: PropTypes.func,
 };
 
 const arePropsEqual = (prevProps, nextProps) => {

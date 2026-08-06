@@ -338,7 +338,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
               style={styles.monthLabelBtn}
             >
               <CustomText
-                style={[styles.monthText, { color: c.textPrimary }]}
+                style={[styles.monthText, { color: palette.brandText }]}
                 numberOfLines={1}
               >
                 {monthYearLabel}

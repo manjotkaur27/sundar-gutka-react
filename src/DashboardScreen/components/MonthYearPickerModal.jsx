@@ -5,7 +5,7 @@ import useSheetPresentation from "@common/components/ui/useSheetPresentation";
 import Overlay from "@common/components/ui/Overlay";
 import { monthShort } from "@common/dateLocale";
 import { ChevronLeftIcon, ChevronRight, CloseIcon } from "@common/icons";
-import { CustomText } from "@common";
+import { CustomText, constant } from "@common";
 import useDashboardTheme from "./dashboardTheme";
 
 // Localised short month labels (Jan…Dec in the app language), built at render
@@ -28,13 +28,21 @@ const getToday = () => {
 // sheet that slides up/down under its own Animated control, matching the
 // hand-rolled slide DayDetailModal-style sheets elsewhere in the dashboard.
 const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
-  const { cardBg, accentBlue, primaryText, mutedText, separator, c, layout } = useDashboardTheme();
+  const { cardBg, accentBlue, primaryText, mutedText, c, layout } = useDashboardTheme();
   const today = getToday();
 
   // Defaults to today's year every time the picker opens — same "show
   // today's date by default" behavior the native picker had, independent of
   // whichever month the calendar happens to be showing underneath.
   const [viewYear, setViewYear] = useState(today.year);
+  // The year sits between a single back arrow on the left and TWO controls on
+  // the right, so centring it in the leftover space pushes it off-centre in the
+  // sheet. The leading spacer mirrors the close button's measured width, which
+  // is the only one without a counterpart.
+  //
+  // Declared with the other hooks, ABOVE the `mounted` early return — below it
+  // the hook is only called on some renders, which is what React counts.
+  const [closeWidth, setCloseWidth] = useState(0);
 
   // The entrance comes from the shared hook, so this picker, the Dashboard's
   // other sheets and the Settings sheets all open the same way. It used to
@@ -53,6 +61,9 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
   // Every month and year is reachable. A month with no data reads as an empty
   // calendar, which tells the user more than an arrow that refuses to move.
   const chipBg = c.surfaceSelected;
+  // Stepping back a whole year from the earliest year with any history would
+  // land entirely before it, so the control is not offered.
+  const canGoBack = viewYear - 1 >= constant.DASHBOARD_HISTORY_FLOOR.year;
 
   return (
     // Entrance starts on `onShow` — see `useSheetPresentation`.
@@ -68,16 +79,20 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
           style={[styles.sheet, { backgroundColor: cardBg, transform: [{ translateY }] }]}
           onStartShouldSetResponder={() => true}
         >
-          <View style={[styles.handle, { backgroundColor: separator }]} />
 
           <View style={styles.header}>
-            <Pressable
-              onPress={() => setViewYear((y) => y - 1)}
-              hitSlop={8}
-              style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-            >
-              <ChevronLeftIcon size={18} color={primaryText} />
-            </Pressable>
+            <View style={{ width: closeWidth }} />
+            {canGoBack ? (
+              <Pressable
+                onPress={() => setViewYear((y) => y - 1)}
+                hitSlop={8}
+                style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
+              >
+                <ChevronLeftIcon size={18} color={primaryText} />
+              </Pressable>
+            ) : (
+              <View style={styles.navBtnPlaceholder} />
+            )}
             <CustomText style={[styles.yearText, { color: primaryText }]}>{viewYear}</CustomText>
             <Pressable
               onPress={() => setViewYear((y) => y + 1)}
@@ -86,7 +101,12 @@ const MonthYearPickerModal = ({ visible, year, month, onSelect, onClose }) => {
             >
               <ChevronRight size={18} color={primaryText} />
             </Pressable>
-            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              style={styles.closeBtn}
+              onLayout={(e) => setCloseWidth(e.nativeEvent.layout.width)}
+            >
               <CloseIcon size={layout.header.closeIconSize} color={mutedText} />
             </Pressable>
           </View>
@@ -150,13 +170,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 36,
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -164,6 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   navBtn: { padding: 4 },
+  navBtnPlaceholder: { padding: 4, width: 18 },
   // Nothing in this sheet is ever disabled, so the only state to express is the
   // touch. Matches the month arrows in MonthCalendar.
   navBtnPressed: { opacity: 0.45 },

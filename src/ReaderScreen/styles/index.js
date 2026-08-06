@@ -1,4 +1,5 @@
 import { withAlpha } from "@theme/colorUtils";
+import { brandMarks } from "@theme/palette";
 
 // A NOTE ON `elevation` IN THIS FILE
 //
@@ -74,12 +75,12 @@ const createStyles = (theme) => ({
   progressBarContainer: {
     height: 5,
     width: "100%",
-    backgroundColor: theme.c.surfaceSelected,
+    backgroundColor: brandMarks.readerProgress.track,
     zIndex: 100,
   },
   progressBar: {
     height: "100%",
-    backgroundColor: theme.c.textBrand,
+    backgroundColor: brandMarks.readerProgress.fill,
   },
   sliderText: {
     color: theme.c.onPrimary,

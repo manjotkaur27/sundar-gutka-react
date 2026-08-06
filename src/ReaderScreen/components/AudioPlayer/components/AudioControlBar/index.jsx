@@ -67,6 +67,7 @@ const AudioControlBar = ({
   isPlayerActionLoading = false,
   skipNextLoadRef = undefined,
   isNavBarVisible = false,
+  onHideBars = () => {},
 }) => {
   const dispatch = useDispatch();
   const { theme } = useTheme();
@@ -616,6 +617,7 @@ const AudioControlBar = ({
           displayName={currentPlaying?.displayName || ""}
           isDragging={isPlayerDragging}
           isNavBarVisible={isNavBarVisible}
+          onHideBars={onHideBars}
         />
       )}
       {!isMinimized && (
@@ -816,6 +818,7 @@ AudioControlBar.propTypes = {
   isPlayerActionLoading: PropTypes.bool,
   skipNextLoadRef: PropTypes.shape({ current: PropTypes.bool }),
   isNavBarVisible: PropTypes.bool,
+  onHideBars: PropTypes.func,
 };
 
 export default AudioControlBar;

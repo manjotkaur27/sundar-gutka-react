@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS } from "@common";
 import { gurmukhiToDevanagari } from "@common/gurmukhiToDevanagari";
+import { CustomText, STRINGS } from "@common";
 import { getWordOfDay, getNextEvent } from "../../services/dashboard";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
@@ -28,21 +28,22 @@ const Discover = ({ refreshKey = 0 }) => {
   const [word, setWord] = useState(null);
   const [event, setEvent] = useState(null);
 
-  // Show the featured word in the READER's own script, not always Gurmukhi:
-  //   Punjabi → ਸੰਤ (Gurmukhi, as sourced) · Hindi → संत (converted to
-  //   Devanagari) · English + other Latin locales → "Sant" (roman). The word
-  //   itself comes from the live hukamnama/BaniDB word-of-day (Gurmukhi +
-  //   roman); Devanagari is derived on the fly since the feed has no Hindi form.
+  // The word is ALWAYS shown in Gurmukhi, whatever the app language. It is a
+  // Gurbani word — showing only its transliteration hides the thing being
+  // taught, and the pairing with a second line is how the word is learnt.
+  //
+  // The second line is that word in the READER's own script: Devanagari under
+  // Hindi (derived on the fly, since the feed carries only Gurmukhi + roman),
+  // and the roman form everywhere else.
   const lang = STRINGS.getLanguage();
-  let displayWord = "—";
-  if (word) {
-    if (lang === "pa") displayWord = word.gurmukhi;
-    else if (lang === "hi") displayWord = gurmukhiToDevanagari(word.gurmukhi);
-    else displayWord = word.transliteration || word.gurmukhi;
-  }
-  // Gurbani font only renders Gurmukhi; Devanagari/Latin use the app font
-  // (Devanagari falls back to the system script font for those glyphs).
-  const wordFont = lang === "pa" ? gurbaniFont : theme.typography.fonts.balooPaajiSemiBold;
+  const displayWord = word ? word.gurmukhi : "—";
+  const secondLine = (() => {
+    if (!word) return "";
+    if (lang === "hi") return gurmukhiToDevanagari(word.gurmukhi);
+    return word.transliteration ?? "";
+  })();
+  // Gurmukhi always, so always the Gurbani face.
+  const wordFont = gurbaniFont;
 
   // Each tile fetches (and can fail/retry) independently, so a broken
   // upcoming-event lookup never takes the word-of-day tile down with it.
@@ -99,10 +100,9 @@ const Discover = ({ refreshKey = 0 }) => {
                 {displayWord}
               </CustomText>
               <CustomText style={[styles.translit, { color: cardSecondaryColor }]} numberOfLines={1}>
-                {/* Roman helper line — redundant when the main word already IS
-                    the roman form (English/other Latin locales), so show it
-                    only under the Gurmukhi/Devanagari scripts. */}
-                {lang === "pa" || lang === "hi" ? word?.transliteration ?? "" : ""}
+                {/* Devanagari under Hindi, roman elsewhere. The line above is
+                    always Gurmukhi, so this is never a duplicate of it. */}
+                {secondLine}
               </CustomText>
               <CustomText style={[styles.meaning, { color: cardSecondaryColor }]} numberOfLines={4}>
                 {word?.meaning ?? ""}
