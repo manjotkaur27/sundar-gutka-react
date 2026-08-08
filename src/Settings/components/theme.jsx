@@ -1,18 +1,20 @@
-import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { setTheme } from "@common/actions";
+import React from "react";
+import { useSelector } from "react-redux";
+import { themeOptions } from "@settings/Themes/options";
+import PropTypes from "prop-types";
 import { ThemeIcon } from "@common/icons";
 import { STRINGS } from "@common";
-import SelectSheet from "./comon/SelectSheet";
 import SettingsRow from "./comon/SettingsRow";
-import { getTheme } from "./comon/strings";
 
-const ThemeComponent = () => {
-  const [isVisible, toggleVisible] = useState(false);
+// The app's ONE appearance control.
+//
+// It used to open a three-option sheet (Default / Light / Dark). It now pushes
+// the theme grid, because the choice is no longer a single word — each option is
+// a page you can look at, and the designed themes set the app's appearance and
+// the reading surface together.
+const ThemeComponent = ({ navigate }) => {
   const theme = useSelector((state) => state.theme);
-  const dispatch = useDispatch();
-  const THEMES = getTheme(STRINGS);
-  const current = THEMES.find((t) => t.key === theme);
+  const current = themeOptions().find((option) => option.value === theme);
 
   return (
     <>
@@ -22,24 +24,16 @@ const ThemeComponent = () => {
           asset it softened on high-density screens. */}
       <SettingsRow
         title={STRINGS.theme}
-        value={current ? current.title : theme}
+        // Falls back to the stored value so an id from a newer release still
+        // shows something rather than an empty row.
+        value={current ? STRINGS[current.labelKey] : theme}
         IconComponent={ThemeIcon}
-        onPress={() => toggleVisible(true)}
-      />
-      <SelectSheet
-        visible={isVisible}
-        title={STRINGS.theme}
-        options={THEMES}
-        value={theme}
-        closeLabel={STRINGS.cancel}
-        onClose={() => toggleVisible(false)}
-        onSelect={(key) => {
-          dispatch(setTheme(key));
-          toggleVisible(false);
-        }}
+        onPress={() => navigate("Themes")}
       />
     </>
   );
 };
+
+ThemeComponent.propTypes = { navigate: PropTypes.func.isRequired };
 
 export default ThemeComponent;

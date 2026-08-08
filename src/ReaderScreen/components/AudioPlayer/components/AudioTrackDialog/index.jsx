@@ -4,11 +4,11 @@ import { useSelector } from "react-redux";
 import TrackPlayer, { State } from "react-native-track-player";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
-import useTheme, { useNetwork } from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
+import { useNetwork } from "@common/context";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
+import { useAudioTheme, useAudioThemedStyles } from "../../useAudioTheme";
 import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 import {
   ensurePreviewDownloaded,
@@ -36,10 +36,10 @@ const AudioTrackDialog = ({
   reset,
   isPlaying,
 }) => {
-  const styles = useThemedStyles(audioTrackDialogStyles);
+  const styles = useAudioThemedStyles(audioTrackDialogStyles);
   const fontFace = useSelector((state) => state.fontFace);
   const downloadRegistry = useSelector((state) => state.downloadRegistry);
-  const { theme } = useTheme();
+  const { theme } = useAudioTheme();
   const { height: windowHeight } = useWindowDimensions();
   // Single source of truth (NetworkProvider): real-time and captive-portal
   // aware. `isOffline` stays false during the unknown startup window, so tracks

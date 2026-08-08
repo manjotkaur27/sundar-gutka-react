@@ -3,6 +3,7 @@ import { ActivityIndicator, AppState, Platform, View, Animated, NativeModules } 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
+import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useReadingSession from "@common/hooks/useReadingSession";
 import { pauseTrack } from "@common/TrackPlayerUtils";
@@ -22,7 +23,7 @@ import {
   trackScrollProgress,
   trackNavBar,
 } from "@common";
-import { Header, AutoScrollComponent, AudioPlayer } from "./components";
+import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
@@ -30,6 +31,13 @@ import { loadHTML } from "./utils";
 // How long the bars linger with no interaction before auto-hiding during
 // auto-scroll or audio playback.
 const BARS_IDLE_HIDE_MS = 4000;
+
+// The WebView's own top margin, and therefore where the scrollable viewport
+// actually begins. ReaderScrollbar's track must start at the SAME line or its
+// thumb travel no longer matches the page's — named once so the two cannot
+// drift apart. This is NOT the header overlay height: the header floats OVER
+// the page, while this is where the page itself starts.
+const WEBVIEW_TOP_MARGIN = 60;
 
 const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -46,14 +54,17 @@ const Reader = ({ navigation, route }) => {
   // Built from the same two tokens as the header itself, so they cannot drift.
   const headerOverlayHeight =
     theme.layout.header.topClearance + theme.layout.header.minHeight;
-  // Same role as the Reader header and the WebView page itself.
-  // The SAME ground the Dashboard and Settings sit on, in both themes.
+  // The reading theme styles the Bani surface. `theme` above stays the app
+  // appearance and still drives everything outside this screen.
   //
-  // `backgroundAlt`, not `background`: the two are identical in dark mode, but in
-  // light mode the rest of the app sits on a slightly recessed #f3f4f6 while this
-  // screen was pure white. The Reader was the one page that did not match, on the
-  // screen people spend the most time in.
-  const readerBgColor = theme.c.backgroundAlt;
+  // Its light/dark records take this ground from `c.backgroundAlt` — the same
+  // role the Reader header and the rest of the app sit on — so following the app
+  // keeps the Reader matching every other screen, exactly as before. `readerBg`
+  // is the one value that feeds SafeArea, the status bar and the WebView, which
+  // is why threading the theme through here reaches all three.
+  const { theme: readerTheme } = useReaderTheme();
+  const isReaderDark = readerTheme.base === "dark";
+  const readerBgColor = readerTheme.background.color;
   const bookmarkPosition = useSelector((state) => state.bookmarkPosition);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
   const isAudio = useSelector((state) => state.isAudio);
@@ -209,6 +220,10 @@ const Reader = ({ navigation, route }) => {
   // widths can fail to apply on first paint and render full-width — this avoids
   // that entirely (the fill is 0px until measured).
   const [progressBarWidth, setProgressBarWidth] = useState(0);
+  // Fraction of the bani visible on screen (0-1], reported by the WebView on
+  // layout and resize. Sizes the themed scroll indicator's thumb proportionally,
+  // and hides it entirely when the whole bani already fits.
+  const [visibleFraction, setVisibleFraction] = useState(1);
   // Latest scroll % (0-100) for analytics — updated on every WebView scroll message
   const scrollPercentRef = useRef(0);
 
@@ -247,6 +262,9 @@ const Reader = ({ navigation, route }) => {
   useEffect(() => {
     scrollPercentRef.current = 0;
     scrollProgressAnim.setValue(0);
+    // Back to "everything fits" until the new bani reports its own ratio, so the
+    // previous bani's thumb size never briefly shows on this one.
+    setVisibleFraction(1);
   }, [id, scrollProgressAnim]);
 
   // Bottom inset for the WebView content. Whenever the bars are visible they
@@ -364,11 +382,14 @@ const Reader = ({ navigation, route }) => {
         isEnglishTranslation,
         isPunjabiTranslation,
         isSpanishTranslation,
-        theme,
+        readerTheme,
         isLarivaar,
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",
     };
+    // `readerTheme` is the dependency here, not the app theme — which is what
+    // makes switching a reading theme repaint the Bani immediately, with no
+    // restart and no WebView remount.
   }, [
     shabad,
     isTransliteration,
@@ -377,7 +398,7 @@ const Reader = ({ navigation, route }) => {
     isEnglishTranslation,
     isPunjabiTranslation,
     isSpanishTranslation,
-    theme,
+    readerTheme,
     isLarivaar,
   ]);
 
@@ -518,6 +539,12 @@ const Reader = ({ navigation, route }) => {
           }).start();
           scrollPercentRef.current = Math.round(pct * 100);
         }
+      } else if (data.startsWith("scroll-ratio-")) {
+        // What fraction of the bani fits on screen. Sizes the themed scroll
+        // indicator's thumb and nothing else. Sent on layout and resize only,
+        // never per scroll.
+        const visible = parseFloat(data.split("scroll-ratio-")[1]);
+        if (Number.isFinite(visible) && visible > 0) setVisibleFraction(visible);
       }
     },
     [
@@ -617,7 +644,17 @@ const Reader = ({ navigation, route }) => {
           bounces={false}
           overScrollMode="never"
           nestedScrollEnabled
-          showsVerticalScrollIndicator
+          // Neither platform can give a THEMED scrollbar here:
+          //   • Android draws the root scroller's bar itself, from a static app
+          //     resource (colors.xml -> scrollbar_thumb), and never consults
+          //     ::-webkit-scrollbar (crbug 40226034).
+          //   • iOS offers only default/black/white on the UIScrollView
+          //     indicator, and dropped custom CSS scrollbars in iOS 14.
+          // So the native indicator is off on both and <ReaderScrollbar/> draws a
+          // themed one over the top. An earlier attempt turned the native bar off
+          // on Android expecting the CSS to take over — it does not, which left
+          // no scrollbar at all.
+          showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           onContentProcessDidTerminate={reloadWebView}
           // Android equivalent of onContentProcessDidTerminate above: when the
@@ -632,10 +669,26 @@ const Reader = ({ navigation, route }) => {
           backgroundColor={readerBgColor}
           style={[
             webView,
-            theme.mode === "dark" && { opacity: viewLoaded ? 1 : 0.1 },
-            { backgroundColor: readerBgColor, marginTop: 60 },
+            // Gated on the READING theme's base, not the app's: a dark reading
+            // theme needs the same first-paint fade even in a light app.
+            isReaderDark && { opacity: viewLoaded ? 1 : 0.1 },
+            { backgroundColor: readerBgColor, marginTop: WEBVIEW_TOP_MARGIN },
           ]}
           onMessage={handleMessage}
+        />
+      )}
+      {/* Themed scroll indicator. Drawn here rather than styled in CSS because
+          neither platform lets a reading theme tint the real scrollbar — see the
+          component for the detail. Rides scrollProgressAnim, the same signal the
+          bottom progress bar already uses. */}
+      {shabad.length > 0 && (
+        <ReaderScrollbar
+          progress={scrollProgressAnim}
+          color={readerTheme.scrollbar.thumb}
+          width={readerTheme.scrollbar.width}
+          visibleFraction={visibleFraction}
+          topInset={WEBVIEW_TOP_MARGIN}
+          bottomInset={insetBottom + 10}
         />
       )}
       {isAudioFeatureOn && isAudio && (
@@ -708,11 +761,19 @@ const Reader = ({ navigation, route }) => {
           const w = e.nativeEvent.layout.width;
           if (w > 0 && w !== progressBarWidth) setProgressBarWidth(w);
         }}
-        style={[styles.scrollProgressBar, { transform: [{ translateY: progressLiftAnim }] }]}
+        style={[
+          styles.scrollProgressBar,
+          // Sits on the bottom edge of the Bani surface, so it takes the reading
+          // theme's tint rather than the app's. Following the app resolves both
+          // steps back to withAlpha(c.accent, …) — what the stylesheet sets.
+          { backgroundColor: readerTheme.chrome.progressTrack },
+          { transform: [{ translateY: progressLiftAnim }] },
+        ]}
       >
         <Animated.View
           style={[
             styles.scrollProgressFill,
+            { backgroundColor: readerTheme.chrome.progressFill },
             {
               width: scrollProgressAnim.interpolate({
                 inputRange: [0, 1],

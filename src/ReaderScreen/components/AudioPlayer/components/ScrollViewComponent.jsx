@@ -1,13 +1,14 @@
 import React, { useMemo } from "react";
-import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, Animated, Pressable, ActivityIndicator } from "react-native";
 import { useSelector } from "react-redux";
 import { Icon } from "@rneui/themed";
+import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
+import { useCustomScrollbar } from "@common/components/ScrollIndicator";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { audioTrackDialogStyles, TRACK_ROW_BORDER_WIDTH } from "../style";
+import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 import { getLocalTrackPath } from "../utils/audioDownloader";
 import PreviewSweep from "./PreviewSweep";
 
@@ -39,8 +40,11 @@ const ScrollViewComponent = ({
   isOffline = false,
   handleSelectTrack,
 }) => {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(audioTrackDialogStyles);
+  const { theme } = useAudioTheme();
+  const styles = useAudioThemedStyles(audioTrackDialogStyles);
+  // The same thumb the Reader's own scrollbar uses, so the two agree.
+  const { theme: readerTheme } = useReaderTheme();
+  const { scrollViewProps, Indicator } = useCustomScrollbar(readerTheme.scrollbar.thumb);
   const downloadRegistry = useSelector((s) => s.downloadRegistry);
 
   // Downloaded tracks first (alphabetical), then non-downloaded (alphabetical) —
@@ -126,27 +130,38 @@ const ScrollViewComponent = ({
     );
   };
 
+  // The artist list is inside the audio dialog, which sits on the Reader — so
+  // its scrollbar takes the reading theme's thumb like the Reader's own does.
+  // The native indicator cannot: Android's comes from a static app resource and
+  // iOS offers only default/black/white, which is why passing a colour makes
+  // the shared hook draw one on both platforms.
   return (
-    <ScrollView
-      style={styles.trackList}
-      contentContainerStyle={styles.trackListContent}
-      showsVerticalScrollIndicator
-      indicatorStyle={theme.chrome.scrollIndicator}
-      nestedScrollEnabled
-    >
-      {downloadedTracks.length > 0 && (
-        <>
-          <CustomText style={styles.trackSectionHeader}>{STRINGS.DOWNLOADED}</CustomText>
-          {downloadedTracks.map(renderTrack)}
-        </>
-      )}
-      {nonDownloadedTracks.length > 0 && (
-        <>
-          <CustomText style={styles.trackSectionHeader}>{STRINGS.NOT_DOWNLOADED}</CustomText>
-          {nonDownloadedTracks.map(renderTrack)}
-        </>
-      )}
-    </ScrollView>
+    <View style={styles.trackListWrapper}>
+      <Animated.ScrollView
+        // useCustomScrollbar returns a props bag whose shape is its own
+        // contract — listing the five keys here would couple this call site to
+        // it and go stale. Same spread as the other caller, Settings/index.js.
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...scrollViewProps}
+        style={styles.trackList}
+        contentContainerStyle={styles.trackListContent}
+        nestedScrollEnabled
+      >
+        {downloadedTracks.length > 0 && (
+          <>
+            <CustomText style={styles.trackSectionHeader}>{STRINGS.DOWNLOADED}</CustomText>
+            {downloadedTracks.map(renderTrack)}
+          </>
+        )}
+        {nonDownloadedTracks.length > 0 && (
+          <>
+            <CustomText style={styles.trackSectionHeader}>{STRINGS.NOT_DOWNLOADED}</CustomText>
+            {nonDownloadedTracks.map(renderTrack)}
+          </>
+        )}
+      </Animated.ScrollView>
+      {Indicator}
+    </View>
   );
 };
 

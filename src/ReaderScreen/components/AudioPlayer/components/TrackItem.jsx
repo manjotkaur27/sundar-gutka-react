@@ -1,15 +1,14 @@
 import React from "react";
 import { Pressable } from "react-native";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlayIcon } from "@common/icons";
 import { CustomText } from "@common";
 import { audioTrackDialogStyles } from "../style";
+import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 
 const TrackItem = ({ track, selectedTrack, handleSelectTrack }) => {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(audioTrackDialogStyles);
+  const { theme } = useAudioTheme();
+  const styles = useAudioThemedStyles(audioTrackDialogStyles);
   return (
     <Pressable
       key={track.id}

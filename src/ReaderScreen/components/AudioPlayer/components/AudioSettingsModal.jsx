@@ -3,15 +3,14 @@ import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { toggleAudioAutoPlay, toggleAudioSyncScroll, setAudioPlaybackSpeed } from "@common/actions";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlusIcon, MinusIcon, ChevronRight } from "@common/icons";
 import { STRINGS, CustomText, ThemedSwitch, navigate } from "@common";
 import { audioSettingModalStyles } from "../style";
+import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 
 const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRate }) => {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(audioSettingModalStyles);
+  const { theme } = useAudioTheme();
+  const styles = useAudioThemedStyles(audioSettingModalStyles);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const isAudioSyncScroll = useSelector((state) => state.isAudioSyncScroll);
   const audioPlaybackSpeed = useSelector((state) => state.audioPlaybackSpeed);
@@ -68,6 +67,16 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRa
                     value={setting.defaultValue}
                     onValueChange={setting.onValueChange}
                     disabled={setting.disabled}
+                    // Passed explicitly because ThemedSwitch reads useTokens(),
+                    // which goes through the APP ThemeContext and never sees the
+                    // reading-theme scope this sheet is built from. Without
+                    // these the toggles stayed the app's blue on a themed panel.
+                    // The thumb takes `surface` — the sheet's own ground — which
+                    // is what both tracks are contrast-checked against.
+                    onTrackColor={theme.c.controlAccent}
+                    offTrackColor={theme.c.controlTrackOff}
+                    onThumbColor={theme.c.surface}
+                    offThumbColor={theme.c.surface}
                   />
                 )}
               </View>

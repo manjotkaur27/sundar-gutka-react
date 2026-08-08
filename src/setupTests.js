@@ -42,6 +42,30 @@ jest.mock("@common/hooks/useThemedStyles", () => {
   return createUseThemedStylesMock();
 });
 
+// The reading-theme-scoped counterparts of the two hooks above, used by the
+// audio player and by the bottom navigation while the Reader is open.
+//
+// Delegates to the SAME two factories, so a suite that stubs its style module
+// gets the same canned styles it always did, and the theme it sees is the same
+// real semantic colour layer. The reading-theme RECORDS are not mocked — those
+// are plain data with no native dependency, and readerTheme.test.js asserts
+// against the real ones.
+jest.mock("@theme/reader/useReaderScopedTheme", () => {
+  const { createUseThemedStylesMock } = require("@common/test-utils/mocks/useThemedStyles");
+  const useThemedStyles = createUseThemedStylesMock().default;
+  // Resolved through "@common/context" at CALL time, not captured here, so a
+  // suite that installs its own lighter @common/context mock still governs what
+  // the audio player and the bottom navigation see — several do, and a mock
+  // that reached past them would drag @theme/type -> @common back in.
+  const useReaderScopedTheme = () => require("@common/context").default();
+  return {
+    __esModule: true,
+    useReaderScopedTheme,
+    useReaderScopedStyles: (create) => useThemedStyles(create)(),
+    default: useReaderScopedTheme,
+  };
+});
+
 // Mock icons to simple components
 jest.mock("@common/icons", () => {
   const { createIconsMock } = require("@common/test-utils/mocks/icons");

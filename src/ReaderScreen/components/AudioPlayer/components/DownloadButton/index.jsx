@@ -22,7 +22,6 @@ import { Icon } from "@rneui/themed";
 import { DownloadIcon } from "@common/icons";
 import PropTypes from "prop-types";
 import { unlink } from "react-native-fs";
-import useTheme from "@common/context";
 import { STRINGS, showConfirm, showInfoToast, navigate } from "@common";
 import {
   enqueueDownload,
@@ -32,13 +31,14 @@ import {
   toggleDownloadWifiOnly,
 } from "@common/actions";
 import { downloadControls } from "@common/services/globalDownloadManager";
+import { useAudioTheme } from "../../useAudioTheme";
 import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownloader";
 
 // Canvas size for the icon slot (keeps every state visually aligned in the row).
 const SIZE = 40;
 
 const DownloadButton = ({ track = null, baniTitle = "", baniNameUni = "", baniId = "" }) => {
-  const { theme } = useTheme();
+  const { theme } = useAudioTheme();
   const dispatch = useDispatch();
 
   const downloadQueue = useSelector((s) => s.downloadQueue);

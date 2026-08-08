@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Appearance } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
+import { appearanceFor } from "@theme/reader/resolve";
 import PropTypes from "prop-types";
 import { lightTheme, darkTheme } from "@theme";
 import { setTheme } from "../actions";
@@ -22,6 +23,14 @@ const ThemeProvider = ({ children }) => {
 
   // Use useMemo to prevent infinite re-renders
   const theme = useMemo(() => {
+    // A designed theme carries the appearance it is meant to be read in — Blue
+    // pairs with dark, Puratan and Kesari with light — so picking one sets both
+    // axes at once and the app can never end up dark-chromed around a cream
+    // page. The pairing lives in the theme record, not here.
+    const paired = appearanceFor(themeMode);
+    if (paired) {
+      return paired === "dark" ? darkTheme : lightTheme;
+    }
     if (themeMode === constant.Default) {
       return systemColorScheme === "dark" ? darkTheme : lightTheme;
     }

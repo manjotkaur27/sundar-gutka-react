@@ -38,7 +38,31 @@ export const withAlpha = (hex, alpha) => {
   return rgb ? `rgba(${rgb},${alpha})` : "transparent";
 };
 
-export default { hexToRgb, withAlpha };
+/**
+ * An OPAQUE blend of two hex colours: `t` of 0 returns `from`, 1 returns `to`.
+ *
+ * Different from `withAlpha`, and the difference matters. `withAlpha` produces a
+ * translucent colour whose final appearance depends on whatever it lands on;
+ * this produces a fixed colour that looks the same everywhere. Use it to derive
+ * a step BETWEEN two tokens — a translation colour one notch down from the body
+ * ink — where a translucent value would shift against a background image or a
+ * highlight and stop being the step you designed.
+ *
+ * Returns `from` unchanged if either colour cannot be parsed, so a caller gets a
+ * real colour rather than `rgba(NaN,…)`, which paints nothing.
+ */
+export const mix = (from, to, t) => {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  if (!a || !b) return from;
+  const ca = a.split(",").map(Number);
+  const cb = b.split(",").map(Number);
+  const channel = (i) => Math.round(ca[i] + (cb[i] - ca[i]) * t);
+  const hex = [0, 1, 2].map((i) => channel(i).toString(16).padStart(2, "0")).join("");
+  return `#${hex}`;
+};
+
+export default { hexToRgb, withAlpha, mix };
 
 /**
  * Picks the variant of a value that belongs to the active theme.

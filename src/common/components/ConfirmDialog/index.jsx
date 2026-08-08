@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
-import constant from "@common/constant";
+import { useReaderScopedTheme } from "@theme/reader";
 import Overlay from "@common/components/ui/Overlay";
-import useTheme from "@common/context";
+import constant from "@common/constant";
+import { useReaderFocused } from "@common/readerFocus";
 import CustomText from "../CustomText";
 
 /**
@@ -26,7 +27,11 @@ export const showConfirm = (options) => {
 };
 
 const ConfirmDialogHost = () => {
-  const { theme } = useTheme();
+  // Raised from the audio player ("Remove downloaded audio?") as often as from
+  // anywhere else, and then it appears ON the reading page — so over the Reader
+  // it wears the reading theme's surface instead of the app's. Off the Reader
+  // this resolves to the app theme untouched.
+  const { theme } = useReaderScopedTheme("audio", useReaderFocused());
   const [options, setOptions] = useState(null);
 
   useEffect(() => {

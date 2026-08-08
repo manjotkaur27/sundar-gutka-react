@@ -3,13 +3,14 @@ import { View, Pressable } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import { CloseIcon } from "@common/icons";
-import { useTheme, useThemedStyles, CustomText, STRINGS } from "@common";
+import { CustomText, STRINGS } from "@common";
+import { useAudioTheme, useAudioThemedStyles } from "../../useAudioTheme";
 import createStyles from "./styles";
 
 const ErrorFallback = ({ title, buttonText, buttonPress, handleClose, baniTitle = "" }) => {
   const fontFace = useSelector((state) => state.fontFace);
-  const styles = useThemedStyles(createStyles);
-  const { theme } = useTheme();
+  const styles = useAudioThemedStyles(createStyles);
+  const { theme } = useAudioTheme();
 
   const fontStyle = useMemo(
     () => ({

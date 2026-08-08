@@ -1,7 +1,9 @@
 import React from "react";
 import { View } from "react-native";
+import { useReaderScopedTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "../../hooks/useTokens";
+import { useReaderFocused } from "../../readerFocus";
 import Text from "./Text";
 
 // The toast surface. Presentational only — `react-native-toast-message` owns
@@ -20,7 +22,13 @@ import Text from "./Text";
 // breaks in `hi`/`pa` otherwise.
 
 const Toast = ({ message = undefined, testID = undefined }) => {
-  const { c, layout, radii, elevation } = useTokens();
+  // Sizing and depth always come from the app tokens — a toast is the same
+  // shape everywhere. Only its COLOURS follow the Reader, because over a
+  // parchment page an app-blue card is the one thing on screen that does not
+  // belong. Off the Reader `c` is the app's own colour layer, unchanged.
+  const { layout, radii, elevation } = useTokens();
+  const { theme } = useReaderScopedTheme("audio", useReaderFocused());
+  const { c } = theme;
 
   return (
     <View
@@ -46,7 +54,9 @@ const Toast = ({ message = undefined, testID = undefined }) => {
         elevation.overlay,
       ]}
     >
-      <Text variant="bodySmall" color="textPrimary" style={{ flex: 1 }}>
+      {/* A resolved value, not the role name: Text reads the APP tokens, so
+          `color="textPrimary"` would ignore the scope the card above uses. */}
+      <Text variant="bodySmall" color={c.textPrimary} style={{ flex: 1 }}>
         {message}
       </Text>
     </View>

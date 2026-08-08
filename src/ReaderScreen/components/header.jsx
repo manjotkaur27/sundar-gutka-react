@@ -1,14 +1,24 @@
 import React, { useEffect, useRef } from "react";
 import { View, Animated, Pressable } from "react-native";
+import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { BackArrowIcon, BookmarkIcon } from "@common/icons";
-import { CustomText, useTheme, useThemedStyles, GradientDivider } from "@common";
+import { CustomText, useThemedStyles, GradientDivider } from "@common";
 import createStyles from "../styles";
 
 const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
-  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  // This bar is opaque and physically contiguous with the Bani text, so it
+  // follows the READING theme rather than the app appearance — otherwise a cream
+  // page would sit under a black bar the moment the two axes disagree.
+  //
+  // Background and foreground are taken together, and must stay that way:
+  // retinting only the bar would land near-white icons on a light ground. The
+  // light/dark records resolve these back to `c.backgroundAlt` and `c.headerFg`,
+  // which is what the stylesheet sets, so following the app changes nothing.
+  const { theme: readerTheme } = useReaderTheme();
+  const { headerBackground, headerForeground } = readerTheme.chrome;
   // The SAME resolved numbers the shared ScreenHeader uses.
   //
   // `useThemedStyles` hands `createStyles` the RAW theme, while ScreenHeader
@@ -26,7 +36,7 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
         handleBackPress();
       }}
     >
-      <BackArrowIcon size={25} color={theme.c.headerFg} />
+      <BackArrowIcon size={25} color={headerForeground} />
     </Pressable>
   );
 
@@ -36,7 +46,7 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
         handleBookmarkPress();
       }}
     >
-      <BookmarkIcon size={25} color={theme.c.headerFg} />
+      <BookmarkIcon size={25} color={headerForeground} />
     </Pressable>
   );
 
@@ -86,18 +96,25 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
       ]}
       pointerEvents="box-none" // Ensure touch events pass through
     >
-      <View style={styles.headerStyle} pointerEvents="auto">
+      <View
+        style={[styles.headerStyle, { backgroundColor: headerBackground }]}
+        pointerEvents="auto"
+      >
         <View style={[styles.headerWrapper, { minHeight: layout.header.minHeight }]}>
           <View style={styles.headerLeft}>{headerLeft()}</View>
           <View style={styles.headerCenter}>
             {/* Header chrome, so the header face — NOT the user's bani font.
                 The title is the Unicode name, which Baloo renders correctly. */}
-            <CustomText style={styles.headerTitleStyle}>{title}</CustomText>
+            <CustomText style={[styles.headerTitleStyle, { color: headerForeground }]}>
+              {title}
+            </CustomText>
           </View>
           <View style={styles.headerRight}>{headerRight()}</View>
         </View>
       </View>
-      <GradientDivider />
+      {/* The rule under the header sits directly on the Bani, so it takes the
+          reading theme's heading colour rather than the fixed brand navy. */}
+      <GradientDivider color={headerForeground} />
     </Animated.View>
   );
 };

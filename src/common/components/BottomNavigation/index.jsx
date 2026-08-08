@@ -3,9 +3,8 @@ import { View, Pressable, Platform, Animated, AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
+import { useReaderScopedTheme, useReaderScopedStyles } from "@theme/reader";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   ListIcon,
   SettingsIcon,
@@ -24,12 +23,21 @@ const BottomNavigation = ({
   context = "home",
   visible = true,
   navigation: propNavigation,
+  themed = undefined,
 }) => {
   const hookNavigation = useNavigation();
   const navigation = propNavigation || hookNavigation;
   const dispatch = useDispatch();
-  const { theme } = useTheme();
-  const styles = useThemedStyles(createStyles);
+  // WHICH buttons to show comes from `context`; whether to wear the READING
+  // theme is a separate question. The two coincide on the Reader, so the default
+  // follows context — but Settings opened from the Reader keeps the reader
+  // buttons while explicitly opting out of the theme.
+  //
+  // Off the Reader this resolves to false, so the Home, Dashboard, Seva and
+  // Settings tabs are untouched and keep the app appearance.
+  const wearsReadingTheme = themed ?? context === "reader";
+  const { theme } = useReaderScopedTheme("nav", wearsReadingTheme);
+  const styles = useReaderScopedStyles(createStyles, "nav", wearsReadingTheme);
 
   const isAudio = useSelector((state) => state.isAudio);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
@@ -310,6 +318,12 @@ BottomNavigation.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func,
   }),
+  /**
+   * Wear the reading theme? Defaults to `context === "reader"`. Set false to
+   * keep the reader BUTTONS while staying on the app appearance — Settings
+   * opened from the Reader does exactly that.
+   */
+  themed: PropTypes.bool,
 };
 
 export default BottomNavigation;

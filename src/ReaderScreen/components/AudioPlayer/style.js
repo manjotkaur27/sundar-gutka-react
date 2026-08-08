@@ -327,6 +327,12 @@ export const audioTrackDialogStyles = (theme) => ({
     color: theme.c.textPrimary,
     opacity: 0.9,
   },
+  // Relatively positioned so the drawn scroll indicator, an absolutely
+  // positioned sibling of the list, anchors to the list rather than the card.
+  trackListWrapper: {
+    position: "relative",
+    zIndex: 1,
+  },
   trackList: {
     maxHeight: 200,
     zIndex: 1,

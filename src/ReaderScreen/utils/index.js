@@ -2,17 +2,19 @@ import { constant, baseFontSize, logError, logMessage } from "@common";
 import htmlTemplate from "./gutkahtml";
 import script from "./gutkaScript";
 
-export const fontColorForReader = (header, theme, text) => {
+// `readerTheme` is a resolved READING-theme record (src/theme/reader), not the
+// app theme. The light and dark records are derived from the app's own palette,
+// so "Follow app theme" resolves to exactly the roles this used to read
+// directly — `c.textBrand` for headings and transliteration, `c.textPrimary`
+// for everything else.
+export const fontColorForReader = (header, readerTheme, text) => {
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  // Header level 1 (and all transliteration) use the accent blue. Everything
-  // else uses the regular primary text color; header 2/6 are deliberately
-  // regular (not blue).
-  //
-  // `textBrand`, not a pair of hex literals: it is the app's one blue, so the
-  // Reader matches the rest of the app instead of carrying its own two shades.
-  const getHeaderColor1 = () => theme.c.textBrand;
-  const getHeaderColor2 = () => theme.c.textPrimary;
+  // Header level 1 (and all transliteration) use the theme's heading colour.
+  // Everything else uses its body Gurbani colour; header 2/6 are deliberately
+  // regular (not the heading colour).
+  const getHeaderColor1 = () => readerTheme.text.gurbaniHeading.color;
+  const getHeaderColor2 = () => readerTheme.text.gurbani.color;
 
   const defaultColor = getHeaderColor2();
   const gurmukhiMapping = {
@@ -24,8 +26,10 @@ export const fontColorForReader = (header, theme, text) => {
 
   const colorMapping = {
     [GURMUKHI]: gurmukhiMapping,
-    [TRANSLITERATION]: getHeaderColor1(),
-    [TRANSLATION]: defaultColor,
+    // Their own slots now, so a theme can separate translation from body
+    // Gurbani. The two bases point both at the same roles as before.
+    [TRANSLITERATION]: readerTheme.text.transliteration.color,
+    [TRANSLATION]: readerTheme.text.translation.color,
   };
 
   const color = colorMapping[text];
@@ -35,9 +39,18 @@ export const fontColorForReader = (header, theme, text) => {
   return color || defaultColor;
 };
 
-export const fontSizeForReader = (fontSizeString, headerLevel, hasTransliteration) => {
+// `themeFontScale` is a MULTIPLIER on the user's font-size setting, never an
+// override — a reading theme can offer its own comfortable reading size without
+// taking the user's accessibility control away from them.
+export const fontSizeForReader = (
+  fontSizeString,
+  headerLevel,
+  hasTransliteration,
+  themeFontScale = 1
+) => {
   const SCALE_FACTOR = 0.9;
-  const fontSize = baseFontSize(fontSizeString, hasTransliteration) * SCALE_FACTOR;
+  const fontSize =
+    baseFontSize(fontSizeString, hasTransliteration) * SCALE_FACTOR * (themeFontScale || 1);
   switch (headerLevel) {
     case 6:
       return fontSize * 0.75;
@@ -56,7 +69,7 @@ export const createDiv = (
   type,
   textAlign,
   fontSize,
-  theme,
+  readerTheme,
   isLarivaar,
   punjabiTranslation = "",
   fontFace = null
@@ -65,6 +78,19 @@ export const createDiv = (
     type === constant.GURMUKHI.toLowerCase() || punjabiTranslation !== ""
       ? constant.GURMUKHI.toLowerCase()
       : type;
+  // Optional per-theme text treatment. Emitted ONLY when the theme sets it, so
+  // the light/dark records — which set none of it — produce byte-identical
+  // markup to the Reader's original. The shadow applies to Gurmukhi alone; on a
+  // translation line it would just blur the reading.
+  const { lineHeightRatio, letterSpacing } = readerTheme.typography;
+  const gurbaniSlot =
+    header === 1 ? readerTheme.text.gurbaniHeading : readerTheme.text.gurbani;
+  const shadow = type === constant.GURMUKHI.toLowerCase() ? gurbaniSlot.shadow : null;
+  const extraStyle = [
+    lineHeightRatio ? `line-height: ${lineHeightRatio};` : "",
+    letterSpacing ? `letter-spacing: ${letterSpacing}px;` : "",
+    shadow ? `text-shadow: ${shadow};` : "",
+  ].join("");
   // data-type carries the semantic role: the Punjabi translation div shares the
   // gurmukhi CSS CLASS (for its font), so class alone can't identify the main
   // Gurmukhi line — the sync-scroll enlargement targets [data-type="gurmukhi"].
@@ -75,12 +101,13 @@ export const createDiv = (
     <div class="content-item ${fontClass} ${textAlign}" data-type="${type}" style="--fs: ${fontSizeForReader(
     fontSize,
     header,
-    type === constant.TRANSLITERATION.toLowerCase() || type === constant.TRANSLATION.toLowerCase()
+    type === constant.TRANSLITERATION.toLowerCase() || type === constant.TRANSLATION.toLowerCase(),
+    readerTheme.typography.fontScale
   )}px; font-size: var(--fs); font-family: ${fontFace}; color: ${fontColorForReader(
     header,
-    theme,
+    readerTheme,
     type.toUpperCase()
-  )};">
+  )};${extraStyle}">
       ${content}
     </div>
   `;
@@ -94,13 +121,15 @@ export const loadHTML = (
   isEnglishTranslation,
   isPunjabiTranslation,
   isSpanishTranslation,
-  theme,
+  readerTheme,
   isLarivaar
 ) => {
   try {
-    // Same role as the Reader header and the rest of the app's screens, so the
-    // page, its chrome and every other screen always agree.
-    const backColor = theme.c.backgroundAlt;
+    // The reading theme's ground. Its light/dark records take this from
+    // `c.backgroundAlt`, the same role the Reader header and every other screen
+    // use — so following the app keeps the page, its chrome and the rest of the
+    // app in agreement, exactly as before.
+    const backColor = readerTheme.background.color;
     const content = shabad
       .map((item) => {
         const textAlignMap = {
@@ -126,7 +155,7 @@ export const loadHTML = (
           constant.GURMUKHI.toLowerCase(),
           textAlign,
           fontSize,
-          theme,
+          readerTheme,
           isLarivaar,
           "",
           fontFace
@@ -139,7 +168,7 @@ export const loadHTML = (
             constant.TRANSLITERATION.toLowerCase(),
             textAlign,
             fontSize,
-            theme,
+            readerTheme,
             isLarivaar
           );
         }
@@ -151,7 +180,7 @@ export const loadHTML = (
             constant.TRANSLATION.toLowerCase(),
             textAlign,
             fontSize,
-            theme,
+            readerTheme,
             isLarivaar
           );
         }
@@ -163,7 +192,7 @@ export const loadHTML = (
             constant.TRANSLATION.toLowerCase(),
             textAlign,
             fontSize,
-            theme,
+            readerTheme,
             isLarivaar,
             constant.GURMUKHI.toLowerCase(),
             constant.GURBANI_AKHAR_TRUE
@@ -177,7 +206,7 @@ export const loadHTML = (
             constant.TRANSLATION.toLowerCase(),
             textAlign,
             fontSize,
-            theme,
+            readerTheme,
             isLarivaar
           );
         }
@@ -186,7 +215,7 @@ export const loadHTML = (
         return contentHtml;
       })
       .join("");
-    const htmlContent = htmlTemplate(backColor, fontFace, content, theme);
+    const htmlContent = htmlTemplate(backColor, fontFace, content, readerTheme);
     return htmlContent;
   } catch (error) {
     logError(error);

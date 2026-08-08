@@ -6,6 +6,9 @@ export const SET_LANGUAGE = "SET_LANGUAGE";
 export const TOGGLE_TRANSLITERATION = "TOGGLE_TRANSLITERATION";
 export const SET_TRANSLITERATION = "SET_TRANSLITERATION";
 export const SET_THEME = "SET_THEME";
+// Records that a designed theme's suggested display settings have been applied
+// once, so choosing it again never overrides a later manual change.
+export const MARK_READER_THEME_SEEDED = "MARK_READER_THEME_SEEDED";
 export const TOGGLE_SCREEN_AWAKE = "TOGGLE_SCREEN_AWAKE";
 export const TOGGLE_STATUS_BAR = "TOGGLE_STATUS_BAR";
 export const TOGGLE_AUTO_SCROLL = "TOGGLE_AUTO_SCROLL";

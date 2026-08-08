@@ -5,8 +5,14 @@ import { brandMarks } from "@theme/palette";
 
 // iOS does not expose the native scroll-indicator colour (only default/black/
 // white), so on iOS we hide the native indicator and draw our own to match the
-// Android themed scrollbar exactly. On Android this hook is a no-op — the native
-// themed scrollbar (res/values/colors.xml → scrollbar_thumb) already renders.
+// Android themed scrollbar exactly. On Android this hook is a no-op by default —
+// the native themed scrollbar (res/values/colors.xml → scrollbar_thumb) already
+// renders.
+//
+// PASS A COLOUR and it draws on BOTH platforms instead. A caller does that when
+// the thumb has to follow a reading theme, because neither platform's native
+// indicator can: Android's comes from that static app resource, and iOS offers
+// only default/black/white. Same reason ReaderScrollbar exists for the Reader.
 const IS_IOS = Platform.OS === "ios";
 // One fixed muted blue at 50% in BOTH themes — it has to match the Android
 // native scrollbar (colors.xml → scrollbar_thumb), which is a single value and
@@ -24,7 +30,6 @@ const styles = StyleSheet.create({
     right: 2,
     width: THUMB_WIDTH,
     borderRadius: THUMB_WIDTH / 2,
-    backgroundColor: THUMB_COLOR,
   },
 });
 
@@ -34,12 +39,16 @@ const styles = StyleSheet.create({
  * as siblings inside a `flex: 1` (relatively positioned) wrapper:
  *
  *   const { scrollViewProps, Indicator } = useCustomScrollbar();
+ *
+ * @param {string} [color] Thumb colour. Supplying one also makes the indicator
+ *   draw on ANDROID, where the native bar takes a static app resource and so
+ *   cannot follow a reading theme.
  *   <View style={{ flex: 1 }}>
  *     <Animated.FlatList {...scrollViewProps} ... />
  *     {Indicator}
  *   </View>
  */
-export const useCustomScrollbar = () => {
+export const useCustomScrollbar = (color = null) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const fadeTimer = useRef(null);
@@ -89,7 +98,9 @@ export const useCustomScrollbar = () => {
     })
   ).current;
 
-  if (!IS_IOS) {
+  // Android's native bar is already themed by the app resource, so it is left
+  // alone UNLESS a caller needs a colour that resource cannot provide.
+  if (!IS_IOS && !color) {
     return { scrollViewProps: {}, Indicator: null };
   }
 
@@ -114,7 +125,15 @@ export const useCustomScrollbar = () => {
   const Indicator = scrollable ? (
     <Animated.View
       pointerEvents="none"
-      style={[styles.thumb, { height: thumbHeight, opacity, transform: [{ translateY }] }]}
+      style={[
+        styles.thumb,
+        {
+          height: thumbHeight,
+          backgroundColor: color ?? THUMB_COLOR,
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
     />
   ) : null;
 

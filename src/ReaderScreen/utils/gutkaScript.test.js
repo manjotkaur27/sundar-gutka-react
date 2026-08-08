@@ -15,12 +15,10 @@ import script from "./gutkaScript";
 
 jest.mock("react-native", () => ({ Platform: { OS: "ios" } }));
 
-const theme = {
-  mode: "light",
-  // The real role map: the highlight behind a sung verse is a semantic role
-  // now, so a hand-written stub would drift from the app.
-  c: require("@theme/semanticColors").light,
-};
+// The real light reading-theme record, not a hand-written stub: the highlight
+// behind a sung verse comes from the theme now, and a stub would drift from the
+// app the moment a slot was added or renamed.
+const theme = require("@theme/reader/themes").READER_THEMES_BY_ID.light;
 
 // Mirrors the DOM that loadHTML/createDiv emit in line mode: one .text-item
 // per verse, each holding a gurmukhi div plus translit/translation siblings.

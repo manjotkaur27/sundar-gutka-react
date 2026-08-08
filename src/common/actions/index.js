@@ -1,3 +1,4 @@
+import { READER_THEMES_BY_ID } from "@theme/reader/themes";
 import constant from "../constant";
 import { trackSettingEvent, trackBaniArtistDefault } from "../firebase/analytics";
 import STRINGS from "../localization";
@@ -34,6 +35,12 @@ export const setTransliteration = (value) => {
   trackSettingEvent(constant.TRANSLITERATION, value);
   return { type: actionTypes.SET_TRANSLITERATION, value };
 };
+// The app's ONE theme setting. `value` is either an appearance keyword
+// ("Default" | "Light" | "Dark") or a designed theme's id ("blue", "puratan",
+// …), which additionally carries the appearance it pairs with — see
+// resolve.js. The seed-once behaviour lives in `applyTheme` at the end of this
+// file, which is what Settings dispatches; this stays a plain action so the
+// existing callers and tests are unaffected.
 export const setTheme = (value) => {
   trackSettingEvent(constant.THEME, value);
   return { type: actionTypes.SET_THEME, value };
@@ -383,4 +390,56 @@ export const markNitnemAutoDone = (date, baniIds) => {
 export const restoreNitnem = (value) => {
   // value: { selectedBaniIds?: number[], completed?: { [date]: number[] } }
   return { type: actionTypes.RESTORE_NITNEM, value };
+};
+
+// Which of the user's toggles a reading theme may SUGGEST, and the action that
+// owns each. Going through the real action creators rather than writing the
+// reducers directly keeps their analytics and cross-toggle rules intact — a
+// theme takes exactly the path a user tapping the switch would.
+//
+// Returned from a function rather than held in a module-scope object literal:
+// evaluating the map at module scope would read these `const` arrow functions in
+// their temporal dead zone and throw on import. Keeping it lazy also lets this
+// whole block sit at the end of the file, below everything it depends on.
+const readerThemeSeedableToggles = () => ({
+  isTransliteration: toggleTransliteration,
+  isEnglishTranslation: toggleEnglishTranslation,
+  isPunjabiTranslation: togglePunjabiTranslation,
+  isSpanishTranslation: toggleSpanishTranslation,
+});
+
+// Applies a theme, plus the one-time "seeding" of the display settings a
+// designed theme suggests.
+//
+// A theme suggests those settings the FIRST time it is chosen and never again:
+// once `readerThemeSeeded[id]` is set, re-selecting that theme leaves the user's
+// toggles alone. So a theme can express an intended reading setup without ever
+// silently undoing a choice the user made by hand.
+//
+// Light, Dark and Default have no `defaults`, so for them this is exactly
+// `setTheme` with one extra no-op dispatch.
+export const applyTheme = (value) => (dispatch, getState) => {
+  dispatch(setTheme(value));
+
+  const state = getState();
+  if (state.readerThemeSeeded?.[value]) return;
+
+  const record = READER_THEMES_BY_ID[value];
+  const defaults = record?.defaults ?? {};
+  const seedable = readerThemeSeedableToggles();
+  Object.entries(defaults).forEach(([key, desired]) => {
+    const toggle = seedable[key];
+    // Only dispatch a real change. Re-asserting a toggle that already holds the
+    // desired value would emit a misleading analytics event.
+    if (toggle && state[key] !== desired) dispatch(toggle(desired));
+  });
+
+  // A theme may also suggest the Bani font. Seeded through the same once-only
+  // path, so the user's own Bani Font choice always wins afterwards.
+  const face = record?.typography?.preferredFontFace;
+  if (face && state.baniFontFace !== face) dispatch(setBaniFontFace(face));
+
+  // Marked even when `defaults` is empty, so the check above short-circuits on
+  // every subsequent selection of this theme.
+  dispatch({ type: actionTypes.MARK_READER_THEME_SEEDED, value });
 };

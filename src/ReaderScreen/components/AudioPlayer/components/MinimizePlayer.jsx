@@ -4,11 +4,10 @@ import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { setPlayerDragging } from "@common/actions";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
 import { PlayIcon, PauseIcon } from "@common/icons";
 import { CustomText } from "@common";
 import { minimizePlayerStyles } from "../style";
+import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 
 const COLLAPSE_DELAY_MS = 5000;
 // Reference width the pill's original fixed-px dimensions (44 height, 28
@@ -33,8 +32,8 @@ const MinimizePlayer = ({
   isNavBarVisible = false,
   onHideBars = () => {},
 }) => {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(minimizePlayerStyles);
+  const { theme } = useAudioTheme();
+  const styles = useAudioThemedStyles(minimizePlayerStyles);
   const { width: screenW, height: screenH } = useWindowDimensions();
   const dispatch = useDispatch();
 

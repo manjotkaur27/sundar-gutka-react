@@ -1,14 +1,13 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 import PropTypes from "prop-types";
-import useTheme from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
 import { CustomText } from "@common";
 import { audioControlBarStyles } from "../style";
+import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 
 const ActionComponents = ({ selector, toggle, Icon, text }) => {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(audioControlBarStyles);
+  const { theme } = useAudioTheme();
+  const styles = useAudioThemedStyles(audioControlBarStyles);
 
   // The Audios / Options pills.
   //

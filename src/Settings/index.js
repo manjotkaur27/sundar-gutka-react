@@ -91,7 +91,7 @@ const Settings = ({ navigation, route = undefined }) => {
             <LanguageComponent language={language} />
             <TransliterationComponent />
             <TranslationComponent />
-            <ThemeComponent />
+            <ThemeComponent navigate={navigate} />
             <StatusBar />
             <HideStatusBar />
             <AutoScroll />
@@ -132,7 +132,12 @@ const Settings = ({ navigation, route = undefined }) => {
         </Animated.ScrollView>
         {Indicator}
       </View>
-      {fromReader && <BottomNavigation activeKey={constant.SETTINGS} context="reader" visible />}
+      {/* Reader context so Read and Music stay reachable, but NOT the reading
+          theme — Settings is not the reading surface, and a themed bar under a
+          standard Settings page reads as a leftover from a mode you have left. */}
+      {fromReader && (
+        <BottomNavigation activeKey={constant.SETTINGS} context="reader" visible themed={false} />
+      )}
     </SafeArea>
   );
 };

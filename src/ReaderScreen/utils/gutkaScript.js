@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
 
-const script = (theme) => {
+// `readerTheme` is a resolved reading-theme record (src/theme/reader), not the
+// app theme — this script styles only the Bani reading surface.
+const script = (readerTheme) => {
   const listener = Platform.OS === "android" ? "document" : "window";
   const body = Platform.OS === "android" ? "document.body" : "window.document.body";
   return `
@@ -332,7 +334,9 @@ window.addEventListener(
 );
 
 ${listener}.onload = () => {
-  if (${theme.mode === "dark"}) {
+  // Gated on the READING theme's base, not the app's: a dark reading theme needs
+  // the same first-paint fade whether or not the app itself is in light mode.
+  if (${readerTheme.base === "dark"}) {
   //fade event
 fadeInEffect();
 }
@@ -579,7 +583,7 @@ ${listener}.addEventListener(
         const originalMargin = element.dataset.origMargin || '';
 
         // Apply highlight
-        element.style.backgroundColor = "${theme.c.accentSubtle}";
+        element.style.backgroundColor = "${readerTheme.highlight.color}";
         element.style.borderRadius = "15px";
         element.style.width = "fit-content";
 

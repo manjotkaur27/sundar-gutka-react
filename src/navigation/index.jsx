@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { withScreenRoles } from "@theme/ScreenRolesProvider";
+import { setReaderFocused } from "@common/readerFocus";
 import {
   navigationRef,
   constant,
@@ -24,6 +25,7 @@ import ManageDownloads from "../ManageDownloads";
 import ReaderScreen from "../ReaderScreen";
 import Settings from "../Settings";
 import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
+import Themes from "../Settings/Themes";
 import SevaScreen from "../SevaScreen";
 import DonationWebView from "../SevaScreen/DonationWebView";
 import SevaMeansScreen from "../SevaScreen/SevaMeansScreen";
@@ -38,6 +40,7 @@ import SevaMeansScreen from "../SevaScreen/SevaMeansScreen";
 // semantic one left a dark strip above the content.
 const SettingsScreen = withScreenRoles(Settings, "settings");
 const ReminderOptionsScreen = withScreenRoles(ReminderOptions, "settings");
+const ThemesScreen = withScreenRoles(Themes, "settings");
 const EditBaniOrderScreen = withScreenRoles(EditBaniOrder, "settings");
 const DatabaseUpdate = withScreenRoles(DatabaseUpdateScreen, "settings");
 const ManageDownloadsScreen = withScreenRoles(ManageDownloads, "settings");
@@ -116,6 +119,10 @@ const Navigation = () => {
     const currentRouteName = navigationRef.current.getCurrentRoute().name;
     const currentRoute = navigationRef.current.getCurrentRoute();
     routeNameRef.current = currentRouteName;
+    // The root-level overlay hosts (confirm dialog, toast) live outside this
+    // container, so this is the one place that can tell them the Reader is on
+    // screen and their surface should wear the reading theme.
+    setReaderFocused(currentRouteName === constant.READER);
     if (previousRouteName !== currentRouteName) {
       trackScreenView(
         currentRouteName,
@@ -130,6 +137,7 @@ const Navigation = () => {
       ref={navigationRef}
       onReady={() => {
         routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+        setReaderFocused(routeNameRef.current === constant.READER);
       }}
       onStateChange={handleStateChange}
     >
@@ -181,6 +189,7 @@ const Navigation = () => {
           component={ReminderOptionsScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen name="Themes" component={ThemesScreen} options={{ headerShown: false }} />
         {/* Declared here rather than switched off at runtime: the stack
             defaults to headerShown:true, so a screen that renders its own
             header must opt out. Doing it in an effect lets the native bar paint

@@ -11,8 +11,7 @@ import { setAudioProgress } from "@common/actions";
 // Used by the two bani-length guards below. It was referenced without being
 // imported, so those paths threw a ReferenceError instead of running.
 import constant from "@common/constant";
-import useTheme, { useNetwork } from "@common/context";
-import useThemedStyles from "@common/hooks/useThemedStyles";
+import { useNetwork } from "@common/context";
 import {
   MusicNoteIcon,
   SettingsIcon,
@@ -30,6 +29,7 @@ import {
   useArtistListeningDuration,
 } from "../../hooks";
 import { audioControlBarStyles, MINIMIZED_PLAYER_FOOTPRINT } from "../../style";
+import { useAudioTheme, useAudioThemedStyles } from "../../useAudioTheme";
 import checkLyricsFileAvailable from "../../utils/checkLRC";
 import {
   getSequenceFromPosition,
@@ -70,8 +70,8 @@ const AudioControlBar = ({
   onHideBars = () => {},
 }) => {
   const dispatch = useDispatch();
-  const { theme } = useTheme();
-  const styles = useThemedStyles(audioControlBarStyles);
+  const { theme } = useAudioTheme();
+  const styles = useAudioThemedStyles(audioControlBarStyles);
   const fontFace = useSelector((state) => state.fontFace);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMoreTracksModalOpen, setIsMoreTracksModalOpen] = useState(false);

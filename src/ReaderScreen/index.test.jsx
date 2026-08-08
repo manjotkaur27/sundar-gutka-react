@@ -272,6 +272,11 @@ jest.mock("./components", () => {
         <Text>{title}</Text>
       </View>
     ),
+    // Themed scroll indicator. Rendered as a leaf so its colour and width props
+    // can be asserted without pulling in Animated listeners.
+    ReaderScrollbar: ({ color, width, visibleFraction }) => (
+      <View testID="reader-scrollbar" accessibilityLabel={`${color}|${width}|${visibleFraction}`} />
+    ),
   };
 });
 

@@ -19,6 +19,11 @@ export const createContextMock = (themeOverrides = {}) => {
         mode,
         c: { ...semantic[mode], ...themeOverrides.c },
         layout: require("../../../theme/layout").default,
+        // Real, for the same reason as the colours above: useTokens hands this
+        // straight to any component that lifts a surface, and a missing key
+        // reads as `undefined.overlay` at render rather than as a failed
+        // assertion.
+        elevation: require("../../../theme/elevation")[mode],
         chrome: require(mode === "dark" ? "../../../theme/darkTheme" : "../../../theme/lightTheme")
           .default.chrome,
         radii: require("../../../theme/radii").default,
