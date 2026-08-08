@@ -340,6 +340,20 @@ export const setUserProfile = (value) => {
   return { type: actionTypes.SET_USER_PROFILE, value };
 };
 
+// Khalis SSO session. `value` is { user, expiresAt } — decoded claims and the
+// token's expiry in epoch ms. The token itself stays in the Keychain.
+export const setAuthSession = (value) => {
+  return { type: actionTypes.SET_AUTH_SESSION, value };
+};
+
+export const clearAuthSession = () => {
+  return { type: actionTypes.CLEAR_AUTH_SESSION };
+};
+
+export const setAuthBusy = (value) => {
+  return { type: actionTypes.SET_AUTH_BUSY, value };
+};
+
 export const setDashboardLayout = (value) => {
   // value: { order: string[], hidden: string[] }
   return { type: actionTypes.SET_DASHBOARD_LAYOUT, value };

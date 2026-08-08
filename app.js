@@ -33,6 +33,7 @@ import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
 import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
 import useReminderRearm from "./src/common/hooks/useReminderRearm";
+import useSsoSession from "./src/common/hooks/useSsoSession";
 
 const { store, persistor } = createStore();
 
@@ -58,6 +59,7 @@ const GlobalServices = () => {
   useOnboardingTrigger();
   useOfflineSyncToast();
   useReminderRearm();
+  useSsoSession();
   return null;
 };
 

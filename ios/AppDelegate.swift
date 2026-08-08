@@ -21,6 +21,14 @@ class AppDelegate: RCTAppDelegate {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
  
+  // Delivers custom-scheme opens (sundargutka://) to React Native's Linking
+  // module. Without this the JS `url` event never fires on iOS, so the SSO
+  // return redirect would be dropped.
+  override func application(_ app: UIApplication, open url: URL,
+                            options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+    return RCTLinkingManager.application(app, open: url, options: options)
+  }
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
   }

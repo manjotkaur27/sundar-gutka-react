@@ -172,6 +172,21 @@ export default {
   // similar names make the wrong one easy to reach for.
   DEFAULT_NITNEM_BANI_IDS: [2, 6, 4, 9, 21, 1],
 
+  // ─── Khalis SSO ───────────────────────────────────────────────────────────
+  // The Service Provider fronts a SAML IdP and hands us a plain JWT — this app
+  // never speaks SAML. Point SSO_SERVICE_URL at a staging SP to test against a
+  // non-production IdP. See docs/SSO.md.
+  SSO_SERVICE_URL: "https://serviceprovider.khalis.net",
+  // Return deep links, registered in AndroidManifest.xml (on MainActivity) and
+  // ios/SundarGutka/Info.plist. These MUST stay free of any query string: the
+  // SP's success page builds the return URL as `${redirect_url}?token=${token}`
+  // with a hardcoded "?", so appending e.g. "?from=settings" here yields a
+  // malformed two-"?" URL and the token is lost.
+  SSO_LOGIN_REDIRECT: "sundargutka://login",
+  SSO_LOGOUT_REDIRECT: "sundargutka://logout",
+  // Keychain service name the session JWT is stored under.
+  SSO_KEYCHAIN_SERVICE: "khalis_sso",
+
   // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
   DASHBOARD_API_BASE_URL: KHALIS_API_BASE,
   SEVA_CONFIG_API_URL: `${KHALIS_API_BASE}/seva/config`,
@@ -182,8 +197,13 @@ export default {
   SEVA_MEANS_API_BASE: KHALIS_API_BASE,
   DAILY_VAAK_API_URL: `${KHALIS_API_BASE}/dashboard/daily-vaak`,
   WORD_OF_DAY_API_URL: `${KHALIS_API_BASE}/dashboard/word-of-day`,
-  DASHBOARD_SYNC_API_URL: `${KHALIS_API_BASE}/dashboard/cache`, // POST, Bearer JWT
-  DASHBOARD_LATEST_API_URL: `${KHALIS_API_BASE}/dashboard/latest`, // GET, Bearer JWT
+  // Both are public and keyed on deviceId — deliberately NOT behind the SSO
+  // JWT. The backend's dashboard controller has no auth guard (unlike its
+  // favourite-shabads/folders/shortcuts controllers) and does not persist a
+  // user id, so attaching an Authorization header here would achieve nothing.
+  // Per-account sync needs backend work first; see docs/SSO.md.
+  DASHBOARD_SYNC_API_URL: `${KHALIS_API_BASE}/dashboard/cache`, // POST, no auth
+  DASHBOARD_LATEST_API_URL: `${KHALIS_API_BASE}/dashboard/latest`, // GET, no auth
   // Khalis audio catalog (public, no auth): GET /audios/:baniId. This is the
   // SINGLE, authoritative source for the audio manifest — reciters, track URLs,
   // durations, sizes and lyrics URLs all live server-side, so adding/changing a

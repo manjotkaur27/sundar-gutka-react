@@ -14,6 +14,7 @@ import {
   constant,
 } from "@common";
 import { ScreenHeader } from "../common/components/ui";
+import Account from "./components/account";
 import Audio from "./components/audio";
 import AutoScroll from "./components/autoScroll";
 import BaniFontFaceComponent from "./components/baniFontFace";
@@ -80,6 +81,10 @@ const Settings = ({ navigation, route = undefined }) => {
           {...scrollViewProps}
           contentContainerStyle={{ paddingBottom: layout.screenPaddingBottom }}
         >
+          <SettingsSection title={STRINGS.ACCOUNT}>
+            <Account />
+          </SettingsSection>
+
           <SettingsSection title={DISPLAY_OPTIONS}>
             <FontSizeComponent />
             <BaniFontFaceComponent />

@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
 import Svg, { Line } from "react-native-svg";
+import { useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PropTypes from "prop-types";
 import { CloseIcon, PersonIcon } from "@common/icons";
@@ -34,9 +35,23 @@ MenuIcon.propTypes = { color: PropTypes.string.isRequired };
 // be orphaned even if a half has to wrap on a very narrow screen.
 const FATEH = "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥\nਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥";
 
-const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refreshKey = 0 }) => {
+const DashboardHeader = ({
+  onMenuPress = () => {},
+  onClosePress = () => {},
+  onAvatarPress = () => {},
+  refreshKey = 0,
+}) => {
   const { gold, mutedText, theme, c, layout, palette } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
+
+  // Signed-in account, for the avatar only. The header deliberately shows no
+  // greeting — the Fateh is its title — so this changes the glyph inside the
+  // existing circle and nothing else.
+  const authUser = useSelector((state) => state.auth.user);
+  const avatarInitial = (authUser?.firstname || authUser?.email || "")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
 
   // Date line under the Fateh — a brand tint, quieter than the Fateh itself.
   const belowNameColor = palette.subtleText;
@@ -132,12 +147,28 @@ const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refr
           >
             <MenuIcon color={avatarTextColor} />
           </Pressable>
-          <View style={[styles.avatar, { backgroundColor: palette.headerPill }]}>
-            {/* Generic account glyph — there is no login/account system yet
-                (see DEFAULT_NAME above), so this is a cosmetic placeholder
-                only, matching the non-interactive avatar it replaces. */}
-            <PersonIcon size={22} color={avatarTextColor} />
-          </View>
+          {/* Signed out this starts the Khalis SSO login; signed in it shows
+              the account's initial and opens Settings, where the account
+              details and sign-out live (one destructive surface, not two). */}
+          <Pressable
+            onPress={onAvatarPress}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={authUser ? STRINGS.ACCOUNT : STRINGS.SIGN_IN}
+            style={({ pressed }) => [
+              styles.avatar,
+              { backgroundColor: palette.headerPill },
+              pressed && styles.avatarPressed,
+            ]}
+          >
+            {avatarInitial ? (
+              <CustomText style={[styles.avatarInitial, { color: avatarTextColor }]}>
+                {avatarInitial}
+              </CustomText>
+            ) : (
+              <PersonIcon size={22} color={avatarTextColor} />
+            )}
+          </Pressable>
         </View>
       </View>
     </View>
@@ -147,6 +178,7 @@ const DashboardHeader = ({ onMenuPress = () => {}, onClosePress = () => {}, refr
 DashboardHeader.propTypes = {
   onMenuPress: PropTypes.func,
   onClosePress: PropTypes.func,
+  onAvatarPress: PropTypes.func,
   refreshKey: PropTypes.number,
 };
 
@@ -213,6 +245,13 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarPressed: {
+    opacity: 0.7,
+  },
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: "600",
   },
 });
 

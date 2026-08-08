@@ -505,6 +505,29 @@ const userProfile = createReducer(
   },
 );
 
+// Khalis SSO session state. Blacklisted from redux-persist (see store.js): the
+// claims carry an email + SAML nameID and redux-persist writes unencrypted
+// AsyncStorage. Blacklisting also guarantees "unknown" on cold start, so the UI
+// cannot flash a signed-in state before the Keychain read resolves.
+const auth = createReducer(
+  { status: "unknown", user: null, expiresAt: null, busy: false },
+  {
+    [actionTypes.SET_AUTH_SESSION]: (state, action) => ({
+      status: "signedIn",
+      user: action.value?.user ?? null,
+      expiresAt: action.value?.expiresAt ?? null,
+      busy: false,
+    }),
+    [actionTypes.CLEAR_AUTH_SESSION]: () => ({
+      status: "signedOut",
+      user: null,
+      expiresAt: null,
+      busy: false,
+    }),
+    [actionTypes.SET_AUTH_BUSY]: (state, action) => ({ ...state, busy: !!action.value }),
+  },
+);
+
 const defaultLayout = () => ({ order: [...DEFAULT_DASHBOARD_ORDER], hidden: [] });
 
 const dashboardLayout = createReducer(defaultLayout(), {
@@ -636,6 +659,7 @@ const rootReducer = combineReducers({
   onboardingVisible,
   seenOnboardingVersion,
   userProfile,
+  auth,
   dashboardLayout,
   todaysNitnem,
 });

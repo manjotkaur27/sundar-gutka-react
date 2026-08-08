@@ -92,8 +92,16 @@ export const SET_ONBOARDING_VISIBLE = 'SET_ONBOARDING_VISIBLE';
 // Persisted "the user has finished/skipped the carousel once" flag, so the
 // first-run auto-open never resurfaces on later launches.
 export const SET_ONBOARDING_SEEN = 'SET_ONBOARDING_SEEN';
+// ─── Khalis SSO session ─────────────────────────────────────────────────────
+// Decoded claims only — the raw JWT lives in the Keychain, never in Redux.
+export const SET_AUTH_SESSION = "SET_AUTH_SESSION";
+export const CLEAR_AUTH_SESSION = "CLEAR_AUTH_SESSION";
+export const SET_AUTH_BUSY = "SET_AUTH_BUSY";
+
 // ─── Dashboard redesign ─────────────────────────────────────────────────────
-// Local editable user profile (name only until SSO is live)
+// Local editable user profile, synced per-device. Kept separate from the SSO
+// session above: this one is written by the cloud restore, so merging the two
+// would let a stale snapshot overwrite the signed-in user's real name.
 export const SET_USER_PROFILE = "SET_USER_PROFILE";
 
 // Customizable dashboard layout — section order + hidden sections

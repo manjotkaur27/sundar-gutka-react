@@ -4,7 +4,11 @@ import { persistReducer, persistStore } from "redux-persist";
 import crashlyticsMiddleware from "./middleware/crashlytics";
 import reducer from "./reducer";
 
-const persistConfig = { key: "root", storage: AsyncStorage, blacklist: ["navigation", "baniList", "audioManifest", "readerTapTick", "onboardingVisible"] };
+// "auth" is blacklisted deliberately: redux-persist writes plain, unencrypted
+// AsyncStorage, and the SSO session holds an email + SAML nameID. The session
+// is rehydrated from the Keychain by useSsoSession instead, which also keeps
+// status "unknown" until that read resolves.
+const persistConfig = { key: "root", storage: AsyncStorage, blacklist: ["navigation", "baniList", "audioManifest", "readerTapTick", "onboardingVisible", "auth"] };
 const persistedReducer = persistReducer(persistConfig, reducer);
 
 const configure = () => {

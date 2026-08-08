@@ -3,6 +3,7 @@ import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { themeForScreen } from "@theme/screenPalettes";
+import useSsoActions from "@common/hooks/useSsoActions";
 import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } from "@common";
 import { getOrCreateSummary } from "../database/analytics";
 import { computeStreaks } from "../services/streakEngine";
@@ -24,6 +25,17 @@ const DashboardScreen = () => {
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [layoutEditVisible, setLayoutEditVisible] = useState(false);
+
+  // Avatar affordance: sign in directly when signed out, otherwise open
+  // Settings, where the account details and sign-out live.
+  const { status: authStatus, signIn } = useSsoActions();
+  const handleAvatarPress = useCallback(() => {
+    if (authStatus === "signedIn") {
+      navigation.navigate("Settings");
+      return;
+    }
+    signIn();
+  }, [authStatus, navigation, signIn]);
 
   // Cross-device sync (dormant until SSO/JWT exists — see useDashboardSync).
   const restoreTick = useDashboardSync();
@@ -81,6 +93,7 @@ const DashboardScreen = () => {
         <DashboardHeader
           onMenuPress={() => setLayoutEditVisible(true)}
           onClosePress={() => navigation.navigate("Home")}
+          onAvatarPress={handleAvatarPress}
           refreshKey={refreshKey}
         />
 
