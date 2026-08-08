@@ -65,7 +65,7 @@ FlameIcon.propTypes = {
 const JourneyHeader = ({ streak = 0 }) => {
   const { theme } = useTheme();
   // The Dashboard's own colours, not the semantic layer.
-  const palette = paletteFor("dashboard", theme.mode);
+  const palette = paletteFor("dashboard", theme);
   const { top: safeTop } = useSafeAreaInsets();
 
   const invocationColor = palette.invocationText;

@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
 const KhalisAppsCarousel = () => {
   const { theme } = useTheme();
   const isDark = theme.mode === "dark";
-  const palette = paletteFor("dashboard", theme.mode);
+  const palette = paletteFor("dashboard", theme);
 
   return (
     <View style={styles.container}>

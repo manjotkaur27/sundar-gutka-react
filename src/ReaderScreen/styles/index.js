@@ -72,15 +72,21 @@ const createStyles = (theme) => ({
     // and the progress bar, which sit at 10 and 11.
     elevation: 12,
   },
+  // The auto-scroll speed slider. Its two colours are fixed in both app themes
+  // on purpose — it sits on the bani ground, not on a themed surface. A
+  // DESIGNED theme is the one case where that reasoning inverts: the ground it
+  // sits on is the theme's, so a navy fill on parchment is the odd one out.
   progressBarContainer: {
     height: 5,
     width: "100%",
-    backgroundColor: brandMarks.readerProgress.track,
+    backgroundColor: theme.designedTheme
+      ? withAlpha(theme.c.accent, 0.2)
+      : brandMarks.readerProgress.track,
     zIndex: 100,
   },
   progressBar: {
     height: "100%",
-    backgroundColor: brandMarks.readerProgress.fill,
+    backgroundColor: theme.designedTheme ? theme.c.accent : brandMarks.readerProgress.fill,
   },
   sliderText: {
     color: theme.c.onPrimary,

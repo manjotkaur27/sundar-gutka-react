@@ -1,3 +1,5 @@
+import { designedRolesFor, themedScreenPalette } from "./reader/screenPalette";
+
 // Screen-scoped palettes.
 //
 // These are the colours the Dashboard, Seva and the bani list carried before the
@@ -574,6 +576,12 @@ const screenLayouts = {
 export const layoutFor = (screen, layout) =>
   screenLayouts[screen] ? screenLayouts[screen](layout) : layout;
 
+/** A designed theme with one screen's own role adjustments, or it unchanged. */
+const designedThemeForScreen = (theme, screen) => {
+  const roles = designedRolesFor(screen, theme.c);
+  return roles ? { ...theme, c: { ...theme.c, ...roles } } : theme;
+};
+
 /**
  * A theme with one screen's roles applied over it.
  *
@@ -585,10 +593,31 @@ export const layoutFor = (screen, layout) =>
  * stylesheet carries a literal colour and none of them has to change when user
  * themes land — only "screenRoles" above does.
  */
-export const themeForScreen = (theme, screen) => ({
-  ...theme,
-  c: { ...theme.c, ...rolesFor(screen, theme.mode) },
-});
+export const themeForScreen = (theme, screen) =>
+  // A DESIGNED reading theme wins. Its `app` group has already recoloured
+  // `theme.c` in ThemeProvider, and layering a screen palette on top would
+  // paint the app's navy straight back over it — Dashboard and Seva would be
+  // the only screens a theme never reached.
+  //
+  // The guard lives HERE rather than in useTheme() because most of these
+  // screens never go through the ScreenRolesProvider: Dashboard, Seva and their
+  // twenty-odd components call themeForScreen() directly from their own style
+  // factories, which is exactly how the first attempt at this missed them.
+  //
+  // Their hierarchy is not lost. A theme's own background / surface /
+  // surfaceElevated carry the same recessed-raised-lifted ladder, derived from
+  // its five primitives instead of hand-written per screen.
+  //
+  // A designed theme still takes that screen's own small adjustments, where the
+  // derived ladder does not suit the screen's layout — see
+  // `designedRolesFor()`. There are none for most screens, which return the
+  // theme untouched.
+  theme.designedTheme
+    ? designedThemeForScreen(theme, screen)
+    : {
+        ...theme,
+        c: { ...theme.c, ...rolesFor(screen, theme.mode) },
+      };
 
 /**
  * Resolves a screen's palette for the active mode.
@@ -596,6 +625,20 @@ export const themeForScreen = (theme, screen) => ({
  * @param {"dashboard"|"seva"|"baniList"} screen Which palette to read.
  * @param {"light"|"dark"} mode The active theme mode.
  */
-export const paletteFor = (screen, mode) => paletteForInternal(screen, mode);
+export const paletteFor = (screen, modeOrTheme) => {
+  // Accepts either a mode string or the whole theme.
+  //
+  // Every call site already had the theme in scope and was passing `theme.mode`,
+  // and a designed theme cannot be seen through a mode string — these keys are
+  // the reason Dashboard and Seva stayed navy under Puratan. Taking the theme
+  // is what lets them be re-derived; passing a bare mode still works and still
+  // means "no designed theme", which is what every test and every light/dark
+  // path relies on.
+  const isTheme = modeOrTheme !== null && typeof modeOrTheme === "object";
+  const mode = isTheme ? modeOrTheme.mode : modeOrTheme;
+  const base = paletteForInternal(screen, mode);
+  const designed = isTheme && modeOrTheme.designedTheme;
+  return designed ? themedScreenPalette(base, modeOrTheme.c) : base;
+};
 
 export default screenPalettes;

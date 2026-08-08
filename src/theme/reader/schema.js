@@ -93,6 +93,46 @@ const ALLOWED_SHAPE = {
     gap: true,
   },
   scrollbar: { thumb: true, track: true, width: true },
+  // The WHOLE APP's colour roles. Merged over `theme.c` in ThemeProvider, so a
+  // designed theme reaches every screen — Home, Dashboard, Seva, Settings, every
+  // dialog and sheet — not only the Reader.
+  //
+  // Same trick as `audio` below: these are the app's own semantic role names, so
+  // no screen's style rules change. Light and Dark fill this group FROM the app
+  // palette, making the merge the identity and leaving them untouched.
+  //
+  // The status family, the reading mark and the black washes are deliberately
+  // absent — see APP_ROLES_FIXED in bases/appBase.js.
+  app: {
+    background: true,
+    backgroundAlt: true,
+    surface: true,
+    surfaceElevated: true,
+    surfaceSelected: true,
+    fillSubtle: true,
+    edgeHighlight: true,
+    textPrimary: true,
+    textSecondary: true,
+    textDisabled: true,
+    textBrand: true,
+    textOnBrand: true,
+    headerFg: true,
+    link: true,
+    primary: true,
+    primaryPressed: true,
+    onPrimary: true,
+    accent: true,
+    accentPressed: true,
+    onAccent: true,
+    accentSubtle: true,
+    controlAccent: true,
+    controlAccentPressed: true,
+    onControlAccent: true,
+    controlTrackOff: true,
+    border: true,
+    borderStrong: true,
+    focusRing: true,
+  },
   // The audio player and its dialogs sit ON the Reader, beside the Bani, so they
   // follow the reading theme rather than the app appearance.
   //
@@ -219,8 +259,34 @@ const defineReaderTheme = (record) => {
   // dark and quietly repaint the default Reader.
   const derived = record?.palette ? deriveFromPalette(record.palette, record.base) : null;
   const withDerived = derived ? merge(base ?? lightBase, derived) : base ?? lightBase;
+  const merged = merge(withDerived, record);
 
-  return Object.freeze(merge(withDerived, record));
+  // The bottom bar is ONE colour everywhere.
+  //
+  // `app.primary` is the tab bar off the Reader; `nav.primary` is the same bar
+  // over it. The derivation computes both from the palette, so they agree — but
+  // a theme that overrides only `nav` would leave the two disagreeing, and the
+  // bar would change colour as you walked into the Reader. Blue does exactly
+  // that: it pins `nav` to the app's dark navy, and without this its tab bar
+  // stayed the derived #203047.
+  //
+  // Re-linked AFTER the merge, so it follows whatever `nav` finally resolved to.
+  // A theme that states `app.primary` itself is left alone. For Light and Dark
+  // both sides already come from the same palette key, so this is a no-op.
+  const relinked =
+    record?.app?.primary === undefined && record?.app?.onPrimary === undefined
+      ? {
+          ...merged,
+          app: {
+            ...merged.app,
+            primary: merged.nav.primary,
+            onPrimary: merged.nav.onPrimary,
+            textOnBrand: merged.nav.onPrimary,
+          },
+        }
+      : merged;
+
+  return Object.freeze(relinked);
 };
 
 export { ALLOWED_SHAPE, merge };

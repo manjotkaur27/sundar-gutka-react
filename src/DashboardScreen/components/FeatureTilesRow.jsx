@@ -129,7 +129,7 @@ const FeatureTilesRow = () => {
   const { theme } = useTheme();
   // The Dashboard's own colours, not the semantic layer.
   const { c } = themeForScreen(theme, "dashboard");
-  const palette = paletteFor("dashboard", theme.mode);
+  const palette = paletteFor("dashboard", theme);
 
   const cardBg = palette.sectionBg;
   const borderColor = palette.tileBorder;

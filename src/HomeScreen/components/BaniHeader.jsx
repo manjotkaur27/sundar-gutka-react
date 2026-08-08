@@ -23,7 +23,7 @@ const BaniHeader = ({ navigate }) => {
   // The top inset strip belongs to the header, so it takes the header's own
   // ground — on the semantic background it drew a dark band above the
   // invocation line.
-  const ground = paletteFor("baniList", theme.mode).surface;
+  const ground = paletteFor("baniList", theme).surface;
   return (
     <SafeArea backgroundColor={ground} edges={["top"]} flex={0}>
       <View style={styles.newHeaderContainer}>

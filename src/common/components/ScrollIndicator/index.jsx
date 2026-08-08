@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Animated, Platform, StyleSheet } from "react-native";
 import { withAlpha } from "@theme/colorUtils";
 import { brandMarks } from "@theme/palette";
+import useTheme from "@common/context";
 
 // iOS does not expose the native scroll-indicator colour (only default/black/
 // white), so on iOS we hide the native indicator and draw our own to match the
@@ -49,6 +50,14 @@ const styles = StyleSheet.create({
  *   </View>
  */
 export const useCustomScrollbar = (color = null) => {
+  // Under a DESIGNED theme every list in the app gets a themed thumb, drawn on
+  // both platforms — Android's native bar takes a static app resource and so
+  // cannot follow one. Under Light, Dark and Default nothing changes: the
+  // native bar already matches THUMB_COLOR, and drawing our own on Android
+  // would only give the two platforms slightly different bars.
+  const { theme } = useTheme();
+  const themed = theme?.designedTheme ? withAlpha(theme.c.textBrand, 0.45) : null;
+  const thumb = color ?? themed ?? THUMB_COLOR;
   const scrollY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const fadeTimer = useRef(null);
@@ -100,7 +109,7 @@ export const useCustomScrollbar = (color = null) => {
 
   // Android's native bar is already themed by the app resource, so it is left
   // alone UNLESS a caller needs a colour that resource cannot provide.
-  if (!IS_IOS && !color) {
+  if (!IS_IOS && !color && !themed) {
     return { scrollViewProps: {}, Indicator: null };
   }
 
@@ -129,7 +138,7 @@ export const useCustomScrollbar = (color = null) => {
         styles.thumb,
         {
           height: thumbHeight,
-          backgroundColor: color ?? THUMB_COLOR,
+          backgroundColor: thumb,
           opacity,
           transform: [{ translateY }],
         },

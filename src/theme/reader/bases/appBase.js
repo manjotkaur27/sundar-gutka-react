@@ -68,6 +68,64 @@ const SCROLLBAR_INDICATOR = "#7A99C9";
 // The bottom navigation's two roles: the bar, and what sits on it.
 const NAV_ROLES = ["primary", "onPrimary"];
 
+// Roles a designed theme RECOLOURS app-wide. Everything the eye reads as "this
+// app's colour": grounds, ink, brand, controls, borders.
+export const APP_ROLES = [
+  "background",
+  "backgroundAlt",
+  "surface",
+  "surfaceElevated",
+  "surfaceSelected",
+  "fillSubtle",
+  "edgeHighlight",
+  "textPrimary",
+  "textSecondary",
+  "textDisabled",
+  "textBrand",
+  "textOnBrand",
+  "headerFg",
+  "link",
+  "primary",
+  "primaryPressed",
+  "onPrimary",
+  "accent",
+  "accentPressed",
+  "onAccent",
+  "accentSubtle",
+  "controlAccent",
+  "controlAccentPressed",
+  "onControlAccent",
+  "controlTrackOff",
+  "border",
+  "borderStrong",
+  "focusRing",
+];
+
+// Roles a designed theme must NOT touch, and why.
+//
+// `error`, `success` and the gold family carry MEANING — a failed download is
+// red and a streak is gold on every theme, or the colour stops being
+// information and becomes decoration. `vishraamShort` is a reading mark, for
+// the same reason. `scrim` and `shadow` are black washes that work on any
+// ground and would only be weakened by tinting.
+//
+// Listed rather than merely omitted so the split is a decision on the page and
+// a test can assert it — see themeShape/readerTheme tests.
+export const APP_ROLES_FIXED = [
+  "scrim",
+  "shadow",
+  "error",
+  "errorSurface",
+  "onError",
+  "success",
+  "successSurface",
+  "gold",
+  "goldFill",
+  "goldSurface",
+  "onGold",
+  "vishraamShort",
+];
+
 const pick = (source, keys) =>
   keys.reduce((acc, key) => {
     acc[key] = source[key];
@@ -178,6 +236,11 @@ const createAppBase = (c, mode) => ({
   },
 
   // Identity by construction — see the note at the top of this file.
+  //
+  // `app` is the whole-app role override. For Light and Dark it is the app's
+  // own colour layer handed straight back, so ThemeProvider merging it changes
+  // nothing at all — which is what keeps those two byte-identical.
+  app: pick(c, APP_ROLES),
   audio: pick(c, AUDIO_ROLES),
   nav: pick(c, NAV_ROLES),
 

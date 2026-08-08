@@ -38,7 +38,7 @@ const LifetimeStats = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
   // The Dashboard's own colours, not the semantic layer.
   const { c } = themeForScreen(theme, "dashboard");
-  const palette = paletteFor("dashboard", theme.mode);
+  const palette = paletteFor("dashboard", theme);
   // The Dashboard blue, from the token layer — see ActivityCalendar.
   const accentBlue = c.textBrand;
   const bg = palette.sectionBg;

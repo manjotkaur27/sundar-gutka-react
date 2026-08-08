@@ -56,7 +56,11 @@ const useDashboardTheme = () => {
   // The Dashboard's components read ROLES, not the aliases below, so the roles
   // themselves resolve to the Dashboard's colours. Anything it does not override
   // still falls through to the semantic layer.
-  const c = { ...roles, ...rolesFor("dashboard", theme.mode) };
+  // A designed theme has already recoloured these roles app-wide, so the
+  // Dashboard's own overrides stand down — layered on top they would paint the
+  // app's navy straight back over the theme. Under Light and Dark they apply
+  // exactly as before.
+  const c = theme.designedTheme ? roles : { ...roles, ...rolesFor("dashboard", theme.mode) };
   // The Dashboard's OWN colours, restored. Structure, spacing and every other
   // role still come from the token layer above — only the values below are
   // screen-scoped. See `theme/screenPalettes.js`.

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Appearance } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { appearanceFor } from "@theme/reader/resolve";
+import { READER_THEMES_BY_ID } from "@theme/reader/themes";
 import PropTypes from "prop-types";
 import { lightTheme, darkTheme } from "@theme";
 import { setTheme } from "../actions";
@@ -29,7 +30,17 @@ const ThemeProvider = ({ children }) => {
     // page. The pairing lives in the theme record, not here.
     const paired = appearanceFor(themeMode);
     if (paired) {
-      return paired === "dark" ? darkTheme : lightTheme;
+      const base = paired === "dark" ? darkTheme : lightTheme;
+      // A designed theme recolours the WHOLE app, not just the Reader. Its
+      // `app` group holds the same semantic role names `base.c` does, so every
+      // screen's existing style rules keep working and simply resolve to themed
+      // values — no screen had to change.
+      //
+      // `designedTheme` is the flag the per-screen palettes read: Dashboard,
+      // Seva and Settings each override a dozen roles of their own, and left
+      // active they would paint their navy straight back over the theme.
+      const record = READER_THEMES_BY_ID[themeMode];
+      return { ...base, c: { ...base.c, ...record.app }, designedTheme: themeMode };
     }
     if (themeMode === constant.Default) {
       return systemColorScheme === "dark" ? darkTheme : lightTheme;

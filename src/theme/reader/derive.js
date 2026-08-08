@@ -1,5 +1,8 @@
 import { mix, withAlpha } from "@theme/colorUtils";
-import { contrastRatio } from "./contrast";
+import { contrastRatio, AA_CONTRAST as AA } from "./contrast";
+
+// WCAG's floor for a control or a meaningful outline, as opposed to text.
+const UI_CONTRAST = 3;
 
 // How far a card has to sit off the page to read as a card.
 //
@@ -26,6 +29,25 @@ const stepToward = (ground, toward, target) => {
     if (contrastRatio(candidate, ground) >= target) return candidate;
   }
   return null;
+};
+
+// Deepens `from` toward `toward` until it clears `target` against `backdrop`.
+//
+// The same solve-for-the-ratio idea as stepToward, pointed at a different
+// problem: not "separate these two" but "make this one legible on that". A
+// colour that already clears the target comes back untouched, so a theme's own
+// declared value is only ever adjusted when it would otherwise fail.
+//
+// This is what stops a theme shipping a secondary label that reads on the page
+// but not on a dialog, which is exactly what Kesari did — its muted ink
+// measured 4.43:1 on its own elevated surface, just under AA.
+export const readableOn = (from, toward, backdrop, target) => {
+  if (contrastRatio(from, backdrop) >= target) return from;
+  for (let t = 0.05; t <= 1; t += 0.05) {
+    const candidate = mix(from, toward, t);
+    if (contrastRatio(candidate, backdrop) >= target) return candidate;
+  }
+  return toward;
 };
 
 // Which way a card separates from the page.
@@ -144,6 +166,74 @@ const deriveAudio = ({ ground, ink, accent, muted, rule }, mode) => ({
   controlTrackOff: mode === "dark" ? mix(ground, ink, 0.45) : mix(ground, ink, 0.62),
 });
 
+// The whole app, from the same five primitives.
+//
+// Merged over `theme.c` in ThemeProvider, so it reaches every screen — Home,
+// Dashboard, Seva, Settings, Bookmarks, every dialog and sheet — not just the
+// Reader. The keys are the app's own semantic role names, so no screen's style
+// rules change; they simply resolve to themed values.
+//
+// The status family (error, success, gold), the reading mark and the black
+// washes are deliberately absent — see APP_ROLES_FIXED in bases/appBase.js.
+// A theme that recoloured them would turn information into decoration.
+//
+// `primary` follows the NAV bar rather than the accent. It is the tab bar, the
+// filled buttons and the selected states — the biggest blocks of colour in the
+// app — and an accent-filled tab bar is the same mistake the Reader's nav made:
+// the brightest thing on screen, permanently, on a theme chosen for night
+// reading.
+const deriveApp = ({ ground, ink, accent, muted, rule }, mode, nav) => {
+  const surface = lifted(ground, ink, CARD_LIFT, mode);
+  // The deepest ground any text can land on, and therefore the one every text
+  // role has to stay legible against.
+  const surfaceElevated = lifted(ground, ink, OVERLAY_LIFT, mode);
+
+  return {
+    // ── Grounds ──────────────────────────────────────────────────────────
+    background: ground,
+    backgroundAlt: ground,
+    surface,
+    surfaceElevated,
+    surfaceSelected: withAlpha(ink, 0.14),
+    fillSubtle: withAlpha(ink, 0.08),
+    // The top edge of a raised card. Flat on light, a lift on dark — the same
+    // convention the app palette uses.
+    edgeHighlight: mode === "dark" ? withAlpha(ink, 0.08) : lifted(ground, ink, CARD_LIFT, mode),
+
+    // ── Ink ──────────────────────────────────────────────────────────────
+    textPrimary: ink,
+    // Guaranteed against the DEEPEST surface, not just the page — a secondary
+    // label has to read on a dialog too.
+    textSecondary: readableOn(muted, ink, surfaceElevated, AA),
+    textDisabled: mix(muted, ground, 0.45),
+    textBrand: accent,
+    headerFg: accent,
+    link: accent,
+    // Text sitting on a `primary`-filled block, which is the nav bar's pair.
+    textOnBrand: nav.onPrimary,
+
+    // ── Brand and controls ───────────────────────────────────────────────
+    primary: nav.primary,
+    primaryPressed: mix(nav.primary, ink, 0.18),
+    onPrimary: nav.onPrimary,
+    accent,
+    accentPressed: mix(accent, ink, 0.18),
+    onAccent: ground,
+    accentSubtle: withAlpha(accent, 0.12),
+    controlAccent: accent,
+    controlAccentPressed: mix(accent, ink, 0.18),
+    onControlAccent: ground,
+    controlTrackOff: mode === "dark" ? mix(ground, ink, 0.45) : mix(ground, ink, 0.62),
+
+    // ── Lines ────────────────────────────────────────────────────────────
+    border: rule,
+    // Outlines a user can INTERACT with — WCAG holds those to 3:1 against what
+    // is behind them, which a flat 40% step does not reach on a light ground.
+    borderStrong: readableOn(mix(ground, ink, 0.4), ink, ground, UI_CONTRAST),
+    focusRing: accent,
+  };
+};
+
 /**
  * @param {object} palette The theme's declared primitives.
  * @param {"light"|"dark"} mode The theme's `base` — the appearance it pairs
@@ -154,6 +244,13 @@ const deriveAudio = ({ ground, ink, accent, muted, rule }, mode) => ({
 const deriveFromPalette = (palette, mode) => {
   const p = resolvePalette(palette);
   const { ground, ink, accent, muted, rule } = p;
+
+  // Computed once and shared: the app's `primary` follows the nav bar, so the
+  // tab bar and every filled button are the same colour by construction.
+  const nav =
+    mode === "dark"
+      ? { primary: mix(ground, ink, 0.1), onPrimary: ink }
+      : { primary: mix(ground, ink, 0.88), onPrimary: ground };
 
   return {
     palette: p,
@@ -226,10 +323,11 @@ const deriveFromPalette = (palette, mode) => {
     // the page rather than being app furniture parked on top of it. The active
     // pill is the same pair inverted, which is already how the component draws
     // it — so two values cover both states, and the contrast guard checks them.
-    nav:
-      mode === "dark"
-        ? { primary: mix(ground, ink, 0.1), onPrimary: ink }
-        : { primary: mix(ground, ink, 0.88), onPrimary: ground },
+    nav,
+
+    // The whole app, from the same five primitives. Merged over `theme.c` in
+    // ThemeProvider so it reaches every screen, not just the Reader.
+    app: deriveApp(p, mode, nav),
   };
 };
 

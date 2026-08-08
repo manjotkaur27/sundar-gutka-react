@@ -125,7 +125,7 @@ const SevaScreen = () => {
   const { theme } = useTheme();
   // Seva's own colours, through the same role names — see theme/screenPalettes.
   const { c } = themeForScreen(theme, "seva");
-  const palette = paletteFor("seva", theme.mode);
+  const palette = paletteFor("seva", theme);
   const isDarkMode = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();

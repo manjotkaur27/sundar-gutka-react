@@ -107,7 +107,7 @@ const HomeScreen = React.memo(({ navigation }) => {
 
   // The bani list keeps its own ground on every surface of this screen, so no
   // strip of the semantic background shows above or behind the header.
-  const baniGround = paletteFor("baniList", theme.mode).surface;
+  const baniGround = paletteFor("baniList", theme).surface;
 
   return baniLengthSelector ? (
     <BaniLengthSelector />

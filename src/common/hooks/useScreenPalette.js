@@ -12,7 +12,7 @@ import { useTheme } from "../context/ThemeContext";
  */
 const useScreenPalette = (screen) => {
   const { theme } = useTheme();
-  return paletteFor(screen, theme.mode);
+  return paletteFor(screen, theme);
 };
 
 export default useScreenPalette;

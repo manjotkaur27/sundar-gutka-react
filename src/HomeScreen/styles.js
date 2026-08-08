@@ -15,7 +15,7 @@ const createStyles = (theme) => ({
     // The bani list keeps its OWN ground — the navy this screen had before the
     // token migration. Only the ground: every other colour here still comes
     // from the semantic roles. See theme/screenPalettes.js.
-    backgroundColor: paletteFor("baniList", theme.mode).surface,
+    backgroundColor: paletteFor("baniList", theme).surface,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
     alignItems: "center",

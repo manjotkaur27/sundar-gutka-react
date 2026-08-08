@@ -60,7 +60,7 @@ const ActivityCalendar = ({ refreshKey = 0 }) => {
   const { theme } = useTheme();
   // The Dashboard's own colours, not the semantic layer.
   const { c } = themeForScreen(theme, "dashboard");
-  const palette = paletteFor("dashboard", theme.mode);
+  const palette = paletteFor("dashboard", theme);
   // The Dashboard blue, from the token layer. This was a local ternary
   // duplicated across six components, which is how dark mode drifted to a
   // different blue to the rest of the page.

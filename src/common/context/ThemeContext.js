@@ -19,10 +19,24 @@ const ThemeContext = createContext(null);
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   const screen = useScreenRolesScope();
+  // A DESIGNED theme wins over the per-screen palettes.
+  //
+  // Dashboard, Seva and Settings each override a dozen roles to give themselves
+  // their own grounds — which is right under Light and Dark, and wrong under a
+  // theme: applied on top they would paint the app's navy straight back over
+  // Puratan's parchment, so the two screens the user looks at most would be the
+  // only ones the theme never reached.
+  //
+  // Their hierarchy is not lost, it is re-derived: a theme's own background,
+  // surface and surfaceElevated carry the same recessed/raised/lifted ladder
+  // from its five primitives.
+  const applyScreen = screen && !context?.theme?.designedTheme;
   const scoped = useMemo(
     () =>
-      context && screen ? { ...context, theme: themeForScreen(context.theme, screen) } : context,
-    [context, screen]
+      context && applyScreen
+        ? { ...context, theme: themeForScreen(context.theme, screen) }
+        : context,
+    [context, screen, applyScreen]
   );
   if (!scoped) {
     throw new Error("useTheme must be used within a ThemeProvider");
