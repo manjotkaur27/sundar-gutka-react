@@ -19,18 +19,17 @@ const ThemeContext = createContext(null);
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   const screen = useScreenRolesScope();
-  // A DESIGNED theme wins over the per-screen palettes.
+  // Always scoped when inside a provider.
   //
-  // Dashboard, Seva and Settings each override a dozen roles to give themselves
-  // their own grounds — which is right under Light and Dark, and wrong under a
-  // theme: applied on top they would paint the app's navy straight back over
-  // Puratan's parchment, so the two screens the user looks at most would be the
-  // only ones the theme never reached.
+  // `themeForScreen` already knows what to do with a designed theme: it does
+  // NOT layer the light/dark screen palettes on top — that would paint the
+  // app's navy straight back over Puratan's parchment — and applies only that
+  // screen's deliberate adjustments instead. See `designedRolesFor`.
   //
-  // Their hierarchy is not lost, it is re-derived: a theme's own background,
-  // surface and surfaceElevated carry the same recessed/raised/lifted ladder
-  // from its five primitives.
-  const applyScreen = screen && !context?.theme?.designedTheme;
+  // This used to short-circuit on `designedTheme`, so NO screen adjustment
+  // reached a designed theme at all. That is why the settings-scoped
+  // call-to-action pair never applied and Rename stayed invisible on Sanjh.
+  const applyScreen = Boolean(screen);
   const scoped = useMemo(
     () =>
       context && applyScreen

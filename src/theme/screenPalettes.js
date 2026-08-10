@@ -1,3 +1,4 @@
+import { mix } from "./colorUtils";
 import { designedRolesFor, themedScreenPalette } from "./reader/screenPalette";
 
 // Screen-scoped palettes.
@@ -488,6 +489,20 @@ export const settingsRoles = (mode) => {
     controlAccent: p.accent,
     link: p.accent,
     textBrand: p.accent,
+    // The call-to-action pair — its OWN roles, never `primary`, which is what
+    // the bottom nav bar paints itself with.
+    //
+    // WITHOUT these a primary Button kept the semantic
+    // navy (#113979) while the card under it became this palette's own navy
+    // (#062346) — 1.41:1, so the button had no visible background at all. It is
+    // why OK on the reminder sheets and Create/Rename on the pothi sheets read
+    // as bare text.
+    //
+    // The accent measures 5.14:1 on the card, and the page navy 6.18:1 as the
+    // label on it; white would have been 3.05:1 and failed.
+    ctaFill: p.accent,
+    ctaFillPressed: mix(p.accent, p.pageBg, 0.2),
+    onCtaFill: p.pageBg,
   };
 };
 

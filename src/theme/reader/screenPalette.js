@@ -1,8 +1,10 @@
-import { hexToRgb, withAlpha } from "@theme/colorUtils";
+import { hexToRgb, mix, withAlpha } from "@theme/colorUtils";
 import { readableOn } from "./derive";
 
 // WCAG's floor for a meaningful non-text mark, such as a category icon.
 const UI_CONTRAST = 3;
+/** WCAG AA for text. */
+const AA_CONTRAST = 4.5;
 
 // Re-derives a SCREEN palette from a designed theme.
 //
@@ -209,8 +211,34 @@ const themedHues = (hues, c) => {
 // so every card is `surface` on the page ground and the border does the
 // separating. Nothing on the screen nests one of these inside another, so no
 // card loses its edge.
+// A filled call-to-action that is legible on the surface it sits on.
+//
+// `primary` is the NAV BAR's colour — the bottom bar reads `theme.c.primary`
+// directly, and a designed theme derives it from the page ground on purpose so
+// the bar matches the page. That makes it a poor button fill: on the dark-based
+// themes it measures 1.0-1.3:1 against a sheet surface, so Create, Rename and
+// the reminder OK button had no visible background at all.
+//
+// It cannot simply be changed, because that same value is what keeps Blue's nav
+// bar pinned to the dark-mode navy. So the CTA pair is overridden HERE, per
+// screen, where the nav bar never reaches.
+const ctaPair = (c) => {
+  const fill = readableOn(c.accent, c.textPrimary, c.surfaceElevated, UI_CONTRAST);
+  return {
+    // Its OWN roles. Overriding `primary` here repainted the bottom nav bar,
+    // which reads that same role — see Button.
+    ctaFill: fill,
+    ctaFillPressed: mix(fill, c.textPrimary, 0.18),
+    // The label ON that fill, held to text contrast rather than the 3:1 the
+    // fill itself needs against the sheet.
+    onCtaFill: readableOn(c.background, c.textPrimary, fill, AA_CONTRAST),
+  };
+};
+
 const DESIGNED_SCREEN_ROLES = {
   seva: (c) => ({ surfaceElevated: c.surface }),
+  settings: ctaPair,
+  settingsSheet: ctaPair,
 };
 
 /** A designed theme's per-screen role adjustments, or null if it has none. */

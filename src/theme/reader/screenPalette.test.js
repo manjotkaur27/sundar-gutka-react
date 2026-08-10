@@ -2,7 +2,13 @@ import { mix } from "@theme/colorUtils";
 import { screenPalettes, paletteFor, rolesFor, themeForScreen } from "@theme/screenPalettes";
 import { dark as darkColors, light as lightColors } from "@theme/semanticColors";
 import { contrastRatio } from "./contrast";
-import { ACCENT_WASH_ALPHA, alphaOf, groupFor, themedScreenPalette } from "./screenPalette";
+import {
+  ACCENT_WASH_ALPHA,
+  alphaOf,
+  designedRolesFor,
+  groupFor,
+  themedScreenPalette,
+} from "./screenPalette";
 import { READER_THEMES, READER_THEMES_BY_ID } from "./themes";
 
 // Dashboard and Seva do not colour themselves from semantic roles. They read
@@ -227,6 +233,21 @@ describe("paletteFor", () => {
           { ...t.c, ...rolesFor(screen, mode) },
         ]);
       });
+    });
+  });
+
+  it("gives every theme a call-to-action that is visible on the sheet it sits on", () => {
+    // `primary` is the nav bar's colour, and a designed theme derives it from
+    // the page ground — so as a button fill it measured 1.0-1.3:1 on the
+    // dark-based themes and Create, Rename and the reminder OK button had no
+    // visible background at all. The per-screen override must keep every theme
+    // above the 3:1 a filled control needs, with a label above 4.5:1 on it.
+    DESIGNED.forEach((theme) => {
+      const r = designedRolesFor("settings", theme.app);
+      const fill = contrastRatio(r.ctaFill, theme.app.surfaceElevated);
+      const label = contrastRatio(r.onCtaFill, r.ctaFill);
+      expect([theme.id, "fill", fill >= 3]).toEqual([theme.id, "fill", true]);
+      expect([theme.id, "label", label >= 4.5]).toEqual([theme.id, "label", true]);
     });
   });
 

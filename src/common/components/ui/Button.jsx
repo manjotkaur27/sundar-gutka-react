@@ -15,8 +15,19 @@ import Text from "./Text";
 // Long labels wrap rather than shrink or clip.
 
 const VARIANTS = {
-  /** Default call to action. */
-  primary: { bg: "primary", bgPressed: "primaryPressed", fg: "onPrimary", border: null },
+  // Default call to action.
+  //
+  // It reads `ctaFill`, NOT `primary`. `primary` is the bottom nav bar's
+  // colour, and a screen palette that overrode it to make a button legible
+  // repainted the nav bar too. The CTA is its own role so the two can never be
+  // coupled again; where a palette does not define it, it falls back to
+  // `primary` and nothing changes.
+  primary: {
+    bg: ["ctaFill", "primary"],
+    bgPressed: ["ctaFillPressed", "primaryPressed"],
+    fg: ["onCtaFill", "onPrimary"],
+    border: null,
+  },
   /** Secondary action alongside a primary one. */
   secondary: { bg: null, bgPressed: "surfaceSelected", fg: "accent", border: "borderStrong" },
   /** Tertiary / low-emphasis action. */
@@ -46,13 +57,16 @@ const Button = ({
 
   // Disabled state is expressed by flattening the fill rather than by opacity,
   // so the label keeps its contrast ratio instead of fading under it.
+  /** A role name, or a [preferred, fallback] pair for the CTA roles above. */
+  const role = (name) => (Array.isArray(name) ? c[name[0]] ?? c[name[1]] : c[name]);
+
   const background = (pressed) => {
     if (inactive) return v.bg ? c.surfaceSelected : "transparent";
-    if (pressed && v.bgPressed) return c[v.bgPressed];
-    return v.bg ? c[v.bg] : "transparent";
+    if (pressed && v.bgPressed) return role(v.bgPressed);
+    return v.bg ? role(v.bg) : "transparent";
   };
 
-  const foreground = inactive ? c.textDisabled : c[v.fg];
+  const foreground = inactive ? c.textDisabled : role(v.fg);
 
   return (
     <Pressable
