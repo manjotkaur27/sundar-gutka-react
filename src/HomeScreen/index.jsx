@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, InteractionManager } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { paletteFor } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
+import usePothiSync from "@common/hooks/usePothiSync";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   actions,
@@ -18,10 +19,19 @@ import {
   allowTracking,
 } from "@common";
 import { setBaniOrder } from "../common/actions";
+import { SegmentedTabs } from "../common/components/ui";
+import CreatePothiSheet from "../Pothi/components/CreatePothiSheet";
+import usePothiActions from "../Pothi/hooks/usePothiActions";
+import PothiList from "../Pothi/PothiList";
 import { getLanguages } from "../Settings/components/comon/strings";
 import BaniHeader from "./components/BaniHeader";
 import { useBaniLength, useBaniList, useDatabaseUpdateCheck } from "./hooks";
 import createStyles from "./styles";
+
+// The two lists this screen switches between. Folders is not the default: the
+// bani list is what the app opens on and what most sessions want.
+const TAB_BANIS = "banis";
+const TAB_FOLDERS = "folders";
 
 const HomeScreen = React.memo(({ navigation }) => {
   const { theme } = useTheme();
@@ -32,7 +42,14 @@ const HomeScreen = React.memo(({ navigation }) => {
   const baniOrder = useSelector((state) => state.baniOrder);
   const fontFace = useSelector((state) => state.fontFace);
   const isStatistics = useSelector((state) => state.isStatistics);
+  const [tab, setTab] = useState(TAB_BANIS);
+  // Shared with the standalone My Pothis screen, so the two entry points into
+  // the same list cannot drift apart.
+  const { openBani, openPothi, onPinLimit, creating, openCreate, closeCreate, onCreated } =
+    usePothiActions(navigate);
   useDatabaseUpdateCheck();
+  // Seeds the two default pothis and keeps My Pothi in step with the account.
+  usePothiSync();
 
   useKeepAwake();
   const { baniLengthSelector } = useBaniLength();
@@ -116,14 +133,42 @@ const HomeScreen = React.memo(({ navigation }) => {
       <StatusBarComponent backgroundColor={baniGround} />
       <View style={[{ backgroundColor: baniGround }, styles.container]}>
         <BaniHeader navigate={navigate} />
-        <BaniList data={baniListData} onPress={onPress} />
+        <SegmentedTabs
+          tabs={[
+            { key: TAB_BANIS, label: STRINGS.ALL_BANIS },
+            { key: TAB_FOLDERS, label: STRINGS.POTHIS_TAB },
+          ]}
+          value={tab}
+          onChange={setTab}
+          style={styles.tabs}
+        />
+        {tab === TAB_BANIS ? (
+          <BaniList data={baniListData} onPress={onPress} />
+        ) : (
+          <PothiList
+            baniListData={baniListData}
+            onOpenPothi={openPothi}
+            onOpenBani={openBani}
+            onCreatePress={openCreate}
+            onPinLimit={onPinLimit}
+          />
+        )}
       </View>
+      <CreatePothiSheet
+        visible={creating}
+        onClose={closeCreate}
+        onCreated={onCreated}
+        baniListData={baniListData}
+      />
     </SafeArea>
   );
 });
 
 HomeScreen.propTypes = {
-  navigation: PropTypes.shape({ navigate: PropTypes.func.isRequired }).isRequired,
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    setOptions: PropTypes.func.isRequired,
+  }).isRequired,
 };
 
 export default HomeScreen;

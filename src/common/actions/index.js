@@ -443,3 +443,56 @@ export const applyTheme = (value) => (dispatch, getState) => {
   // every subsequent selection of this theme.
   dispatch({ type: actionTypes.MARK_READER_THEME_SEEDED, value });
 };
+
+// ── My Pothi ───────────────────────────────────────────────────────────────
+// `id` is minted by the caller (via createPothi) rather than by the reducer, so
+// the add-to-pothi flow can create a pothi and drop the current shabad into it
+// in one dispatch pair without waiting for a render to learn the new id.
+export const createPothi = (pothi) => {
+  // pothi: the object returned by pothi/model createPothi()
+  return { type: actionTypes.CREATE_POTHI, value: pothi };
+};
+
+export const renamePothi = (id, name) => {
+  return { type: actionTypes.RENAME_POTHI, payload: { id, name } };
+};
+
+export const deletePothi = (id) => {
+  return { type: actionTypes.DELETE_POTHI, value: id };
+};
+
+export const addBaniToPothi = (id, item) => {
+  // item: the wire-shaped bani item from pothi/model makeBaniItem()
+  return { type: actionTypes.ADD_BANI_TO_POTHI, payload: { id, item } };
+};
+
+export const removeBaniFromPothi = (id, baaniId) => {
+  return { type: actionTypes.REMOVE_BANI_FROM_POTHI, payload: { id, baaniId } };
+};
+
+export const setPothiOrder = (order) => {
+  // order: pothiId[] for the draggable (unpinned) lane
+  return { type: actionTypes.SET_POTHI_ORDER, value: order };
+};
+
+export const togglePothiPin = (id) => {
+  return { type: actionTypes.TOGGLE_POTHI_PIN, value: id };
+};
+
+export const seedDefaultPothis = (pothis) => {
+  // pothis: the array from pothi/defaults buildDefaultPothis()
+  return { type: actionTypes.SEED_DEFAULT_POTHIS, value: pothis };
+};
+
+export const mergeRemotePothis = (folders) => {
+  // folders: FolderDto[] straight from GET /folders
+  return { type: actionTypes.MERGE_REMOTE_POTHIS, value: folders };
+};
+
+export const pothiDeleteSynced = (id) => {
+  return { type: actionTypes.POTHI_DELETE_SYNCED, value: id };
+};
+
+export const setPothisSyncedAt = (isoTimestamp) => {
+  return { type: actionTypes.SET_POTHIS_SYNCED_AT, value: isoTimestamp };
+};

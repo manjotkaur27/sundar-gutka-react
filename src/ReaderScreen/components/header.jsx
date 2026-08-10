@@ -3,11 +3,17 @@ import { View, Animated, Pressable } from "react-native";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { BackArrowIcon, BookmarkIcon } from "@common/icons";
-import { CustomText, useThemedStyles, GradientDivider } from "@common";
+import { BackArrowIcon, BookmarkIcon, FolderIcon } from "@common/icons";
+import { CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
 
-const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
+const Header = ({
+  title,
+  handleBackPress,
+  handleBookmarkPress,
+  handleAddToPothiPress,
+  isHeader,
+}) => {
   const styles = useThemedStyles(createStyles);
   // This bar is opaque and physically contiguous with the Bani text, so it
   // follows the READING theme rather than the app appearance — otherwise a cream
@@ -27,7 +33,7 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
   // the font setting and this one did not — the title centred in a taller box
   // sat lower there than here, which is the last way the two disagreed. Taking
   // the resolved value directly makes them the same number by construction.
-  const { layout } = useTokens();
+  const { layout, space } = useTokens();
   const animationPosition = useRef(new Animated.Value(0)).current;
 
   const headerLeft = () => (
@@ -40,14 +46,31 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
     </Pressable>
   );
 
+  // Two actions now, so the slot is a row. `hitSlop` gives each glyph the 44pt
+  // target the platform asks for without growing the bar.
   const headerRight = () => (
-    <Pressable
-      onPress={() => {
-        handleBookmarkPress();
-      }}
-    >
-      <BookmarkIcon size={25} color={headerForeground} />
-    </Pressable>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: space.lg }}>
+      <Pressable
+        onPress={() => {
+          handleAddToPothiPress();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.POTHI_ADD_TO}
+        hitSlop={layout.hitSlop}
+      >
+        <FolderIcon size={25} color={headerForeground} />
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          handleBookmarkPress();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.bookmarks}
+        hitSlop={layout.hitSlop}
+      >
+        <BookmarkIcon size={25} color={headerForeground} />
+      </Pressable>
+    </View>
   );
 
   useEffect(() => {
@@ -112,9 +135,12 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
           <View style={styles.headerRight}>{headerRight()}</View>
         </View>
       </View>
-      {/* The rule under the header sits directly on the Bani, so it takes the
-          reading theme's heading colour rather than the fixed brand navy. */}
-      <GradientDivider color={headerForeground} />
+      {/* No colour override. GradientDivider already picks the right one: the
+          brand ramp under Light and Dark, and the reading theme's heading
+          colour under a designed theme. Forcing headerForeground here painted
+          the rule near-white in dark mode, because that role IS the header's
+          light-on-dark foreground — a regression against stock dark. */}
+      <GradientDivider />
     </Animated.View>
   );
 };
@@ -123,6 +149,7 @@ Header.propTypes = {
   title: PropTypes.string.isRequired,
   handleBackPress: PropTypes.func.isRequired,
   handleBookmarkPress: PropTypes.func.isRequired,
+  handleAddToPothiPress: PropTypes.func.isRequired,
   isHeader: PropTypes.bool.isRequired,
 };
 export default Header;

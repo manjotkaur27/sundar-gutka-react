@@ -173,11 +173,15 @@ jest.mock("@common/hooks/useThemedStyles", () => {
 // Name resolution is the bani list's job, not this screen's. Stubbed so these
 // tests do not drag the database layer in behind it; the title assertions below
 // exercise the ROUTE fallback, and a dedicated test covers the lookup winning.
-let mockNameOf = () => null;
+const mockNameOf = () => null;
 jest.mock("@common/hooks/useBaniLookup", () => ({
   __esModule: true,
   default: () => ({ map: {}, nameOf: (...args) => mockNameOf(...args) }),
 }));
+
+// The Add to Pothi sheet is exercised by its own suite. Stubbed here so this
+// one stays about the Reader and does not have to mock the whole pothi slice.
+jest.mock("../Pothi/components/AddToPothiSheet", () => () => null);
 
 jest.mock("@common", () => ({
   // The header title is resolved through this, the same way the bani list

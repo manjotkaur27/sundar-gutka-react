@@ -141,12 +141,18 @@ const trackBaniListen = async (baniID, baniTitle, artist, durationSec, trackLeng
 
 // Fires when playback session ends (navigation away / unmount) with position context.
 // Enables % completion and half-listened segmentation in Firebase Explore.
+const completionTier = (percent, complete, halfway, completeLabel = "completed") => {
+  if (percent >= complete) return completeLabel;
+  if (percent >= halfway) return "half";
+  return "partial";
+};
+
 const trackBaniListenCompletion = async (baniID, title, artist, positionSec, trackLengthSec) => {
   try {
     const position = safeInt(positionSec);
     const length = safeInt(trackLengthSec);
     const pct = length > 0 ? Math.min(100, Math.round((position / length) * 100)) : 0;
-    const tier = pct >= 90 ? "completed" : pct >= 40 ? "half" : "partial";
+    const tier = completionTier(pct, 90, 40);
     await logEvent(analytics, "bani_listen_completion", {
       bani_id: safeStr(baniID),
       bani_title: safeStr(title),
@@ -211,7 +217,7 @@ const trackAudioLinkRequest = async (baniTitle, baniID, baniLength) => {
 const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollEnabled) => {
   try {
     const pct = Math.min(100, Math.max(0, safeInt(scrollPercent)));
-    const tier = pct >= 90 ? "complete" : pct >= 40 ? "half" : "partial";
+    const tier = completionTier(pct, 90, 40, "complete");
     await logEvent(analytics, "scroll_progress", {
       bani_id: safeStr(baniID),
       bani_title: safeStr(baniTitle),
@@ -261,31 +267,64 @@ const SEVA_EVENT_NAMES = {
   checkout_abandoned: "seva_checkout_abandoned",
 };
 
+// Firebase drops a param that is null, empty or the wrong type, and silently
+// truncates a long one. Shared by every namespaced tracker below so they cannot
+// drift on what they consider a safe param.
+const sanitizeParams = (params) => {
+  const safeParams = {};
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value == null) {
+      return; // drop null/undefined — never emit an empty param
+    }
+    const paramName = sanitize(key, "param");
+    if (typeof value === "boolean") {
+      safeParams[paramName] = value ? "true" : "false";
+    } else if (typeof value === "number") {
+      if (Number.isFinite(value)) {
+        safeParams[paramName] = safeInt(value);
+      }
+    } else {
+      const str = String(value).trim();
+      if (str !== "") {
+        safeParams[paramName] = str.slice(0, MAX_VALUE_LENGTH);
+      }
+    }
+  });
+  return safeParams;
+};
+
 const trackSevaEvent = async (action, params = {}) => {
   try {
     const eventName = SEVA_EVENT_NAMES[action] || sanitize(`seva_${action}`, "seva_event");
-    const safeParams = {};
-    Object.entries(params || {}).forEach(([key, value]) => {
-      if (value == null) {
-        return; // drop null/undefined — never emit an empty param
-      }
-      const paramName = sanitize(key, "param");
-      if (typeof value === "boolean") {
-        safeParams[paramName] = value ? "true" : "false";
-      } else if (typeof value === "number") {
-        if (Number.isFinite(value)) {
-          safeParams[paramName] = safeInt(value);
-        }
-      } else {
-        const str = String(value).trim();
-        if (str !== "") {
-          safeParams[paramName] = str.slice(0, MAX_VALUE_LENGTH);
-        }
-      }
-    });
-    await logEvent(analytics, eventName, safeParams);
+    await logEvent(analytics, eventName, sanitizeParams(params));
   } catch (error) {
     logError(new Error(`Seva analytics failed for ${action} - ${error?.message || "Unknown error"}`));
+  }
+};
+
+// My Pothi. One event name per action, so each carries only the params it
+// actually populates — a shared "pothi" umbrella would leave (not set) on every
+// param the other actions do not set, which is why the audio events were split.
+const POTHI_EVENT_NAMES = {
+  created: "pothi_created",
+  bani_added: "pothi_bani_added",
+  bani_removed: "pothi_bani_removed",
+  opened: "pothi_opened",
+  renamed: "pothi_renamed",
+  deleted: "pothi_deleted",
+  reordered: "pothi_reordered",
+  pinned: "pothi_pinned",
+  unpinned: "pothi_unpinned",
+};
+
+const trackPothiEvent = async (action, params = {}) => {
+  try {
+    const eventName = POTHI_EVENT_NAMES[action] || sanitize(`pothi_${action}`, "pothi_event");
+    await logEvent(analytics, eventName, sanitizeParams(params));
+  } catch (error) {
+    logError(
+      new Error(`Pothi analytics failed for ${action} - ${error?.message || "Unknown error"}`)
+    );
   }
 };
 
@@ -371,6 +410,7 @@ export {
   trackScreenView,
   trackAudioEvent,
   trackSevaEvent,
+  trackPothiEvent,
   // Dedicated per-action events (replace the old single "audio" umbrella event)
   trackBaniOpen,
   trackBaniListen,

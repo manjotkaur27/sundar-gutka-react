@@ -79,7 +79,7 @@ const FolderScreen = ({ navigation, route }) => {
           backAccessibilityLabel={STRINGS.GO_BACK}
         />
         <GradientDivider />
-        <BaniList data={data} isFolderScreen onPress={onPress} />
+        <BaniList data={data} onPress={onPress} />
       </View>
       <BottomNavigation activeKey="Home" context="home" visible navigation={navWithTabs} />
     </SafeArea>

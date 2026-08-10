@@ -10,49 +10,34 @@ import {
 } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import constant from "@common/constant";
+import useBaniTitle from "@common/hooks/useBaniTitle";
 import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { FolderIcon } from "@common/icons";
-import { convertToUnicode, baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
+import { baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
+const BaniList = React.memo(({ data, onPress }) => {
   const { c, space, layout } = useTokens();
   // The bani list keeps its own ground; every other colour here is a role.
   const baniListPalette = useScreenPalette("baniList");
   const { scrollViewProps, Indicator } = useCustomScrollbar();
   const fontSize = useSelector((state) => state.fontSize);
-  const fontFace = useSelector((state) => state.fontFace);
-  const isTransliteration = useSelector((state) => state.isTransliteration);
+  // The one implementation of "what does this bani's name say, and in what
+  // face" — see useBaniTitle. It used to be a private `getBaniTuk` here, which
+  // is how My Pothi ended up with a second copy that ignored transliteration.
+  const { titleFor, titleFontFamily, isTransliteration } = useBaniTitle();
   // `useWindowDimensions` re-renders on rotation, split-screen and foldable
   // unfold on its own. This replaced a `Dimensions.get` snapshot plus a manual
   // change listener and a piece of state that duplicated what the hook gives.
   const { width, height } = useWindowDimensions();
   const isPotrait = height >= width;
-  const isUnicode = fontFace === constant.BALOO_PAAJI;
-
-  const getBaniTuk = (row) => {
-    if (!row || !row.item) {
-      return "";
-    }
-    if (isTransliteration) {
-      return row.item.translit;
-    }
-    if (isUnicode) {
-      if (row?.item?.gurmukhiUni) {
-        return row.item.gurmukhiUni;
-      }
-      return convertToUnicode(row.item.gurmukhi);
-    }
-    return row.item.gurmukhi;
-  };
 
   const renderBanis = useCallback(
     (row) => {
       const itemTextColor = c.textPrimary;
-      const displayFont = !isTransliteration ? fontFace : null;
+      const displayFont = titleFontFamily;
 
       // Rows are separated by a faint INSET hairline (see ItemSeparator below),
       // which is Apple's spec for a list: a light grey at low opacity starting
@@ -81,7 +66,7 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
           {row.item.folder && <FolderIcon size={22} color={c.textSecondary} />}
           <View style={{ flex: 1, gap: space.xxs }}>
             <ListItemTitle
-              title={getBaniTuk(row)}
+              title={titleFor(row.item)}
               style={[
                 { color: itemTextColor },
                 {
@@ -109,7 +94,7 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
 
       return listItem;
     },
-    [c, space, layout, fontSize, fontFace, isTransliteration]
+    [c, space, layout, fontSize, titleFor, titleFontFamily, isTransliteration, onPress]
   );
 
   // Drawn BETWEEN rows only — a FlatList separator never renders after the
@@ -150,6 +135,9 @@ const BaniList = React.memo(({ data, onPress, isFolderScreen = false }) => {
         renderItem={renderBanis}
         ItemSeparatorComponent={ItemSeparator}
         keyExtractor={(item) => item.gurmukhi}
+        // The scrollbar hook hands back a set of scroll handlers as one object;
+        // spreading is how it is meant to be applied.
+        // eslint-disable-next-line react/jsx-props-no-spreading
         {...scrollViewProps}
       />
       {Indicator}
@@ -168,9 +156,6 @@ BaniList.propTypes = {
     })
   ).isRequired,
   onPress: PropTypes.func.isRequired,
-  // Defaulted in the signature; the lint rule cannot see through React.memo.
-  // eslint-disable-next-line react/require-default-props
-  isFolderScreen: PropTypes.bool,
 };
 
 export default BaniList;

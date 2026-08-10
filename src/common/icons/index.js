@@ -36,3 +36,5 @@ export { default as DonateIcon } from "./DonateIcon";
 export { default as FolderIcon } from "./FolderIcon";
 export { default as PersonIcon } from "./PersonIcon";
 export { default as HukamnamaIcon } from "./HukamnamaIcon";
+export { default as DragHandleIcon } from "./DragHandleIcon";
+export { default as PinIcon } from "./PinIcon";

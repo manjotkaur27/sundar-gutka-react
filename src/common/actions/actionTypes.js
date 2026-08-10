@@ -71,30 +71,30 @@ export const CLEAR_DONOR_STATE = "CLEAR_DONOR_STATE";
 export const SET_PLAYER_DRAGGING = "SET_PLAYER_DRAGGING";
 
 // Download queue
-export const ENQUEUE_DOWNLOAD            = 'ENQUEUE_DOWNLOAD';
-export const UPDATE_DOWNLOAD_STATUS      = 'UPDATE_DOWNLOAD_STATUS';
-export const UPDATE_DOWNLOAD_PROGRESS    = 'UPDATE_DOWNLOAD_PROGRESS';
-export const REMOVE_DOWNLOAD_QUEUE_ENTRY = 'REMOVE_DOWNLOAD_QUEUE_ENTRY';
-export const RETRY_DOWNLOAD              = 'RETRY_DOWNLOAD';
-export const REQUEUE_PAUSED_DOWNLOADS    = 'REQUEUE_PAUSED_DOWNLOADS';
+export const ENQUEUE_DOWNLOAD = "ENQUEUE_DOWNLOAD";
+export const UPDATE_DOWNLOAD_STATUS = "UPDATE_DOWNLOAD_STATUS";
+export const UPDATE_DOWNLOAD_PROGRESS = "UPDATE_DOWNLOAD_PROGRESS";
+export const REMOVE_DOWNLOAD_QUEUE_ENTRY = "REMOVE_DOWNLOAD_QUEUE_ENTRY";
+export const RETRY_DOWNLOAD = "RETRY_DOWNLOAD";
+export const REQUEUE_PAUSED_DOWNLOADS = "REQUEUE_PAUSED_DOWNLOADS";
 
 // Download registry
-export const ADD_DOWNLOAD_ENTRY      = 'ADD_DOWNLOAD_ENTRY';
-export const REMOVE_DOWNLOAD_ENTRIES = 'REMOVE_DOWNLOAD_ENTRIES';
-export const SET_DOWNLOAD_REGISTRY   = 'SET_DOWNLOAD_REGISTRY';
-export const CLEAR_DOWNLOAD_REGISTRY = 'CLEAR_DOWNLOAD_REGISTRY';
+export const ADD_DOWNLOAD_ENTRY = "ADD_DOWNLOAD_ENTRY";
+export const REMOVE_DOWNLOAD_ENTRIES = "REMOVE_DOWNLOAD_ENTRIES";
+export const SET_DOWNLOAD_REGISTRY = "SET_DOWNLOAD_REGISTRY";
+export const CLEAR_DOWNLOAD_REGISTRY = "CLEAR_DOWNLOAD_REGISTRY";
 
 // Download settings
-export const TOGGLE_DOWNLOAD_WIFI_ONLY        = 'TOGGLE_DOWNLOAD_WIFI_ONLY';
-export const TOGGLE_AUTO_DOWNLOAD             = 'TOGGLE_AUTO_DOWNLOAD';
+export const TOGGLE_DOWNLOAD_WIFI_ONLY = "TOGGLE_DOWNLOAD_WIFI_ONLY";
+export const TOGGLE_AUTO_DOWNLOAD = "TOGGLE_AUTO_DOWNLOAD";
 
 // Onboarding carousel guide
 // Transient visibility of the full-screen onboarding carousel (not persisted —
 // see store.js blacklist). Toggled true on a fresh install and by "Revisit".
-export const SET_ONBOARDING_VISIBLE = 'SET_ONBOARDING_VISIBLE';
+export const SET_ONBOARDING_VISIBLE = "SET_ONBOARDING_VISIBLE";
 // Persisted "the user has finished/skipped the carousel once" flag, so the
 // first-run auto-open never resurfaces on later launches.
-export const SET_ONBOARDING_SEEN = 'SET_ONBOARDING_SEEN';
+export const SET_ONBOARDING_SEEN = "SET_ONBOARDING_SEEN";
 // ─── Khalis SSO session ─────────────────────────────────────────────────────
 // Decoded claims only — the raw JWT lives in the Keychain, never in Redux.
 export const SET_AUTH_SESSION = "SET_AUTH_SESSION";
@@ -117,3 +117,20 @@ export const TOGGLE_NITNEM_DONE = "TOGGLE_NITNEM_DONE";
 export const MARK_NITNEM_AUTO_DONE = "MARK_NITNEM_AUTO_DONE";
 // Restore the whole nitnem slice at once (cross-device sync / GET /dashboard/latest)
 export const RESTORE_NITNEM = "RESTORE_NITNEM";
+
+// My Pothi — user-made folders of banis, ordered and pinned by the user
+export const CREATE_POTHI = "CREATE_POTHI";
+export const RENAME_POTHI = "RENAME_POTHI";
+export const DELETE_POTHI = "DELETE_POTHI";
+export const ADD_BANI_TO_POTHI = "ADD_BANI_TO_POTHI";
+export const REMOVE_BANI_FROM_POTHI = "REMOVE_BANI_FROM_POTHI";
+export const SET_POTHI_ORDER = "SET_POTHI_ORDER";
+export const TOGGLE_POTHI_PIN = "TOGGLE_POTHI_PIN";
+// Seeded once: Morning + Evening Nitnem. Tracked so a user who deletes them
+// does not find them back on the next launch.
+export const SEED_DEFAULT_POTHIS = "SEED_DEFAULT_POTHIS";
+// Cloud sync — folder-level last-write-wins against GET /folders.
+export const MERGE_REMOTE_POTHIS = "MERGE_REMOTE_POTHIS";
+export const SET_POTHIS_SYNCED_AT = "SET_POTHIS_SYNCED_AT";
+// One tombstone retired, after DELETE /folders/:id came back 204.
+export const POTHI_DELETE_SYNCED = "POTHI_DELETE_SYNCED";

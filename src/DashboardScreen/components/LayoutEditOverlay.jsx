@@ -5,10 +5,10 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
-import PropTypes from "prop-types";
 import { neutral } from "@theme/palette";
+import PropTypes from "prop-types";
+import { DragHandleIcon } from "@common/icons";
 import { CustomText, STRINGS, constant, actions, showErrorToast } from "@common";
 import useDashboardTheme from "./dashboardTheme";
 import { sectionLabel } from "./sectionRegistry";
@@ -60,19 +60,6 @@ const styles = StyleSheet.create({
   resetBtn: { alignItems: "center", paddingVertical: 18 },
   resetText: { fontSize: 14 },
 });
-
-// Drag handle (six-dot grip) — long-press anywhere on the row to reorder.
-const DragHandle = ({ color }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill={color}>
-    <Circle cx="9" cy="6" r="1.6" />
-    <Circle cx="15" cy="6" r="1.6" />
-    <Circle cx="9" cy="12" r="1.6" />
-    <Circle cx="15" cy="12" r="1.6" />
-    <Circle cx="9" cy="18" r="1.6" />
-    <Circle cx="15" cy="18" r="1.6" />
-  </Svg>
-);
-DragHandle.propTypes = { color: PropTypes.string.isRequired };
 
 const ThemedSwitchLite = ({ value, onToggle, accent, muted }) => (
   <Pressable
@@ -164,7 +151,7 @@ const LayoutEditOverlay = ({ visible, onClose }) => {
                 isActive && { backgroundColor: cardBg, borderBottomColor: "transparent" },
               ]}
             >
-              <DragHandle color={mutedText} />
+              <DragHandleIcon color={mutedText} />
               <CustomText
                 style={[styles.rowLabel, { color: isVisible ? primaryText : mutedText }]}
                 numberOfLines={1}

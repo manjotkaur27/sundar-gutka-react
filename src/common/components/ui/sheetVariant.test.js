@@ -54,7 +54,17 @@ describe("the flush sheet presentation is scoped to Settings", () => {
       .filter(({ rel }) => rel !== "theme/ScreenRolesProvider.jsx")
       .filter(({ text }) => /<ScreenRolesProvider/.test(text))
       .map(({ rel }) => rel);
-    expect(users).toEqual(["common/components/ui/Sheet.jsx"]);
+    // Sheet scopes itself for the flush variant. The four pothi sheets scope
+    // themselves because they open from Home and the Reader, which carry no
+    // screen palette — without this the same sheet was navy from Settings and
+    // a bare semantic grey everywhere else.
+    expect(users.sort()).toEqual([
+      "Pothi/components/AddBanisSheet.jsx",
+      "Pothi/components/AddToPothiSheet.jsx",
+      "Pothi/components/CreatePothiSheet.jsx",
+      "Pothi/components/PothiActionsSheet.jsx",
+      "common/components/ui/Sheet.jsx",
+    ]);
   });
 
   it("defaults to the floating presentation", () => {

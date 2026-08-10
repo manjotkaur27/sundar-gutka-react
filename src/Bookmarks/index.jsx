@@ -73,7 +73,7 @@ const Bookmarks = ({ navigation, route }) => {
       />
       <GradientDivider />
       <View style={{ flex: 1, backgroundColor: c.background }}>
-        <BaniList data={formattedData} onPress={onPress} isFolderScreen />
+        <BaniList data={formattedData} onPress={onPress} />
       </View>
     </SafeArea>
   );

@@ -76,6 +76,11 @@ const createStyles = (theme) => ({
   newHeaderGradientDivider: {
     marginTop: theme.spacing.sm,
   },
+  // The All Banis / Folders switch. Full-bleed: the tab bar carries its own bottom rule and sits flush against
+  // the list, so an inset here would leave the rule short of the screen edge.
+  tabs: {
+    backgroundColor: paletteFor("baniList", theme).surface,
+  },
 });
 
 export default createStyles;

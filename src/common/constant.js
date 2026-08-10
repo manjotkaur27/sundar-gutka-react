@@ -82,6 +82,8 @@ export default {
   WAKE_UP_JAP: "wake_up_jap",
   REMINDERS_WAKE_UP: "Reminders wake up jap",
   FOLDERSCREEN: "FolderScreen",
+  POTHI_READER: "PothiReader",
+  MY_POTHIS: "MyPothis",
   HOME_SCREEN: "Home Screen",
   ABOUT_SCREEN: "About Screen",
   FALLBACK_SCREEN: "Fallback Screen",

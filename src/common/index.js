@@ -26,6 +26,7 @@ import {
   trackReminderEvent,
   trackAudioEvent,
   trackSevaEvent,
+  trackPothiEvent,
   trackBaniOpen,
   trackBaniListen,
   trackBaniListenCompletion,
@@ -49,10 +50,10 @@ import {
   resetTrace,
 } from "./firebase/performance";
 import baseFontSize, { validateBaniOrder } from "./helpers";
-import { openInAppBrowser } from "./inAppBrowser";
 import useKeepAwake from "./hooks/keepAwake";
 import useBackHandler from "./hooks/useBackHandler";
 import useThemedStyles from "./hooks/useThemedStyles";
+import { openInAppBrowser } from "./inAppBrowser";
 import STRINGS from "./localization";
 import {
   updateReminders,
@@ -103,6 +104,7 @@ export {
   trackReaderEvent,
   trackAudioEvent,
   trackSevaEvent,
+  trackPothiEvent,
   trackReminderEvent,
   trackSettingEvent,
   updateReminders,

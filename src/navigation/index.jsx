@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { withScreenRoles } from "@theme/ScreenRolesProvider";
+import PropTypes from "prop-types";
 import { setReaderFocused } from "@common/readerFocus";
 import {
   navigationRef,
@@ -22,6 +23,8 @@ import EditBaniOrder from "../EditBaniOrder";
 import FolderScreen from "../FolderScreen";
 import HomeScreen from "../HomeScreen";
 import ManageDownloads from "../ManageDownloads";
+import MyPothisScreen from "../Pothi/MyPothisScreen";
+import PothiReaderScreen from "../Pothi/PothiReaderScreen";
 import ReaderScreen from "../ReaderScreen";
 import Settings from "../Settings";
 import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
@@ -46,6 +49,8 @@ const DatabaseUpdate = withScreenRoles(DatabaseUpdateScreen, "settings");
 const ManageDownloadsScreen = withScreenRoles(ManageDownloads, "settings");
 const About = withScreenRoles(AboutScreen, "settings");
 const BookmarksScreen = withScreenRoles(Bookmarks, "settings");
+// Reached from Settings, so it wears the same palette as its siblings.
+const MyPothis = withScreenRoles(MyPothisScreen, "settings");
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -63,11 +68,27 @@ const CustomTabBar = (props) => {
   return <BottomNavigation activeKey={activeKey} context="home" visible navigation={navigation} />;
 };
 
+CustomTabBar.propTypes = {
+  // Both come from the navigator, keyed by route key, so only the shape this
+  // component actually reads is described. `PropTypes.object` is forbidden and
+  // would say nothing anyway.
+  descriptors: PropTypes.objectOf(
+    PropTypes.shape({ options: PropTypes.shape({ tabBarStyle: PropTypes.shape() }) })
+  ).isRequired,
+  navigation: PropTypes.shape({ navigate: PropTypes.func }).isRequired,
+  state: PropTypes.shape({
+    index: PropTypes.number.isRequired,
+    routes: PropTypes.arrayOf(
+      PropTypes.shape({ key: PropTypes.string.isRequired, name: PropTypes.string.isRequired })
+    ).isRequired,
+  }).isRequired,
+};
+
 // Main tab navigator for Home, Dashboard, Seva, Settings
 const MainTabs = () => {
   return (
     <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={CustomTabBar}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -162,6 +183,12 @@ const Navigation = () => {
         <Stack.Screen
           name="FolderScreen"
           component={FolderScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="MyPothis" component={MyPothis} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="PothiReader"
+          component={PothiReaderScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

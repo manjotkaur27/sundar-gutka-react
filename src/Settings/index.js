@@ -61,6 +61,13 @@ const Settings = ({ navigation, route = undefined }) => {
   const { navigate } = navigation;
   const { c, layout } = useTokens();
   const { scrollViewProps, Indicator } = useCustomScrollbar();
+  const {
+    onContentSizeChange,
+    onLayout,
+    onScroll,
+    scrollEventThrottle,
+    showsVerticalScrollIndicator,
+  } = scrollViewProps;
 
   const { DISPLAY_OPTIONS, BANI_OPTIONS, OTHER_OPTIONS, AUDIO, about, databaseUpdate } = STRINGS;
   const language = useSelector((state) => state.language);
@@ -78,7 +85,11 @@ const Settings = ({ navigation, route = undefined }) => {
       {isDatabaseUpdateAvailable && <DatabaseUpdateBanner navigate={navigate} />}
       <View style={{ flex: 1, backgroundColor: c.backgroundAlt }}>
         <Animated.ScrollView
-          {...scrollViewProps}
+          showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+          scrollEventThrottle={scrollEventThrottle}
+          onScroll={onScroll}
+          onContentSizeChange={onContentSizeChange}
+          onLayout={onLayout}
           contentContainerStyle={{ paddingBottom: layout.screenPaddingBottom }}
         >
           <SettingsSection title={STRINGS.ACCOUNT}>
@@ -113,6 +124,12 @@ const Settings = ({ navigation, route = undefined }) => {
           </SettingsSection>
 
           <SettingsSection title={OTHER_OPTIONS}>
+            <ListItemWithIcon
+              iconName="folder"
+              title={STRINGS.MY_POTHIS}
+              navigate={navigate}
+              navigationTarget="MyPothis"
+            />
             <CollectStatistics />
             <RevisitTutorial />
             <Donate />
@@ -143,7 +160,12 @@ const Settings = ({ navigation, route = undefined }) => {
 };
 
 Settings.propTypes = {
-  navigation: PropTypes.shape({ navigate: PropTypes.func, setOptions: PropTypes.func }).isRequired,
+  navigation: PropTypes.shape({
+    canGoBack: PropTypes.func,
+    goBack: PropTypes.func,
+    navigate: PropTypes.func,
+    setOptions: PropTypes.func,
+  }).isRequired,
   route: PropTypes.shape({ params: PropTypes.shape({ fromReader: PropTypes.bool }) }),
 };
 

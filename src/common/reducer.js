@@ -1,6 +1,7 @@
 import { combineReducers } from "@reduxjs/toolkit";
 import * as actionTypes from "./actions/actionTypes";
 import constant from "./constant";
+import * as pothiModel from "./pothi/model";
 
 const createReducer =
   (initialState, handlers) =>
@@ -614,6 +615,47 @@ const todaysNitnem = createReducer(
   },
 );
 
+// My Pothi. Every transition delegates to `pothi/model`, which owns the rules
+// (the pin ceiling, de-duplication, what an unpinned pothi's slot becomes) and
+// is tested without a store. This reducer only routes.
+//
+// REHYDRATE runs the persisted payload through `reconcile` rather than trusting
+// it: it is user data that outlives the build that wrote it, so a pothi deleted
+// in one version, or a pin count from before the ceiling existed, must not come
+// back and put the list into a state the UI cannot render.
+const pothis = createReducer(pothiModel.emptyPothis(), {
+  "persist/REHYDRATE": (state, action) =>
+    action.payload?.pothis ? pothiModel.reconcile(action.payload.pothis) : state,
+  [actionTypes.CREATE_POTHI]: (state, action) => pothiModel.addPothi(state, action.value),
+  [actionTypes.RENAME_POTHI]: (state, action) =>
+    pothiModel.renamePothi(state, action.payload.id, action.payload.name),
+  [actionTypes.DELETE_POTHI]: (state, action) => pothiModel.deletePothi(state, action.value),
+  [actionTypes.ADD_BANI_TO_POTHI]: (state, action) =>
+    pothiModel.addBani(state, action.payload.id, action.payload.item),
+  [actionTypes.REMOVE_BANI_FROM_POTHI]: (state, action) =>
+    pothiModel.removeBani(state, action.payload.id, action.payload.baaniId),
+  [actionTypes.SET_POTHI_ORDER]: (state, action) => pothiModel.setOrder(state, action.value),
+  [actionTypes.TOGGLE_POTHI_PIN]: (state, action) => pothiModel.togglePin(state, action.value),
+  // Marked seeded even when the list is empty, so the check short-circuits and
+  // the bani database is not re-scanned on every launch.
+  [actionTypes.SEED_DEFAULT_POTHIS]: (state, action) => ({
+    ...(action.value ?? []).reduce((acc, pothi) => pothiModel.addPothi(acc, pothi), state),
+    seededDefaults: true,
+  }),
+  [actionTypes.MERGE_REMOTE_POTHIS]: (state, action) =>
+    pothiModel.mergeRemote(state, action.value ?? []),
+  [actionTypes.POTHI_DELETE_SYNCED]: (state, action) =>
+    pothiModel.clearTombstone(state, action.value),
+  // This slice deliberately does NOT handle CLEAR_AUTH_SESSION or
+  // SET_AUTH_SESSION. Reacting to the auth actions coupled My Pothi to the
+  // sign-in/sign-out path, which is not this feature's business — the auth
+  // flow must behave exactly as it did before My Pothi existed.
+  [actionTypes.SET_POTHIS_SYNCED_AT]: (state, action) => ({
+    ...state,
+    lastSyncedAt: action.value ?? null,
+  }),
+});
+
 const rootReducer = combineReducers({
   donor,
   donorType,
@@ -676,5 +718,6 @@ const rootReducer = combineReducers({
   auth,
   dashboardLayout,
   todaysNitnem,
+  pothis,
 });
 export default rootReducer;

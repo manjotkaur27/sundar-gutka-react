@@ -23,6 +23,7 @@ import {
   trackScrollProgress,
   trackNavBar,
 } from "@common";
+import AddToPothiSheet from "../Pothi/components/AddToPothiSheet";
 import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
@@ -38,6 +39,12 @@ const BARS_IDLE_HIDE_MS = 4000;
 // drift apart. This is NOT the header overlay height: the header floats OVER
 // the page, while this is where the page itself starts.
 const WEBVIEW_TOP_MARGIN = 60;
+
+// React Native's own global. Read once here, so the dangling-underscore rule —
+// which exists to stop US inventing such names — is waived in one place rather
+// than at the JSX attribute, where a comment cannot go.
+// eslint-disable-next-line no-underscore-dangle
+const isDevBuild = Boolean(global.__DEV__);
 
 const Reader = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -100,6 +107,7 @@ const Reader = ({ navigation, route }) => {
   // so it can re-send the scroll command after a WKWebView remount (iOS drops
   // postMessages sent to a stale WebView instance).
   const [webViewLoadTick, setWebViewLoadTick] = useState(0);
+  const [addingToPothi, setAddingToPothi] = useState(false);
   const [titleText, setTitleText] = useState(null);
   const readSavedPosition = (entry) => {
     if (!entry) return { elementId: null, sequence: null };
@@ -340,7 +348,7 @@ const Reader = ({ navigation, route }) => {
   // blocked. The guard is cleared after the WebView has had time to
   // process the scrollToPosition message.
   useEffect(() => {
-    if (Platform.OS !== "ios") return;
+    if (Platform.OS !== "ios") return undefined;
 
     const unsubscribeFocus = navigation.addListener("focus", () => {
       if (!iPadScrollGuardRef.current) return;
@@ -453,6 +461,9 @@ const Reader = ({ navigation, route }) => {
     navigation.navigate(constant.BOOKMARKS, { id });
   }, [navigation, id]);
 
+  // Filing the shabad the user is reading, without leaving it.
+  const handleAddToPothiPress = useCallback(() => setAddingToPothi(true), []);
+
   const handleMessage = useCallback(
     (message) => {
       if (isPlayerDragging) {
@@ -518,8 +529,6 @@ const Reader = ({ navigation, route }) => {
         // catches up once the user actually scrolls. (Must be checked before the
         // generic scroll-progress- branch below, whose prefix this also matches.)
         const pct = parseFloat(data.split("scroll-progress-restore-")[1]);
-        // [SGDBG temp] confirm the restore fills the bar to the saved position.
-        console.log(`SGDBG restore-progress pct=${pct} id=${id}`);
         if (Number.isFinite(pct)) {
           Animated.timing(scrollProgressAnim, {
             toValue: pct,
@@ -620,7 +629,13 @@ const Reader = ({ navigation, route }) => {
         title={titleText}
         handleBackPress={handleBackPress}
         handleBookmarkPress={handleBookmarkPress}
+        handleAddToPothiPress={handleAddToPothiPress}
         isHeader={isHeader}
+      />
+      <AddToPothiSheet
+        visible={addingToPothi}
+        onClose={() => setAddingToPothi(false)}
+        bani={{ id, gurmukhi: title, gurmukhiUni: titleUni }}
       />
       {isLoading && <ActivityIndicator size="small" color={theme.c.primary} />}
       {/* Don't mount the WebView until the shabad has loaded. Mounting on the
@@ -631,7 +646,7 @@ const Reader = ({ navigation, route }) => {
       {shabad.length > 0 && (
         <WebView
           key={webViewKey}
-          webviewDebuggingEnabled={__DEV__}
+          webviewDebuggingEnabled={isDevBuild}
           javaScriptEnabled
           originWhitelist={["*"]}
           onLoadStart={handleLoadStart}

@@ -29,6 +29,7 @@ const SheetContent = ({
   scrollable = true,
   testID = undefined,
   variant = "floating",
+  footer = null,
 }) => {
   // Two presentations, both driven entirely by tokens.
   //
@@ -64,9 +65,18 @@ const SheetContent = ({
   // Flush rows carry their own dividers and butt up against each other, so the
   // body neither gaps them nor pads the last one away from the edge.
   const bodyGap = flush ? 0 : space.sm;
+  // `flexShrink: 1` is what lets a pinned `footer` win the space it needs: the
+  // sheet is capped at a ratio of the window, so without it the body keeps its
+  // full content height and pushes the footer straight off the bottom of the
+  // screen. That is exactly what put the Punjabi keyboard half off-display once
+  // a bani list opened above it.
   const bodyProps = scrollable
-    ? { contentContainerStyle: { gap: bodyGap, paddingBottom: bodyGap }, bounces: false }
-    : { style: { gap: bodyGap } };
+    ? {
+        style: { flexShrink: 1 },
+        contentContainerStyle: { gap: bodyGap, paddingBottom: bodyGap },
+        bounces: false,
+      }
+    : { style: { gap: bodyGap, flexShrink: 1 } };
 
   // Unmount only once the closing slide has finished.
   if (!mounted) return null;
@@ -153,21 +163,9 @@ const SheetContent = ({
               maxHeight: availableHeight * layout.sheet.maxHeightRatio,
             }}
           >
-            {flush ? null : (
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-                style={{
-                  alignSelf: "center",
-                  width: layout.sheet.handleWidth,
-                  height: layout.sheet.handleHeight,
-                  borderRadius: radii.pill,
-                  backgroundColor: sheetC.divider,
-                  marginBottom: space.md,
-                }}
-              />
-            )}
-
+            {/* No drag handle. It suggested a gesture the sheet does not
+                implement — dismissal is the scrim and the Cancel button — and
+                it was asked to go from every sheet. */}
             {title ? (
               <Text
                 // Flush titles sit at body size, centred — the same treatment
@@ -200,6 +198,13 @@ const SheetContent = ({
                 so its props differ by type. */}
             {/* eslint-disable-next-line react/jsx-props-no-spreading */}
             <Body {...bodyProps}>{children}</Body>
+
+            {/* Pinned: OUTSIDE the body, so it never scrolls away and never
+                gets pushed past the bottom edge. This is the standard bottom
+                sheet footer arrangement (gorhom's BottomSheetFooter does the
+                same) and it is what an on-screen keyboard needs — the keys stay
+                put at the bottom while the content above them scrolls. */}
+            {footer}
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -216,6 +221,8 @@ const sheetPropTypes = {
   closeAccessibilityLabel: PropTypes.string,
   /** Set false when the content manages its own scrolling (e.g. a FlatList). */
   scrollable: PropTypes.bool,
+  /** Pinned below the scrolling body — an on-screen keyboard, a sticky action. */
+  footer: PropTypes.node,
   testID: PropTypes.string,
   /** "floating" everywhere; "flush" only for the Settings chooser. */
   variant: PropTypes.oneOf(["floating", "flush"]),

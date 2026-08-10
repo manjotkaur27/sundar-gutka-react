@@ -109,6 +109,21 @@ const layout = {
     handleHeight: 4,
     /** A sheet never covers the whole screen; the ground stays visible. */
     maxHeightRatio: 0.9,
+    /**
+     * How much of the WINDOW a scrolling pick-list inside a sheet may take.
+     *
+     * Ratios, not point heights. A fixed slab (this was 240pt, and 360pt in the
+     * other picker) is right on exactly one device: on a short screen it pushed
+     * the sheet's own buttons — and the on-screen keyboard below them — off the
+     * bottom of the display, and on a tall one it wasted the space it did have.
+     * A ratio of the live `useWindowDimensions()` height scales with the device
+     * and re-measures on rotation.
+     */
+    listMaxHeightRatio: 0.3,
+    /** The same list once the in-app keyboard is up and wants the lower half. */
+    listMaxHeightRatioWithKeyboard: 0.16,
+    /** Below this a list is not worth showing; the sheet scrolls instead. */
+    listMinHeight: 120,
   },
 
   dialog: {
