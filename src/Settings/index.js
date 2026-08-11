@@ -124,12 +124,6 @@ const Settings = ({ navigation, route = undefined }) => {
           </SettingsSection>
 
           <SettingsSection title={OTHER_OPTIONS}>
-            <ListItemWithIcon
-              iconName="folder"
-              title={STRINGS.MY_POTHIS}
-              navigate={navigate}
-              navigationTarget="MyPothis"
-            />
             <CollectStatistics />
             <RevisitTutorial />
             <Donate />
