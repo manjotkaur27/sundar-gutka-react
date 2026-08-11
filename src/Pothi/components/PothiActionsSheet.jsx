@@ -5,13 +5,14 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
-import { actions, showConfirm, showToast, STRINGS, trackPothiEvent } from "@common";
+import { actions, STRINGS, trackPothiEvent } from "@common";
 import {
   Button,
   GurmukhiKeyboard,
   GurmukhiKeyboardToggle,
   Sheet,
 } from "../../common/components/ui";
+import useDeletePothi from "../hooks/useDeletePothi";
 import useRequireOnline from "../hooks/useRequireOnline";
 import PothiNameField from "./PothiNameField";
 
@@ -27,21 +28,24 @@ import PothiNameField from "./PothiNameField";
 // Deleting asks first, and the confirmation says explicitly that the banis
 // themselves survive — a folder of scripture disappearing is alarming enough
 // that "Delete" alone is not an honest label.
-const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
+const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = false }) => {
   const { space } = useTokens();
   const dispatch = useDispatch();
   const requireOnline = useRequireOnline();
+  const confirmDelete = useDeletePothi();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
   const [gurmukhi, setGurmukhi] = useState(false);
   // Reopening on a different pothi starts from that pothi's current name.
   useEffect(() => {
     if (visible) {
-      setRenaming(false);
+      // Opened from the folder screen's overflow, rename IS the action, so the
+      // sheet starts there rather than on the delete/rename choice row.
+      setRenaming(startRenaming);
       setGurmukhi(false);
       setName(pothi?.name ?? "");
     }
-  }, [visible, pothi]);
+  }, [visible, pothi, startRenaming]);
 
   if (!pothi) return null;
 
@@ -52,29 +56,13 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
     onClose();
   };
 
-  // The same compact confirm the audio player raises for "Remove offline
-  // audio?" — a small card with plain text actions and the destructive one in
-  // red, rather than a second full sheet of buttons stacked over this one.
-  //
   // The pothi is captured here because the sheet closes first: once it does,
   // `pothi` is null and this component renders nothing, while the confirm is
   // hosted at the app root and outlives it.
   const askDelete = () => {
-    const { id, count } = pothi;
+    const target = pothi;
     onClose();
-    showConfirm({
-      title: STRINGS.POTHI_DELETE,
-      message: STRINGS.POTHI_DELETE_CONFIRM,
-      cancelText: STRINGS.CANCEL,
-      confirmText: STRINGS.POTHI_DELETE,
-      destructive: true,
-      onConfirm: () => {
-        if (!requireOnline()) return;
-        dispatch(actions.deletePothi(id));
-        trackPothiEvent("deleted", { size: count });
-        showToast(STRINGS.POTHI_DELETED, "success");
-      },
-    });
+    confirmDelete(target);
   };
 
   const actionRow = (children) => (
@@ -178,6 +166,8 @@ PothiActionsSheet.propTypes = {
   }),
   visible: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
+  /** Opens straight into rename, for a caller whose only action is renaming. */
+  startRenaming: PropTypes.bool,
 };
 
 export default PothiActionsSheet;

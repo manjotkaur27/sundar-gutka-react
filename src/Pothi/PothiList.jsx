@@ -1,20 +1,20 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, View } from "react-native";
 import DraggableFlatList, { ScaleDecorator } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
-import { DragHandleIcon, PlusIcon } from "@common/icons";
+import { DragHandleIcon } from "@common/icons";
 import { countPinned, emptyPothis, MAX_PINNED } from "@common/pothi/model";
 import { folderTabRows, resolveBanis } from "@common/pothi/selectors";
 import { actions, STRINGS, trackPothiEvent, useCustomScrollbar } from "@common";
-import { Text } from "../common/components/ui";
-import AddBanisSheet from "./components/AddBanisSheet";
+import { ListSeparator, Text } from "../common/components/ui";
+import NewPothiRow from "./components/NewPothiRow";
 import PothiActionsSheet from "./components/PothiActionsSheet";
 import PothiRow from "./components/PothiRow";
-import PothiShabadRow from "./components/PothiShabadRow";
+import usePothiTitle from "./hooks/usePothiTitle";
 import useRequireOnline from "./hooks/useRequireOnline";
 import useSignedOutPothiHint from "./hooks/useSignedOutPothiHint";
 
@@ -29,7 +29,7 @@ import useSignedOutPothiHint from "./hooks/useSignedOutPothiHint";
 // (see `pothi/selectors`), and only the user's lane is handed to
 // DraggableFlatList — dragging a bundled folder would imply an order that is
 // not the user's to change and that nothing would persist.
-const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
+const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => {
   const { c, space, layout } = useTokens();
   // The same ground the bani list draws on, so the two tabs are one surface.
   const ground = useScreenPalette("baniList").surface;
@@ -41,20 +41,42 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
   const requireOnline = useRequireOnline();
   // The app-wide themed scrollbar, not a standalone one.
   const { ownedScrollProps, Indicator } = useCustomScrollbar();
+  const { titleFor, variantFor } = usePothiTitle();
   useSignedOutPothiHint();
-  const [expanded, setExpanded] = useState({});
   // The pothi whose rename/delete sheet is open, or null.
   const [acting, setActing] = useState(null);
-  // The pothi whose bani picker is open, or null.
-  const [filling, setFilling] = useState(null);
 
   const rows = useMemo(() => folderTabRows(pothis, baniListData), [pothis, baniListData]);
-  const mine = useMemo(() => rows.filter((row) => !row.system), [rows]);
   const bundled = useMemo(() => rows.filter((row) => row.system), [rows]);
+  // A PINNED pothi is anchored: it is not in the draggable list at all.
+  //
+  // Withholding its drag handle was not enough. It still sat inside
+  // DraggableFlatList's data, so another row could be dragged over or past it
+  // and the pinned block visibly moved — then snapped back on the next render,
+  // because `listPothis` re-anchors pinned to the top and only unpinned ids are
+  // saved. Keeping them in a separate, non-draggable block means the drag
+  // cannot reach them and there is nothing to snap back.
+  const pinned = useMemo(() => rows.filter((row) => !row.system && row.pinned), [rows]);
+  const mine = useMemo(() => rows.filter((row) => !row.system && !row.pinned), [rows]);
 
-  const toggle = useCallback((id) => {
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
+  // A pothi's banis open on their own screen, in the ordinary All Banis list,
+  // so a bani inside a pothi behaves exactly as it does anywhere else — the
+  // same rows, the same press, the same reader. The title is resolved here
+  // because only this side knows whether the name is a bundled folder's ASCII
+  // or something the user typed; see usePothiTitle.
+  const openPothi = useCallback(
+    (row) => {
+      trackPothiEvent("opened", { size: row.count, system: row.system });
+      onOpenPothi({
+        data: resolveBanis(row.baniIds, baniListData),
+        title: titleFor(row),
+        titleVariant: variantFor(row),
+        // Only a user pothi is editable; a bundled folder sends none.
+        pothiId: row.system ? null : row.id,
+      });
+    },
+    [baniListData, onOpenPothi, titleFor, variantFor]
+  );
 
   const togglePin = useCallback(
     (row) => {
@@ -71,48 +93,17 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
     [dispatch, pothis, onPinLimit, requireOnline]
   );
 
-  const contentsOf = useCallback(
-    (row) =>
-      resolveBanis(row.baniIds, baniListData).map((bani, index) => (
-        <PothiShabadRow
-          key={`${row.id}-${bani.id}`}
-          bani={bani}
-          // The pothi row above already ends in a rule.
-          showSeparator={index > 0}
-          onPress={() => onOpenBani(bani)}
-          onRemove={
-            row.system
-              ? null
-              : () => {
-                  if (!requireOnline()) return;
-                  trackPothiEvent("bani_removed", { bani_id: bani.id });
-                  dispatch(actions.removeBaniFromPothi(row.id, bani.id));
-                }
-          }
-        />
-      )),
-    [baniListData, dispatch, onOpenBani, requireOnline]
-  );
-
   const renderPothi = useCallback(
-    (row, { drag = null, isActive = false } = {}) => (
+    (row, { drag = null } = {}) => (
       <PothiRow
         pothi={row}
-        expanded={Boolean(expanded[row.id]) && !isActive}
-        onToggle={() => toggle(row.id)}
+        onOpen={() => openPothi(row)}
         onTogglePin={row.system ? null : () => togglePin(row)}
         onLongPress={
           row.system
             ? null
             : () => {
                 if (requireOnline()) setActing(row);
-              }
-        }
-        onAddBanis={
-          row.system
-            ? null
-            : () => {
-                if (requireOnline()) setFilling(row.id);
               }
         }
         dragHandle={
@@ -128,26 +119,9 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
             </Pressable>
           ) : null
         }
-      >
-        {contentsOf(row)}
-      </PothiRow>
-    ),
-    [expanded, toggle, togglePin, contentsOf, requireOnline, layout, c]
-  );
-
-  // Inset on both sides, so it lines up with the row's text and stops short of
-  // the screen edge — the same rule the bani list's separator follows.
-  const Separator = useCallback(
-    () => (
-      <View
-        style={{
-          height: StyleSheet.hairlineWidth,
-          backgroundColor: c.border,
-          marginHorizontal: layout.screenGutter,
-        }}
       />
     ),
-    [c, layout]
+    [openPothi, togglePin, requireOnline, layout, c]
   );
 
   // Both standing notices are gone from the list itself.
@@ -161,30 +135,21 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
     // No paddingBottom: the New Pothi row carries a list row's own vertical
     // padding, so any here doubles the gap before the first pothi.
     <View style={{ paddingTop: space.md_12 }}>
-      <Pressable
-        // No local requireOnline() wrapper: onCreatePress (usePothiActions'
-        // openCreate) already does its own complete gating — sign-in first
-        // (redirecting to Settings), then connectivity.
-        onPress={onCreatePress}
-        accessibilityRole="button"
-        accessibilityLabel={STRINGS.POTHI_NEW}
-        style={({ pressed }) => ({
-          flexDirection: "row",
-          alignItems: "center",
-          gap: space.md,
-          // Matched to PothiRow so the action reads as the first row of the
-          // list rather than a smaller control floating above it.
-          minHeight: layout.row.minHeight,
-          paddingHorizontal: layout.screenGutter,
-          paddingVertical: space.lg,
-          backgroundColor: pressed ? c.surfaceSelected : "transparent",
-        })}
-      >
-        <PlusIcon size={22} color={c.accent} />
-        <Text variant="body" color="accent">
-          {STRINGS.POTHI_NEW}
-        </Text>
-      </Pressable>
+      {/* No local requireOnline() wrapper: onCreatePress (usePothiActions'
+          openCreate) already does its own complete gating — sign-in first
+          (redirecting to Settings), then connectivity. */}
+      <NewPothiRow onPress={onCreatePress} />
+
+      {/* The pinned block, above the draggable list and outside it. Rendered
+          with the same row and the same separators, so it reads as one list —
+          it simply cannot be dragged, which is what being pinned means. */}
+      {pinned.map((row, index) => (
+        <View key={row.id}>
+          {index > 0 && <ListSeparator />}
+          {renderPothi(row)}
+        </View>
+      ))}
+      {pinned.length > 0 && mine.length > 0 && <ListSeparator />}
     </View>
   );
 
@@ -211,7 +176,7 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
         {sectionLabel(STRINGS.POTHI_DEFAULT_FOLDERS)}
         {bundled.map((row, index) => (
           <View key={row.id}>
-            {index > 0 && <Separator />}
+            {index > 0 && <ListSeparator />}
             {renderPothi(row)}
           </View>
         ))}
@@ -244,19 +209,19 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
       <DraggableFlatList
         data={mine}
         keyExtractor={(row) => row.id}
-        // Pinned rows are excluded from the drag result before it is saved, so a
-        // drag can never reorder the pinned lane.
+        // `data` is the unpinned lane only, so the result needs no filtering:
+        // a pinned pothi is never in this list to be moved in the first place.
         onDragEnd={({ data }) => {
           if (!requireOnline()) return;
-          const next = data.filter((row) => !row.pinned).map((row) => row.id);
+          const next = data.map((row) => row.id);
           trackPothiEvent("reordered", { count: next.length });
           dispatch(actions.setPothiOrder(next));
         }}
         activationDistance={12}
-        renderItem={({ item, drag, isActive }) => (
-          <ScaleDecorator>{renderPothi(item, { drag, isActive })}</ScaleDecorator>
+        renderItem={({ item, drag }) => (
+          <ScaleDecorator>{renderPothi(item, { drag })}</ScaleDecorator>
         )}
-        ItemSeparatorComponent={Separator}
+        ItemSeparatorComponent={ListSeparator}
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={footer}
@@ -272,13 +237,10 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
         {...ownedScrollProps}
       />
       {Indicator}
+      {/* Adding banis is NOT offered here. A pothi's contents are edited from
+          its own screen's overflow, where the list you are changing is in front
+          of you — see FolderScreen. */}
       <PothiActionsSheet pothi={acting} visible={acting !== null} onClose={() => setActing(null)} />
-      <AddBanisSheet
-        pothiId={filling}
-        visible={filling !== null}
-        onClose={() => setFilling(null)}
-        baniListData={baniListData}
-      />
     </GestureHandlerRootView>
   );
 };
@@ -286,7 +248,8 @@ const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
 PothiList.propTypes = {
   /** Rows from `useBaniList()` — the source for both bundled folders and id lookup. */
   baniListData: PropTypes.arrayOf(PropTypes.shape()).isRequired,
-  onOpenBani: PropTypes.func.isRequired,
+  /** Opens a pothi's banis on their own screen. */
+  onOpenPothi: PropTypes.func.isRequired,
   onCreatePress: PropTypes.func.isRequired,
   /** Called instead of pinning when the user is already at the ceiling. */
   onPinLimit: PropTypes.func.isRequired,

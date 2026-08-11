@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { MAX_PINNED } from "@common/pothi/model";
-import { actions, constant, showToast, STRINGS, trackPothiEvent } from "@common";
+import { actions, constant, showToast, STRINGS } from "@common";
 import useRequireOnline from "./useRequireOnline";
+import useRequireSignIn from "./useRequireSignIn";
 
 /**
  * Everything the Folders list needs from its host screen.
@@ -16,10 +17,10 @@ import useRequireOnline from "./useRequireOnline";
  */
 const usePothiActions = (navigate) => {
   const dispatch = useDispatch();
-  const isSignedIn = useSelector((state) => state.auth?.status === "signedIn");
   // Covers connectivity too, so Create keeps refusing offline exactly as
   // before — this just adds the sign-in half of the same gate.
   const requireOnline = useRequireOnline();
+  const requireSignIn = useRequireSignIn(navigate);
   const [creating, setCreating] = useState(false);
 
   // Opening a single shabad from inside a pothi is the same navigation the bani
@@ -35,16 +36,16 @@ const usePothiActions = (navigate) => {
     [dispatch, navigate]
   );
 
+  // Opens a pothi's banis as an ordinary bani list on its own screen, rather
+  // than expanding a second list inside the first. FolderScreen is that list —
+  // it already renders `BaniList` and opens a bani exactly as All Banis does,
+  // so a bani reached through a pothi behaves identically to one reached
+  // anywhere else. The caller resolves the rows and the title; see PothiList.
   const openPothi = useCallback(
-    (pothi) => {
-      trackPothiEvent("opened", { size: pothi.count, system: pothi.system });
-      dispatch(actions.toggleAudio(false));
-      navigate(constant.POTHI_READER, {
-        key: `Pothi-${pothi.id}`,
-        params: { pothiId: pothi.id, title: pothi.titleUni || pothi.name, baniIds: pothi.baniIds },
-      });
+    (payload) => {
+      navigate(constant.FOLDERSCREEN, { params: payload });
     },
-    [dispatch, navigate]
+    [navigate]
   );
 
   const onPinLimit = useCallback(
@@ -52,21 +53,15 @@ const usePothiActions = (navigate) => {
     []
   );
 
-  // Signed out, tapping "+ New Pothi" does not open the create sheet at all —
-  // there is nowhere for a signed-out pothi to sync to (see usePothiSync) — it
-  // sends the user to Settings to sign in instead. `requireOnline` covers
-  // every OTHER mutation with a toast alone; this one extra step is specific
-  // to the entry point that would otherwise dead-end the user in a sheet they
-  // cannot submit.
+  // Signed out, tapping "+ New Pothi" does not open the create sheet at all: it
+  // sends the user to Settings to sign in. See useRequireSignIn, which the
+  // Reader's add-to-pothi action shares — the two entry points that would
+  // otherwise dead-end in a sheet the user cannot submit.
   const openCreate = useCallback(() => {
-    if (!isSignedIn) {
-      showToast(STRINGS.POTHI_SIGN_IN_REQUIRED);
-      navigate(constant.SETTINGS);
-      return;
-    }
+    if (!requireSignIn()) return;
     if (!requireOnline()) return;
     setCreating(true);
-  }, [isSignedIn, requireOnline, navigate]);
+  }, [requireSignIn, requireOnline]);
 
   return {
     openBani,

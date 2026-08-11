@@ -4,10 +4,9 @@ import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { Text } from "../../common/components/ui";
 
-// One tickable bani, shared by the two multi-selects: PickBanisField (choosing
-// while the pothi is being created) and AddBanisSheet (filling one that already
-// exists). They were the same forty lines twice, which is how the two drifted
-// into having different row heights.
+// One tickable bani. Used by `PickBanisStep`, which is the app's only bani
+// multi-select, and by the folder screen's delete-selection mode — the two
+// places a bani is ticked rather than opened.
 const BaniPickRow = ({ title, checked, onPress, fontFamily = null }) => {
   const { c, space, radii, layout } = useTokens();
 
@@ -31,8 +30,8 @@ const BaniPickRow = ({ title, checked, onPress, fontFamily = null }) => {
           anyone who cannot separate the two hues. */}
       <View
         style={{
-          width: 22,
-          height: 22,
+          width: layout.checkbox,
+          height: layout.checkbox,
           borderRadius: radii.sm,
           borderWidth: layout.borderWidth.hairline,
           borderColor: checked ? c.accent : c.borderStrong,

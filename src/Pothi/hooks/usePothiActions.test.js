@@ -46,7 +46,9 @@ describe("usePothiActions.openCreate", () => {
 
     act(() => result.current.openCreate());
 
-    expect(navigate).toHaveBeenCalledWith("Settings");
+    // No route params from here: only the Reader passes any, so Settings can
+    // keep the reader's bottom bar. See useRequireSignIn.
+    expect(navigate).toHaveBeenCalledWith("Settings", undefined);
     expect(showToast).toHaveBeenCalledWith("Sign in required");
     expect(result.current.creating).toBe(false);
   });

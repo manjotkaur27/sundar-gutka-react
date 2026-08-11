@@ -23,6 +23,8 @@ import {
   trackScrollProgress,
   trackNavBar,
 } from "@common";
+import AddToPothiSheet from "../Pothi/components/AddToPothiSheet";
+import useRequireSignIn from "../Pothi/hooks/useRequireSignIn";
 import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
@@ -31,6 +33,11 @@ import { loadHTML } from "./utils";
 // How long the bars linger with no interaction before auto-hiding during
 // auto-scroll or audio playback.
 const BARS_IDLE_HIDE_MS = 4000;
+
+// Route params for the sign-in redirect out of this screen. A module constant,
+// so its identity is stable and the callback that depends on it is not rebuilt
+// on every render.
+const READER_SETTINGS_PARAMS = { fromReader: true };
 
 // The WebView's own top margin, and therefore where the scrollable viewport
 // actually begins. ReaderScrollbar's track must start at the SAME line or its
@@ -58,8 +65,7 @@ const Reader = ({ navigation, route }) => {
   // by this instead.
   //
   // Built from the same two tokens as the header itself, so they cannot drift.
-  const headerOverlayHeight =
-    theme.layout.header.topClearance + theme.layout.header.minHeight;
+  const headerOverlayHeight = theme.layout.header.topClearance + theme.layout.header.minHeight;
   // The reading theme styles the Bani surface. `theme` above stays the app
   // appearance and still drives everything outside this screen.
   //
@@ -107,6 +113,9 @@ const Reader = ({ navigation, route }) => {
   // postMessages sent to a stale WebView instance).
   const [webViewLoadTick, setWebViewLoadTick] = useState(0);
   const [titleText, setTitleText] = useState(null);
+  // Whether the add-to-pothi sheet is up. Signed out it never opens — see
+  // handleAddToPothiPress.
+  const [filing, setFiling] = useState(false);
   const readSavedPosition = (entry) => {
     if (!entry) return { elementId: null, sequence: null };
     if (typeof entry === "string") return { elementId: entry, sequence: null };
@@ -284,7 +293,7 @@ const Reader = ({ navigation, route }) => {
   useEffect(() => {
     if (!webViewRef.current) return;
     webViewRef.current.postMessage(
-      JSON.stringify({ action: "setBottomInset", value: navChromeHeight }),
+      JSON.stringify({ action: "setBottomInset", value: navChromeHeight })
     );
   }, [navChromeHeight, webViewLoadTick]);
 
@@ -389,7 +398,7 @@ const Reader = ({ navigation, route }) => {
         isPunjabiTranslation,
         isSpanishTranslation,
         readerTheme,
-        isLarivaar,
+        isLarivaar
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",
     };
@@ -458,6 +467,25 @@ const Reader = ({ navigation, route }) => {
   const handleBookmarkPress = useCallback(() => {
     navigation.navigate(constant.BOOKMARKS, { id });
   }, [navigation, id]);
+
+  // The same gate "+ New Pothi" uses: signed out, this does not open a sheet
+  // the user cannot submit — it says why and takes them to Settings to sign in.
+  // `fromReader` keeps the reader's bottom bar there, as the nav's own Settings
+  // button does.
+  const requireSignIn = useRequireSignIn(navigation.navigate, READER_SETTINGS_PARAMS);
+
+  const handleAddToPothiPress = useCallback(() => {
+    if (requireSignIn()) setFiling(true);
+  }, [requireSignIn]);
+
+  // The bani being read, in the shape the pothi model stores. `id` is coerced
+  // because a route param can arrive as a string and every stored `baaniId` is
+  // a number — a string would never match one and the sheet would show a bani
+  // it already holds as unticked.
+  const filingBani = useMemo(
+    () => ({ id: Number(id), gurmukhi: title, gurmukhiUni: titleUni }),
+    [id, title, titleUni]
+  );
 
   const handleMessage = useCallback(
     (message) => {
@@ -559,7 +587,7 @@ const Reader = ({ navigation, route }) => {
       isPlayerDragging,
       setBarsVisible,
       scheduleBarsIdleHide,
-    ],
+    ]
   );
 
   const handleLoadStart = useCallback(() => {
@@ -624,8 +652,14 @@ const Reader = ({ navigation, route }) => {
         title={titleText}
         handleBackPress={handleBackPress}
         handleBookmarkPress={handleBookmarkPress}
+        handleAddToPothiPress={handleAddToPothiPress}
         isHeader={isHeader}
       />
+      {/* The same sheet the Folders tab opens, so filing a bani from the reader
+          and filing one from a list are the one flow — including the "New
+          Pothi" row that creates a pothi and drops this bani straight into it,
+          without leaving the bani being read. */}
+      <AddToPothiSheet visible={filing} onClose={() => setFiling(false)} bani={filingBani} />
       {isLoading && <ActivityIndicator size="small" color={theme.c.primary} />}
       {/* Don't mount the WebView until the shabad has loaded. Mounting on the
           initial empty shabad ([]) renders a placeholder page whose height equals

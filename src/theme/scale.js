@@ -87,7 +87,7 @@ const scaleMap = (map, factor) =>
  * the shared header reads it through `useTokens` (scaled) while the Reader's own
  * header reads the raw theme. That is exactly how the two drifted apart.
  */
-const CONTAINER_KEYS = /^(minHeight|minHeightTwoLine|height|touchTarget|actionSize)$/;
+const CONTAINER_KEYS = /^(minHeight|minHeightTwoLine|height|touchTarget|actionSize|checkbox)$/;
 const UNSCALED_KEYS =
   /^(maxHeightRatio|durationMs|borderWidth|hairline|thick|focus|topClearance)$/;
 

@@ -1,13 +1,5 @@
 import React, { useCallback } from "react";
-import {
-  FlatList,
-  Animated,
-  View,
-  Platform,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, Animated, View, Platform, Pressable, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useBaniTitle from "@common/hooks/useBaniTitle";
@@ -15,6 +7,7 @@ import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { FolderIcon } from "@common/icons";
 import { baseFontSize, ListItemTitle, useCustomScrollbar } from "@common";
+import { ListSeparator } from "../ui";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
@@ -97,28 +90,6 @@ const BaniList = React.memo(({ data, onPress }) => {
     [c, space, layout, fontSize, titleFor, titleFontFamily, isTransliteration, onPress]
   );
 
-  // Drawn BETWEEN rows only — a FlatList separator never renders after the
-  // last item, so the list ends on whitespace instead of a stray line.
-  //
-  // Inset by the SAME gutter on both sides, so it lines up with the row's text
-  // on the left and stops short of the screen edge on the right. iOS insets
-  // only the leading edge, which leaves the line running into the right edge
-  // and reads as lopsided here. `layout.screenGutter` comes from the token
-  // layer, so this tracks the row padding and scales with the device width
-  // rather than being a fixed number.
-  const ItemSeparator = useCallback(
-    () => (
-      <View
-        style={{
-          height: StyleSheet.hairlineWidth,
-          backgroundColor: c.border,
-          marginHorizontal: layout.screenGutter,
-        }}
-      />
-    ),
-    [c, layout]
-  );
-
   return (
     // One flat ground, the same one the header sits on, so the list reads as a
     // continuation of the screen rather than a panel dropped onto it. It fills
@@ -133,7 +104,9 @@ const BaniList = React.memo(({ data, onPress }) => {
         contentContainerStyle={{ paddingBottom: space.xxl }}
         data={data}
         renderItem={renderBanis}
-        ItemSeparatorComponent={ItemSeparator}
+        // Drawn BETWEEN rows only — a FlatList separator never renders after the
+        // last item, so the list ends on whitespace instead of a stray line.
+        ItemSeparatorComponent={ListSeparator}
         keyExtractor={(item) => item.gurmukhi}
         // The scrollbar hook hands back a set of scroll handlers as one object;
         // spreading is how it is meant to be applied.

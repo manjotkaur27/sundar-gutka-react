@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { FolderIcon, PlusIcon } from "@common/icons";
 import {
   emptyPothis,
   listPothis,
@@ -13,9 +12,11 @@ import {
   SOURCE,
 } from "@common/pothi/model";
 import { actions, showToast, STRINGS, trackPothiEvent } from "@common";
-import { Sheet, Text } from "../../common/components/ui";
+import { ListSeparator, Sheet, Text } from "../../common/components/ui";
 import useRequireOnline from "../hooks/useRequireOnline";
 import CreatePothiSheet from "./CreatePothiSheet";
+import NewPothiRow from "./NewPothiRow";
+import PothiRow from "./PothiRow";
 
 // "Add to Pothi", opened from a shabad.
 //
@@ -27,10 +28,19 @@ import CreatePothiSheet from "./CreatePothiSheet";
 // Tapping a pothi that already holds the shabad is not an error and not a
 // silent no-op: the model returns the same state, and this reports "already in
 // {name}" rather than a success message that did nothing.
+
+/** Stable empty list, so a missing store slice does not churn memoised props. */
+const NO_BANIS = [];
 const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
   const { c, space, layout, radii } = useTokens();
   const dispatch = useDispatch();
   const pothis = useSelector((state) => state.pothis) ?? emptyPothis();
+  // Straight from the store rather than `useBaniList`. The list is already
+  // there by the time a shabad is open, and the hook mounts a fetching effect —
+  // this sheet is mounted on the Reader and usually never opened, so it must
+  // cost nothing until it is. Without it the create flow's second step opened
+  // on an empty list.
+  const baniListData = useSelector((state) => state.baniList) ?? NO_BANIS;
   const [creating, setCreating] = useState(false);
   const requireOnline = useRequireOnline();
 
@@ -51,34 +61,43 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
     onClose();
   };
 
-  const rowStyle = ({ pressed }) => ({
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md_12,
-    minHeight: layout.touchTarget,
-    paddingHorizontal: layout.screenGutter,
-    paddingVertical: space.md_12,
-    backgroundColor: pressed ? c.surfaceSelected : "transparent",
-  });
+  /** The tick on a pothi that already holds this shabad. */
+  const alreadyBadge = (
+    <View
+      style={{
+        paddingHorizontal: space.md,
+        paddingVertical: space.xs,
+        borderRadius: radii.pill,
+        backgroundColor: c.accentSubtle,
+      }}
+    >
+      <Text variant="caption" color="accent">
+        ✓
+      </Text>
+    </View>
+  );
 
   return (
     // Settings-scoped, like the other two pothi sheets — see CreatePothiSheet.
     <ScreenRolesProvider screen="settings">
+      {/* No ScrollView in here: the floating Sheet's own body already is one,
+          and nesting a second inside it gave two scrollers fighting over the
+          same drag. */}
       <Sheet visible={visible} onClose={onClose} title={STRINGS.POTHI_ADD_TO}>
-        <ScrollView keyboardShouldPersistTaps="handled">
-          <Pressable
+        {/* ONE child, so the sheet's gap between children falls under the title
+            and nowhere else. The rows are separated by the list's own hairline,
+            the way a list separates rows — an 8pt gap between each was what made
+            this read as a stack of cards rather than a list. */}
+        <View>
+          {/* The SAME two rows the Folders tab draws, not a second set built
+              here. This sheet had its own shorter row with a smaller glyph and
+              no divider, so the one thing it lists — a pothi — looked different
+              depending on which screen you were looking at it from. */}
+          <NewPothiRow
             onPress={() => {
               if (requireOnline()) setCreating(true);
             }}
-            accessibilityRole="button"
-            accessibilityLabel={STRINGS.POTHI_NEW}
-            style={rowStyle}
-          >
-            <PlusIcon size={22} color={c.accent} />
-            <Text variant="body" color="accent">
-              {STRINGS.POTHI_NEW}
-            </Text>
-          </Pressable>
+          />
 
           {rows.length === 0 ? (
             <Text
@@ -93,43 +112,32 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
             rows.map((pothi) => {
               const has = already.has(pothi.id);
               return (
-                <Pressable
-                  key={pothi.id}
-                  onPress={() => add(pothi)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: has }}
-                  accessibilityLabel={pothi.name}
-                  style={rowStyle}
-                >
-                  <FolderIcon size={22} color={c.textSecondary} />
-                  <Text variant="body" numberOfLines={2} style={{ flex: 1 }}>
-                    {pothi.name}
-                  </Text>
-                  {has && (
-                    <View
-                      style={{
-                        paddingHorizontal: space.md,
-                        paddingVertical: space.xs,
-                        borderRadius: radii.pill,
-                        backgroundColor: c.accentSubtle,
-                      }}
-                    >
-                      <Text variant="caption" color="accent">
-                        ✓
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
+                <View key={pothi.id}>
+                  <ListSeparator />
+                  <PothiRow
+                    // `listPothis` returns the stored pothi, which carries its
+                    // items but not the derived count the row shows.
+                    pothi={{ ...pothi, count: pothi.items.length }}
+                    onOpen={() => add(pothi)}
+                    // Filing, not opening — so the row says so to a screen
+                    // reader and wears the tick instead of the "Open Pothi"
+                    // arrow. Null on the ones it is not in: an empty trailing
+                    // slot, not the default affordance.
+                    actionLabel={STRINGS.POTHI_ADD_TO}
+                    trailing={has ? alreadyBadge : null}
+                  />
+                </View>
               );
             })
           )}
-        </ScrollView>
+        </View>
       </Sheet>
 
       <CreatePothiSheet
         visible={creating}
         onClose={() => setCreating(false)}
         seedBani={bani}
+        baniListData={baniListData}
         onCreated={(pothi) => {
           showToast(STRINGS.formatString(STRINGS.POTHI_ADDED, { name: pothi.name }), "success");
           onClose();

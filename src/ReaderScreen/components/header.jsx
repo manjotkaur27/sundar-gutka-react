@@ -1,13 +1,19 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Animated, Pressable } from "react-native";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { BackArrowIcon, BookmarkIcon } from "@common/icons";
+import { BackArrowIcon, BookmarkIcon, FolderIcon } from "@common/icons";
 import { CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
 
-const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
+const Header = ({
+  title,
+  handleBackPress,
+  handleBookmarkPress,
+  handleAddToPothiPress,
+  isHeader,
+}) => {
   const styles = useThemedStyles(createStyles);
   // This bar is opaque and physically contiguous with the Bani text, so it
   // follows the READING theme rather than the app appearance — otherwise a cream
@@ -29,6 +35,11 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
   // the resolved value directly makes them the same number by construction.
   const { layout } = useTokens();
   const animationPosition = useRef(new Animated.Value(0)).current;
+  // Width of the trailing slot, measured rather than assumed — the same
+  // technique the shared ScreenHeader uses. The title is centred by the two
+  // sides being EQUAL, and this side now holds two icons whose combined width
+  // depends on the device's font scale, so it cannot be a constant.
+  const [actionsWidth, setActionsWidth] = useState(0);
 
   const headerLeft = () => (
     <Pressable
@@ -40,19 +51,36 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
     </Pressable>
   );
 
-  // Bookmarks is the reader's one header action. `hitSlop` gives the glyph the
-  // 44pt target the platform asks for without growing the bar.
+  // The reader's two header actions: file this bani into a pothi, and open the
+  // bookmarks for it. `hitSlop` gives each glyph the 44pt target the platform
+  // asks for without growing the bar.
+  //
+  // Filing sits to the LEFT of bookmarks — it acts on the bani in front of you,
+  // where bookmarks navigates away, and the destination-changing control stays
+  // in the corner it has always been in.
   const headerRight = () => (
-    <Pressable
-      onPress={() => {
-        handleBookmarkPress();
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={STRINGS.bookmarks}
-      hitSlop={layout.hitSlop}
-    >
-      <BookmarkIcon size={25} color={headerForeground} />
-    </Pressable>
+    <>
+      <Pressable
+        onPress={() => {
+          handleAddToPothiPress();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.POTHI_ADD_TO}
+        hitSlop={layout.hitSlop}
+      >
+        <FolderIcon size={25} color={headerForeground} />
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          handleBookmarkPress();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.bookmarks}
+        hitSlop={layout.hitSlop}
+      >
+        <BookmarkIcon size={25} color={headerForeground} />
+      </Pressable>
+    </>
   );
 
   useEffect(() => {
@@ -106,7 +134,9 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
         pointerEvents="auto"
       >
         <View style={[styles.headerWrapper, { minHeight: layout.header.minHeight }]}>
-          <View style={styles.headerLeft}>{headerLeft()}</View>
+          {/* Given the trailing slot's measured width as a floor, so the two
+              sides are equal and the title lands on the screen's centre. */}
+          <View style={[styles.headerLeft, { minWidth: actionsWidth }]}>{headerLeft()}</View>
           <View style={styles.headerCenter}>
             {/* Header chrome, so the header face — NOT the user's bani font.
                 The title is the Unicode name, which Baloo renders correctly. */}
@@ -114,7 +144,12 @@ const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
               {title}
             </CustomText>
           </View>
-          <View style={styles.headerRight}>{headerRight()}</View>
+          <View
+            style={styles.headerRight}
+            onLayout={(e) => setActionsWidth(e.nativeEvent.layout.width)}
+          >
+            {headerRight()}
+          </View>
         </View>
       </View>
       {/* No colour override. GradientDivider already picks the right one: the
@@ -131,6 +166,8 @@ Header.propTypes = {
   title: PropTypes.string.isRequired,
   handleBackPress: PropTypes.func.isRequired,
   handleBookmarkPress: PropTypes.func.isRequired,
+  /** Opens the add-to-pothi sheet, or sends a signed-out user to Settings. */
+  handleAddToPothiPress: PropTypes.func.isRequired,
   isHeader: PropTypes.bool.isRequired,
 };
 export default Header;

@@ -10,6 +10,7 @@ export { default as Dialog } from "./Dialog";
 export { default as GurmukhiKeyboard } from "./GurmukhiKeyboard";
 export { default as GurmukhiKeyboardToggle } from "./GurmukhiKeyboardToggle";
 export { default as GurmukhiTextField } from "./GurmukhiTextField";
+export { default as ListSeparator } from "./ListSeparator";
 export { default as Row } from "./Row";
 export { default as ScreenHeader } from "./ScreenHeader";
 export { default as SegmentedTabs } from "./SegmentedTabs";

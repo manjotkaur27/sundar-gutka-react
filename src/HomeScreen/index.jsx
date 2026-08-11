@@ -45,7 +45,7 @@ const HomeScreen = React.memo(({ navigation }) => {
   const [tab, setTab] = useState(TAB_BANIS);
   // Shared with the standalone My Pothis screen, so the two entry points into
   // the same list cannot drift apart.
-  const { openBani, onPinLimit, creating, openCreate, closeCreate, onCreated } =
+  const { openPothi, onPinLimit, creating, openCreate, closeCreate, onCreated } =
     usePothiActions(navigate);
   useDatabaseUpdateCheck();
   // Seeds the two default pothis and keeps My Pothi in step with the account.
@@ -147,7 +147,7 @@ const HomeScreen = React.memo(({ navigation }) => {
         ) : (
           <PothiList
             baniListData={baniListData}
-            onOpenBani={openBani}
+            onOpenPothi={openPothi}
             onCreatePress={openCreate}
             onPinLimit={onPinLimit}
           />

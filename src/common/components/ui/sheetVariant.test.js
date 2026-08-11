@@ -38,10 +38,12 @@ describe("the flush sheet presentation is scoped to Settings", () => {
       .filter(({ text }) => /variant="flush"/.test(text))
       .map(({ rel }) => rel)
       .sort();
-    // Two, and only two: the single-choice chooser every settings row opens,
-    // and Translations, which is multi-select so it cannot use SelectSheet but
-    // must still look identical to it.
+    // The single-choice chooser every settings row opens; Translations, which
+    // is multi-select so it cannot use SelectSheet but must look identical to
+    // it; and the pothi overflow, which is the same thing — a short list of
+    // actions in edge-to-edge `Row`s with dividers.
     expect(callers).toEqual([
+      "FolderScreen/FolderScreen.jsx",
       "Settings/components/comon/SelectSheet.jsx",
       "Settings/components/translation.jsx",
     ]);

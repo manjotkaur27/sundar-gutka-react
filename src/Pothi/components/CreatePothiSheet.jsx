@@ -11,12 +11,10 @@ import {
   GurmukhiKeyboard,
   GurmukhiKeyboardToggle,
   Sheet,
-  Text,
 } from "../../common/components/ui";
 import useRequireOnline from "../hooks/useRequireOnline";
-import PickBanisField from "./PickBanisField";
+import PickBanisStep from "./PickBanisStep";
 import PothiNameField from "./PothiNameField";
-import { shabadCountLabel } from "./PothiRow";
 
 // Name a new pothi, optionally seeding it with a shabad.
 //
@@ -38,7 +36,6 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   // Chosen before the pothi exists, so they go in with it. Without this a new
   // pothi was always born empty and had to be filled in a second pass.
   const [picked, setPicked] = useState([]);
-  const [pickOpen, setPickOpen] = useState(false);
   const [query, setQuery] = useState("");
   // ONE keyboard for the sheet, switched on above the fields; `focused` says
   // which field its keys go into. Tapping a field moves the keys to it, which
@@ -56,7 +53,6 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
     if (visible) {
       setName("");
       setPicked([]);
-      setPickOpen(true);
       setQuery("");
       setGurmukhi(false);
       setStep(1);
@@ -124,39 +120,16 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
           ) : null
         }
       >
-        {/* `flexShrink` carries the sheet's height limit down to the bani
-            list, so it yields rather than pushing the actions off the sheet. */}
-        <View style={{ gap: space.lg, flexShrink: 1 }}>
-          {/* Above BOTH fields, because it switches the one keyboard they
-              share. See GurmukhiKeyboardToggle. */}
-          {/* On step 2 the picked count rides this row as plain text rather
-              than owning a full row of its own under the list — it is a
-              readout, not an action, so it costs no height and no tap target. */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: space.md,
-            }}
-          >
-            {step === 2 && (
-              <Text
-                variant="bodySmall"
-                color={picked.length ? "accent" : "textSecondary"}
-                style={{ flexShrink: 1 }}
-              >
-                {shabadCountLabel(picked.length)}
-              </Text>
-            )}
+        {step === 1 ? (
+          <View style={{ gap: space.lg, flexShrink: 1 }}>
+            {/* Above the field it serves, because it switches the one keyboard
+                the sheet has. See GurmukhiKeyboardToggle, which aligns itself
+                to the trailing edge exactly as it does on step 2. */}
             <GurmukhiKeyboardToggle
               label={STRINGS.POTHI_KEYBOARD_TOGGLE}
               active={gurmukhi}
               onToggle={() => setGurmukhi((on) => !on)}
             />
-          </View>
-
-          {step === 1 ? (
             <PothiNameField
               value={name}
               onChange={setName}
@@ -165,53 +138,46 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
               receivingKeys={gurmukhi}
               onFocus={() => {}}
             />
-          ) : (
-            <PickBanisField
-              picked={picked}
-              onChange={setPicked}
-              baniListData={baniListData}
-              open={pickOpen}
-              onToggleOpen={() => setPickOpen((on) => !on)}
-              query={query}
-              onQueryChange={setQuery}
-              gurmukhiOpen={gurmukhi}
-              receivingKeys={gurmukhi}
-              onFocusSearch={() => {}}
-              tall
-            />
-          )}
-
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
-              gap: space.sm,
-            }}
-          >
-            <Button
-              title={STRINGS.CANCEL}
-              onPress={onClose}
-              variant="ghost"
-              style={{ flexGrow: 1, flexBasis: "auto" }}
-            />
-            {step === 1 ? (
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+                gap: space.sm,
+              }}
+            >
+              <Button
+                title={STRINGS.CANCEL}
+                onPress={onClose}
+                variant="ghost"
+                style={{ flexGrow: 1, flexBasis: "auto" }}
+              />
               <Button
                 title={STRINGS.NEXT}
                 onPress={() => setStep(2)}
                 disabled={!isValidName(name)}
                 style={{ flexGrow: 1, flexBasis: "auto" }}
               />
-            ) : (
-              <Button
-                title={STRINGS.POTHI_CREATE}
-                onPress={submit}
-                disabled={!isValidName(name)}
-                style={{ flexGrow: 1, flexBasis: "auto" }}
-              />
-            )}
+            </View>
           </View>
-        </View>
+        ) : (
+          // The SAME step Add Banis renders on an existing pothi — one
+          // component, so the two cannot drift. The only difference is what
+          // confirming means: create the pothi here, close there.
+          <PickBanisStep
+            picked={picked}
+            onChange={setPicked}
+            baniListData={baniListData}
+            query={query}
+            onQueryChange={setQuery}
+            gurmukhiOpen={gurmukhi}
+            onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+            onCancel={onClose}
+            confirmTitle={STRINGS.POTHI_CREATE}
+            onConfirm={submit}
+            confirmDisabled={!isValidName(name)}
+          />
+        )}
       </Sheet>
     </ScreenRolesProvider>
   );

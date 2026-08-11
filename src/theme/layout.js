@@ -109,25 +109,20 @@ const layout = {
     handleHeight: 4,
     /** A sheet never covers the whole screen; the ground stays visible. */
     maxHeightRatio: 0.9,
-    /**
-     * How much of the WINDOW a scrolling pick-list inside a sheet may take.
-     *
-     * Ratios, not point heights. A fixed slab (this was 240pt, and 360pt in the
-     * other picker) is right on exactly one device: on a short screen it pushed
-     * the sheet's own buttons — and the on-screen keyboard below them — off the
-     * bottom of the display, and on a tall one it wasted the space it did have.
-     * A ratio of the live `useWindowDimensions()` height scales with the device
-     * and re-measures on rotation.
-     */
-    listMaxHeightRatio: 0.3,
-    /** The same list once the in-app keyboard is up and wants the lower half. */
-    listMaxHeightRatioWithKeyboard: 0.16,
     /** Below this a list is not worth showing; the sheet scrolls instead. */
     listMinHeight: 120,
     /**
-     * The bani picker when it is the WHOLE step rather than one field among
-     * several — the second step of creating a pothi. Nothing else competes for
-     * the sheet there, so the list takes the screen it needs to browse in.
+     * How much of the WINDOW the bani pick-list inside a sheet may take.
+     *
+     * A ratio, not a point height. A fixed slab (this was 240pt, and 360pt in
+     * the other picker) is right on exactly one device: on a short screen it
+     * pushed the sheet's own buttons — and the keyboard below them — off the
+     * bottom of the display, and on a tall one it wasted the space it did have.
+     * A ratio of the live `useWindowDimensions()` height scales with the device
+     * and re-measures on rotation.
+     *
+     * Generous, because the picker is always the WHOLE step of its sheet —
+     * nothing else competes for the height there.
      */
     pickStepListMaxHeightRatio: 0.7,
     /** The same list once the in-app keyboard claims the lower half. */
@@ -161,6 +156,13 @@ const layout = {
     iconSize: 24,
     paddingVertical: space.sm,
   },
+
+  /**
+   * A tick box in a multi-select row. Listed in scale.js CONTAINER_KEYS, so it
+   * grows with the OS text size — it sits beside a label and would look wrong
+   * staying put while that label got bigger.
+   */
+  checkbox: 22,
 
   // ── Icons ──────────────────────────────────────────────────────────────
   icon: {

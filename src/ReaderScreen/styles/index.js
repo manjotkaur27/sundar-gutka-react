@@ -109,22 +109,32 @@ const createStyles = (theme) => ({
     alignItems: "center",
   },
 
+  // Three columns sized to their CONTENT, not to percentages of the screen.
+  //
+  // The trailing slot carries two actions now, and a 10% box could not hold them
+  // on a narrow device — at a raised OS font size or a small display the second
+  // icon was pushed off the edge. The side slots take whatever their icons need
+  // and the title takes the rest; `header.jsx` measures the trailing slot and
+  // gives the leading one the same minimum, which is what keeps the title
+  // centred on the screen rather than on the space between two unequal boxes.
   headerLeft: {
     paddingLeft: theme.spacing.lg,
     alignItems: "flex-start",
     justifyContent: "center",
-    width: "10%",
   },
 
   headerCenter: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    width: "80%",
   },
 
   headerRight: {
-    marginRight: theme.spacing.lg,
-    width: "10%",
+    paddingRight: theme.spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: theme.spacing.lg,
   },
 
   footerWrapper: {

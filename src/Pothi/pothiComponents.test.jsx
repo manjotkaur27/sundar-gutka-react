@@ -39,6 +39,7 @@ jest.mock("@common/hooks/useBaniTitle", () => ({
 // (ChevronDownIcon, PinIcon…) undefined. Stubbed here — these tests are about
 // which controls the row offers, not the SVG paths.
 jest.mock("@common/icons", () => ({
+  ArrowRightIcon: () => null,
   ChevronDownIcon: () => null,
   ChevronRight: () => null,
   CloseIcon: () => null,
@@ -79,8 +80,7 @@ const renderRow = (props = {}) =>
   render(
     <PothiRow
       pothi={row(props.pothi)}
-      expanded={props.expanded ?? false}
-      onToggle={props.onToggle ?? jest.fn()}
+      onOpen={props.onOpen ?? jest.fn()}
       onTogglePin={props.onTogglePin}
       onLongPress={props.onLongPress}
     />
@@ -129,42 +129,32 @@ describe("PothiRow", () => {
     renderRow({ onTogglePin: jest.fn() });
     expect(screen.getByLabelText("Pin")).toBeTruthy();
     screen.rerender(
-      <PothiRow
-        pothi={row({ pinned: true })}
-        expanded={false}
-        onToggle={jest.fn()}
-        onTogglePin={jest.fn()}
-      />
+      <PothiRow pothi={row({ pinned: true })} onOpen={jest.fn()} onTogglePin={jest.fn()} />
     );
     expect(screen.getByLabelText("Unpin")).toBeTruthy();
   });
 
-  it("toggles from the whole row, not just the chevron", () => {
-    const onToggle = jest.fn();
-    renderRow({ onToggle });
-    fireEvent.press(screen.getByLabelText("Morning, 2 shabads"));
-    expect(onToggle).toHaveBeenCalled();
+  // The row NAVIGATES rather than expanding. An accordion put a second,
+  // differently styled list inside the first; the banis now open on their own
+  // screen as an ordinary bani list.
+  it("opens from the whole row, not just the chevron", () => {
+    const onOpen = jest.fn();
+    renderRow({ onOpen });
+    fireEvent.press(screen.getByLabelText(/^Morning, 2 shabads/));
+    expect(onOpen).toHaveBeenCalled();
   });
 
-  // Tapping a bani in the expanded row already opens it, so the row offers no
-  // separate "Open Pothi" action.
-  it("offers no Open Pothi action, expanded or not", () => {
+  it("tells a screen reader the row opens the pothi", () => {
     renderRow();
-    expect(screen.queryByLabelText("Open Pothi")).toBeNull();
-    renderRow({ expanded: true });
-    expect(screen.queryByLabelText("Open Pothi")).toBeNull();
+    expect(screen.getByLabelText("Morning, 2 shabads, Open Pothi")).toBeTruthy();
   });
 
-  it("says so when an expanded pothi is empty", () => {
-    renderRow({ pothi: { count: 0, baniIds: [] }, expanded: true });
-    expect(screen.getByText("This pothi is empty")).toBeTruthy();
-  });
-
-  it("reports expansion to screen readers", () => {
-    renderRow({ expanded: true });
-    expect(screen.getByLabelText("Morning, 2 shabads").props.accessibilityState.expanded).toBe(
-      true
-    );
+  it("no longer renders its contents inline", () => {
+    // The empty-contents line belonged to the accordion. An empty pothi still
+    // shows its count; what it holds is the next screen's business.
+    renderRow({ pothi: { count: 0, baniIds: [] } });
+    expect(screen.queryByText("This pothi is empty")).toBeNull();
+    expect(screen.getByText("0 shabads")).toBeTruthy();
   });
 
   it("puts no fixed height on the row — a long name must wrap", () => {
@@ -203,9 +193,10 @@ describe("PothiShabadRow", () => {
 });
 
 describe("createPothi + row integration", () => {
-  it("a freshly created pothi renders as empty", () => {
+  it("a freshly created pothi renders with its name and an empty count", () => {
     const fresh = createPothi({ name: "New" });
-    renderRow({ pothi: { ...fresh, count: 0, system: false, pinned: false }, expanded: true });
-    expect(screen.getByText("This pothi is empty")).toBeTruthy();
+    renderRow({ pothi: { ...fresh, count: 0, system: false, pinned: false } });
+    expect(screen.getByText("New")).toBeTruthy();
+    expect(screen.getByText("0 shabads")).toBeTruthy();
   });
 });

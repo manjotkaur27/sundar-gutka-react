@@ -51,6 +51,9 @@ const About = withScreenRoles(AboutScreen, "settings");
 const BookmarksScreen = withScreenRoles(Bookmarks, "settings");
 // Reached from Settings, so it wears the same palette as its siblings.
 const MyPothis = withScreenRoles(MyPothisScreen, "settings");
+// The pothi detail list, pushed from the Folders tab — same palette as the
+// other pushed utility screens it now looks like.
+const FolderDetail = withScreenRoles(FolderScreen, "settings");
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -182,7 +185,7 @@ const Navigation = () => {
         <Stack.Screen name="About" component={About} options={{ headerShown: false }} />
         <Stack.Screen
           name="FolderScreen"
-          component={FolderScreen}
+          component={FolderDetail}
           options={{ headerShown: false }}
         />
         <Stack.Screen name="MyPothis" component={MyPothis} options={{ headerShown: false }} />
