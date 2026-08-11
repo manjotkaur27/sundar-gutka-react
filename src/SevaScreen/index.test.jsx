@@ -121,6 +121,8 @@ jest.mock("@common", () => {
       SEVA_OTHER_OPPORTUNITIES: "Seva by other opportunities",
     },
     openInAppBrowser: (...args) => mockOpenInAppBrowser(...args),
+    // The themed scrollbar hook. These tests assert content, not the thumb.
+    useCustomScrollbar: () => ({ scrollViewProps: {}, Indicator: null, ownedScrollProps: {} }),
     trackSevaEvent: (...args) => mockTrackSevaEvent(...args),
     logError: (...args) => mockLogError(...args),
   };

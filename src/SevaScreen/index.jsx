@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
-  ScrollView,
   Pressable,
   TextInput,
   ActivityIndicator,
@@ -29,6 +28,7 @@ import {
   STRINGS,
   openInAppBrowser,
   trackSevaEvent,
+  useCustomScrollbar,
 } from "@common";
 import {
   DonateIcon,
@@ -48,8 +48,8 @@ import {
   formatNumber,
   resolveLocalPresets,
 } from "../services/currency";
-import { getSevaConfig, buildQgivUrl, markSevaSeen } from "../services/sevaConfig";
 import { initExchangeRates } from "../services/exchangeRates";
+import { getSevaConfig, buildQgivUrl, markSevaSeen } from "../services/sevaConfig";
 import { prewarmSevaMeans } from "../services/sevaMeans";
 import createStyles from "./styles";
 import { parseHtmlBlocks, blockText } from "./utils/parseHtmlBlocks";
@@ -128,6 +128,8 @@ const SevaScreen = () => {
   const palette = paletteFor("seva", theme);
   const isDarkMode = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
+  // The app-wide themed scrollbar, not the unthemed native one.
+  const { scrollViewProps, Indicator } = useCustomScrollbar();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   // ─── Responsive metrics ─────────────────────────────────────────────────────
@@ -945,7 +947,7 @@ const SevaScreen = () => {
   // The one header foreground — brand navy in light, white in dark. Drives both
   // the "Seva" title and the close cross. `textPrimary`'s near-black read as a
   // heavy, unbranded mark against the light bar.
-  const headerFg = c.headerFg;
+  const { headerFg } = c;
   // The shared header, like every other screen. This used to be `AppBar`, a
   // second header component that duplicated ScreenHeader and drifted from it —
   // it padded by the raw safe-area inset and stood its row at 52 instead of 56,
@@ -1012,33 +1014,44 @@ const SevaScreen = () => {
       <StatusBarComponent backgroundColor={headerBg} />
       {renderHeader()}
       <GradientDivider />
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View
-          style={[
-            styles.container,
-            {
-              paddingHorizontal: hPad,
-              // Tighter top padding — the AppBar + divider already separate the
-              // hero from the top, so the hero ("Support our mission") sits close.
-              paddingTop: Math.round(vPad * 0.4),
-              paddingBottom: vPad,
-              gap,
-            },
-          ]}
+      {/* The app's themed scrollbar, the same one the bani list and Settings
+          draw — the native bar cannot follow a designed theme. Indicator is a
+          SIBLING inside a flex:1 wrapper, as the hook requires. */}
+      <View style={{ flex: 1 }}>
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          // eslint-disable-next-line react/jsx-props-no-spreading
+          {...scrollViewProps}
         >
-          {renderSegments()}
-        </View>
-      </ScrollView>
+          <View
+            style={[
+              styles.container,
+              {
+                paddingHorizontal: hPad,
+                // Tighter top padding — the AppBar + divider already separate
+                // the hero from the top, so the hero ("Support our mission")
+                // sits close.
+                paddingTop: Math.round(vPad * 0.4),
+                paddingBottom: vPad,
+                gap,
+              },
+            ]}
+          >
+            {renderSegments()}
+          </View>
+        </Animated.ScrollView>
+        {Indicator}
+      </View>
     </SafeArea>
   );
 };
 
 SevaScreen.propTypes = {
-  navigation: PropTypes.object,
+  // Only the one method this screen calls; PropTypes.object is forbidden and
+  // describes nothing anyway.
+  navigation: PropTypes.shape({ navigate: PropTypes.func }),
 };
 
 export default SevaScreen;

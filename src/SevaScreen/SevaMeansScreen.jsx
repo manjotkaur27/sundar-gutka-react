@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
-  ScrollView,
+  Animated,
   Pressable,
   ActivityIndicator,
   Text,
@@ -20,6 +20,7 @@ import {
   useThemedStyles,
   STRINGS,
   openInAppBrowser,
+  useCustomScrollbar,
 } from "@common";
 import { ChevronRight } from "../common/icons";
 import { getSevaMeansPage } from "../services/sevaMeans";
@@ -51,6 +52,8 @@ const SevaMeansScreen = ({ route, navigation }) => {
   const { c } = themeForScreen(theme, "seva");
   const isDark = theme.mode === "dark";
   const styles = useThemedStyles(createStyles);
+  // The app-wide themed scrollbar, not the unthemed native one.
+  const { scrollViewProps, Indicator } = useCustomScrollbar();
   const language = useSelector((state) => state.language);
 
   // ─── Responsive vertical rhythm (mirrors the main Seva page) ────────────────
@@ -208,31 +211,38 @@ const SevaMeansScreen = ({ route, navigation }) => {
       );
     }
     return (
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* One wrapper owns the whole page's spacing: horizontal padding, top/
-            bottom padding, and a single `gap` between every block. */}
-        <View
-          style={{
-            paddingHorizontal: hPad,
-            paddingTop: Math.round(vPad * 0.5),
-            paddingBottom: vPad,
-            gap,
-          }}
+      // The app's themed scrollbar, the same one the bani list and Settings
+      // draw — the native bar cannot follow a designed theme. Indicator is a
+      // SIBLING inside a flex:1 wrapper, as the hook requires.
+      <View style={{ flex: 1 }}>
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          // eslint-disable-next-line react/jsx-props-no-spreading
+          {...scrollViewProps}
         >
-          {data.segments.map((seg, i) =>
+          {/* One wrapper owns the whole page's spacing: horizontal padding,
+              top/bottom padding, and a single `gap` between every block. */}
+          <View
+            style={{
+              paddingHorizontal: hPad,
+              paddingTop: Math.round(vPad * 0.5),
+              paddingBottom: vPad,
+              gap,
+            }}
+          >
+            {data.segments.map((seg, i) =>
             seg.type === "html" ? (
               // eslint-disable-next-line react/no-array-index-key
               <React.Fragment key={`seg-${i}`}>
                 {renderHtmlSegment(seg.value, `seg-${i}`)}
               </React.Fragment>
             ) : null
-          )}
-        </View>
-      </ScrollView>
+            )}
+          </View>
+        </Animated.ScrollView>
+        {Indicator}
+      </View>
     );
   };
 

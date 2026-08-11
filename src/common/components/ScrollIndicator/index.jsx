@@ -110,15 +110,36 @@ export const useCustomScrollbar = (color = null) => {
   // Android's native bar is already themed by the app resource, so it is left
   // alone UNLESS a caller needs a colour that resource cannot provide.
   if (!IS_IOS && !color && !themed) {
-    return { scrollViewProps: {}, Indicator: null };
+    return { scrollViewProps: {}, Indicator: null, ownedScrollProps: {} };
   }
+
+  const onContentSizeChange = (_w, h) => setContentHeight(h);
+  const onLayout = (e) => setContainerHeight(e.nativeEvent.layout.height);
 
   const scrollViewProps = {
     showsVerticalScrollIndicator: false,
     scrollEventThrottle: 16,
     onScroll,
-    onContentSizeChange: (_w, h) => setContentHeight(h),
-    onLayout: (e) => setContainerHeight(e.nativeEvent.layout.height),
+    onContentSizeChange,
+    onLayout,
+  };
+
+  // For a list that OWNS its own onScroll and will not give it up.
+  //
+  // DraggableFlatList is the case: it spreads the caller's props and then sets
+  // `onScroll={scrollHandler}` after them (its own Reanimated handler), so the
+  // handler above is silently dropped and the thumb never moves. It does expose
+  // `onScrollOffsetChange`, which reports the offset from JS — enough to drive
+  // the same Animated.Value by hand. Same thumb, same fade, same colour; only
+  // how the offset arrives differs, so there is still one scrollbar in the app.
+  const ownedScrollProps = {
+    showsVerticalScrollIndicator: false,
+    onContentSizeChange,
+    onLayout,
+    onScrollOffsetChange: (y) => {
+      scrollY.setValue(y);
+      showThenFade();
+    },
   };
 
   const scrollable = containerHeight > 0 && contentHeight > containerHeight;
@@ -146,7 +167,7 @@ export const useCustomScrollbar = (color = null) => {
     />
   ) : null;
 
-  return { scrollViewProps, Indicator };
+  return { scrollViewProps, Indicator, ownedScrollProps };
 };
 
 export default useCustomScrollbar;

@@ -9,7 +9,7 @@ import useTokens from "@common/hooks/useTokens";
 import { DragHandleIcon, PlusIcon } from "@common/icons";
 import { countPinned, emptyPothis, MAX_PINNED } from "@common/pothi/model";
 import { folderTabRows, resolveBanis } from "@common/pothi/selectors";
-import { actions, STRINGS, trackPothiEvent } from "@common";
+import { actions, STRINGS, trackPothiEvent, useCustomScrollbar } from "@common";
 import { Text } from "../common/components/ui";
 import AddBanisSheet from "./components/AddBanisSheet";
 import PothiActionsSheet from "./components/PothiActionsSheet";
@@ -39,6 +39,8 @@ const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPin
   const pothis = useSelector((state) => state.pothis) ?? emptyPothis();
   // Reading a pothi works offline; changing one does not. See useRequireOnline.
   const requireOnline = useRequireOnline();
+  // The app-wide themed scrollbar, not a standalone one.
+  const { ownedScrollProps, Indicator } = useCustomScrollbar();
   useSignedOutPothiHint();
   const [expanded, setExpanded] = useState({});
   // The pothi whose rename/delete sheet is open, or null.
@@ -264,7 +266,13 @@ const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPin
         // the list to zero height — which rendered a blank page. The root
         // carries the flex, exactly as EditBaniOrder does.
         contentContainerStyle={{ paddingBottom: layout.screenPaddingBottom }}
+        // The app's own themed scrollbar, the same one the bani list and
+        // Settings draw. DraggableFlatList keeps its own `onScroll`, so this is
+        // the offset-reporting form of the shared hook — see useCustomScrollbar.
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...ownedScrollProps}
       />
+      {Indicator}
       <PothiActionsSheet pothi={acting} visible={acting !== null} onClose={() => setActing(null)} />
       <AddBanisSheet
         pothiId={filling}
