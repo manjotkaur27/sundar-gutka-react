@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, InteractionManager } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { paletteFor } from "@theme/screenPalettes";
@@ -45,7 +45,7 @@ const HomeScreen = React.memo(({ navigation }) => {
   const [tab, setTab] = useState(TAB_BANIS);
   // Shared with the standalone My Pothis screen, so the two entry points into
   // the same list cannot drift apart.
-  const { openBani, openPothi, onPinLimit, creating, openCreate, closeCreate, onCreated } =
+  const { openBani, onPinLimit, creating, openCreate, closeCreate, onCreated } =
     usePothiActions(navigate);
   useDatabaseUpdateCheck();
   // Seeds the two default pothis and keeps My Pothi in step with the account.
@@ -98,29 +98,29 @@ const HomeScreen = React.memo(({ navigation }) => {
     dispatch(setBaniOrder(order));
   }, []);
 
+  // Every row here is a bani: `baniRows` filters the folders out, so there is no
+  // longer a folder branch to take.
   const onPress = (row) => {
     const bani = row.item;
     dispatch(actions.toggleAudio(false));
-    if (!bani.folder) {
-      navigate(constant.READER, {
-        key: `Reader-${bani.id}`,
-        params: {
-          id: bani.id,
-          title: bani.gurmukhi,
-          titleUni: bani.gurmukhiUni,
-        },
-      });
-    } else {
-      navigate(constant.FOLDERSCREEN, {
-        key: `Folder-${bani.gurmukhi}`,
-        params: {
-          data: bani.folder,
-          title: bani.gurmukhi,
-          titleUni: bani.gurmukhiUni,
-        },
-      });
-    }
+    navigate(constant.READER, {
+      key: `Reader-${bani.id}`,
+      params: {
+        id: bani.id,
+        title: bani.gurmukhi,
+        titleUni: bani.gurmukhiUni,
+      },
+    });
   };
+
+  // All Banis lists banis only. The bundled folders (Amrit Bani, Bhagat Bani
+  // and the rest) are rendered by the Folders tab, so listing them here as well
+  // showed the same four rows twice on one screen.
+  //
+  // Filtered at the render, NOT in `baniListData` itself: `systemPothis` builds
+  // the Folders tab from these very rows, so dropping them upstream would empty
+  // the tab this change exists to defer to.
+  const baniRows = useMemo(() => baniListData.filter((bani) => !bani.folder), [baniListData]);
 
   // The bani list keeps its own ground on every surface of this screen, so no
   // strip of the semantic background shows above or behind the header.
@@ -143,11 +143,10 @@ const HomeScreen = React.memo(({ navigation }) => {
           style={styles.tabs}
         />
         {tab === TAB_BANIS ? (
-          <BaniList data={baniListData} onPress={onPress} />
+          <BaniList data={baniRows} onPress={onPress} />
         ) : (
           <PothiList
             baniListData={baniListData}
-            onOpenPothi={openPothi}
             onOpenBani={openBani}
             onCreatePress={openCreate}
             onPinLimit={onPinLimit}

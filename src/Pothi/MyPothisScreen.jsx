@@ -19,7 +19,7 @@ const MyPothisScreen = ({ navigation }) => {
   const { c } = useTokens();
   const { navigate } = navigation;
   const { baniListData } = useBaniList();
-  const { openBani, openPothi, onPinLimit, creating, openCreate, closeCreate, onCreated } =
+  const { openBani, onPinLimit, creating, openCreate, closeCreate, onCreated } =
     usePothiActions(navigate);
 
   useEffect(() => {
@@ -39,7 +39,6 @@ const MyPothisScreen = ({ navigation }) => {
         <GradientDivider />
         <PothiList
           baniListData={baniListData}
-          onOpenPothi={openPothi}
           onOpenBani={openBani}
           onCreatePress={openCreate}
           onPinLimit={onPinLimit}

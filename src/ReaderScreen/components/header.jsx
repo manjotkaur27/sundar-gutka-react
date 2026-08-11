@@ -3,17 +3,11 @@ import { View, Animated, Pressable } from "react-native";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { BackArrowIcon, BookmarkIcon, FolderIcon } from "@common/icons";
+import { BackArrowIcon, BookmarkIcon } from "@common/icons";
 import { CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
 
-const Header = ({
-  title,
-  handleBackPress,
-  handleBookmarkPress,
-  handleAddToPothiPress,
-  isHeader,
-}) => {
+const Header = ({ title, handleBackPress, handleBookmarkPress, isHeader }) => {
   const styles = useThemedStyles(createStyles);
   // This bar is opaque and physically contiguous with the Bani text, so it
   // follows the READING theme rather than the app appearance — otherwise a cream
@@ -33,7 +27,7 @@ const Header = ({
   // the font setting and this one did not — the title centred in a taller box
   // sat lower there than here, which is the last way the two disagreed. Taking
   // the resolved value directly makes them the same number by construction.
-  const { layout, space } = useTokens();
+  const { layout } = useTokens();
   const animationPosition = useRef(new Animated.Value(0)).current;
 
   const headerLeft = () => (
@@ -46,31 +40,19 @@ const Header = ({
     </Pressable>
   );
 
-  // Two actions now, so the slot is a row. `hitSlop` gives each glyph the 44pt
-  // target the platform asks for without growing the bar.
+  // Bookmarks is the reader's one header action. `hitSlop` gives the glyph the
+  // 44pt target the platform asks for without growing the bar.
   const headerRight = () => (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: space.lg }}>
-      <Pressable
-        onPress={() => {
-          handleAddToPothiPress();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={STRINGS.POTHI_ADD_TO}
-        hitSlop={layout.hitSlop}
-      >
-        <FolderIcon size={25} color={headerForeground} />
-      </Pressable>
-      <Pressable
-        onPress={() => {
-          handleBookmarkPress();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={STRINGS.bookmarks}
-        hitSlop={layout.hitSlop}
-      >
-        <BookmarkIcon size={25} color={headerForeground} />
-      </Pressable>
-    </View>
+    <Pressable
+      onPress={() => {
+        handleBookmarkPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={STRINGS.bookmarks}
+      hitSlop={layout.hitSlop}
+    >
+      <BookmarkIcon size={25} color={headerForeground} />
+    </Pressable>
   );
 
   useEffect(() => {
@@ -149,7 +131,6 @@ Header.propTypes = {
   title: PropTypes.string.isRequired,
   handleBackPress: PropTypes.func.isRequired,
   handleBookmarkPress: PropTypes.func.isRequired,
-  handleAddToPothiPress: PropTypes.func.isRequired,
   isHeader: PropTypes.bool.isRequired,
 };
 export default Header;

@@ -124,6 +124,14 @@ const layout = {
     listMaxHeightRatioWithKeyboard: 0.16,
     /** Below this a list is not worth showing; the sheet scrolls instead. */
     listMinHeight: 120,
+    /**
+     * The bani picker when it is the WHOLE step rather than one field among
+     * several — the second step of creating a pothi. Nothing else competes for
+     * the sheet there, so the list takes the screen it needs to browse in.
+     */
+    pickStepListMaxHeightRatio: 0.7,
+    /** The same list once the in-app keyboard claims the lower half. */
+    pickStepListMaxHeightRatioWithKeyboard: 0.38,
   },
 
   dialog: {

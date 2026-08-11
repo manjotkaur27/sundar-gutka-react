@@ -23,7 +23,6 @@ import {
   trackScrollProgress,
   trackNavBar,
 } from "@common";
-import AddToPothiSheet from "../Pothi/components/AddToPothiSheet";
 import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
@@ -107,7 +106,6 @@ const Reader = ({ navigation, route }) => {
   // so it can re-send the scroll command after a WKWebView remount (iOS drops
   // postMessages sent to a stale WebView instance).
   const [webViewLoadTick, setWebViewLoadTick] = useState(0);
-  const [addingToPothi, setAddingToPothi] = useState(false);
   const [titleText, setTitleText] = useState(null);
   const readSavedPosition = (entry) => {
     if (!entry) return { elementId: null, sequence: null };
@@ -461,9 +459,6 @@ const Reader = ({ navigation, route }) => {
     navigation.navigate(constant.BOOKMARKS, { id });
   }, [navigation, id]);
 
-  // Filing the shabad the user is reading, without leaving it.
-  const handleAddToPothiPress = useCallback(() => setAddingToPothi(true), []);
-
   const handleMessage = useCallback(
     (message) => {
       if (isPlayerDragging) {
@@ -629,13 +624,7 @@ const Reader = ({ navigation, route }) => {
         title={titleText}
         handleBackPress={handleBackPress}
         handleBookmarkPress={handleBookmarkPress}
-        handleAddToPothiPress={handleAddToPothiPress}
         isHeader={isHeader}
-      />
-      <AddToPothiSheet
-        visible={addingToPothi}
-        onClose={() => setAddingToPothi(false)}
-        bani={{ id, gurmukhi: title, gurmukhiUni: titleUni }}
       />
       {isLoading && <ActivityIndicator size="small" color={theme.c.primary} />}
       {/* Don't mount the WebView until the shabad has loaded. Mounting on the

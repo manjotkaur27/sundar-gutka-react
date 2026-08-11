@@ -29,7 +29,7 @@ import useSignedOutPothiHint from "./hooks/useSignedOutPothiHint";
 // (see `pothi/selectors`), and only the user's lane is handed to
 // DraggableFlatList — dragging a bundled folder would imply an order that is
 // not the user's to change and that nothing would persist.
-const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPinLimit }) => {
+const PothiList = ({ baniListData, onOpenBani, onCreatePress, onPinLimit }) => {
   const { c, space, layout } = useTokens();
   // The same ground the bani list draws on, so the two tabs are one surface.
   const ground = useScreenPalette("baniList").surface;
@@ -100,7 +100,6 @@ const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPin
         pothi={row}
         expanded={Boolean(expanded[row.id]) && !isActive}
         onToggle={() => toggle(row.id)}
-        onOpen={() => onOpenPothi(row)}
         onTogglePin={row.system ? null : () => togglePin(row)}
         onLongPress={
           row.system
@@ -133,7 +132,7 @@ const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPin
         {contentsOf(row)}
       </PothiRow>
     ),
-    [expanded, toggle, onOpenPothi, togglePin, contentsOf, requireOnline, layout, c]
+    [expanded, toggle, togglePin, contentsOf, requireOnline, layout, c]
   );
 
   // Inset on both sides, so it lines up with the row's text and stops short of
@@ -209,7 +208,7 @@ const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPin
   const footer =
     bundled.length === 0 ? null : (
       <View>
-        {sectionLabel(STRINGS.POTHI_SUNDAR_GUTKA)}
+        {sectionLabel(STRINGS.POTHI_DEFAULT_FOLDERS)}
         {bundled.map((row, index) => (
           <View key={row.id}>
             {index > 0 && <Separator />}
@@ -287,7 +286,6 @@ const PothiList = ({ baniListData, onOpenPothi, onOpenBani, onCreatePress, onPin
 PothiList.propTypes = {
   /** Rows from `useBaniList()` — the source for both bundled folders and id lookup. */
   baniListData: PropTypes.arrayOf(PropTypes.shape()).isRequired,
-  onOpenPothi: PropTypes.func.isRequired,
   onOpenBani: PropTypes.func.isRequired,
   onCreatePress: PropTypes.func.isRequired,
   /** Called instead of pinning when the user is already at the ceiling. */

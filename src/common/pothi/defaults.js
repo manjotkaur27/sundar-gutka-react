@@ -14,7 +14,7 @@ import { createPothi, makeBaniItem } from "./model";
 //    9  bynqI cOpeI swihb      Benati Chaupai Sahib
 //   10  Anµdu swihb            Anand Sahib
 //   21  rhrwis swihb           Rehras Sahib
-//   23  soihlw swihb           Kirtan Sohila
+//   23  soihlw swihb           Sohila Sahib (Kirtan Sohila — one bani, two names)
 //
 // Savaiye is 6, not 3 or 5 — Shabad Hazare (3) and Shabad Hazare Patishahi 10
 // (5) are two other banis whose similar names make the wrong one easy to grab.

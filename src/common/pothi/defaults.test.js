@@ -29,7 +29,7 @@ describe("the default bani ids", () => {
     expect(MORNING_NITNEM_IDS).toEqual([2, 4, 6, 9, 10]);
   });
 
-  it("Evening is Rehras and Kirtan Sohila", () => {
+  it("Evening is Rehras and Sohila Sahib (Kirtan Sohila)", () => {
     expect(EVENING_NITNEM_IDS).toEqual([21, 23]);
   });
 

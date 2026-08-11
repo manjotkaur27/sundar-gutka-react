@@ -1,20 +1,38 @@
-import React from "react";
-import { useSelector } from "react-redux";
-import { themeOptions } from "@settings/Themes/options";
-import PropTypes from "prop-types";
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { setTheme } from "@common/actions";
 import { ThemeIcon } from "@common/icons";
 import { STRINGS } from "@common";
+import SelectSheet from "./comon/SelectSheet";
 import SettingsRow from "./comon/SettingsRow";
+import { getTheme } from "./comon/strings";
 
 // The app's ONE appearance control.
 //
-// It used to open a three-option sheet (Default / Light / Dark). It now pushes
-// the theme grid, because the choice is no longer a single word — each option is
-// a page you can look at, and the designed themes set the app's appearance and
-// the reading surface together.
-const ThemeComponent = ({ navigate }) => {
+// Back to a three-option sheet (Default / Light / Dark), matching every other
+// choice on this screen. The designed themes and the `Themes` grid screen are
+// deliberately LEFT IN PLACE — registry, records, previews and route are all
+// untouched — they are simply no longer reachable from Settings, so the app
+// ships the three appearances while the rest stays ready to re-expose.
+//
+// Nothing migrates a stored value. A build that already selected a designed
+// theme keeps rendering it; the row shows the raw id until the user picks one
+// of the three, which is the honest thing to show for a theme this sheet
+// cannot name.
+const ThemeComponent = () => {
+  const dispatch = useDispatch();
+  const [isVisible, setIsVisible] = useState(false);
   const theme = useSelector((state) => state.theme);
-  const current = themeOptions().find((option) => option.value === theme);
+
+  const options = getTheme(STRINGS);
+  // Falls back to the stored value so a designed theme still shows something
+  // rather than an empty row.
+  const selectedTitle = options.find((option) => option.key === theme)?.title || theme;
+
+  const handleSelection = (key) => {
+    setIsVisible(false);
+    dispatch(setTheme(key));
+  };
 
   return (
     <>
@@ -24,16 +42,21 @@ const ThemeComponent = ({ navigate }) => {
           asset it softened on high-density screens. */}
       <SettingsRow
         title={STRINGS.theme}
-        // Falls back to the stored value so an id from a newer release still
-        // shows something rather than an empty row.
-        value={current ? STRINGS[current.labelKey] : theme}
+        value={selectedTitle}
         IconComponent={ThemeIcon}
-        onPress={() => navigate("Themes")}
+        onPress={() => setIsVisible(true)}
+      />
+      <SelectSheet
+        visible={isVisible}
+        title={STRINGS.theme}
+        options={options}
+        value={theme}
+        onSelect={handleSelection}
+        onClose={() => setIsVisible(false)}
+        closeLabel={STRINGS.cancel}
       />
     </>
   );
 };
-
-ThemeComponent.propTypes = { navigate: PropTypes.func.isRequired };
 
 export default ThemeComponent;

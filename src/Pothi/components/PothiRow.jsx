@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import constant from "@common/constant";
 import useTokens from "@common/hooks/useTokens";
-import { ChevronDownIcon, ChevronRight, FolderIcon, PinIcon, PlusIcon } from "@common/icons";
+import { ChevronDownIcon, FolderIcon, PinIcon, PlusIcon } from "@common/icons";
 import { convertToUnicode, STRINGS } from "@common";
 import { Text } from "../../common/components/ui";
 
@@ -33,7 +33,6 @@ const PothiRow = ({
   pothi,
   expanded,
   onToggle,
-  onOpen,
   onTogglePin = null,
   onLongPress = null,
   onAddBanis = null,
@@ -156,29 +155,6 @@ const PothiRow = ({
               </Text>
             </Pressable>
           )}
-
-          <Pressable
-            onPress={onOpen}
-            disabled={pothi.count === 0}
-            accessibilityRole="button"
-            accessibilityLabel={STRINGS.POTHI_OPEN}
-            style={({ pressed }) => ({
-              flexDirection: "row",
-              alignItems: "center",
-              gap: space.md,
-              minHeight: layout.row.minHeight,
-              paddingLeft: layout.screenGutter + space.xl,
-              paddingRight: layout.screenGutter,
-              paddingVertical: space.lg,
-              opacity: pothi.count === 0 ? 0.5 : 1,
-              backgroundColor: pressed ? c.surfaceSelected : "transparent",
-            })}
-          >
-            <Text variant="body" color="accent">
-              {STRINGS.POTHI_OPEN}
-            </Text>
-            <ChevronRight size={18} color={c.accent} />
-          </Pressable>
         </View>
       )}
     </View>
@@ -196,7 +172,6 @@ PothiRow.propTypes = {
   }).isRequired,
   expanded: PropTypes.bool.isRequired,
   onToggle: PropTypes.func.isRequired,
-  onOpen: PropTypes.func.isRequired,
   /** Omitted for bundled folders, which cannot be pinned. */
   onTogglePin: PropTypes.func,
   /** Opens rename/delete. Omitted for bundled folders, which allow neither. */

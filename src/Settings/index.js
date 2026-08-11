@@ -102,7 +102,7 @@ const Settings = ({ navigation, route = undefined }) => {
             <LanguageComponent language={language} />
             <TransliterationComponent />
             <TranslationComponent />
-            <ThemeComponent navigate={navigate} />
+            <ThemeComponent />
             <StatusBar />
             <HideStatusBar />
             <AutoScroll />

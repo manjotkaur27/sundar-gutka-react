@@ -31,19 +31,27 @@ const PickBanisField = ({
   gurmukhiOpen,
   receivingKeys,
   onFocusSearch,
+  tall = false,
 }) => {
   const { c, space, radii, layout } = useTokens();
   const { height } = useWindowDimensions();
   const { titleFor, titleFontFamily } = useBaniTitle();
 
   // A share of the LIVE window, not a fixed slab. See layout.sheet for why.
-  const listMaxHeight = Math.max(
-    layout.sheet.listMinHeight,
-    height *
-      (gurmukhiOpen
-        ? layout.sheet.listMaxHeightRatioWithKeyboard
-        : layout.sheet.listMaxHeightRatio)
-  );
+  //
+  // `tall` is the picker standing alone as its own step, where it gets the
+  // screen to browse in rather than the slice it can spare beside other fields.
+  const ratio = (() => {
+    if (tall) {
+      return gurmukhiOpen
+        ? layout.sheet.pickStepListMaxHeightRatioWithKeyboard
+        : layout.sheet.pickStepListMaxHeightRatio;
+    }
+    return gurmukhiOpen
+      ? layout.sheet.listMaxHeightRatioWithKeyboard
+      : layout.sheet.listMaxHeightRatio;
+  })();
+  const listMaxHeight = Math.max(layout.sheet.listMinHeight, height * ratio);
 
   const options = useMemo(() => {
     const leaves = (baniListData ?? []).filter((b) => !Array.isArray(b.folder) && b.id != null);
@@ -72,7 +80,10 @@ const PickBanisField = ({
       : STRINGS.formatString(STRINGS.POTHI_SHABAD_COUNT, { count: picked.length });
 
   return (
-    <View style={{ gap: layout.dialog.gap }}>
+    // `flexShrink` so the capped list inside can actually give space back to
+    // the sheet's fixed actions — a default-0 container would swallow the
+    // shrink before it reached the ScrollView.
+    <View style={{ gap: layout.dialog.gap, flexShrink: 1 }}>
       {open ? (
         <GurmukhiTextField
           value={query}
@@ -118,7 +129,12 @@ const PickBanisField = ({
         <>
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            style={{ maxHeight: listMaxHeight }}
+            // `maxHeight` is a CEILING, not a demand. React Native defaults
+            // `flexShrink` to 0, so without this the list insisted on its full
+            // share and pushed the sheet's own actions off the bottom edge —
+            // it must yield to the fixed furniture (search field, buttons)
+            // before it takes the space that is left.
+            style={{ maxHeight: listMaxHeight, flexShrink: 1 }}
             contentContainerStyle={{ paddingVertical: space.md_12 }}
           >
             {options.map((bani) => (
@@ -132,28 +148,32 @@ const PickBanisField = ({
             ))}
           </ScrollView>
 
-          {/* Closing is the same affordance as opening, in the same place the
-              summary was, so the section can always be put away again. */}
-          <Pressable
-            onPress={onToggleOpen}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: true }}
-            accessibilityLabel={STRINGS.POTHI_DONE}
-            style={({ pressed }) => ({
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: space.sm,
-              minHeight: layout.touchTarget,
-              borderRadius: radii.sm,
-              backgroundColor: pressed ? c.surfaceSelected : "transparent",
-            })}
-          >
-            <Text variant="label" color="accent">
-              {summary}
-            </Text>
-            <ChevronDownIcon size={18} color={c.accent} />
-          </Pressable>
+          {/* Standing alone as its own step there is nothing to collapse back
+              into, so the count moves up beside the keyboard toggle and this
+              whole row goes — it was a touch target's worth of height spent on
+              an action with nowhere to go. */}
+          {!tall && (
+            <Pressable
+              onPress={onToggleOpen}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: true }}
+              accessibilityLabel={STRINGS.POTHI_DONE}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: space.sm,
+                minHeight: layout.touchTarget,
+                borderRadius: radii.sm,
+                backgroundColor: pressed ? c.surfaceSelected : "transparent",
+              })}
+            >
+              <Text variant="label" color="accent">
+                {summary}
+              </Text>
+              <ChevronDownIcon size={18} color={c.accent} />
+            </Pressable>
+          )}
         </>
       )}
     </View>
@@ -166,6 +186,8 @@ PickBanisField.propTypes = {
   onChange: PropTypes.func.isRequired,
   baniListData: PropTypes.arrayOf(PropTypes.shape()).isRequired,
   open: PropTypes.bool.isRequired,
+  /** True when the picker IS the step, so the list takes the screen to browse in. */
+  tall: PropTypes.bool,
   onToggleOpen: PropTypes.func.isRequired,
   query: PropTypes.string.isRequired,
   onQueryChange: PropTypes.func.isRequired,

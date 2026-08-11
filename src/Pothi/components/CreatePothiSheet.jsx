@@ -11,10 +11,12 @@ import {
   GurmukhiKeyboard,
   GurmukhiKeyboardToggle,
   Sheet,
+  Text,
 } from "../../common/components/ui";
 import useRequireOnline from "../hooks/useRequireOnline";
 import PickBanisField from "./PickBanisField";
 import PothiNameField from "./PothiNameField";
+import { shabadCountLabel } from "./PothiRow";
 
 // Name a new pothi, optionally seeding it with a shabad.
 //
@@ -43,17 +45,21 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   // is how a real keyboard behaves — the alternative was a switch per field,
   // several controls all claiming the same single keyboard.
   const [gurmukhi, setGurmukhi] = useState(false);
-  const [focused, setFocused] = useState("name");
+  // Two steps: name the pothi, then fill it. Splitting them is what gives the
+  // bani list room to browse in — sharing one sheet with the name field left it
+  // a sliver. Each step owns the single keyboard, so there is no `focused`
+  // question to answer any more: step 1 types the name, step 2 the search.
+  const [step, setStep] = useState(1);
 
   // A reopened sheet starts clean rather than showing the last name typed.
   useEffect(() => {
     if (visible) {
       setName("");
       setPicked([]);
-      setPickOpen(false);
+      setPickOpen(true);
       setQuery("");
       setGurmukhi(false);
-      setFocused("name");
+      setStep(1);
     }
   }, [visible]);
 
@@ -89,58 +95,91 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
       <Sheet
         visible={visible}
         onClose={onClose}
-        title={STRINGS.POTHI_NEW}
+        // Step 2 is about THIS pothi, so it wears the name just typed.
+        title={step === 1 ? STRINGS.POTHI_NEW : name}
+        // Step 2 must NOT scroll as a whole. The search field and the actions
+        // are fixed furniture; the bani list is the only thing that moves, and
+        // it scrolls inside its own capped box (see PickBanisField). Scrolling
+        // the sheet as well let the search field and the buttons slide away
+        // while browsing, which is the one time you need them.
+        scrollable={step === 1}
         // Scrollable, and the keyboard is a PINNED footer: with the bani list
         // open there is more content than a capped sheet can show, so the body
         // has to give way rather than push the keys off the bottom.
         footer={
           gurmukhi ? (
             <GurmukhiKeyboard
-              value={focused === "name" ? name : query}
+              value={step === 1 ? name : query}
               onKey={(key) =>
-                focused === "name"
+                step === 1
                   ? // Capped, never trimmed: trimming per keystroke would
                     // swallow the space key the moment it was pressed.
                     setName((name + key).slice(0, MAX_NAME_LENGTH))
                   : setQuery(query + key)
               }
               onBackspace={() =>
-                focused === "name" ? setName(name.slice(0, -1)) : setQuery(query.slice(0, -1))
+                step === 1 ? setName(name.slice(0, -1)) : setQuery(query.slice(0, -1))
               }
             />
           ) : null
         }
       >
-        <View style={{ gap: space.lg }}>
+        {/* `flexShrink` carries the sheet's height limit down to the bani
+            list, so it yields rather than pushing the actions off the sheet. */}
+        <View style={{ gap: space.lg, flexShrink: 1 }}>
           {/* Above BOTH fields, because it switches the one keyboard they
               share. See GurmukhiKeyboardToggle. */}
-          <GurmukhiKeyboardToggle
-            label={STRINGS.POTHI_KEYBOARD_TOGGLE}
-            active={gurmukhi}
-            onToggle={() => setGurmukhi((on) => !on)}
-          />
+          {/* On step 2 the picked count rides this row as plain text rather
+              than owning a full row of its own under the list — it is a
+              readout, not an action, so it costs no height and no tap target. */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: space.md,
+            }}
+          >
+            {step === 2 && (
+              <Text
+                variant="bodySmall"
+                color={picked.length ? "accent" : "textSecondary"}
+                style={{ flexShrink: 1 }}
+              >
+                {shabadCountLabel(picked.length)}
+              </Text>
+            )}
+            <GurmukhiKeyboardToggle
+              label={STRINGS.POTHI_KEYBOARD_TOGGLE}
+              active={gurmukhi}
+              onToggle={() => setGurmukhi((on) => !on)}
+            />
+          </View>
 
-          <PothiNameField
-            value={name}
-            onChange={setName}
-            onSubmit={submit}
-            gurmukhiOpen={gurmukhi}
-            receivingKeys={gurmukhi && focused === "name"}
-            onFocus={() => setFocused("name")}
-          />
-
-          <PickBanisField
-            picked={picked}
-            onChange={setPicked}
-            baniListData={baniListData}
-            open={pickOpen}
-            onToggleOpen={() => setPickOpen((on) => !on)}
-            query={query}
-            onQueryChange={setQuery}
-            gurmukhiOpen={gurmukhi}
-            receivingKeys={gurmukhi && focused === "search"}
-            onFocusSearch={() => setFocused("search")}
-          />
+          {step === 1 ? (
+            <PothiNameField
+              value={name}
+              onChange={setName}
+              onSubmit={() => isValidName(name) && setStep(2)}
+              gurmukhiOpen={gurmukhi}
+              receivingKeys={gurmukhi}
+              onFocus={() => {}}
+            />
+          ) : (
+            <PickBanisField
+              picked={picked}
+              onChange={setPicked}
+              baniListData={baniListData}
+              open={pickOpen}
+              onToggleOpen={() => setPickOpen((on) => !on)}
+              query={query}
+              onQueryChange={setQuery}
+              gurmukhiOpen={gurmukhi}
+              receivingKeys={gurmukhi}
+              onFocusSearch={() => {}}
+              tall
+            />
+          )}
 
           <View
             style={{
@@ -156,14 +195,22 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
               variant="ghost"
               style={{ flexGrow: 1, flexBasis: "auto" }}
             />
-            <Button
-              title={STRINGS.POTHI_CREATE}
-              onPress={submit}
-              disabled={!isValidName(name)}
-              style={{ flexGrow: 1, flexBasis: "auto" }}
-            />
+            {step === 1 ? (
+              <Button
+                title={STRINGS.NEXT}
+                onPress={() => setStep(2)}
+                disabled={!isValidName(name)}
+                style={{ flexGrow: 1, flexBasis: "auto" }}
+              />
+            ) : (
+              <Button
+                title={STRINGS.POTHI_CREATE}
+                onPress={submit}
+                disabled={!isValidName(name)}
+                style={{ flexGrow: 1, flexBasis: "auto" }}
+              />
+            )}
           </View>
-
         </View>
       </Sheet>
     </ScreenRolesProvider>

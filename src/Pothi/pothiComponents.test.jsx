@@ -53,7 +53,7 @@ jest.mock("@common", () => ({
   STRINGS: {
     POTHI_SHABAD_COUNT: "{count} shabads",
     POTHI_SHABAD_COUNT_ONE: "1 shabad",
-    POTHI_SUNDAR_GUTKA: "Sundar Gutka",
+    POTHI_DEFAULT_FOLDERS: "Default Folders",
     POTHI_OPEN: "Open Pothi",
     POTHI_PIN: "Pin",
     POTHI_UNPIN: "Unpin",
@@ -81,7 +81,6 @@ const renderRow = (props = {}) =>
       pothi={row(props.pothi)}
       expanded={props.expanded ?? false}
       onToggle={props.onToggle ?? jest.fn()}
-      onOpen={props.onOpen ?? jest.fn()}
       onTogglePin={props.onTogglePin}
       onLongPress={props.onLongPress}
     />
@@ -134,7 +133,6 @@ describe("PothiRow", () => {
         pothi={row({ pinned: true })}
         expanded={false}
         onToggle={jest.fn()}
-        onOpen={jest.fn()}
         onTogglePin={jest.fn()}
       />
     );
@@ -148,11 +146,13 @@ describe("PothiRow", () => {
     expect(onToggle).toHaveBeenCalled();
   });
 
-  it("hides Open Pothi until expanded", () => {
+  // Tapping a bani in the expanded row already opens it, so the row offers no
+  // separate "Open Pothi" action.
+  it("offers no Open Pothi action, expanded or not", () => {
     renderRow();
     expect(screen.queryByLabelText("Open Pothi")).toBeNull();
     renderRow({ expanded: true });
-    expect(screen.getByLabelText("Open Pothi")).toBeTruthy();
+    expect(screen.queryByLabelText("Open Pothi")).toBeNull();
   });
 
   it("says so when an expanded pothi is empty", () => {

@@ -5,10 +5,9 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
-import { actions, showToast, STRINGS, trackPothiEvent } from "@common";
+import { actions, showConfirm, showToast, STRINGS, trackPothiEvent } from "@common";
 import {
   Button,
-  Dialog,
   GurmukhiKeyboard,
   GurmukhiKeyboardToggle,
   Sheet,
@@ -33,14 +32,12 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
   const dispatch = useDispatch();
   const requireOnline = useRequireOnline();
   const [renaming, setRenaming] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [name, setName] = useState("");
   const [gurmukhi, setGurmukhi] = useState(false);
   // Reopening on a different pothi starts from that pothi's current name.
   useEffect(() => {
     if (visible) {
       setRenaming(false);
-      setConfirming(false);
       setGurmukhi(false);
       setName(pothi?.name ?? "");
     }
@@ -55,16 +52,29 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
     onClose();
   };
 
-  const confirmDelete = () => {
-    if (!requireOnline()) {
-      setConfirming(false);
-      return;
-    }
-    dispatch(actions.deletePothi(pothi.id));
-    trackPothiEvent("deleted", { size: pothi.count });
-    setConfirming(false);
-    showToast(STRINGS.POTHI_DELETED, "success");
+  // The same compact confirm the audio player raises for "Remove offline
+  // audio?" — a small card with plain text actions and the destructive one in
+  // red, rather than a second full sheet of buttons stacked over this one.
+  //
+  // The pothi is captured here because the sheet closes first: once it does,
+  // `pothi` is null and this component renders nothing, while the confirm is
+  // hosted at the app root and outlives it.
+  const askDelete = () => {
+    const { id, count } = pothi;
     onClose();
+    showConfirm({
+      title: STRINGS.POTHI_DELETE,
+      message: STRINGS.POTHI_DELETE_CONFIRM,
+      cancelText: STRINGS.CANCEL,
+      confirmText: STRINGS.POTHI_DELETE,
+      destructive: true,
+      onConfirm: () => {
+        if (!requireOnline()) return;
+        dispatch(actions.deletePothi(id));
+        trackPothiEvent("deleted", { size: count });
+        showToast(STRINGS.POTHI_DELETED, "success");
+      },
+    });
   };
 
   const actionRow = (children) => (
@@ -87,7 +97,7 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
     // Same settings-scoped palette as the reminder sheets — see CreatePothiSheet.
     <ScreenRolesProvider screen="settings">
       <Sheet
-        visible={visible && !confirming}
+        visible={visible}
         onClose={onClose}
         title={pothi.name}
         scrollable={false}
@@ -141,7 +151,7 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
               <>
                 <Button
                   title={STRINGS.POTHI_DELETE}
-                  onPress={() => setConfirming(true)}
+                  onPress={askDelete}
                   variant="ghost"
                   style={grow}
                 />
@@ -155,17 +165,6 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose }) => {
           )}
         </View>
       </Sheet>
-
-      <Dialog
-        visible={confirming}
-        title={STRINGS.POTHI_DELETE}
-        message={STRINGS.POTHI_DELETE_CONFIRM}
-        confirmLabel={STRINGS.POTHI_DELETE}
-        cancelLabel={STRINGS.CANCEL}
-        onConfirm={confirmDelete}
-        onCancel={() => setConfirming(false)}
-        destructive
-      />
     </ScreenRolesProvider>
   );
 };
