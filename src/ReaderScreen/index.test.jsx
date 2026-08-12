@@ -214,6 +214,9 @@ jest.mock("@common", () => ({
     bumpReaderTap: jest.fn(() => ({
       type: "BUMP_READER_TAP",
     })),
+    bumpReaderScrollDown: jest.fn(() => ({
+      type: "BUMP_READER_SCROLL_DOWN",
+    })),
     setPlayerDragging: jest.fn((val) => ({
       type: "SET_PLAYER_DRAGGING",
       value: val,

@@ -62,6 +62,10 @@ export const CLEAR_AUDIO_PROGRESS = "CLEAR_AUDIO_PROGRESS";
 // Reader tap signal — incremented on each tap in the bani WebView so the
 // floating mini player can toggle its expanded/collapsed state.
 export const BUMP_READER_TAP = "BUMP_READER_TAP";
+// Scroll DOWN in the reader. The counterpart of the tap above: a tap grows the
+// floating audio player back to its pill, scrolling away shrinks it to the
+// circle. See MinimizePlayer.
+export const BUMP_READER_SCROLL_DOWN = "BUMP_READER_SCROLL_DOWN";
 
 // Seva Donor actions
 export const SET_DONOR_STATE = "SET_DONOR_STATE";

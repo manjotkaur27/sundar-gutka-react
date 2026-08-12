@@ -21,7 +21,7 @@ import {
   ChevronDownIcon,
   ExpandCollapseIcon,
 } from "@common/icons";
-import { STRINGS, CustomText, logError, setToastBottomReservation } from "@common";
+import { STRINGS, CustomText, logError, setToastBottomReservation, trackPlayerForm } from "@common";
 import {
   useAnimation,
   useDownloadManager,
@@ -68,6 +68,7 @@ const AudioControlBar = ({
   skipNextLoadRef = undefined,
   isNavBarVisible = false,
   onHideBars = () => {},
+  onPlayerTouch = () => {},
 }) => {
   const dispatch = useDispatch();
   const { theme } = useAudioTheme();
@@ -78,6 +79,10 @@ const AudioControlBar = ({
   // Instant swap between the full player and the mini pill — no crossfade
   // animation (it caused flicker). Only one of the two is mounted at a time.
   const [isMinimized, setIsMinimized] = useState(false);
+  // Mirrored so `setMinimized` below can dedupe without depending on the state
+  // it sets, the same shape as the Reader own setBarsVisible.
+  const isMinimizedRef = useRef(isMinimized);
+  isMinimizedRef.current = isMinimized;
   const [isLyricsAvailable, setIsLyricsAvailable] = useState(false);
   const [isLyricsChecking, setIsLyricsChecking] = useState(true);
   // Single source of truth (NetworkProvider) — gates tapping a non-downloaded
@@ -85,6 +90,17 @@ const AudioControlBar = ({
   // already uses, so a tap can never leave playback stuck trying to stream with
   // no network.
   const { isOffline } = useNetwork();
+
+  // The ONE path between the full player and the floating one. Every caller
+  // says why, so each conversion is recorded once and the analytics cannot
+  // drift from the UI — the mini/micro pair is funnelled the same way inside
+  // MinimizePlayer.
+  const setMinimized = useCallback((minimized, trigger) => {
+    if (isMinimizedRef.current === minimized) return;
+    isMinimizedRef.current = minimized;
+    setIsMinimized(minimized);
+    trackPlayerForm(minimized ? "mini" : "full", trigger);
+  }, []);
   const isAudioAutoPlay = useSelector((state) => state.isAudioAutoPlay);
   const baniLength = useSelector((state) => state.baniLength);
   const progressRef = useRef(progress);
@@ -605,11 +621,20 @@ const AudioControlBar = ({
   }, [isMinimized, footerHeight]);
 
   return (
-    <View style={styles.container} pointerEvents="box-none" onLayout={handleFooterLayout}>
+    // onTouchStart here catches EVERY form and control in one place: the full
+    // bar, the pill and the circle all live under this view. It is box-none, so
+    // a touch landing where the player is NOT passes through to the page and
+    // never fires this — which is exactly the line that has to be drawn.
+    <View
+      style={styles.container}
+      pointerEvents="box-none"
+      onLayout={handleFooterLayout}
+      onTouchStart={onPlayerTouch}
+    >
       {/* DownloadBadge replaced by DownloadButton in the trackInfo row */}
       {isMinimized && (
         <MinimizePlayer
-          setIsMinimized={setIsMinimized}
+          setMinimized={setMinimized}
           handlePlayPause={handlePlayPause}
           isPlaying={isPlaying}
           progress={formatTime(safePosition)}
@@ -648,7 +673,7 @@ const AudioControlBar = ({
             {!isMoreTracksModalOpen && !isSettingsModalOpen && currentPlaying && (
               <Pressable
                 style={styles.controlIcon}
-                onPress={() => setIsMinimized(true)}
+                onPress={() => setMinimized(true, "control")}
               >
                 <ExpandCollapseIcon size={26} color={theme.c.textBrand} />
               </Pressable>
@@ -819,6 +844,8 @@ AudioControlBar.propTypes = {
   skipNextLoadRef: PropTypes.shape({ current: PropTypes.bool }),
   isNavBarVisible: PropTypes.bool,
   onHideBars: PropTypes.func,
+  /** Any touch on the player, so the page cannot report it as a tap on the bani. */
+  onPlayerTouch: PropTypes.func,
 };
 
 export default AudioControlBar;

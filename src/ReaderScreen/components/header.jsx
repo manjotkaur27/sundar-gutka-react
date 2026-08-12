@@ -3,7 +3,7 @@ import { View, Animated, Pressable } from "react-native";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { BackArrowIcon, BookmarkIcon, FolderIcon } from "@common/icons";
+import { BackArrowIcon, BookmarkIcon, PlusIcon } from "@common/icons";
 import { CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
 
@@ -68,7 +68,11 @@ const Header = ({
         accessibilityLabel={STRINGS.POTHI_ADD_TO}
         hitSlop={layout.hitSlop}
       >
-        <FolderIcon size={25} color={headerForeground} />
+        {/* A plus, not a folder. The action is "add this bani to something",
+            and a folder glyph beside a bookmark read as a second place to go
+            rather than as something to do to the bani in front of you. The
+            accessibility label above still names the destination. */}
+        <PlusIcon size={26} color={headerForeground} />
       </Pressable>
       <Pressable
         onPress={() => {

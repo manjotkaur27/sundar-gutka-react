@@ -34,6 +34,23 @@ import { loadHTML } from "./utils";
 // auto-scroll or audio playback.
 const BARS_IDLE_HIDE_MS = 4000;
 
+// How long after a touch on the audio player the page report of that same
+// touch is not allowed to move the chrome.
+//
+// The WebView is a full-screen native view UNDER the player, running its own
+// touch detection that knows nothing about React Native, so a press on the
+// player is seen TWICE: once by the player, and once by the page, which cannot
+// tell the finger landed on something else and reports it as a tap on the bani.
+//
+// That echo is why pressing play revealed the header and pausing did not: pause
+// also calls onHideBars(), which lands after the echo and wins, while play has
+// nothing to push back with. Pause was never in control, it just had a
+// counterweight — which is why it only worked when it happened to land last.
+//
+// onPlayerTouch fires only for touches that land on the player, so a report
+// inside this window belongs to the same finger. It is the length of a press.
+const PLAYER_TOUCH_ECHO_MS = 500;
+
 // Route params for the sign-in redirect out of this screen. A module constant,
 // so its identity is stable and the callback that depends on it is not rebuilt
 // on every render.
@@ -192,6 +209,17 @@ const Reader = ({ navigation, route }) => {
   useEffect(() => {
     isAudioActiveRef.current = isAudioFeatureOn && isAudio;
   }, [isAudioFeatureOn, isAudio]);
+
+  // When the audio player last took a touch. See PLAYER_TOUCH_ECHO_MS.
+  const playerTouchAtRef = useRef(0);
+  const notePlayerTouch = useCallback(() => {
+    playerTouchAtRef.current = Date.now();
+  }, []);
+  /** Whether a page message arriving now echoes a touch on the player. */
+  const isPlayerEcho = useCallback(
+    () => Date.now() - playerTouchAtRef.current < PLAYER_TOUCH_ECHO_MS,
+    []
+  );
 
   // Single mutation path for bar visibility — dedupes and fires analytics.
   const setBarsVisible = useCallback((visible, trigger) => {
@@ -518,17 +546,32 @@ const Reader = ({ navigation, route }) => {
       // "show"/"hide" on scroll up/down, and "activity" on any touch (to restart
       // the idle auto-hide countdown during auto-scroll/audio). setBarsVisible is
       // the single mutation path (dedupes + fires analytics).
+      // A press on the audio player reaches BOTH the player and the page, and
+      // the page reports it as a tap on the bani. Only the CHROME half of that
+      // report is dropped: the floating player still grows on it, so the
+      // transitions between the three player forms are exactly as they were.
+      // Playing or pausing simply stops revealing the header and bottom bar.
       if (data === "toggle") {
-        setBarsVisible(!isHeaderRef.current, "tap");
-        scheduleBarsIdleHide();
+        if (!isPlayerEcho()) {
+          setBarsVisible(!isHeaderRef.current, "tap");
+          scheduleBarsIdleHide();
+        }
         dispatch(actions.bumpReaderTap());
       } else if (data === "activity") {
         scheduleBarsIdleHide();
       } else if (data === "show") {
+        // Same rule for a scroll the player caused: starting playback with sync
+        // scroll on scrolls the page, and an upward jump reads as a scroll up.
+        if (isPlayerEcho()) return;
         setBarsVisible(true, "scroll_up");
         scheduleBarsIdleHide();
       } else if (data === "hide") {
         setBarsVisible(false, "scroll_down");
+        // A scroll down also shrinks the floating audio player to its circle.
+        // Its own counter rather than the player watching the bars go down: a
+        // TAP hides those too, and a tap is supposed to GROW the player, so bar
+        // visibility cannot tell the two gestures apart. See MinimizePlayer.
+        dispatch(actions.bumpReaderScrollDown());
       } else if (data.includes("scroll-elementId-")) {
         // Capture element ID (and optional sequence) from WebView scroll events.
         // Only update refs here — do NOT dispatch to Redux on every scroll tick.
@@ -587,6 +630,7 @@ const Reader = ({ navigation, route }) => {
       isPlayerDragging,
       setBarsVisible,
       scheduleBarsIdleHide,
+      isPlayerEcho,
     ]
   );
 
@@ -746,6 +790,8 @@ const Reader = ({ navigation, route }) => {
             // Opening the full player from the circle must not bring the bars
             // back with it — the user asked for the controls, not the chrome.
             onHideBars={() => setBarsVisible(false, "player_expanded")}
+            // Any touch anywhere in the player, in any of its forms.
+            onPlayerTouch={notePlayerTouch}
           />
         </Animated.View>
       )}

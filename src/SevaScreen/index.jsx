@@ -794,20 +794,38 @@ const SevaScreen = () => {
         </Pressable>
       </View>
 
-      {/* Frequency / donation type */}
-      <View style={styles.frequencyContainer}>
-        {["Monthly", "One Time"].map((freq) => (
-          <Pressable
-            key={freq}
-            style={styles.frequencyOption}
-            onPress={() => handleFrequencyChange(freq)}
-          >
-            <View style={styles.radioButton}>
-              {frequency === freq && <View style={styles.radioButtonSelected} />}
-            </View>
-            <CustomText style={styles.frequencyText}>{FREQUENCY_LABELS[freq]}</CustomText>
-          </Pressable>
-        ))}
+      {/* Frequency / donation type — one segmented control, not two loose
+          radios. Announced as a radio group so a screen reader reads it as the
+          single either-or choice it is, and each half states whether it is the
+          chosen one; before this neither carried a role at all. */}
+      <View style={styles.frequencyContainer} accessibilityRole="radiogroup">
+        {["Monthly", "One Time"].map((freq, index) => {
+          const selected = frequency === freq;
+          return (
+            <React.Fragment key={freq}>
+              {index > 0 && <View style={styles.frequencyDivider} />}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.frequencyOption,
+                  pressed && styles.frequencyOptionPressed,
+                ]}
+                onPress={() => handleFrequencyChange(freq)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected, checked: selected }}
+                accessibilityLabel={FREQUENCY_LABELS[freq]}
+              >
+                <View
+                  style={[styles.radioRing, selected ? styles.radioRingOn : styles.radioRingOff]}
+                >
+                  {selected && <View style={styles.radioDot} />}
+                </View>
+                <CustomText style={[styles.frequencyText, selected && styles.frequencyTextOn]}>
+                  {FREQUENCY_LABELS[freq]}
+                </CustomText>
+              </Pressable>
+            </React.Fragment>
+          );
+        })}
       </View>
 
       {/* Donate button */}

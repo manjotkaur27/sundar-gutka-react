@@ -5,10 +5,11 @@ import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { setPlayerDragging } from "@common/actions";
 import { PlayIcon, PauseIcon } from "@common/icons";
-import { CustomText } from "@common";
+import { CustomText, trackPlayerForm } from "@common";
 import { minimizePlayerStyles } from "../style";
 import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 
+// How long the pill waits, untouched, before shrinking back to its circle.
 const COLLAPSE_DELAY_MS = 5000;
 // Reference width the pill's original fixed-px dimensions (44 height, 28
 // circle, 20 right margin, etc.) were tuned against. Every pill dimension
@@ -20,7 +21,7 @@ const MIN_SCALE = 0.92;
 const MAX_SCALE = 1.25;
 
 const MinimizePlayer = ({
-  setIsMinimized,
+  setMinimized,
   handlePlayPause,
   isPlaying,
   progress,
@@ -86,6 +87,7 @@ const MinimizePlayer = ({
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
   const tapTick = useSelector((state) => state.readerTapTick);
+  const scrollDownTick = useSelector((state) => state.readerScrollDownTick);
   const [isExpanded, setIsExpanded] = useState(true);
   const [textWidth, setTextWidth] = useState(null);
   const collapseTimer = useRef(null);
@@ -96,16 +98,26 @@ const MinimizePlayer = ({
   // Mirror of isExpanded for the drag-release clamp (closure is created once).
   const isExpandedRef = useRef(true);
 
-  const armCollapse = useCallback(() => {
-    if (collapseTimer.current) clearTimeout(collapseTimer.current);
-    collapseTimer.current = setTimeout(() => setIsExpanded(false), COLLAPSE_DELAY_MS);
+  // The ONE path between the pill and the circle. Dedupes, so a repeated cause
+  // is not counted as a conversion, and records what actually caused it —
+  // there is no other way to change the form, so the analytics cannot fall
+  // behind the UI the way a `setIsExpanded` scattered over four effects would.
+  const setForm = useCallback((expanded, trigger) => {
+    if (isExpandedRef.current === expanded) return;
+    isExpandedRef.current = expanded;
+    setIsExpanded(expanded);
+    trackPlayerForm(expanded ? "mini" : "micro", trigger);
   }, []);
 
+  const armCollapse = useCallback(() => {
+    if (collapseTimer.current) clearTimeout(collapseTimer.current);
+    collapseTimer.current = setTimeout(() => setForm(false, "idle"), COLLAPSE_DELAY_MS);
+  }, [setForm]);
+
   // No expand/collapse animation — the pill snaps instantly between mini
-  // (circle only) and compact (circle + text). This effect only keeps
-  // isExpandedRef in sync and (re)arms the auto-collapse timer.
+  // (circle + text) and micro (circle only). This effect only (re)arms the
+  // auto-collapse timer; `setForm` above is what keeps isExpandedRef in sync.
   useEffect(() => {
-    isExpandedRef.current = isExpanded;
     if (isExpanded) {
       armCollapse();
     } else if (collapseTimer.current) {
@@ -121,14 +133,32 @@ const MinimizePlayer = ({
   // not toggle. Toggling meant a tap while already expanded collapsed it back
   // to the circle, so reaching the pill from the circle was a coin flip
   // depending on what state it happened to be in. Collapsing is the idle
-  // timer's job, not the tap's.
+  // timer's and the scroll's job, not the tap's.
   useEffect(() => {
     if (tickInitRef.current) {
       tickInitRef.current = false;
       return;
     }
-    setIsExpanded(true);
-  }, [tapTick]);
+    setForm(true, "reader_tap");
+  }, [tapTick, setForm]);
+
+  // Scrolling DOWN shrinks the pill to its circle, so reading is never done
+  // around a floating name plate. It arrives the same way the tap above does:
+  // the WebView posts on scroll, the Reader bumps a counter, and the change of
+  // counter is the event.
+  //
+  // A counter of its own rather than watching the bars go down, even though a
+  // scroll down hides those too: a TAP also hides them, and a tap is supposed
+  // to grow this player, not shrink it. Watching the bars would make the two
+  // gestures indistinguishable and leave the outcome to effect ordering.
+  const scrollInitRef = useRef(true);
+  useEffect(() => {
+    if (scrollInitRef.current) {
+      scrollInitRef.current = false;
+      return;
+    }
+    setForm(false, "scroll_down");
+  }, [scrollDownTick, setForm]);
 
   // When the nav bar + header reappear (scroll up while this circular/pill
   // player is the active mode), expand alongside them — only on the
@@ -137,10 +167,10 @@ const MinimizePlayer = ({
   const wasNavBarVisibleRef = useRef(isNavBarVisible);
   useEffect(() => {
     if (isNavBarVisible && !wasNavBarVisibleRef.current) {
-      setIsExpanded(true);
+      setForm(true, "scroll_up");
     }
     wasNavBarVisibleRef.current = isNavBarVisible;
-  }, [isNavBarVisible]);
+  }, [isNavBarVisible, setForm]);
 
   useEffect(() => {
     textWidthRef.current = textWidth;
@@ -157,7 +187,7 @@ const MinimizePlayer = ({
     const wasPlaying = isPlaying;
     handlePlayPause();
     if (wasPlaying) {
-      setIsMinimized(false);
+      setMinimized(false, "pause");
       // The full player is what was asked for — NOT the nav bar and header with
       // it. Asserted rather than assumed: nothing here is supposed to raise the
       // chrome, so if anything ever does, this still holds the requirement.
@@ -166,6 +196,15 @@ const MinimizePlayer = ({
     }
     // Resuming: leave the pill exactly as it is. Re-arming the collapse timer
     // here is what made it flip back to the pill form on resume.
+  };
+
+  // Tapping the pill opens the FULL player, and the bars stay down with it.
+  // Reaching for the controls is not a request for the header and the bottom
+  // navigation as well; they were arriving because the full player used to be
+  // opened without saying anything about the chrome.
+  const openFullPlayer = () => {
+    setMinimized(false, "mini_tap");
+    onHideBars();
   };
 
   // Widest the text panel may be before the expanded pill would run off-screen.
@@ -345,6 +384,13 @@ const MinimizePlayer = ({
     bottom: Math.round(10 * scale),
     right: metrics.rightAnchor,
   };
+  // The micro form is a CIRCLE, so its width is pinned to the pill own height
+  // rather than left to fall out of padding + circle. Those are rounded
+  // independently per device scale, so at some sizes they summed a pixel or two
+  // wide and the "circle" came out a slightly squashed oval.
+  const microStyle = isExpanded
+    ? null
+    : { width: metrics.pillHeight, paddingHorizontal: 0, justifyContent: "center" };
 
   return (
     <Animated.View
@@ -353,6 +399,7 @@ const MinimizePlayer = ({
       style={[
         styles.container,
         responsiveContainerStyle,
+        microStyle,
         anchorStyle,
         opacityStyle,
         { transform: pan.getTranslateTransform() },
@@ -426,7 +473,7 @@ const MinimizePlayer = ({
             },
             textWidth != null && { width: textWidth },
           ]}
-          onPress={() => setIsMinimized(false)}
+          onPress={openFullPlayer}
           onLayout={(e) => {
             if (textWidth == null) {
               setTextWidth(e.nativeEvent.layout.width);
@@ -446,7 +493,8 @@ const MinimizePlayer = ({
 };
 
 MinimizePlayer.propTypes = {
-  setIsMinimized: PropTypes.func.isRequired,
+  /** `(minimized, trigger)` — the single tracked path in and out of the full player. */
+  setMinimized: PropTypes.func.isRequired,
   handlePlayPause: PropTypes.func.isRequired,
   isPlaying: PropTypes.bool.isRequired,
   progress: PropTypes.string.isRequired,

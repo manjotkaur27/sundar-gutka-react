@@ -60,6 +60,10 @@ export const bumpReaderTap = () => {
   return { type: actionTypes.BUMP_READER_TAP };
 };
 
+export const bumpReaderScrollDown = () => {
+  return { type: actionTypes.BUMP_READER_SCROLL_DOWN };
+};
+
 export const toggleAudioFeatureEnabled = (value) => {
   trackSettingEvent(constant.AUDIO, value);
   return { type: actionTypes.TOGGLE_AUDIO_FEATURE_ENABLED, value };

@@ -317,8 +317,15 @@ const currentBani = createReducer(null, {
   [actionTypes.SET_CURRENT_BANI]: (state, action) => action.value,
 });
 
+// Two counters rather than one "last reader gesture" value: the floating audio
+// player reacts to each in the opposite direction, and a single value could not
+// tell "the same gesture again" from "no gesture".
 const readerTapTick = createReducer(0, {
   [actionTypes.BUMP_READER_TAP]: (state) => state + 1,
+});
+
+const readerScrollDownTick = createReducer(0, {
+  [actionTypes.BUMP_READER_SCROLL_DOWN]: (state) => state + 1,
 });
 
 const isPlayerDragging = createReducer(false, {
@@ -740,6 +747,7 @@ const rootReducer = combineReducers({
   audioProgress,
   currentBani,
   readerTapTick,
+  readerScrollDownTick,
   isPlayerDragging,
   downloadQueue,
   downloadRegistry,

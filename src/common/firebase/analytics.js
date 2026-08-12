@@ -230,6 +230,27 @@ const trackScrollProgress = async (baniID, baniTitle, scrollPercent, syncScrollE
   }
 };
 
+// The audio player's form, and every conversion between the three of them:
+//
+//   full  — the whole control bar
+//   mini  — the floating pill: progress circle + track name
+//   micro — the pill collapsed to just the circle
+//
+// One event with a `form` param rather than an event per transition, so the
+// funnel can be read either way round in Firebase: how often each form is
+// reached, and what caused it. `trigger` is one of
+//   reader_tap | scroll_up | scroll_down | idle | mini_tap | pause | control.
+const trackPlayerForm = async (form, trigger) => {
+  try {
+    await logEvent(analytics, "audio_player_form", {
+      form: safeStr(form, "unknown"),
+      trigger: safeStr(trigger, "unknown"),
+    });
+  } catch (error) {
+    logError(new Error(`audio_player_form tracking failed - ${error?.message || "Unknown error"}`));
+  }
+};
+
 // Nav-bar (top app bar + bottom navigation) show/hide. `trigger` is one of
 // tap | scroll_up | scroll_down | auto_hide_idle; `mode` is reading | autoscroll | audio.
 const trackNavBar = async (visible, trigger, mode) => {
@@ -420,6 +441,7 @@ export {
   trackAudioLinkRequest,
   trackScrollProgress,
   trackNavBar,
+  trackPlayerForm,
   trackTourEvent,
   // Journey + session lifecycle events
   trackJourneyView,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -8,8 +8,8 @@ import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } fr
 import { getOrCreateSummary } from "../database/analytics";
 import { computeStreaks } from "../services/streakEngine";
 import DashboardHeader from "./components/DashboardHeader";
-import LayoutEditOverlay from "./components/LayoutEditOverlay";
 import { SECTION_REGISTRY } from "./components/sectionRegistry";
+import SectionsModal from "./components/SectionsModal";
 import useDashboardSync from "./useDashboardSync";
 
 // Registry-driven dashboard. Sections render in the user's persisted order and
@@ -24,7 +24,30 @@ const DashboardScreen = () => {
   const layout = useSelector((state) => state.dashboardLayout);
 
   const [refreshKey, setRefreshKey] = useState(0);
-  const [layoutEditVisible, setLayoutEditVisible] = useState(false);
+  const [sectionsVisible, setSectionsVisible] = useState(false);
+
+  // Where each section sits down the page, so the Sections sheet can jump to
+  // one. Filled by each section's own onLayout — a ref rather than state
+  // because nothing renders from it and a setState per section on every layout
+  // pass would re-render the whole page for no visible change.
+  const scrollRef = useRef(null);
+  const sectionTopsRef = useRef({});
+  const noteSectionTop = useCallback((key, y) => {
+    sectionTopsRef.current[key] = y;
+  }, []);
+
+  // Close first, then scroll. Scrolling under a sheet that is still on screen
+  // is invisible, and the modal's dismissal animation would race the scroll.
+  const jumpToSection = useCallback((key) => {
+    setSectionsVisible(false);
+    const y = sectionTopsRef.current[key];
+    if (y == null) return;
+    InteractionManager.runAfterInteractions(() => {
+      // A few points above the section, so its heading is not flush against
+      // the top edge of the viewport.
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    });
+  }, []);
 
   // Avatar affordance: sign in directly when signed out, otherwise open
   // Settings, where the account details and sign-out live.
@@ -86,12 +109,13 @@ const DashboardScreen = () => {
       <StatusBarComponent backgroundColor="transparent" />
 
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1, backgroundColor: bg }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <DashboardHeader
-          onMenuPress={() => setLayoutEditVisible(true)}
+          onMenuPress={() => setSectionsVisible(true)}
           onClosePress={() => navigation.navigate("Home")}
           onAvatarPress={handleAvatarPress}
           refreshKey={refreshKey}
@@ -100,14 +124,24 @@ const DashboardScreen = () => {
         {visibleSections.map((key) => {
           const { Component } = SECTION_REGISTRY[key];
           return (
-            <View key={key} style={styles.section}>
+            <View
+              key={key}
+              style={styles.section}
+              // y is relative to the scroll content, which is exactly what
+              // scrollTo takes — no measure() round trip needed.
+              onLayout={(e) => noteSectionTop(key, e.nativeEvent.layout.y)}
+            >
               <Component refreshKey={refreshKey} />
             </View>
           );
         })}
       </ScrollView>
 
-      <LayoutEditOverlay visible={layoutEditVisible} onClose={() => setLayoutEditVisible(false)} />
+      <SectionsModal
+        visible={sectionsVisible}
+        onClose={() => setSectionsVisible(false)}
+        onSelectSection={jumpToSection}
+      />
     </SafeArea>
   );
 };

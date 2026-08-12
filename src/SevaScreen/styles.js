@@ -63,24 +63,24 @@ const createStyles = (theme) => {
       textDecorationLine: "underline",
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
-    // Shorter box (SIO-155): reduced vertical padding, and "/month" now sits
-    // inline in the row rather than on a second line below.
+    // The amount, in a faint box of a FIXED width.
+    //
+    // It was a filled card with a shadow; the fill and the shadow are gone and
+    // a hairline is all that is left. The width stays the page's, deliberately:
+    // sized to the figure the box grew and shrank on every keystroke, which
+    // made the one thing you are reading move while you typed it. A steady
+    // frame with the number centred in it is easier to read against.
+    //
+    // "/month" sits inline in the row rather than on a second line below.
     amountCard: {
-      // Light mode sits on the page's own pale-blue ground rather than pure
-      // white, so the figure reads as part of the page instead of a floating
-      // white slab. The shadow below still separates it from the ground.
-      backgroundColor: c.surface,
       borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
       paddingTop: 8,
       paddingBottom: 10,
       paddingHorizontal: 20,
       width: "100%",
       alignItems: "center",
-      shadowColor: c.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 3,
-      elevation: 2,
     },
     // The card is a control now (tapping the figure switches to Other), so
     // it acknowledges the touch.
@@ -169,44 +169,91 @@ const createStyles = (theme) => {
       // dark-mode blue at 3.7:1.
       color: c.onControlAccent,
     },
+    // Monthly / One Time, as ONE segmented control rather than two loose
+    // radios: a box split down the middle, so the pair reads as a single
+    // either-or choice and each half is a real target instead of a 22pt circle.
+    //
+    // A hairline and nothing else — no fill, no shadow, no elevation, so it
+    // matches the amount box above it. It is drawn to fit the two labels rather
+    // than the screen, so the edge sits just outside them
+    // and moves with the language: a box the width of the page around two short
+    // words is a slab, not a control. `maxWidth` is the only cap, for the long
+    // translations.
     frequencyContainer: {
       flexDirection: "row",
-      justifyContent: "center",
-      flexWrap: "wrap",
-      gap: 24,
-      rowGap: 12,
-      width: "100%",
+      alignItems: "stretch",
+      alignSelf: "center",
+      maxWidth: "100%",
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      overflow: "hidden",
     },
+    // Each half sizes to its own label rather than claiming an equal share, so
+    // the box tracks the words inside it. No fixed height: the label wraps and
+    // the row grows with it, so a long translation or a raised OS text size
+    // makes the control taller rather than clipping the word.
     frequencyOption: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      justifyContent: "center",
+      flexShrink: 1,
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 18,
+      minHeight: 48,
     },
-    // `controlAccent`: the frequency radios track the Settings switches — the
-    // brand navy in light, the bright blue in dark. Not `primary`, which is
-    // chrome and stays navy in both.
-    radioButton: {
+    frequencyOptionPressed: {
+      opacity: 0.7,
+    },
+    // A hairline between the halves, inset top and bottom so it reads as a
+    // divider rather than as the panel being two boxes.
+    frequencyDivider: {
+      width: StyleSheet.hairlineWidth,
+      backgroundColor: c.border,
+      marginVertical: 12,
+    },
+    // A CIRCLE — radius is half the box. It was 7 on a 22pt box, which is a
+    // rounded square, and both states were drawn in the accent, so a chosen
+    // frequency looked the same as the one beside it.
+    radioRing: {
       width: 22,
       height: 22,
-      borderRadius: 7,
+      borderRadius: 11,
       borderWidth: 2,
-      // The radio ring is the link blue, not the donate button navy: the same
-      // colour in light, its own brighter blue in dark.
-      borderColor: c.accent,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: "transparent",
     },
-    radioButtonSelected: {
+    // The link blue: the same colour in light, its own brighter blue in dark.
+    radioRingOn: {
+      borderColor: c.accent,
+    },
+    // The muted ink, so the empty ring and the label beside it are one colour.
+    // NOT `borderStrong`, which is this screen's 2pt pill outline and measures
+    // 1.4:1 on the dark panel — invisible as the only mark of an unchosen state.
+    radioRingOff: {
+      borderColor: c.textSecondary,
+    },
+    radioDot: {
       width: 12,
       height: 12,
       borderRadius: 6,
-      // Matches the ring around it.
       backgroundColor: c.accent,
     },
     frequencyText: {
       fontSize: 14,
+      flexShrink: 1,
       color: c.textSecondary,
+      fontFamily: theme.typography.fonts.balooPaaji,
+    },
+    // The chosen one carries both the colour and the weight. Baloo ships as
+    // separate named files, so this is the SemiBold face and never a numeric
+    // fontWeight, which Android would try to synthesise and drop to the system
+    // font instead.
+    frequencyTextOn: {
+      color: c.accent,
+      fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     },
     donateButton: {
       borderRadius: 100,

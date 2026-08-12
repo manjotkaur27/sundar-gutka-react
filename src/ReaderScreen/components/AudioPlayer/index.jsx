@@ -33,6 +33,7 @@ const AudioPlayer = ({
   webViewRef,
   isNavBarVisible = false,
   onHideBars = () => {},
+  onPlayerTouch = () => {},
 }) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
@@ -542,6 +543,7 @@ const AudioPlayer = ({
       skipNextLoadRef={skipNextLoadRef}
       isNavBarVisible={isNavBarVisible}
       onHideBars={onHideBars}
+      onPlayerTouch={onPlayerTouch}
     />
   );
 };
@@ -557,6 +559,8 @@ AudioPlayer.propTypes = {
   isNavBarVisible: PropTypes.bool,
   /** Asks the Reader to keep its chrome hidden. See MinimizePlayer's pause. */
   onHideBars: PropTypes.func,
+  /** Any touch on the player, so the page cannot report it as a tap on the bani. */
+  onPlayerTouch: PropTypes.func,
 };
 
 export default AudioPlayer;
