@@ -111,8 +111,9 @@ export const SET_USER_PROFILE = "SET_USER_PROFILE";
 export const SET_DASHBOARD_LAYOUT = "SET_DASHBOARD_LAYOUT";
 export const RESET_DASHBOARD_LAYOUT = "RESET_DASHBOARD_LAYOUT";
 
-// Today's Nitnem — the user's selected daily bani set + per-day completion map
-export const SET_NITNEM_BANIS = "SET_NITNEM_BANIS";
+// Today's Nitnem — the per-day completion map. WHICH banis are in the Nitnem
+// is the Morning Nitnem pothi's business, so there is no "set the banis" action
+// here; the card edits the pothi through ADD_BANI_TO_POTHI/REMOVE_BANI_FROM_POTHI.
 export const TOGGLE_NITNEM_DONE = "TOGGLE_NITNEM_DONE";
 export const MARK_NITNEM_AUTO_DONE = "MARK_NITNEM_AUTO_DONE";
 // Restore the whole nitnem slice at once (cross-device sync / GET /dashboard/latest)

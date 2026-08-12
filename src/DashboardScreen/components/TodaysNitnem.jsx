@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import { neutral } from "@theme/palette";
+import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
 import { getDayDetail } from "../../database/analytics";
 import DashboardCard from "./DashboardCard";
@@ -71,6 +72,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   secondaryBtnText: { fontSize: 13, flexShrink: 1 },
+  // The completed badge. The primary button's own padding and radius, centred
+  // and full width — it replaces the whole action row, so anything narrower
+  // reads as a button that lost its partner. No fixed height: it grows with the
+  // label's own translation and the user's font-size setting.
+  doneBanner: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  doneText: { fontSize: 13, flexShrink: 1 },
 });
 
 // Builds a filled "rounded annulus sector" — the progress fill as its own
@@ -296,7 +310,17 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const dispatch = useDispatch();
   const navigation = useNavigation();
-  const { selectedBaniIds, completed } = useSelector((state) => state.todaysNitnem);
+  const { completed } = useSelector((state) => state.todaysNitnem);
+  // Today's Nitnem IS the Morning Nitnem pothi. The heading stays "Today's
+  // Nitnem", but there is no separate list behind it: adding or removing a bani
+  // here edits that pothi, and editing the pothi from the Folders tab shows up
+  // here, because there is only ever one list. It used to keep its own
+  // `selectedBaniIds`, which meant the same user had two different Nitnems.
+  const morning = useSelector((state) => defaultPothi(state.pothis, "morning"));
+  const selectedBaniIds = useMemo(
+    () => (morning?.items ?? []).map((item) => item.baaniId),
+    [morning]
+  );
   const { map: baniMap, nameOf } = useBaniLookup();
 
   const [editVisible, setEditVisible] = useState(false);
@@ -349,18 +373,91 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   // English spells the count out ("two banis left"); other languages keep the
   // numeral since spelled-out numbers need per-language translation we don't have.
   const isEnglish = STRINGS.getLanguage() === "en-US";
+  // An empty pothi is NOT "all done today" — that read as a finished Nitnem to
+  // someone who has none. It happens on a signed-in first launch before the
+  // folders pull lands, and if the pothi is emptied from another client.
+  const doneSubtitle =
+    selectedBaniIds.length === 0 ? STRINGS.POTHI_NO_BANIS : STRINGS.ALL_DONE_TODAY;
   const rawSubtitle =
     remaining > 0
       ? STRINGS.formatString(STRINGS.NITNEM_LEFT, {
           count: isEnglish ? numberToWords(remaining) : remaining,
         })
-      : STRINGS.ALL_DONE_TODAY;
+      : doneSubtitle;
   // numberToWords lowercases the spelled-out count ("five"), which sits first
   // in the sentence — capitalize it (no-op for a leading digit in other langs).
   const subtitle = rawSubtitle ? rawSubtitle[0].toUpperCase() + rawSubtitle.slice(1) : rawSubtitle;
 
   // Two-column grid cells: all selected banis + a trailing "Add a bani" cell.
   const cells = [...selectedBaniIds.map((id) => ({ type: "bani", id })), { type: "add" }];
+
+  /**
+   * The card's actions, which depend on how much of the Nitnem is left.
+   *
+   * Finished, the two buttons are replaced by a completion badge rather than
+   * left on screen doing nothing. It takes over the primary button's own fill,
+   * padding and radius, so the row keeps exactly the weight and shape it had a
+   * moment ago instead of changing colour when the last bani is ticked.
+   *
+   * It is a STATUS, not a control: no press handler and no press state. The
+   * banis stay tappable in the grid above, so re-reading one needs no button.
+   *
+   * The banis themselves stay tappable in the grid above, so re-reading one
+   * costs nothing and needs no button of its own.
+   */
+  const actionsFor = () => {
+    if (selectedBaniIds.length === 0) return null;
+
+    if (!firstIncomplete) {
+      return (
+        <View
+          style={[styles.actions, styles.doneBanner, { backgroundColor: accentBlue }]}
+          accessibilityRole="text"
+        >
+          <CheckIcon color={c.onAccent} />
+          <CustomText
+            style={[styles.doneText, { color: c.onAccent, fontFamily: boldFont }]}
+            numberOfLines={2}
+          >
+            {STRINGS.NITNEM_COMPLETE}
+          </CustomText>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.actions}>
+        <Pressable
+          style={[styles.primaryBtn, { backgroundColor: accentBlue }]}
+          onPress={() => openBani(firstIncomplete)}
+          accessibilityRole="button"
+        >
+          <PlayIcon color={c.onAccent} />
+          <CustomText
+            style={[styles.primaryBtnText, { color: c.onAccent, fontFamily: boldFont }]}
+            numberOfLines={2}
+          >
+            {`${STRINGS.CONTINUE} · ${nameOf(firstIncomplete) || ""}`.trim().replace(/·\s*$/, "")}
+          </CustomText>
+        </Pressable>
+        {/* Bulk mark-done for Nitnem completed outside the app — reuses the
+            same bulk merge the 95%-scroll auto-detection writes through. */}
+        <Pressable
+          style={[styles.secondaryBtn, { borderColor: separator }]}
+          onPress={() => dispatch(actions.markNitnemAutoDone(today, selectedBaniIds))}
+          accessibilityRole="button"
+        >
+          <CheckIcon color={accentBlue} />
+          <CustomText
+            style={[styles.secondaryBtnText, { color: accentTextColor, fontFamily: boldFont }]}
+            numberOfLines={2}
+          >
+            {STRINGS.MARK_DONE}
+          </CustomText>
+        </Pressable>
+      </View>
+    );
+  };
 
   return (
     <View>
@@ -449,47 +546,18 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
             })}
           </ScrollView>
 
-          <View style={styles.actions}>
-            <Pressable
-              style={[styles.primaryBtn, { backgroundColor: accentBlue }]}
-              onPress={() => firstIncomplete && openBani(firstIncomplete)}
-              disabled={!firstIncomplete}
-            >
-              <PlayIcon color={c.onAccent} />
-              <CustomText
-                style={[styles.primaryBtnText, { color: c.onAccent, fontFamily: boldFont }]}
-                numberOfLines={2}
-              >
-                {firstIncomplete
-                  ? `${STRINGS.CONTINUE} · ${nameOf(firstIncomplete) || ""}`
-                      .trim()
-                      .replace(/·\s*$/, "")
-                  : STRINGS.CONTINUE}
-              </CustomText>
-            </Pressable>
-            {/* Bulk mark-done for Nitnem completed outside the app — reuses the
-                same bulk merge the 95%-scroll auto-detection writes through. */}
-            <Pressable
-              style={[styles.secondaryBtn, { borderColor: separator }]}
-              onPress={() => dispatch(actions.markNitnemAutoDone(today, selectedBaniIds))}
-            >
-              <CheckIcon color={accentBlue} />
-              <CustomText
-                style={[styles.secondaryBtnText, { color: accentTextColor, fontFamily: boldFont }]}
-                numberOfLines={2}
-              >
-                {STRINGS.MARK_DONE}
-              </CustomText>
-            </Pressable>
-          </View>
+          {/* Three states, and never a control that does nothing.
+              Continue was already `disabled` when there was nothing left to
+              continue, but it kept its filled accent so it read as live, and
+              Mark Done stayed fully enabled while dispatching a no-op — two
+              buttons that answered a tap with silence.
+              Nothing to read at all → no row: the grid's own "Add a bani" cell
+              is the only action that makes sense, and it is already there. */}
+          {actionsFor()}
         </DashboardCard>
       </View>
 
-      <EditBanisModal
-        visible={editVisible}
-        onClose={() => setEditVisible(false)}
-        selectedIds={selectedBaniIds}
-      />
+      <EditBanisModal visible={editVisible} onClose={() => setEditVisible(false)} />
     </View>
   );
 };

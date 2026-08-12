@@ -5,6 +5,11 @@ import {
   createPothi,
   deletePothi,
   emptyPothis,
+  defaultPothi,
+  defaultPothiId,
+  EVENING_ID,
+  EVENING_NITNEM_IDS,
+  isDefaultPothi,
   isValidName,
   listPothis,
   makeBaniItem,
@@ -13,11 +18,14 @@ import {
   MAX_NAME_LENGTH,
   MAX_PINNED,
   mergeRemote,
+  MORNING_ID,
+  MORNING_NITNEM_IDS,
   normaliseName,
   pothisContaining,
   reconcile,
   removeBani,
   renamePothi,
+  seedDefaults,
   setOrder,
   SOURCE,
   toUpsertBody,
@@ -297,6 +305,101 @@ describe("mergeRemote", () => {
   it("runs the result through reconcile, so a bad server payload cannot land", () => {
     const s = mergeRemote(emptyPothis(), [{ ...remote("r1", 1), items: [{ baaniId: 0 }] }]);
     expect(s.folders[0].items).toEqual([]);
+  });
+});
+
+// Which folder is Morning Nitnem and which is Evening.
+//
+// Neither the id nor the name is stable — the app seeds one pair with fixed ids
+// and localised names while the API seeds its own with uuids and English names,
+// and the user can rename either — so this pointer is the only thing that keeps
+// the Dashboard's Today's Nitnem attached to the right pothi.
+describe("the default pothi pointer", () => {
+  const withItems = (id, name, baniIds, extra = {}) => ({
+    ...createPothi({ id, name, items: baniIds.map((baniId) => item(baniId)) }),
+    ...extra,
+  });
+  const seededPair = () =>
+    seedDefaults(emptyPothis(), [
+      withItems(MORNING_ID, "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ", MORNING_NITNEM_IDS),
+      withItems(EVENING_ID, "ਸ਼ਾਮ ਦਾ ਨਿਤਨੇਮ", EVENING_NITNEM_IDS),
+    ]);
+
+  it("is recorded when the pair is seeded", () => {
+    const s = seededPair();
+    expect(defaultPothiId(s, "morning")).toBe(MORNING_ID);
+    expect(defaultPothiId(s, "evening")).toBe(EVENING_ID);
+    expect(s.seededDefaults).toBe(true);
+  });
+
+  it("survives a rename — the name is not what identifies it", () => {
+    const s = reconcile(renamePothi(seededPair(), MORNING_ID, "My Morning Path"));
+    expect(defaultPothiId(s, "morning")).toBe(MORNING_ID);
+    expect(defaultPothi(s, "morning").name).toBe("My Morning Path");
+  });
+
+  it("survives an edit to its contents", () => {
+    const s = reconcile(removeBani(seededPair(), MORNING_ID, MORNING_NITNEM_IDS[0]));
+    expect(defaultPothiId(s, "morning")).toBe(MORNING_ID);
+  });
+
+  // The API seeds its own pair with uuids. `mergeRemote` retires the local copy
+  // in favour of the server's; the pointer has to follow it there, or Today's
+  // Nitnem would go blank the first time the user signed in.
+  it("follows the server's copy when the local seed stands down", () => {
+    const merged = mergeRemote(seededPair(), [
+      withItems("uuid-morning", "Morning Nitnem", MORNING_NITNEM_IDS, { updatedAt: 9999 }),
+      withItems("uuid-evening", "Evening Nitnem", EVENING_NITNEM_IDS, { updatedAt: 9999 }),
+    ]);
+    expect(ids(merged)).toEqual(["uuid-morning", "uuid-evening"]);
+    expect(defaultPothiId(merged, "morning")).toBe("uuid-morning");
+    expect(defaultPothiId(merged, "evening")).toBe("uuid-evening");
+  });
+
+  // A user already signed in before this pointer existed has only the server's
+  // pair and no record of which is which. Their contents are still the ones the
+  // API seeded, so the pair is recoverable exactly once.
+  it("recovers an unrecorded pair from the server by its banis", () => {
+    const merged = mergeRemote(emptyPothis(), [
+      withItems("uuid-morning", "Morning Nitnem", MORNING_NITNEM_IDS),
+      withItems("uuid-evening", "Evening Nitnem", EVENING_NITNEM_IDS),
+    ]);
+    expect(defaultPothiId(merged, "morning")).toBe("uuid-morning");
+    expect(defaultPothiId(merged, "evening")).toBe("uuid-evening");
+  });
+
+  it("falls back to the server's own English name when the banis were edited", () => {
+    const merged = mergeRemote(emptyPothis(), [
+      withItems("uuid-morning", "Morning Nitnem", [2, 4]),
+    ]);
+    expect(defaultPothiId(merged, "morning")).toBe("uuid-morning");
+  });
+
+  it("points at nothing when neither pothi is there", () => {
+    const s = reconcile(seed(["a", "b"]));
+    expect(defaultPothiId(s, "morning")).toBeNull();
+    expect(defaultPothi(s, "morning")).toBeNull();
+  });
+
+  it("names the two defaults, and nothing else, as undeletable", () => {
+    const s = addPothi(seededPair(), createPothi({ id: "mine", name: "Mine" }));
+    expect(isDefaultPothi(s, MORNING_ID)).toBe(true);
+    expect(isDefaultPothi(s, EVENING_ID)).toBe(true);
+    expect(isDefaultPothi(s, "mine")).toBe(false);
+    expect(isDefaultPothi(s, undefined)).toBe(false);
+  });
+
+  // The app refuses to delete a default, but another client can. The pointer
+  // must go with it rather than dangle and be re-resolved onto some unrelated
+  // folder on the next reconcile.
+  it("is dropped when the pothi is deleted from elsewhere", () => {
+    const s = reconcile(deletePothi(seededPair(), MORNING_ID));
+    expect(defaultPothiId(s, "morning")).toBeNull();
+    expect(defaultPothiId(s, "evening")).toBe(EVENING_ID);
+  });
+
+  it("is never sent to the server", () => {
+    expect(Object.keys(toUpsertBody(seededPair()))).toEqual(["source", "folders"]);
   });
 });
 

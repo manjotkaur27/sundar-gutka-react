@@ -89,7 +89,7 @@ const useDashboardTheme = () => {
     primaryText: palette.primaryText,
     mutedText: palette.mutedText,
     separator: palette.separator,
-    /** Headline/number colour for cards. */
+    /** Headline colour — a card's big number, and the header's Fateh. */
     brandText: palette.brandText,
     /**
      * The Dashboard's full palette, for the colours that are specific to one

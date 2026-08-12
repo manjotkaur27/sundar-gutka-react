@@ -16,7 +16,6 @@ const actions = {
   setUserProfile: (value) => ({ type: actionTypes.SET_USER_PROFILE, value }),
   setDashboardLayout: (value) => ({ type: actionTypes.SET_DASHBOARD_LAYOUT, value }),
   resetDashboardLayout: () => ({ type: actionTypes.RESET_DASHBOARD_LAYOUT }),
-  setNitnemBanis: (value) => ({ type: actionTypes.SET_NITNEM_BANIS, value }),
   toggleNitnemDone: (date, baniId) => ({
     type: actionTypes.TOGGLE_NITNEM_DONE,
     payload: { date, baniId },
@@ -46,6 +45,68 @@ describe("Dashboard redesign reducers", () => {
     expect(dashboardLayout.hidden).toEqual([]);
   });
 
+  // The assertion above counts the sections, so it passes on any arrangement.
+  // This pins the designed order.
+  it("defaults to the designed top-to-bottom order", () => {
+    const S = constant.DASHBOARD_SECTIONS;
+    expect(init().dashboardLayout.order).toEqual([
+      S.STREAK,
+      S.NITNEM,
+      S.SHABAD_VAAK,
+      S.EXPLORE,
+      S.DISCOVER,
+      S.REMINDERS,
+      S.PRACTICE,
+      S.CALENDAR,
+      S.WEEK_CHART,
+    ]);
+  });
+
+  // defaultLayout() is persisted on first launch, so an order on disk is not
+  // evidence anyone chose it — without these two the new default would reach
+  // fresh installs only.
+  it("rehydrate moves an untouched previous default onto the current one", () => {
+    const S = constant.DASHBOARD_SECTIONS;
+    const shipped = [
+      S.STREAK,
+      S.NITNEM,
+      S.EXPLORE,
+      S.PRACTICE,
+      S.CALENDAR,
+      S.WEEK_CHART,
+      S.DISCOVER,
+      S.REMINDERS,
+      S.SHABAD_VAAK,
+    ];
+    const state = rootReducer(init(), {
+      type: "persist/REHYDRATE",
+      payload: { dashboardLayout: { order: shipped, hidden: [S.DISCOVER] } },
+    });
+    expect(state.dashboardLayout.order).toEqual(init().dashboardLayout.order);
+    // Hiding a section IS a choice, and it survives the reorder.
+    expect(state.dashboardLayout.hidden).toEqual([S.DISCOVER]);
+  });
+
+  it("rehydrate leaves an order the user arranged themselves alone", () => {
+    const S = constant.DASHBOARD_SECTIONS;
+    const mine = [
+      S.REMINDERS,
+      S.STREAK,
+      S.NITNEM,
+      S.SHABAD_VAAK,
+      S.EXPLORE,
+      S.DISCOVER,
+      S.PRACTICE,
+      S.CALENDAR,
+      S.WEEK_CHART,
+    ];
+    const state = rootReducer(init(), {
+      type: "persist/REHYDRATE",
+      payload: { dashboardLayout: { order: mine, hidden: [] } },
+    });
+    expect(state.dashboardLayout.order).toEqual(mine);
+  });
+
   it("setDashboardLayout self-heals by appending newly added sections", () => {
     const state0 = init();
     // Simulate a persisted layout that predates some sections.
@@ -66,40 +127,22 @@ describe("Dashboard redesign reducers", () => {
     expect(state2.dashboardLayout.hidden).toEqual([]);
   });
 
-  it("todaysNitnem defaults to the configured bani set", () => {
+  // WHICH banis are in the Nitnem is the Morning Nitnem pothi's business now
+  // (see pothi/model), so this slice holds completion history only. The bani
+  // ids themselves are pinned in pothi/defaults.test.js.
+  it("todaysNitnem holds completion history and no bani set of its own", () => {
     const { todaysNitnem } = init();
-    expect(todaysNitnem.selectedBaniIds).toEqual(constant.DEFAULT_NITNEM_BANI_IDS);
     expect(todaysNitnem.completed).toEqual({});
+    expect(todaysNitnem.selectedBaniIds).toBeUndefined();
   });
 
-  // The assertion above compares the constant to itself, so it passes whatever
-  // the constant holds. These pin the actual IDs.
-  it("defaults to the six Nitnem banis in reading order", () => {
-    expect(constant.DEFAULT_NITNEM_BANI_IDS).toEqual([2, 6, 4, 9, 21, 1]);
-  });
-
-  it("includes Tav Prasad Savaiye and neither Shabad Hazare", () => {
-    const ids = constant.DEFAULT_NITNEM_BANI_IDS;
-    // ID 6 is Savaiye. ID 3 (Shabad Hazare) and ID 5 (Shabad Hazare Patishahi
-    // 10) are two different banis, and the near-identical names are why the
-    // wrong one kept ending up here.
-    expect(ids).toContain(6);
-    expect(ids).not.toContain(3);
-    expect(ids).not.toContain(5);
-  });
-
-  it("setNitnemBanis replaces the selected bani set", () => {
-    const state0 = init();
-    const state1 = rootReducer(state0, actions.setNitnemBanis([1, 2, 3]));
-    expect(state1.todaysNitnem.selectedBaniIds).toEqual([1, 2, 3]);
-  });
-
-  it("restoreNitnem replaces the whole nitnem slice (cross-device restore)", () => {
+  it("restoreNitnem restores completion history without touching the bani set", () => {
     const state0 = init();
     const restored = { selectedBaniIds: [9, 5], completed: { "2026-06-11": [9] } };
     const state1 = rootReducer(state0, actions.restoreNitnem(restored));
-    expect(state1.todaysNitnem.selectedBaniIds).toEqual([9, 5]);
     expect(state1.todaysNitnem.completed).toEqual({ "2026-06-11": [9] });
+    // The per-device snapshot must not overwrite the account's own pothi.
+    expect(state1.todaysNitnem.selectedBaniIds).toBeUndefined();
   });
 
   it("toggleNitnemDone adds then removes a bani for a given date", () => {

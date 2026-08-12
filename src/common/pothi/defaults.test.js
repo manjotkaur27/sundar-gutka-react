@@ -1,5 +1,5 @@
-import { buildDefaultPothis, EVENING_NITNEM_IDS, MORNING_NITNEM_IDS } from "./defaults";
-import { addPothi, emptyPothis, SOURCE } from "./model";
+import { buildDefaultPothis } from "./defaults";
+import { addPothi, emptyPothis, EVENING_NITNEM_IDS, MORNING_NITNEM_IDS, SOURCE } from "./model";
 
 // `convertToUnicode` wraps anvaad-js, which reads the browser global `self` at
 // import time. Every fixture below already supplies a Unicode name, so the

@@ -120,13 +120,15 @@ export const brandMarks = {
    * are literals rather than roles.
    */
   /**
-   * The Gurdham mark. Its gradient runs periwinkle → near-black indigo, and
-   * that bottom stop is all but invisible on the dark card, so dark mode lifts
-   * both stops while staying in the same indigo family.
+   * The Gurdham mark. Its gradient runs periwinkle → near-black indigo in light.
+   * On a dark ground an indigo tomb reads as a silhouette however far the stops
+   * are lifted — the mark is a solid-filled shape, not an outline — so dark mode
+   * carries it in white instead, shaded top-to-bottom so the domes still have
+   * form rather than flattening into one white blob.
    */
   gurdham: {
-    gradientTop: { light: "#98A6FF", dark: "#C2CCFF" },
-    gradientBottom: { light: "#13143C", dark: "#5B60A8" },
+    gradientTop: { light: "#98A6FF", dark: "#FFFFFF" },
+    gradientBottom: { light: "#13143C", dark: "#C5CDE0" },
     outline: "#FFFFFF",
   },
   facebook: "#1877F2",
@@ -155,6 +157,37 @@ export const brandMarks = {
     sahejPath: { dark: "#0a1628", light: "#E2E8F1" },
     sttm: { dark: "#0f2044", light: "#ffffff" },
     shabadavali: { dark: "#0d1c10", light: "#ffffff" },
+  },
+  /**
+   * Plates for Explore tiles whose artwork carries its OWN fixed colours.
+   *
+   * Fixed rather than themed, for the same reason the marks above are: the
+   * artwork's own colours are not ours to change, so the plate is the only
+   * thing that can separate it from the card. A themed plate takes its value
+   * from the page, which on the dark-based designed themes is exactly the
+   * ground these marks disappear into.
+   *
+   * Two of them, because the two marks pull in opposite directions.
+   */
+  appIconPlates: {
+    /**
+     * Under a mark drawn on its own DEEP ground — Sehaj Path's app icon is a
+     * navy square with gold linework.
+     *
+     * Light in both modes, but not the same light. Light mode keeps the pale
+     * brand tint the neighbouring tiles use, so this tile does not stand out in
+     * a row of them. Dark mode steps one rung down the ramp: the same tint on a
+     * near-black card reads as a white block, and the plate is meant to hold
+     * the mark, not to be the brightest thing on the screen.
+     */
+    pale: { light: "#E2E8F1", dark: "#C4CEDD" },
+    /**
+     * Under a GOLD mark — Sri Darbar Sahib. One deep navy in every theme: gold
+     * on a pale plate has nothing to sit against, and this is the same ground
+     * the Hukamnama card already puts the darbar photograph on, so the two
+     * appearances of the building on this screen agree.
+     */
+    deep: "#042f67",
   },
   /** Browser chrome for in-app links — the brand navy and its off-white. */
   inAppBrowser: { chrome: "#113979", onChrome: "#FAF9F6" },

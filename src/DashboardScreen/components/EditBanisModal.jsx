@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { View, ScrollView, Pressable, StyleSheet } from "react-native";
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { createPothi, defaultPothi, makeBaniItem, MORNING_ID } from "@common/pothi/model";
 import { convertToUnicode, CustomText, STRINGS, actions, logError } from "@common";
 import { getBaniList } from "@database";
+import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
+import useSetPothiBanis from "../../Pothi/hooks/useSetPothiBanis";
 import useDashboardTheme from "./dashboardTheme";
 import SheetModal from "./SheetModal";
 import { toTitleCase } from "@common/hooks/useBaniLookup";
@@ -94,7 +97,10 @@ Check.propTypes = {
   tick: PropTypes.string.isRequired,
 };
 
-const EditBanisModal = ({ visible, onClose, selectedIds }) => {
+// Picks the banis that make up Today's Nitnem — which is the Morning Nitnem
+// pothi, so this edits that pothi and nothing else. There is no separate
+// dashboard list to keep in step with it.
+const EditBanisModal = ({ visible, onClose }) => {
   const { cardBg, primaryText, mutedText, accentBlue, separator, gold, theme, c } =
     useDashboardTheme();
   // Explicit fontFamily and NO fontWeight beside it. Baloo ships as separate
@@ -103,15 +109,37 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
   // were not rendering in Baloo Paaji.
   const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const dispatch = useDispatch();
-  const language = useSelector((state) => state.language);
+  // Whether the roman line under each name is shown AT ALL. Turning
+  // transliteration off writes only this — `transliterationLanguage` keeps its
+  // last value and the cached bani list is untouched — so a row that renders
+  // `translit` unconditionally goes on showing the language last chosen. That
+  // is why switching languages looked right here and Off did nothing.
+  const isTransliteration = useSelector((state) => state.isTransliteration);
+  // The TRANSLITERATION language, not `state.language`. `getBaniList` picks the
+  // transliteration by this key, and `state.language` is the interface language
+  // ("DEFAULT") — which matches no case in `getTranslitText` and falls through
+  // to English, so the fallback below rendered English under every name
+  // whatever the user had chosen.
+  const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const baniListRedux = useSelector((state) => state.baniList);
+  const morning = useSelector((state) => defaultPothi(state.pothis, "morning"));
+  const setBanis = useSetPothiBanis();
+  const requireOnline = useRequireOnline();
 
   const [allBanis, setAllBanis] = useState([]);
-  const [picked, setPicked] = useState(selectedIds);
+  const [picked, setPicked] = useState([]);
 
+  // The pothi's banis are the starting ticks, re-read on each open so a change
+  // made in the Folders tab is what this opens on.
+  //
+  // Keyed on `visible` alone, and `morning` is read through a ref: depending on
+  // the pothi would re-seed the draft every time it changed, and every tick
+  // saved here changes it — which would fight the user mid-edit.
+  const morningRef = useRef(morning);
+  morningRef.current = morning;
   useEffect(() => {
-    if (visible) setPicked(selectedIds);
-  }, [visible, selectedIds]);
+    if (visible) setPicked((morningRef.current?.items ?? []).map((item) => item.baaniId));
+  }, [visible]);
 
   useEffect(() => {
     if (baniListRedux?.length) {
@@ -123,20 +151,47 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
       // put rows in a bani picker that are not banis.
       setAllBanis(baniListRedux.filter((b) => b.id !== undefined));
     } else {
-      getBaniList(language).then(setAllBanis).catch(logError);
+      getBaniList(transliterationLanguage).then(setAllBanis).catch(logError);
     }
-  }, [baniListRedux, language]);
+  }, [baniListRedux, transliterationLanguage]);
 
   const toggle = useCallback((id) => {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
 
   const save = useCallback(() => {
-    // Preserve a stable order: keep the order they appear in the bani list.
-    const ordered = allBanis.filter((b) => picked.includes(b.id)).map((b) => b.id);
-    dispatch(actions.setNitnemBanis(ordered.length ? ordered : picked));
+    // Nothing to save against an unloaded list: `picked` starts as the pothi's
+    // own banis, so an empty `allBanis` would resolve to an empty selection and
+    // silently empty the pothi.
+    if (allBanis.length === 0) return;
+    // Built in bani-list order, so a Nitnem assembled here reads in the order
+    // it is recited. An existing pothi keeps its own order and new banis append,
+    // which is how a bani is added to any other pothi.
+    const items = allBanis
+      .filter((bani) => picked.includes(bani.id))
+      .map((bani) =>
+        makeBaniItem({
+          baaniId: bani.id,
+          title: bani.gurmukhiUni || convertToUnicode(bani.gurmukhi),
+        })
+      );
+
+    if (morning) {
+      if (!setBanis(morning, items)) return;
+    } else {
+      // The pothi is gone — deleted from another client, since this app refuses
+      // to delete it. Rebuild it under the same id the signed-out seed uses, so
+      // it is recorded as Morning Nitnem again rather than becoming an ordinary
+      // pothi the Dashboard cannot find.
+      if (!requireOnline()) return;
+      dispatch(
+        actions.seedDefaultPothis([
+          createPothi({ id: MORNING_ID, name: STRINGS.POTHI_DEFAULT_MORNING, items }),
+        ])
+      );
+    }
     onClose();
-  }, [allBanis, picked, dispatch, onClose]);
+  }, [allBanis, picked, morning, setBanis, requireOnline, dispatch, onClose]);
 
   return (
     <SheetModal visible={visible} onClose={onClose} heightRatio={0.75}>
@@ -202,7 +257,12 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
                     <CustomText style={[styles.gurmukhi, { color: primaryText }]} numberOfLines={1}>
                       {b.gurmukhiUni || convertToUnicode(b.gurmukhi)}
                     </CustomText>
-                    {b.translit ? (
+                    {/* The roman second line exists only while transliteration
+                        is on. Off means off here as it does everywhere else —
+                        the rest of the app SWAPS the title for its
+                        transliteration (see useBaniTitle), and this row stacks
+                        the two instead, so what "off" removes is the line. */}
+                    {isTransliteration && b.translit ? (
                       <CustomText style={[styles.translit, { color: mutedText }]} numberOfLines={1}>
                         {toTitleCase(b.translit)}
                       </CustomText>
@@ -221,7 +281,6 @@ const EditBanisModal = ({ visible, onClose, selectedIds }) => {
 EditBanisModal.propTypes = {
   visible: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
-  selectedIds: PropTypes.arrayOf(PropTypes.number).isRequired,
 };
 
 export default EditBanisModal;

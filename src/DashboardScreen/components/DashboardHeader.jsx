@@ -41,7 +41,7 @@ const DashboardHeader = ({
   onAvatarPress = () => {},
   refreshKey = 0,
 }) => {
-  const { gold, mutedText, theme, c, layout, palette } = useDashboardTheme();
+  const { mutedText, theme, c, layout, palette } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
 
   // Signed-in account, for the avatar only. The header deliberately shows no
@@ -53,6 +53,14 @@ const DashboardHeader = ({
     .charAt(0)
     .toUpperCase();
 
+  // The Fateh is the header's TITLE, so it takes the headline colour the cards
+  // use — the brand blue in light, white in dark. It was gold, which is this
+  // screen's DECORATIVE accent (the streak flame, the Vaak tab): a heading in a
+  // decorative colour reads as a badge rather than as the page's title, and the
+  // gold measures 2.2:1 on the light ground, well under the 4.5:1 text needs.
+  // Taken from the palette rather than written here, so a designed theme
+  // re-derives it with everything else (see themedScreenPalette).
+  const fatehColor = palette.brandText;
   // Date line under the Fateh — a brand tint, quieter than the Fateh itself.
   const belowNameColor = palette.subtleText;
   // The one Dashboard blue, not a second brand pair.
@@ -99,7 +107,11 @@ const DashboardHeader = ({
         <CustomText
           style={[
             styles.salutation,
-            { color: gold, fontFamily: theme.typography.fonts.gurbaniHeavy },
+            // GurbaniAkharHeavy is the heaviest Gurmukhi face shipped, so the
+            // weight lives in the FACE. No fontWeight on top of it: a numeric
+            // weight against a named TTF drops the family on Android and the
+            // Gurmukhi falls back to the system font.
+            { color: fatehColor, fontFamily: theme.typography.fonts.gurbaniHeavy },
           ]}
           // Two lines, and never shrunk: adjustsFontSizeToFit would render the
           // Fateh at a different size on every screen width.

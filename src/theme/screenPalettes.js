@@ -62,11 +62,14 @@ const dashboard = {
     /** A brand tint, not an unrelated grey-blue. */
     mutedText: brandRamp.tint25,
     separator: "#eeeeee",
+    /**
+     * The headline colour: a card's big number, and the Fateh at the top of the
+     * header. Brand blue in light, white in dark — the one pair on this screen
+     * that inverts rather than tinting, because a headline has to read as ink.
+     */
     brandText: brandRamp.base,
     accentBlue: brandRamp.base,
     gold: gold.light,
-    /** The Reminders section heading carries its own, quieter accent. */
-    sectionAccent: "#8D9FBD",
     /**
      * A card's own title line. Pre-overhaul #0F3677, another near-navy off the
      * brand blue by a few points; folded onto the brand blue with accentText.
@@ -186,7 +189,6 @@ const dashboard = {
     brandText: white,
     accentBlue: brandRamp.accentOnDark,
     gold: gold.dark,
-    sectionAccent: "#566684",
     cardTitle: offWhite,
     cardMeta: "#a1bee7ff",
     // Tints of the icon's own colour, so each plate reads as a wash of it

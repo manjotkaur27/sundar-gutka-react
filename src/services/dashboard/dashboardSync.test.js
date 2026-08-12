@@ -112,8 +112,11 @@ describe("applyDashboardRestore", () => {
     );
 
     const nitnem = dispatch.mock.calls.find((c) => c[0].type === "RESTORE_NITNEM")[0].value;
-    expect(nitnem.selectedBaniIds).toEqual([2, 3, 4]);
     expect(nitnem.completed).toEqual({ "2025-06-11": [2] });
+    // Completion history only. The bani SET is the Morning Nitnem pothi, which
+    // syncs on the account through the folders API — restoring it from this
+    // per-device snapshot would overwrite the account's copy.
+    expect(nitnem.selectedBaniIds).toBeUndefined();
   });
 
   it("converts 24h reminder times to h:mm A", async () => {
@@ -227,7 +230,19 @@ describe("buildCachePayload", () => {
       { id: 2, time: "3:30 AM", enabled: true },
       { id: 21, time: "6:00 PM", enabled: false },
     ]),
-    todaysNitnem: { selectedBaniIds: [2, 3, 4], completed: { "2025-06-11": [2] } },
+    todaysNitnem: { completed: { "2025-06-11": [2] } },
+    // The pushed Nitnem set comes from the Morning Nitnem pothi, not from a
+    // list of its own — see TodaysNitnem.
+    pothis: {
+      folders: [
+        {
+          id: "m1",
+          name: "Morning Nitnem",
+          items: [{ baaniId: 2 }, { baaniId: 3 }, { baaniId: 4 }],
+        },
+      ],
+      defaultIds: { morning: "m1", evening: null },
+    },
     userProfile: { name: "Harpreet Kaur" },
     dashboardLayout: { order: ["streak", "nitnem"], hidden: ["weekChart"] },
   };

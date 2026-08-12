@@ -135,7 +135,6 @@ const RemindersCard = () => {
   const navigation = useNavigation();
   const { nameOf } = useBaniLookup();
   const iconStyles = buildIconStyles(palette, accentBlue, mutedText, gold);
-  const sectionColor = palette.sectionAccent;
   const titleColor = palette.cardTitle;
   const timeColor = palette.cardMeta;
   // Dark-mode reminder toggle: bright-blue ON track, navy OFF track + navy thumb.
@@ -227,7 +226,11 @@ const RemindersCard = () => {
 
   return (
     <View>
-      <SectionLabel title={STRINGS.REMINDERS_TITLE} color={sectionColor} />
+      {/* No colour override: Reminders is a section heading like Explore,
+          Discover and Insights, and reads in the same colour as all of them.
+          It used to take a quieter accent of its own, which made one heading in
+          the stack look faded rather than deliberate. */}
+      <SectionLabel title={STRINGS.REMINDERS_TITLE} />
       <View style={styles.wrap}>
         <View style={styles.card}>
           {reminders.map((r, i) => {

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
+import { isDefaultPothi, isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
 import { actions, STRINGS, trackPothiEvent } from "@common";
 import {
   Button,
@@ -33,6 +33,11 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
   const dispatch = useDispatch();
   const requireOnline = useRequireOnline();
   const confirmDelete = useDeletePothi();
+  // Morning and Evening Nitnem cannot be deleted: Morning Nitnem IS Today's
+  // Nitnem on the Dashboard, and the API seeds the pair exactly once per user,
+  // so a deletion is permanent — there is no way back to them from the app.
+  // They rename and edit like any other pothi.
+  const isDefault = useSelector((state) => isDefaultPothi(state.pothis, pothi?.id));
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
   const [gurmukhi, setGurmukhi] = useState(false);
@@ -137,12 +142,14 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
           ) : (
             actionRow(
               <>
-                <Button
-                  title={STRINGS.POTHI_DELETE}
-                  onPress={askDelete}
-                  variant="ghost"
-                  style={grow}
-                />
+                {isDefault ? null : (
+                  <Button
+                    title={STRINGS.POTHI_DELETE}
+                    onPress={askDelete}
+                    variant="ghost"
+                    style={grow}
+                  />
+                )}
                 <Button
                   title={STRINGS.POTHI_RENAME}
                   onPress={() => setRenaming(true)}

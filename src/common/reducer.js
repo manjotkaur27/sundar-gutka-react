@@ -474,17 +474,47 @@ const seenOnboardingVersion = createReducer(0, {
 });
 // ─── Dashboard redesign ───────────────────────────────────────────────────
 // Default top-to-bottom section order from the new design.
+// Today first, then the day's reading — streak, nitnem, hukamnama — followed by
+// the places to go next, and the numbers about what has already been read last.
 const DEFAULT_DASHBOARD_ORDER = [
   constant.DASHBOARD_SECTIONS.STREAK,
   constant.DASHBOARD_SECTIONS.NITNEM,
+  constant.DASHBOARD_SECTIONS.SHABAD_VAAK,
   constant.DASHBOARD_SECTIONS.EXPLORE,
+  constant.DASHBOARD_SECTIONS.DISCOVER,
+  constant.DASHBOARD_SECTIONS.REMINDERS,
   constant.DASHBOARD_SECTIONS.PRACTICE,
   constant.DASHBOARD_SECTIONS.CALENDAR,
   constant.DASHBOARD_SECTIONS.WEEK_CHART,
-  constant.DASHBOARD_SECTIONS.DISCOVER,
-  constant.DASHBOARD_SECTIONS.REMINDERS,
-  constant.DASHBOARD_SECTIONS.SHABAD_VAAK,
 ];
+
+// Orders this app has shipped as its default, newest last.
+//
+// `defaultLayout()` is persisted on the very first launch, so EVERY install
+// carries an order on disk whether or not the user ever opened the layout
+// editor. Changing the default alone therefore reaches nobody. An order that
+// still matches one of these was written by the app and not chosen by anyone,
+// so it is safe to move it onto the current default; anything else is the
+// user's own arrangement and is left exactly as they left it.
+const LEGACY_DASHBOARD_ORDERS = [
+  [
+    constant.DASHBOARD_SECTIONS.STREAK,
+    constant.DASHBOARD_SECTIONS.NITNEM,
+    constant.DASHBOARD_SECTIONS.EXPLORE,
+    constant.DASHBOARD_SECTIONS.PRACTICE,
+    constant.DASHBOARD_SECTIONS.CALENDAR,
+    constant.DASHBOARD_SECTIONS.WEEK_CHART,
+    constant.DASHBOARD_SECTIONS.DISCOVER,
+    constant.DASHBOARD_SECTIONS.REMINDERS,
+    constant.DASHBOARD_SECTIONS.SHABAD_VAAK,
+  ],
+];
+
+const sameOrder = (a, b) => a.length === b.length && a.every((key, i) => key === b[i]);
+
+/** True when a persisted order is an untouched default from an earlier release. */
+const isUncustomisedOrder = (order) =>
+  LEGACY_DASHBOARD_ORDERS.some((legacy) => sameOrder(order, legacy));
 
 // Section keys that are still valid (used to strip deprecated keys from a
 // persisted layout on upgrade — e.g. the old standalone randomShabad/vaak).
@@ -553,7 +583,9 @@ const dashboardLayout = createReducer(defaultLayout(), {
     if (!persisted?.order) return state; // fresh install → keep default
     const cleaned = persisted.order.filter((k) => VALID_DASHBOARD_SECTIONS.has(k));
     return {
-      order: withMissingAtDefaultPos(cleaned),
+      order: isUncustomisedOrder(cleaned)
+        ? [...DEFAULT_DASHBOARD_ORDER]
+        : withMissingAtDefaultPos(cleaned),
       hidden: (persisted.hidden ?? []).filter((k) => VALID_DASHBOARD_SECTIONS.has(k)),
     };
   },
@@ -565,16 +597,19 @@ const dashboardLayout = createReducer(defaultLayout(), {
   [actionTypes.RESET_DASHBOARD_LAYOUT]: () => defaultLayout(),
 });
 
+// What has been READ today, and nothing else.
+//
+// WHICH banis make up today's Nitnem is not here: it is the Morning Nitnem
+// pothi, so the Dashboard card and the pothi can never disagree about what the
+// user's Nitnem is. This slice used to carry its own `selectedBaniIds` list —
+// a second, unrelated set that started as [2, 6, 4, 9, 21, 1] while Morning
+// Nitnem started as [2, 4, 6, 9, 10]. See TodaysNitnem.
 const todaysNitnem = createReducer(
   // `completed[date]`  : ids done today (manual ticks + auto 95%-scroll reads).
   // `autoSeeded[date]` : ids auto-completion has already folded in once, so a
   //                      manual un-tick is never resurrected on the next refocus.
-  { selectedBaniIds: constant.DEFAULT_NITNEM_BANI_IDS, completed: {}, autoSeeded: {} },
+  { completed: {}, autoSeeded: {} },
   {
-    [actionTypes.SET_NITNEM_BANIS]: (state, action) => ({
-      ...state,
-      selectedBaniIds: action.value,
-    }),
     [actionTypes.TOGGLE_NITNEM_DONE]: (state, action) => {
       const { date, baniId } = action.payload;
       const dayList = state.completed[date] ?? [];
@@ -607,9 +642,11 @@ const todaysNitnem = createReducer(
         },
       };
     },
+    // Completion history only. The restored payload still carries the old
+    // `selectedBaaniIds`, but the bani SET now comes from the Morning Nitnem
+    // pothi, which My Pothi syncs on its own account — see usePothiSync.
     [actionTypes.RESTORE_NITNEM]: (state, action) => ({
       ...state,
-      selectedBaniIds: action.value?.selectedBaniIds ?? state.selectedBaniIds,
       completed: action.value?.completed ?? state.completed,
     }),
   },
@@ -636,12 +673,8 @@ const pothis = createReducer(pothiModel.emptyPothis(), {
     pothiModel.removeBani(state, action.payload.id, action.payload.baaniId),
   [actionTypes.SET_POTHI_ORDER]: (state, action) => pothiModel.setOrder(state, action.value),
   [actionTypes.TOGGLE_POTHI_PIN]: (state, action) => pothiModel.togglePin(state, action.value),
-  // Marked seeded even when the list is empty, so the check short-circuits and
-  // the bani database is not re-scanned on every launch.
-  [actionTypes.SEED_DEFAULT_POTHIS]: (state, action) => ({
-    ...(action.value ?? []).reduce((acc, pothi) => pothiModel.addPothi(acc, pothi), state),
-    seededDefaults: true,
-  }),
+  [actionTypes.SEED_DEFAULT_POTHIS]: (state, action) =>
+    pothiModel.seedDefaults(state, action.value ?? []),
   [actionTypes.MERGE_REMOTE_POTHIS]: (state, action) =>
     pothiModel.mergeRemote(state, action.value ?? []),
   [actionTypes.POTHI_DELETE_SYNCED]: (state, action) =>

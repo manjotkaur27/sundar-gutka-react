@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
-import { actions, STRINGS, trackPothiEvent } from "@common";
+import { STRINGS } from "@common";
 import { GurmukhiKeyboard, Sheet } from "../../common/components/ui";
-import useRequireOnline from "../hooks/useRequireOnline";
+import useSetPothiBanis from "../hooks/useSetPothiBanis";
 import PickBanisStep from "./PickBanisStep";
 
 // Fill a pothi that already exists.
@@ -17,8 +17,7 @@ import PickBanisStep from "./PickBanisStep";
 // long, `Done` is really just "close", and a staged draft would silently lose
 // ticks if the sheet were dismissed by the scrim.
 const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
-  const dispatch = useDispatch();
-  const requireOnline = useRequireOnline();
+  const setBanis = useSetPothiBanis();
   // Read LIVE from the store, by id. Holding the row object the list handed
   // over froze the ticks: every add produced a new pothi in the store while
   // this still pointed at the snapshot taken when the sheet opened.
@@ -35,28 +34,6 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   }, [visible]);
 
   if (!pothi) return null;
-
-  // The step hands back the whole next selection, which is what a draft wants.
-  // A pothi that already exists is edited one item at a time, so the difference
-  // is dispatched instead — an add or a remove, never a wholesale replacement
-  // that would rewrite items the user did not touch.
-  const apply = (next) => {
-    if (!requireOnline()) return;
-    const before = new Set(pothi.items.map((item) => item.baaniId));
-    const after = new Set(next.map((item) => item.baaniId));
-    next
-      .filter((item) => !before.has(item.baaniId))
-      .forEach((item) => {
-        trackPothiEvent("bani_added", { bani_id: item.baaniId, size: after.size });
-        dispatch(actions.addBaniToPothi(pothi.id, item));
-      });
-    pothi.items
-      .filter((item) => !after.has(item.baaniId))
-      .forEach((item) => {
-        trackPothiEvent("bani_removed", { bani_id: item.baaniId });
-        dispatch(actions.removeBaniFromPothi(pothi.id, item.baaniId));
-      });
-  };
 
   return (
     // Settings-scoped, like the other pothi sheets — see CreatePothiSheet.
@@ -81,9 +58,12 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
           ) : null
         }
       >
+        {/* The step hands back the whole next selection, which is what a draft
+            wants; `setBanis` turns it into the adds and removes an existing
+            pothi is edited with. */}
         <PickBanisStep
           picked={pothi.items}
-          onChange={apply}
+          onChange={(next) => setBanis(pothi, next)}
           baniListData={baniListData}
           query={query}
           onQueryChange={setQuery}

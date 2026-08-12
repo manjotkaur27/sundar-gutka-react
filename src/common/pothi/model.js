@@ -28,12 +28,93 @@ export const MAX_ITEMS_PER_FOLDER = 500;
 export const MAX_FOLDERS = 50;
 export const MAX_ID_LENGTH = 64;
 
+// ── The two default pothis ────────────────────────────────────────────────
+//
+// Bani ids are taken from the bundled database's `Banis` table and match what
+// khalis-users-api seeds in `DEFAULT_MYPOTHI_FOLDERS`, so a locally seeded pair
+// and the server's own pair hold the same banis in the same order — which is
+// what lets one stand down for the other in `mergeRemote`.
+//
+//    2  jpujI swihb            Japji Sahib
+//    4  jwpu swihb             Jaap Sahib
+//    6  qÍ pRswid sv`Xy        Tav Prasad Savaiye (Sraavag Sudh)
+//    9  bynqI cOpeI swihb      Benati Chaupai Sahib
+//   10  Anµdu swihb            Anand Sahib
+//   21  rhrwis swihb           Rehras Sahib
+//   23  soihlw swihb           Sohila Sahib (Kirtan Sohila — one bani, two names)
+//
+// Savaiye is 6, not 3 or 5 — Shabad Hazare (3) and Shabad Hazare Patishahi 10
+// (5) are two other banis whose similar names make the wrong one easy to grab.
+export const MORNING_ID = "default_morning_nitnem";
+export const EVENING_ID = "default_evening_nitnem";
+
+export const MORNING_NITNEM_IDS = [2, 4, 6, 9, 10];
+export const EVENING_NITNEM_IDS = [21, 23];
+
 /**
  * Ids of the pothis this app seeds while signed out. The API seeds its own
  * equivalents with random uuids, so these are the ones that stand down when the
  * two meet — see `mergeRemote`.
  */
-export const LOCAL_DEFAULT_IDS = new Set(["default_morning_nitnem", "default_evening_nitnem"]);
+export const LOCAL_DEFAULT_IDS = new Set([MORNING_ID, EVENING_ID]);
+
+/** The two default pothis, by the role each plays. */
+export const DEFAULT_KINDS = ["morning", "evening"];
+
+/**
+ * The names khalis-users-api gives the pair it seeds. Always English: the
+ * server does not know the user's locale. Used only to recover the pointer
+ * below when nothing better identifies them.
+ */
+const SERVER_DEFAULT_NAMES = { morning: "Morning Nitnem", evening: "Evening Nitnem" };
+
+/** A folder's banis as one comparable string. */
+const baniSignature = (folder) => (folder?.items ?? []).map((item) => item.baaniId).join(",");
+
+const DEFAULT_SIGNATURES = {
+  morning: MORNING_NITNEM_IDS.join(","),
+  evening: EVENING_NITNEM_IDS.join(","),
+};
+
+/**
+ * Which folder is the Morning (or Evening) Nitnem pothi.
+ *
+ * A pointer rather than a name check, because the name is not stable: the local
+ * seed uses the user's language, the server's is always English, and either can
+ * be renamed. Nor is the id stable — the API mints its own uuids — so the
+ * pointer is re-resolved rather than assumed:
+ *
+ *   1. The recorded id, if that folder is still there. Survives rename and
+ *      any edit to the contents, which is the whole point.
+ *   2. The folder holding exactly the default banis in the default order. This
+ *      is what re-points a device at the server's copy after `mergeRemote`
+ *      retires its local one, and what recovers the pair for a user who signed
+ *      in before this pointer existed.
+ *   3. The server's own English name, for a pair whose contents were edited
+ *      before this build could record them.
+ *
+ * Null when the pothi genuinely is not there — deleted from another client.
+ */
+const resolveDefaultId = (kind, folders, recorded) => {
+  if (recorded && folders.some((folder) => folder.id === recorded)) return recorded;
+  const bySignature = folders.find((folder) => baniSignature(folder) === DEFAULT_SIGNATURES[kind]);
+  if (bySignature) return bySignature.id;
+  const byName = folders.find((folder) => folder.name === SERVER_DEFAULT_NAMES[kind]);
+  return byName ? byName.id : null;
+};
+
+/** The id of a default pothi, or null. `kind` is "morning" or "evening". */
+export const defaultPothiId = (state, kind) => state?.defaultIds?.[kind] ?? null;
+
+/** The default pothi itself, or null. */
+export const defaultPothi = (state, kind) => {
+  const id = defaultPothiId(state, kind);
+  return id ? (state?.folders ?? []).find((folder) => folder.id === id) ?? null : null;
+};
+
+/** Whether a pothi is one of the two defaults, which cannot be deleted. */
+export const isDefaultPothi = (state, id) =>
+  Boolean(id) && DEFAULT_KINDS.some((kind) => defaultPothiId(state, kind) === id);
 
 /** Client-side only: the product cap on pinned pothis. The API does not police it. */
 export const MAX_PINNED = 3;
@@ -52,6 +133,9 @@ export const emptyPothis = () => ({
   // did not have and adopted it as new — so every deleted pothi came back on
   // the next launch. A tombstone says "this absence is deliberate".
   deletedIds: [],
+  // Which folder is Morning Nitnem and which is Evening — see resolveDefaultId.
+  // Local only: the API has no such field, and `toUpsertBody` never sends it.
+  defaultIds: { morning: null, evening: null },
 });
 
 // Short, unique per device, and well inside the API's 64-char ceiling. Ids are
@@ -125,10 +209,19 @@ export const renamePothi = (state, id, name, now = Date.now()) =>
 
 export const deletePothi = (state, id) => {
   if (indexOf(state, id) < 0) return state;
+  const defaultIds = { ...state.defaultIds };
+  // A dangling pointer would be re-resolved by signature on the next
+  // reconcile, which could adopt an unrelated folder. Clear it here instead.
+  // The UI refuses to delete a default (see isDefaultPothi); this covers a
+  // deletion that arrived from another client.
+  DEFAULT_KINDS.forEach((kind) => {
+    if (defaultIds[kind] === id) defaultIds[kind] = null;
+  });
   return {
     ...state,
     folders: state.folders.filter((folder) => folder.id !== id),
     deletedIds: [...new Set([...(state.deletedIds ?? []), id])],
+    defaultIds,
   };
 };
 
@@ -263,13 +356,39 @@ export const reconcile = (persisted) => {
         pinned: keepPin,
       };
     });
+  const kept = dropExactDuplicates(folders);
+  // Every entry point — rehydrate, seed, merge — passes through here, so this
+  // is the one place the two default pointers are re-established. A pointer at
+  // a folder that is still present is left exactly as it is.
+  const recorded = persisted.defaultIds ?? {};
   return {
-    folders: dropExactDuplicates(folders),
+    folders: kept,
     seededDefaults: Boolean(persisted.seededDefaults),
     lastSyncedAt: typeof persisted.lastSyncedAt === "string" ? persisted.lastSyncedAt : null,
     deletedIds: Array.isArray(persisted.deletedIds)
       ? persisted.deletedIds.filter((id) => typeof id === "string")
       : [],
+    defaultIds: {
+      morning: resolveDefaultId("morning", kept, recorded.morning),
+      evening: resolveDefaultId("evening", kept, recorded.evening),
+    },
+  };
+};
+
+/**
+ * Adds the pair this app seeds while signed out and records which is which.
+ *
+ * Marked seeded even when the list is empty, so the check short-circuits and
+ * the bani database is not re-scanned on every launch.
+ */
+export const seedDefaults = (state, pothis = []) => {
+  const seeded = pothis.reduce((acc, pothi) => addPothi(acc, pothi), state);
+  const pick = (kind, id) =>
+    pothis.some((pothi) => pothi.id === id) ? id : seeded.defaultIds?.[kind] ?? null;
+  return {
+    ...seeded,
+    seededDefaults: true,
+    defaultIds: { morning: pick("morning", MORNING_ID), evening: pick("evening", EVENING_ID) },
   };
 };
 
@@ -312,12 +431,14 @@ export const mergeRemote = (state, remoteFolders = []) => {
   // collapsed by name because the local ones are localised. They ARE the same
   // pothi though — same banis in the same order — so the local copy stands
   // down in favour of the server’s, which is the one both clients agree on.
-  const remoteBaniSets = new Set(
-    remoteFolders.map((folder) => (folder.items ?? []).map((i) => i.baaniId).join(","))
-  );
+  //
+  // The Morning/Evening pointer is NOT rewritten here: dropping the local
+  // folder leaves the pointer dangling, and `reconcile` below re-resolves it by
+  // bani signature — which lands on the server's copy, the very folder that
+  // superseded it.
+  const remoteBaniSets = new Set(remoteFolders.map(baniSignature));
   const supersededDefault = (folder) =>
-    LOCAL_DEFAULT_IDS.has(folder.id) &&
-    remoteBaniSets.has(folder.items.map((i) => i.baaniId).join(","));
+    LOCAL_DEFAULT_IDS.has(folder.id) && remoteBaniSets.has(baniSignature(folder));
 
   // A tombstone retires ONLY when a pull proves the server no longer has that
   // id — not when DELETE returns 204.

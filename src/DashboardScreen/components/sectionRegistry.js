@@ -24,13 +24,15 @@ const S = constant.DASHBOARD_SECTIONS;
 export const SECTION_REGISTRY = {
   [S.STREAK]: { Component: StreakCard, labelKey: "CURRENT_STREAK" },
   [S.NITNEM]: { Component: TodaysNitnem, labelKey: "TODAYS_NITNEM" },
+  [S.SHABAD_VAAK]: { Component: ShabadVaak, labelKey: "SECTION_SHABAD_VAAK" },
   [S.EXPLORE]: { Component: ExploreGurbani, labelKey: "EXPLORE" },
-  [S.PRACTICE]: { Component: YourPractice, labelKey: "YOUR_PRACTICE" },
-  [S.CALENDAR]: { Component: MonthCalendar, labelKey: "ACTIVITY" },
-  [S.WEEK_CHART]: { Component: WeekChart, labelKey: "THIS_WEEK" },
   [S.DISCOVER]: { Component: Discover, labelKey: "DISCOVER" },
   [S.REMINDERS]: { Component: RemindersCard, labelKey: "REMINDERS_TITLE" },
-  [S.SHABAD_VAAK]: { Component: ShabadVaak, labelKey: "SECTION_SHABAD_VAAK" },
+  // The section key stays `practice` — it is persisted in every user's layout —
+  // while the heading it shows is "Insights".
+  [S.PRACTICE]: { Component: YourPractice, labelKey: "INSIGHTS" },
+  [S.CALENDAR]: { Component: MonthCalendar, labelKey: "ACTIVITY" },
+  [S.WEEK_CHART]: { Component: WeekChart, labelKey: "THIS_WEEK" },
 };
 
 export const sectionLabel = (key) => {

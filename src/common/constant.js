@@ -161,18 +161,9 @@ export default {
   // allowed to reach — there is no activity data before this, by product
   // decision, regardless of what a device's local SQLite table might contain.
   DASHBOARD_HISTORY_FLOOR: { year: 2026, month: 7 },
-  // Default daily Nitnem bani set, by Banis.ID, in reading order:
-  //   2  Japji Sahib
-  //   6  Tav Prasad Savaiye (Sraavag Sudh)
-  //   4  Jaap Sahib
-  //   9  Benati Chaupai Sahib
-  //   21 Rehras Sahib
-  //   1  Gur Mantar
-  //
-  // Savaiye is ID 6. NEITHER Shabad Hazare (ID 3) nor Shabad Hazare Patishahi
-  // 10 (ID 5) belongs in the default — they are two distinct banis and the
-  // similar names make the wrong one easy to reach for.
-  DEFAULT_NITNEM_BANI_IDS: [2, 6, 4, 9, 21, 1],
+  // There is no default Nitnem bani set here any more. Today's Nitnem is the
+  // Morning Nitnem pothi, so the list lives with the pothi that owns it —
+  // `MORNING_NITNEM_IDS` in `common/pothi/model.js`.
 
   // ─── Khalis SSO ───────────────────────────────────────────────────────────
   // The Service Provider fronts a SAML IdP and hands us a plain JWT — this app

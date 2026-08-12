@@ -5,6 +5,7 @@ import { Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { PlusIcon } from "@common/icons";
+import { isDefaultPothi } from "@common/pothi/model";
 import { resolveBanis } from "@common/pothi/selectors";
 import {
   actions,
@@ -62,6 +63,7 @@ const FolderScreen = ({ navigation, route }) => {
   const pothi = useSelector((state) =>
     pothiId ? (state.pothis?.folders ?? []).find((f) => f.id === pothiId) : null
   );
+  const isDefault = useSelector((state) => isDefaultPothi(state.pothis, pothiId));
   const rows = useMemo(
     () =>
       pothi
@@ -324,19 +326,27 @@ const FolderScreen = ({ navigation, route }) => {
           { label: STRINGS.POTHI_ADD_BANIS, run: () => setEditing(true) },
           { label: STRINGS.POTHI_RENAME, run: () => setRenaming(true) },
           { label: STRINGS.POTHI_DELETE_BANIS, run: () => setPicked(new Set()) },
-          {
-            label: STRINGS.POTHI_DELETE_POTHI,
-            // Last, and the only one drawn in the error colour — it destroys
-            // the whole pothi rather than editing it, so it must not sit
-            // indistinguishable from "Delete Banis" directly above it. The
-            // confirm is raised at the app root, which is why leaving the
-            // screen straight after does not take it down with us.
-            destructive: true,
-            run: () =>
-              confirmDeletePothi({ id: pothiId, name: pothi?.name, count: rows.length }, () =>
-                navigation.goBack()
-              ),
-          },
+          // Morning and Evening Nitnem are not offered a delete at all — see
+          // PothiActionsSheet for why. Filtered out rather than disabled: a
+          // greyed row invites a tap and then explains nothing.
+          ...(isDefault
+            ? []
+            : [
+                {
+                  label: STRINGS.POTHI_DELETE_POTHI,
+                  // Last, and the only one drawn in the error colour — it
+                  // destroys the whole pothi rather than editing it, so it must
+                  // not sit indistinguishable from "Delete Banis" directly
+                  // above it. The confirm is raised at the app root, which is
+                  // why leaving the screen straight after does not take it down
+                  // with us.
+                  destructive: true,
+                  run: () =>
+                    confirmDeletePothi({ id: pothiId, name: pothi?.name, count: rows.length }, () =>
+                      navigation.goBack()
+                    ),
+                },
+              ]),
         ].map((action) => (
           <Row
             key={action.label}

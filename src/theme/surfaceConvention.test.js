@@ -138,7 +138,7 @@ describe("one blue per theme", () => {
 describe("dashboard section headings are one treatment", () => {
   const sectionLabel = require("../DashboardScreen/components/SectionLabel");
 
-  it("only the week range and Reminders opt out of the caption treatment", () => {
+  it("only the week range opts out of the caption treatment", () => {
     const fs = require("fs");
     const path = require("path");
     const dir = path.join(__dirname, "..", "DashboardScreen", "components");
@@ -148,11 +148,13 @@ describe("dashboard section headings are one treatment", () => {
       .filter((f) => {
         const src = fs.readFileSync(path.join(dir, f), "utf8");
         if (!src.includes("<SectionLabel")) return false;
-        // The week range is a heading and Reminders carries its own accent;
-        // any OTHER section setting its own size, case or colour is drift.
+        // The week range is a title in its own right, not a section heading.
+        // Any SECTION setting its own size, case or colour is drift — Reminders
+        // used to take a quieter accent, which left one heading in the stack
+        // looking faded next to Explore, Discover and Insights.
         return /<SectionLabel[^>]*(titleStyle|uppercase|color)=/s.test(src);
       });
-    expect(offenders.sort()).toEqual(["RemindersCard.jsx", "WeekChart.jsx"]);
+    expect(offenders.sort()).toEqual(["WeekChart.jsx"]);
   });
 
   it("defaults to the small uppercase caption", () => {

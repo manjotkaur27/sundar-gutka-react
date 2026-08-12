@@ -1,28 +1,19 @@
 import convertToUnicode from "../utils";
-import { createPothi, makeBaniItem } from "./model";
+import {
+  createPothi,
+  EVENING_ID,
+  EVENING_NITNEM_IDS,
+  makeBaniItem,
+  MORNING_ID,
+  MORNING_NITNEM_IDS,
+} from "./model";
 
-// The two pothis every user starts with.
+// Builds the two pothis every user starts with.
 //
-// Bani ids are taken from the bundled database's `Banis` table, not from the
-// comment block in constant.js — that block documents the Nitnem reminder set,
-// which is a different list (it includes Gur Mantar and omits Anand Sahib), and
-// trusting it would have put the wrong banis in both pothis.
-//
-//    2  jpujI swihb            Japji Sahib
-//    4  jwpu swihb             Jaap Sahib
-//    6  qÍ pRswid sv`Xy        Tav Prasad Savaiye (Sraavag Sudh)
-//    9  bynqI cOpeI swihb      Benati Chaupai Sahib
-//   10  Anµdu swihb            Anand Sahib
-//   21  rhrwis swihb           Rehras Sahib
-//   23  soihlw swihb           Sohila Sahib (Kirtan Sohila — one bani, two names)
-//
-// Savaiye is 6, not 3 or 5 — Shabad Hazare (3) and Shabad Hazare Patishahi 10
-// (5) are two other banis whose similar names make the wrong one easy to grab.
-export const MORNING_ID = "default_morning_nitnem";
-export const EVENING_ID = "default_evening_nitnem";
-
-export const MORNING_NITNEM_IDS = [2, 4, 6, 9, 10];
-export const EVENING_NITNEM_IDS = [21, 23];
+// The ids and the bani lists live in `model.js` — resolving which folder is
+// Morning Nitnem needs them too, and a second copy here is how the pair would
+// drift apart. This file is only the part that needs the live bani database:
+// turning those ids into items carrying real titles.
 
 /**
  * The default pothis, built against the live bani list so each item carries the

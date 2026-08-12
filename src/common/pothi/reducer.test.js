@@ -33,6 +33,9 @@ describe("the pothis slice is wired into the root reducer", () => {
       seededDefaults: false,
       lastSyncedAt: null,
       deletedIds: [],
+      // Local only — which folder is Morning Nitnem and which is Evening.
+      // Never sent: `toUpsertBody` takes only `folders`.
+      defaultIds: { morning: null, evening: null },
     });
   });
 
@@ -167,6 +170,7 @@ describe("rehydrate", () => {
       seededDefaults: false,
       lastSyncedAt: null,
       deletedIds: [],
+      defaultIds: { morning: null, evening: null },
     });
   });
 });

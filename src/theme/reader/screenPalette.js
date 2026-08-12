@@ -97,7 +97,6 @@ const ACCENT = [
   "brandText",
   "accentBlue",
   "accentText",
-  "sectionAccent",
   "sectionAccentBlue",
   "link",
   "tileIcon",

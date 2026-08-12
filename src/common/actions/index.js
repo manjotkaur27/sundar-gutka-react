@@ -370,11 +370,6 @@ export const resetDashboardLayout = () => {
   return { type: actionTypes.RESET_DASHBOARD_LAYOUT };
 };
 
-export const setNitnemBanis = (value) => {
-  // value: number[] of Banis.ID
-  return { type: actionTypes.SET_NITNEM_BANIS, value };
-};
-
 export const toggleNitnemDone = (date, baniId) => {
   // Marks/unmarks a bani done for a given YYYY-MM-DD date
   return { type: actionTypes.TOGGLE_NITNEM_DONE, payload: { date, baniId } };
@@ -388,7 +383,7 @@ export const markNitnemAutoDone = (date, baniIds) => {
 };
 
 export const restoreNitnem = (value) => {
-  // value: { selectedBaniIds?: number[], completed?: { [date]: number[] } }
+  // value: { completed?: { [date]: number[] } }
   return { type: actionTypes.RESTORE_NITNEM, value };
 };
 

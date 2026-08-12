@@ -173,7 +173,7 @@ const YourPractice = ({ refreshKey = 0 }) => {
 
   return (
     <View>
-      <SectionLabel title={STRINGS.YOUR_PRACTICE} />
+      <SectionLabel title={STRINGS.INSIGHTS} />
       <View style={styles.wrap}>
         {loading ? (
           <View style={styles.heroRow}>

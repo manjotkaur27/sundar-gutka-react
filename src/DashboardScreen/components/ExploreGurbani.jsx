@@ -9,12 +9,11 @@ import {
   Platform,
   NativeModules,
 } from "react-native";
-import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
 import { brandMarks } from "@theme/palette";
 import PropTypes from "prop-types";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
-import { HukamnamaIcon } from "@common/icons";
 import { CustomText, STRINGS, constant, actions, openInAppBrowser } from "@common";
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
@@ -22,9 +21,15 @@ import DashboardCard, { CARD_SHADOW_BLEED } from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
+import { plateFor } from "./tilePlate";
 import useAsyncSection from "./useAsyncSection";
 import useBaniLookup from "@common/hooks/useBaniLookup";
 
+// Sri Darbar Sahib, cut out of its white background and cropped to the
+// building. It replaces a stroked vector glyph of the same subject, which at
+// this size read as a scribble. A drawing rather than a logotype, so it is
+// sized as one — see ILLUSTRATION_SIZE.
+const DARBAR_MARK = require("../../assets/images/darbar-sahib-mark.png");
 const KHALIS_LOGO = require("../../assets/images/khalis.png");
 const STTM_LOGO = require("../../assets/images/sikhi2max.webp");
 const SEHAJ_PATH_LOGO = require("../../assets/images/sehajpath.webp");
@@ -36,19 +41,18 @@ const SHABADAVALI_LOGO = require("../../assets/images/shabadavali.png");
 // equivalent here (no custom URL scheme was provided for Sehaj Path), so it
 // always opens the App Store listing, which itself shows "Open" instead of
 // "Get" when the app is already installed.
+// An illustration needs more of the box than a logotype does: a logo is a
+// simple mark that still reads at 32, where a drawing of a building has domes,
+// arches and a balustrade to resolve. `contain` keeps the aspect, so 40 renders
+// the darbar at 40x33 with a few points of air on every side. A module constant
+// rather than a StyleSheet entry so the image keeps one stable style reference.
+const ILLUSTRATION_SIZE = { width: 40, height: 40 };
+
 const SEHAJ_PATH_ANDROID_PKG = "com.khalis.sehajpathapp";
 const SEHAJ_PATH_STORE_URL = Platform.select({
   ios: "https://apps.apple.com/us/app/khalis-sehaj-path/id6752426194",
   default: "https://play.google.com/store/apps/details?id=com.khalis.sehajpathapp",
 });
-
-const SearchIcon = ({ color }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <Circle cx="11" cy="11" r="8" />
-    <Path d="M21 21l-4.35-4.35" />
-  </Svg>
-);
-SearchIcon.propTypes = { color: PropTypes.string.isRequired };
 
 const BookIcon = ({ color }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -102,21 +106,6 @@ const GurdhamIcon = ({ mode }) => (
   </Svg>
 );
 
-// Tiles carry an `icon` key when they draw a vector glyph instead of a logo
-// image. Hukamnama's darbar artwork is solid-filled and detailed, so it gets a
-// slightly larger box than the stroked glyphs to stay legible.
-const TileIcon = ({ name, color, mode }) => {
-  if (name === "hukamnama") return <HukamnamaIcon size={26} color={color} />;
-  if (name === "gurdham") return <GurdhamIcon mode={mode} />;
-  return <SearchIcon color={color} />;
-};
-TileIcon.propTypes = {
-  name: PropTypes.string.isRequired,
-  color: PropTypes.string.isRequired,
-  /** The Gurdham mark's gradient is picked per theme; see brandMarks. */
-  mode: PropTypes.oneOf(["light", "dark"]).isRequired,
-};
-
 GurdhamIcon.propTypes = { mode: PropTypes.oneOf(["light", "dark"]).isRequired };
 
 // `titleKey`/`subtitleKey`/`badgeKey` hold STRINGS keys for the localisable
@@ -125,13 +114,18 @@ GurdhamIcon.propTypes = { mode: PropTypes.oneOf(["light", "dark"]).isRequired };
 // Sri Darbar Sahib) stay as literal `title`/`subtitle` — they aren't translated.
 const APP_TILES = [
   { id: "search", titleKey: "TILE_SEARCH_SHABAD", subtitle: "SikhiToTheMax", image: STTM_LOGO, url: "https://www.sikhitothemax.org" },
-  { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", icon: "hukamnama", url: "https://www.sikhitothemax.org/hukamnama" },
+  // The darbar itself rather than a stroked glyph of it. Gold and white marble,
+  // so it needs the deep plate: on a pale one the marble storey and the
+  // balustrade disappear and the building loses its base.
+  { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", image: DARBAR_MARK, plate: "deep", illustration: true, url: "https://www.sikhitothemax.org/hukamnama" },
   { id: "khalis-ai", titleKey: "TILE_ASK_AI", subtitleKey: "TILE_GURBANI_QA", image: KHALIS_LOGO, badgeKey: "BADGE_NEW", url: "https://www.sikhitothemax.org/" },
   {
     id: "sehaj-path",
     title: "Sehaj Path",
     subtitle: "Khalis App",
     image: SEHAJ_PATH_LOGO,
+    // Its artwork is the app icon itself, navy edge to edge.
+    plate: "pale",
     pkg: SEHAJ_PATH_ANDROID_PKG,
     url: SEHAJ_PATH_STORE_URL,
     deepLink: true,
@@ -299,6 +293,8 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
           const title = t.titleKey ? STRINGS[t.titleKey] : t.title;
           const subtitle = t.subtitleKey ? STRINGS[t.subtitleKey] : t.subtitle;
           const badge = t.badgeKey ? STRINGS[t.badgeKey] : t.badge;
+          const plate = plateFor(t, theme, iconBg);
+          const imgStyle = t.illustration ? ILLUSTRATION_SIZE : styles.iconImg;
           return (
           <DashboardCard key={t.id} style={styles.tile}>
             <Pressable
@@ -308,11 +304,11 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
               accessibilityLabel={title}
             >
               <View style={styles.iconRow}>
-                <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+                <View style={[styles.iconBox, { backgroundColor: plate }]}>
                   {t.icon ? (
-                    <TileIcon name={t.icon} color={iconColor} mode={theme.mode} />
+                    <GurdhamIcon mode={theme.mode} />
                   ) : (
-                    <Image source={t.image} style={styles.iconImg} resizeMode="contain" />
+                    <Image source={t.image} style={imgStyle} resizeMode="contain" />
                   )}
                 </View>
                 {badge ? (

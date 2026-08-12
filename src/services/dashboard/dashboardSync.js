@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { defaultPothi } from "@common/pothi/model";
 import { constant, actions, updateReminders, logError, STRINGS } from "@common";
 import { getBaniList } from "@database";
 import {
@@ -95,12 +96,12 @@ export const applyDashboardRestore = async (
   }
 
   if (payload.nitnem) {
-    dispatch(
-      actions.restoreNitnem({
-        selectedBaniIds: payload.nitnem.selectedBaaniIds,
-        completed: payload.nitnem.completed,
-      })
-    );
+    // Completion history only. `payload.nitnem.selectedBaaniIds` is still sent
+    // and still read by other clients, but WHICH banis are in the Nitnem is the
+    // Morning Nitnem pothi now, and that syncs through the folders API on the
+    // account — restoring it from this per-device snapshot would overwrite the
+    // account's own copy with whatever this device last pushed.
+    dispatch(actions.restoreNitnem({ completed: payload.nitnem.completed }));
     applied.push("nitnem");
   }
 
@@ -325,7 +326,12 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
       audioSessions: allTimeTotals.audioSessions,
     },
     nitnem: {
-      selectedBaaniIds: state.todaysNitnem?.selectedBaniIds ?? [],
+      // Kept in the payload — it is part of the contract other clients read —
+      // but sourced from the Morning Nitnem pothi, which is the one list the
+      // app has. See TodaysNitnem.
+      selectedBaaniIds: (defaultPothi(state.pothis, "morning")?.items ?? []).map(
+        (item) => item.baaniId
+      ),
       completed: trimmedCompleted,
       completedCount: nitnemCompletedCount,
     },
