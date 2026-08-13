@@ -179,6 +179,17 @@ export default {
   SSO_LOGOUT_REDIRECT: "sundargutka://logout",
   // Keychain service name the session JWT is stored under.
   SSO_KEYCHAIN_SERVICE: "khalis_sso",
+  // Whether /dashboard/cache is keyed on the SSO account.
+  //
+  // TRUE: the backend keys snapshots on the account (userId_syncDate), so the
+  // account-switch purge CLEARS the restore marker and the signing-in account
+  // pulls its OWN snapshot back.
+  //
+  // It must not be flipped ahead of the server. While the backend still keyed
+  // on deviceId, restoring after a switch fetched this DEVICE's latest
+  // snapshot — handing the new account the previous one's data, the exact bug
+  // the purge exists to fix. See docs/SSO.md.
+  SSO_ACCOUNT_SCOPED_SYNC: true,
 
   // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
   DASHBOARD_API_BASE_URL: KHALIS_API_BASE,

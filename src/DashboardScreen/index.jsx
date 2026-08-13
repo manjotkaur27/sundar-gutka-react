@@ -60,7 +60,7 @@ const DashboardScreen = () => {
     signIn();
   }, [authStatus, navigation, signIn]);
 
-  // Cross-device sync (dormant until SSO/JWT exists — see useDashboardSync).
+  // Cross-device sync for the signed-in account (see useDashboardSync).
   const restoreTick = useDashboardSync();
 
   // Sections that fetch their own data on mount (YourPractice, MonthCalendar)

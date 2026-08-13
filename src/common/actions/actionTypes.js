@@ -104,6 +104,10 @@ export const SET_ONBOARDING_SEEN = "SET_ONBOARDING_SEEN";
 export const SET_AUTH_SESSION = "SET_AUTH_SESSION";
 export const CLEAR_AUTH_SESSION = "CLEAR_AUTH_SESSION";
 export const SET_AUTH_BUSY = "SET_AUTH_BUSY";
+// Drops every slice belonging to a PERSON rather than to this device. Fired on
+// sign-out and when a DIFFERENT account signs in; see common/sso/accountScope.js
+// and USER_DATA_SLICES in common/reducer.js.
+export const CLEAR_USER_DATA = "CLEAR_USER_DATA";
 
 // ─── Dashboard redesign ─────────────────────────────────────────────────────
 // Local editable user profile, synced per-device. Kept separate from the SSO

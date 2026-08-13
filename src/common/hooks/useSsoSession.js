@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState, Linking } from "react-native";
 import { useDispatch } from "react-redux";
 import { setAuthSession, clearAuthSession } from "../actions";
+import { applyAccountScope } from "../sso/accountScope";
 import STRINGS from "../localization";
 import { decodeJwtPayload, isTokenValid, toSessionUser } from "../sso/jwt";
 import { consumeLoginRedirect } from "../sso/khalisSso";
@@ -44,8 +45,16 @@ const useSsoSession = () => {
   );
 
   const beginSession = useCallback(
-    (user, expiresAt) => {
+    async (user, expiresAt) => {
       clearExpiryTimer();
+
+      // BEFORE the session is announced, not after. If this is a different
+      // account from the one the on-device data belongs to, that data is wiped
+      // first, so no frame ever renders the new user's name over the previous
+      // user's streaks. Same account — including signing back in after an
+      // expiry — is not a change and purges nothing.
+      await applyAccountScope(user?.email, dispatch);
+
       dispatch(setAuthSession({ user, expiresAt }));
 
       if (!expiresAt) return;
@@ -75,13 +84,13 @@ const useSsoSession = () => {
         return;
       }
       const payload = decodeJwtPayload(token);
-      beginSession(toSessionUser(payload), payload.exp * 1000);
+      await beginSession(toSessionUser(payload), payload.exp * 1000);
     };
 
     const handleUrl = async (url) => {
       const accepted = await consumeLoginRedirect(url);
       if (!active || !accepted) return;
-      beginSession(accepted.user, accepted.expiresAt);
+      await beginSession(accepted.user, accepted.expiresAt);
     };
 
     const run = async () => {

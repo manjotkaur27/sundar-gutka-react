@@ -753,7 +753,7 @@ const pothis = createReducer(pothiModel.emptyPothis(), {
   }),
 });
 
-const rootReducer = combineReducers({
+const appReducer = combineReducers({
   donor,
   donorType,
   isNightMode,
@@ -818,4 +818,35 @@ const rootReducer = combineReducers({
   todaysNitnem,
   pothis,
 });
+// Slices holding data that belongs to a PERSON, not to this device.
+//
+// Deliberately NOT here: downloadRegistry (real audio files on disk — dropping
+// the registry orphans them) and every display preference (theme, font size,
+// language). Those describe how this phone is set up, not who is holding it.
+const USER_DATA_SLICES = [
+  "userProfile",
+  "dashboardLayout",
+  "todaysNitnem",
+  "bookmarkPosition",
+  "bookmarkSequenceString",
+  "isReminders",
+  "reminderBanis",
+  "reminderSound",
+];
+
+// Wrapping combineReducers rather than adding a handler to each slice: this
+// keeps the "what counts as user data" list in one readable place, and a slice
+// added later is opt-in rather than silently surviving an account switch.
+const rootReducer = (state, action) => {
+  if (action.type === actionTypes.CLEAR_USER_DATA && state) {
+    const next = { ...state };
+    // Deleting the key (rather than setting undefined) makes combineReducers
+    // hand each of these reducers `undefined`, so they return their own initial
+    // state — no separate copy of the defaults to drift out of sync.
+    USER_DATA_SLICES.forEach((key) => delete next[key]);
+    return appReducer(next, action);
+  }
+  return appReducer(state, action);
+};
+
 export default rootReducer;

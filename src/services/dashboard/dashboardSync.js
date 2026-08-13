@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultPothi } from "@common/pothi/model";
 import { constant, actions, updateReminders, logError, STRINGS } from "@common";
 import { getBaniList } from "@database";
+import { readToken } from "../../common/sso/tokenStore";
 import {
   getOrCreateSummary,
   getDailyActivity,
@@ -14,28 +15,42 @@ import {
   updateSummary,
 } from "../../database/analytics";
 
-// Per-device dashboard sync: push (POST /dashboard/cache) and restore
-// (GET /dashboard/latest?deviceId=). Restore applies the user-setup blocks (profile,
-// layout, nitnem, reminders) into Redux and seeds analytics SQLite from the snapshot.
+// Account dashboard sync: push (POST /dashboard/cache) and restore
+// (GET /dashboard/latest). Restore applies the user-setup blocks (profile,
+// layout, nitnem, reminders) into Redux and seeds analytics SQLite from the
+// snapshot.
 //
-// Public + deviceId-keyed (no auth): the stable device id (DeviceInfo.getUniqueId())
-// is the only key, so sync always runs — there is no login. Per-device, not
-// per-account: device A can't see device B's data (the tradeoff until SSO lands).
-// userId stays null, reserved for future SSO.
+// ACCOUNT-keyed and authenticated. The server reads the owner from the bearer
+// token, which is why restore sends no deviceId: a caller must not be able to
+// name whose snapshot it reads. `deviceId` still travels in the POST body, but
+// only as metadata and as the key for adopting snapshots pushed before the user
+// had an account.
+//
+// Both calls therefore require a signed-in session. Callers gate on that; a 401
+// here is reported as `unauthorized` rather than thrown, because a lapsed
+// session is a normal state, not a sync failure worth logging on every blur.
 
 const latestUrl = () =>
   constant.DASHBOARD_LATEST_API_URL || `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/latest`;
 const syncUrl = () =>
   constant.DASHBOARD_SYNC_API_URL || `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/cache`;
 
-const fetchLatest = async (deviceId) => {
+const fetchLatest = async () => {
+  const token = await readToken();
+  if (!token) return { unauthorized: true };
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${latestUrl()}?deviceId=${encodeURIComponent(deviceId)}`, {
+    // No query string: the account comes from the token. Passing a deviceId
+    // would let a caller read another device's snapshot.
+    const res = await fetch(latestUrl(), {
       signal: controller.signal,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
     });
+    if (res.status === 401) return { unauthorized: true };
     if (res.status === 404) return { notFound: true };
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return { data: await res.json() };
@@ -44,11 +59,12 @@ const fetchLatest = async (deviceId) => {
   }
 };
 
-// Returns this device's snapshot `payload`, or null when the device has never synced
-// (404). The backend responds { syncedAt, payload }.
-export const getDashboardLatest = async ({ deviceId } = {}) => {
-  const { notFound, data } = await fetchLatest(deviceId);
-  if (notFound) return null;
+// Returns the ACCOUNT's snapshot `payload`, or null when it has never synced
+// (404) or there is no usable session (401). The backend responds
+// { syncedAt, payload }.
+export const getDashboardLatest = async () => {
+  const { notFound, unauthorized, data } = await fetchLatest();
+  if (notFound || unauthorized) return null;
   return data?.payload ?? null;
 };
 
@@ -350,18 +366,28 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
   return { version, capturedAt: now.toISOString(), deviceId, userId, payload };
 };
 
-// POSTs a cache body (public, no auth). 201 on the day's first sync, 200 {updated:true}
-// on a same-day re-sync (last-write-wins). deviceId in the body is the only key.
+// POSTs a cache body for the signed-in account. 201 on the day's first sync,
+// 200 {updated:true} on a same-day re-sync (last-write-wins).
+//
+// Returns `{ ok: false, unauthorized: true }` rather than throwing when there is
+// no usable session: this runs on every backgrounding, and a lapsed token would
+// otherwise log an error each time.
 export const pushDashboardCache = async (body) => {
+  const token = await readToken();
+  if (!token) return { ok: false, unauthorized: true };
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(syncUrl(), {
       method: "POST",
       signal: controller.signal,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(body),
     });
+    if (res.status === 401) return { ok: false, unauthorized: true };
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return { ok: true, data: await res.json() };
   } finally {

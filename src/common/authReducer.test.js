@@ -19,6 +19,7 @@ const setAuthSession = (value) => ({ type: actionTypes.SET_AUTH_SESSION, value }
 const clearAuthSession = () => ({ type: actionTypes.CLEAR_AUTH_SESSION });
 const setAuthBusy = (value) => ({ type: actionTypes.SET_AUTH_BUSY, value });
 const setUserProfile = (value) => ({ type: actionTypes.SET_USER_PROFILE, value });
+const clearUserData = () => ({ type: actionTypes.CLEAR_USER_DATA });
 
 const initial = () => rootReducer(undefined, { type: "@@INIT" });
 
@@ -118,5 +119,92 @@ describe("auth is kept separate from userProfile", () => {
     const state = rootReducer(signedIn, setUserProfile({ name: "From Cloud Restore" }));
     expect(state.auth.user).toEqual(USER);
     expect(state.userProfile.name).toBe("From Cloud Restore");
+  });
+});
+
+/**
+ * CLEAR_USER_DATA is what actually fixes "sign out as A, sign in as B, still see
+ * A's dashboard". The two halves matter equally: person-scoped state must go,
+ * and device-scoped state must NOT — wiping downloadRegistry would orphan real
+ * audio files on disk, and wiping display preferences would reset the phone's
+ * setup for no reason.
+ */
+describe("CLEAR_USER_DATA", () => {
+  // A state carrying A's data plus non-default device preferences.
+  const populated = () => {
+    let s = rootReducer(undefined, { type: "@@INIT" });
+    s = rootReducer(s, setUserProfile({ name: "Account A" }));
+    s = rootReducer(s, {
+      type: actionTypes.SET_DASHBOARD_LAYOUT,
+      value: { order: ["streak"], hidden: ["explore"] },
+    });
+    // WHICH banis are in the nitnem belongs to the pothi now, so the slice's own
+    // user data is the per-day completion map.
+    s = rootReducer(s, {
+      type: actionTypes.TOGGLE_NITNEM_DONE,
+      payload: { date: "2026-08-13", baniId: 2 },
+    });
+    s = rootReducer(s, { type: actionTypes.SET_BOOKMARK_POSITION, value: 1234 });
+    s = rootReducer(s, { type: actionTypes.TOGGLE_REMINDERS, value: true });
+    // Device-scoped, must survive.
+    s = rootReducer(s, {
+      type: actionTypes.ADD_DOWNLOAD_ENTRY,
+      payload: { relativePath: "artist/bani-1.m4a", baniId: 1 },
+    });
+    s = rootReducer(s, { type: actionTypes.SET_FONT_SIZE, value: "LARGE" });
+    s = rootReducer(s, { type: actionTypes.SET_LANGUAGE, value: "pa" });
+    return s;
+  };
+
+  it("resets the person-scoped slices to their defaults", () => {
+    const before = populated();
+    expect(before.userProfile.name).toBe("Account A");
+    expect(before.todaysNitnem.completed["2026-08-13"]).toEqual([2]);
+
+    const after = rootReducer(before, clearUserData());
+    const fresh = rootReducer(undefined, { type: "@@INIT" });
+
+    expect(after.userProfile).toEqual(fresh.userProfile);
+    expect(after.dashboardLayout).toEqual(fresh.dashboardLayout);
+    expect(after.todaysNitnem).toEqual(fresh.todaysNitnem);
+    expect(after.bookmarkPosition).toEqual(fresh.bookmarkPosition);
+    expect(after.bookmarkSequenceString).toEqual(fresh.bookmarkSequenceString);
+    expect(after.isReminders).toEqual(fresh.isReminders);
+    expect(after.reminderBanis).toEqual(fresh.reminderBanis);
+    expect(after.reminderSound).toEqual(fresh.reminderSound);
+  });
+
+  // Downloaded audio belongs to the phone, not the person. Clearing the registry
+  // would leave the files on disk with nothing pointing at them.
+  it("leaves downloads untouched", () => {
+    const before = populated();
+    const after = rootReducer(before, clearUserData());
+    expect(after.downloadRegistry).toEqual(before.downloadRegistry);
+    expect(after.downloadQueue).toEqual(before.downloadQueue);
+    expect(after.downloadWifiOnly).toEqual(before.downloadWifiOnly);
+    expect(after.autoDownloadOnStream).toEqual(before.autoDownloadOnStream);
+  });
+
+  it("leaves display preferences untouched", () => {
+    const before = populated();
+    const after = rootReducer(before, clearUserData());
+    expect(after.fontSize).toEqual(before.fontSize);
+    expect(after.language).toEqual(before.language);
+    expect(after.isNightMode).toEqual(before.isNightMode);
+    expect(after.fontFace).toEqual(before.fontFace);
+    expect(after.baniFontFace).toEqual(before.baniFontFace);
+  });
+
+  // The purge runs while signing IN, before setAuthSession — it must not wipe
+  // the session that is being established.
+  it("leaves the auth slice untouched", () => {
+    let s = rootReducer(undefined, setAuthSession({ user: USER, expiresAt: 123 }));
+    s = rootReducer(s, clearUserData());
+    expect(s.auth.status).toBe("signedIn");
+    expect(s.auth.user).toEqual(USER);
+  });
+
+  it("is a no-op on undefined state (first ever action)", () => {
+    expect(() => rootReducer(undefined, clearUserData())).not.toThrow();
   });
 });

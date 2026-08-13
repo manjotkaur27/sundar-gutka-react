@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /**
  * Tests for cross-device restore (GET /dashboard/latest):
- *  - getDashboardLatest: 404 → null, 200 → payload, error → throws
+ *  - getDashboardLatest: 404 → null, 401 → null, 200 → payload, error → throws
  *  - applyDashboardRestore: dispatches the right Redux actions, converts 24h
  *    reminder times to "h:mm A", and only reschedules when asked.
  */
@@ -15,6 +15,13 @@ import {
 } from "./dashboardSync";
 
 const mockUpdateReminders = jest.fn();
+
+// The endpoints are auth-only now, so every call reads the session token first.
+// Default to a present token; the "signed out" case overrides it.
+const mockReadToken = jest.fn(async () => "test.jwt.token");
+jest.mock("../../common/sso/tokenStore", () => ({
+  readToken: (...a) => mockReadToken(...a),
+}));
 
 jest.mock("@common", () => ({
   constant: {
@@ -90,6 +97,31 @@ describe("getDashboardLatest", () => {
   it("throws on a non-404 error status", async () => {
     global.fetch = jest.fn().mockResolvedValue({ status: 500, ok: false });
     await expect(getDashboardLatest()).rejects.toThrow();
+  });
+
+  // A lapsed or absent session is a normal state, not a sync failure — the
+  // caller shows local data and says nothing.
+  it("returns null on 401 without throwing", async () => {
+    global.fetch = jest.fn().mockResolvedValue({ status: 401, ok: false });
+    await expect(getDashboardLatest()).resolves.toBeNull();
+  });
+
+  it("does not even call fetch when there is no token", async () => {
+    mockReadToken.mockResolvedValueOnce(null);
+    global.fetch = jest.fn();
+    await expect(getDashboardLatest()).resolves.toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends the bearer token and no deviceId query", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ status: 200, ok: true, json: async () => ({ payload: samplePayload }) });
+    await getDashboardLatest();
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toBe("http://api.test/dashboard/latest");
+    expect(url).not.toContain("deviceId");
+    expect(opts.headers.Authorization).toBe("Bearer test.jwt.token");
   });
 });
 

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setAuthSession, clearAuthSession, setAuthBusy } from "../actions";
 import { showConfirm } from "../components/ConfirmDialog";
 import STRINGS from "../localization";
+import { purgeLocalUserData, writeLastAccount } from "../sso/accountScope";
 import { startLogin, startLogout } from "../sso/khalisSso";
 import { readToken } from "../sso/tokenStore";
 import { showErrorToast, showInfoToast } from "../toast";
@@ -53,6 +54,17 @@ const useSsoActions = () => {
           const token = await readToken();
           const { remote } = await startLogout(token);
           dispatch(clearAuthSession());
+
+          // Signing out is an explicit "I am done on this device", so the data
+          // goes with the session. Without this the next person to open the app
+          // — signed in as someone else, or not signed in at all — still sees
+          // this account's streaks, history and bookmarks.
+          //
+          // Deliberately here and NOT in useSsoSession.endSession, which also
+          // fires on token expiry: wiping there would cost a user their own
+          // history for the crime of not opening the app for a week.
+          await purgeLocalUserData(dispatch);
+          await writeLastAccount(null);
           // An expired token can't end the IdP session (the SP 401s it), so be
           // honest rather than implying a full sign-out happened.
           if (!remote) showInfoToast(STRINGS.SIGN_OUT_LOCAL_ONLY);

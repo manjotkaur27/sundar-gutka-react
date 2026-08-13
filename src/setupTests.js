@@ -163,6 +163,31 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 );
 
 // Mock react-native-safe-area-context
+// Mock @react-native-firebase/crashlytics (ships ESM Jest doesn't transform).
+//
+// Centralised because `logError` is imported all over the app, so any module
+// that reaches it TRANSITIVELY — e.g. a service importing sso/tokenStore —
+// otherwise fails to parse with "Cannot use import statement outside a module",
+// pointing at firebase rather than at the module actually under test. Suites
+// that assert on crashlytics calls (firebase/crashlytics.test.js) declare their
+// own jest.mock, which takes precedence over this one.
+jest.mock("@react-native-firebase/crashlytics", () => ({
+  getCrashlytics: jest.fn(() => ({})),
+  setCrashlyticsCollectionEnabled: jest.fn(() => Promise.resolve()),
+  crash: jest.fn(),
+  setAttribute: jest.fn(),
+  log: jest.fn(),
+  recordError: jest.fn(),
+}));
+
+// Mock react-native-keychain (native module; no JS fallback in Jest).
+jest.mock("react-native-keychain", () => ({
+  setGenericPassword: jest.fn(() => Promise.resolve(false)),
+  getGenericPassword: jest.fn(() => Promise.resolve(false)),
+  resetGenericPassword: jest.fn(() => Promise.resolve(true)),
+  ACCESSIBLE: { AFTER_FIRST_UNLOCK: "AccessibleAfterFirstUnlock" },
+}));
+
 jest.mock("react-native-safe-area-context", () => {
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };
   return {

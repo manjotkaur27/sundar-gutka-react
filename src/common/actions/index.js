@@ -374,6 +374,13 @@ export const resetDashboardLayout = () => {
   return { type: actionTypes.RESET_DASHBOARD_LAYOUT };
 };
 
+export const clearUserData = () => {
+  // Drops every slice that belongs to a PERSON rather than to this phone.
+  // Dispatched on sign-out and when a different account signs in — see
+  // common/sso/accountScope.js, which owns that decision.
+  return { type: actionTypes.CLEAR_USER_DATA };
+};
+
 export const toggleNitnemDone = (date, baniId) => {
   // Marks/unmarks a bani done for a given YYYY-MM-DD date
   return { type: actionTypes.TOGGLE_NITNEM_DONE, payload: { date, baniId } };

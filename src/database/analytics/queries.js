@@ -266,6 +266,10 @@ export const getYearActivityTotals = async (year) => {
 // ─── Privacy ──────────────────────────────────────────────────────────────────
 
 export const clearAllAnalyticsData = async () => {
+  // bani_read_counts was missed here originally. It survived a "clear my data"
+  // and therefore also survived an account switch, so the next person saw the
+  // previous one's most-read banis.
+  await runQuery("DELETE FROM bani_read_counts");
   await runQuery("DELETE FROM bani_read_history");
   await runQuery("DELETE FROM audio_history");
   await runQuery("DELETE FROM daily_activity");
