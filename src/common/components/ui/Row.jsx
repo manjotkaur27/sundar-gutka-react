@@ -8,15 +8,40 @@ import Text from "./Text";
 // slightly differently today.
 //
 // The whole point of this component is the locale rule. A row is
-// [leading icon] [title / subtitle] [value] [trailing control], and the middle
-// column is the ONLY part allowed to grow. It takes `flex: 1` and its text
-// wraps; the icon and the trailing control keep their intrinsic size. That is
-// what stops a long Punjabi label from pushing a chevron off the screen — the
-// failure mode that `adjustsFontSizeToFit` was being used to paper over, which
-// instead left every row's label at a different size.
+// [leading icon] [title / subtitle] [value] [trailing control]. The middle
+// column is the only part that GROWS; the icon and the trailing control keep
+// their intrinsic size. That is what stops a long Punjabi label from pushing a
+// chevron off the screen — the failure mode that `adjustsFontSizeToFit` was
+// being used to paper over, which instead left every row's label at a
+// different size.
+//
+// ── How the title and its value divide the line ────────────────────────────
+// The title column starts from its OWN width and shrinks, rather than starting
+// from zero and living on what is left over. See the note at the column
+// itself: getting that wrong is what wrapped "Reminder Sound" one character
+// per line while "Waheguru Soul" sat beside it on a single line.
+//
+// Past a certain OS text size no division of one line works, so the value
+// drops UNDER the title and takes the full width — the same thing both
+// platforms' own Settings do at accessibility text sizes.
 //
 // `minHeight` scales with the OS font setting and never becomes a fixed height,
 // so a two-line title in `hi` simply makes the row taller.
+
+/**
+ * The OS text scale past which the title and its value stop sharing a line.
+ * Below it there is room to divide; above it both halves would be squeezed to
+ * a couple of characters each however the space is split.
+ */
+const STACK_ABOVE_FONT_SCALE = 1.3;
+/**
+ * The same, sooner, on a narrow screen. Android's display-size setting cuts the
+ * width in dp while the text-size setting grows the text, so the two compound
+ * and the row runs out of room before the text scale alone would say so.
+ */
+const STACK_ABOVE_FONT_SCALE_COMPACT = 1.15;
+/** The most of a row a value may claim while it still shares the line. */
+const VALUE_MAX_WIDTH = "45%";
 
 const Row = ({
   title,
@@ -35,15 +60,45 @@ const Row = ({
   style = undefined,
   titleStyle = undefined,
 }) => {
-  const { c, space, layout } = useTokens();
+  const { c, space, layout, scale } = useTokens();
   const interactive = Boolean(onPress);
+  const stacked =
+    scale.fontScale >=
+    (scale.breakpoint === "compact" ? STACK_ABOVE_FONT_SCALE_COMPACT : STACK_ABOVE_FONT_SCALE);
+
+  // One element, placed in one of two positions — beside the title or beneath
+  // it. Written once so the two layouts cannot say different things.
+  const valueText = value ? (
+    <Text
+      variant="bodySmall"
+      color="textSecondary"
+      align={stacked ? undefined : "right"}
+      // Stacked it owns the full width, so it needs neither a cap nor the
+      // ability to shrink.
+      style={stacked ? undefined : { flexShrink: 1, maxWidth: VALUE_MAX_WIDTH }}
+    >
+      {value}
+    </Text>
+  ) : null;
 
   const content = (
     <>
       {leading ? <View style={{ width: layout.row.iconSize }}>{leading}</View> : null}
 
-      {/* The only flexible column. Everything else keeps its natural width. */}
-      <View style={{ flex: 1, gap: space.xxs }}>
+      {/* The flexible column — and `flexBasis: "auto"`, NOT `flex: 1`.
+          `flex: 1` means `flexBasis: 0%`: it tells Yoga this column begins at
+          zero width and lives on whatever is left over. So the value, which
+          carries its own intrinsic width, was served FIRST and took as much as
+          it wanted; the title got the remainder. At a raised OS text size the
+          remainder is a few points, which is why the title wrapped one or two
+          characters per line — or vanished entirely — beside a value sitting
+          comfortably on one line. `flexShrink` on the value could not help:
+          shrinking only begins once the children OVERFLOW, and with the title
+          contributing nothing they never did.
+
+          Starting each from its own width means the two shrink in proportion
+          when they cannot both fit, and each wraps like ordinary text. */}
+      <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: "auto", gap: space.xxs }}>
         <Text variant="body" color={disabled ? "textDisabled" : "textPrimary"} style={titleStyle}>
           {title}
         </Text>
@@ -52,15 +107,10 @@ const Row = ({
             {subtitle}
           </Text>
         ) : null}
+        {stacked ? valueText : null}
       </View>
 
-      {/* A value label can shrink and wrap, but never squeezes the title out:
-          it is capped at roughly a third of the row. */}
-      {value ? (
-        <Text variant="bodySmall" color="textSecondary" align="right" style={{ flexShrink: 1 }}>
-          {value}
-        </Text>
-      ) : null}
+      {stacked ? null : valueText}
 
       {trailing ?? null}
     </>
@@ -71,7 +121,10 @@ const Row = ({
       flexDirection: "row",
       alignItems: "center",
       gap: space.md,
-      minHeight: subtitle ? layout.row.minHeightTwoLine : layout.row.minHeight,
+      // A stacked value is a second line as surely as a subtitle is, so it
+      // takes the two-line floor rather than the one-line one.
+      minHeight:
+        subtitle || (stacked && value) ? layout.row.minHeightTwoLine : layout.row.minHeight,
       paddingHorizontal: layout.row.paddingHorizontal,
       paddingVertical: layout.row.paddingVertical,
       borderBottomWidth: showDivider ? layout.borderWidth.hairline : 0,

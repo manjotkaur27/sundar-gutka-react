@@ -60,11 +60,17 @@ describe("the flush sheet presentation is scoped to Settings", () => {
     // themselves because they open from Home and the Reader, which carry no
     // screen palette — without this the same sheet was navy from Settings and
     // a bare semantic grey everywhere else.
+    //
+    // The Bani Length help dialog is the same case for the same reason: the
+    // first-run screen carries no palette either, so its OK button fell back
+    // from `ctaFill` to `primary` — the bottom nav bar's navy — and measured
+    // 1.3:1 on the dialog's near-black card in dark mode.
     expect(users.sort()).toEqual([
       "Pothi/components/AddBanisSheet.jsx",
       "Pothi/components/AddToPothiSheet.jsx",
       "Pothi/components/CreatePothiSheet.jsx",
       "Pothi/components/PothiActionsSheet.jsx",
+      "common/components/BaniLengthSelector/BaniLengthSelector.jsx",
       "common/components/ui/Sheet.jsx",
     ]);
   });

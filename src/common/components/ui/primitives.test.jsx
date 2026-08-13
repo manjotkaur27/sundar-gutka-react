@@ -163,6 +163,67 @@ describe("Row", () => {
     expect(grown).toBe(Math.round(lightTheme.layout.row.minHeight * 1.5));
   });
 
+  // ── The title and its value dividing one line ────────────────────────────
+  // The bug these guard: the title column was `flex: 1`, which is
+  // `flexBasis: 0%` — it began at zero width and lived on leftovers, so the
+  // value took the line first and the title wrapped one character per row
+  // ("Re / mi / nd / er") or vanished entirely, worst in the longer languages.
+
+  /**
+   * The flexible middle column, found by walking up from the title it holds to
+   * the first ancestor that flexes. Walked rather than reached by `.parent`,
+   * which lands on whichever host element the Text primitive happens to render
+   * into and would break on a change that has nothing to do with this.
+   */
+  const titleColumn = (title) => {
+    for (let node = screen.getByText(title); node; node = node.parent) {
+      const style = flat(node.props?.style);
+      if (style.flexGrow !== undefined) return style;
+    }
+    return {};
+  };
+
+  it("starts the title column from its own width, not from zero", () => {
+    withTheme(lightTheme, <Row testID="r" title="Reminder Sound" value="Waheguru Soul" />);
+    const col = titleColumn("Reminder Sound");
+    // `flexBasis: "auto"` is the whole fix: the title's intrinsic width takes
+    // part in the layout, so the two columns shrink in proportion rather than
+    // one being served in full and the other getting the remainder.
+    expect(col.flexBasis).toBe("auto");
+    expect(col.flexGrow).toBe(1);
+    expect(col.flexShrink).toBe(1);
+    // `flex: 1` would reintroduce flexBasis 0 and the bug with it.
+    expect(col.flex).toBeUndefined();
+  });
+
+  it("caps the value so it can never claim the whole line", () => {
+    withTheme(lightTheme, <Row testID="r" title="Bani Font" value={LONG_LABEL} />);
+    const value = flat(screen.getByText(LONG_LABEL).props.style);
+    expect(value.maxWidth).toBe("45%");
+    expect(value.flexShrink).toBe(1);
+  });
+
+  it("drops the value under the title once no division of the line works", () => {
+    withSmallDeviceLargeFont(<Row testID="r" title="Reminder Sound" value="Waheguru Soul" />);
+    const value = flat(screen.getByText("Waheguru Soul").props.style);
+    // Stacked it owns the full width, so it needs neither cap nor shrink, and
+    // it reads from the left like the title above it rather than right-aligned.
+    expect(value.maxWidth).toBeUndefined();
+    expect(value.textAlign).not.toBe("right");
+    // A stacked value is a second line as surely as a subtitle is.
+    const s = flat(screen.getByTestId("r").props.style);
+    expect(s.minHeight).toBe(Math.round(lightTheme.layout.row.minHeightTwoLine * 1.5));
+  });
+
+  it("keeps them side by side at an ordinary text size", () => {
+    withTheme(lightTheme, <Row testID="r" title="Reminder Sound" value="Waheguru Soul" />);
+    const value = flat(screen.getByText("Waheguru Soul").props.style);
+    expect(value.textAlign).toBe("right");
+    // One line, so the one-line floor — not the two-line one.
+    const s = flat(screen.getByTestId("r").props.style);
+    expect(s.minHeight).toBe(lightTheme.layout.row.minHeight);
+  });
+
   it("is not focusable when it has no action", () => {
     withTheme(lightTheme, <Row testID="r" title="Version" value="1.2.3" />);
     expect(screen.getByTestId("r").props.accessibilityRole).toBeUndefined();

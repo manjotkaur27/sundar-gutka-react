@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, View } from "react-native";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { ArrowRightIcon, FolderIcon, PinIcon } from "@common/icons";
+import { ChevronRight, FolderIcon, PinIcon } from "@common/icons";
 import { STRINGS } from "@common";
 import { Text } from "../../common/components/ui";
 import usePothiTitle from "../hooks/usePothiTitle";
@@ -100,34 +100,14 @@ const PothiRow = ({
         </Pressable>
       )}
 
-      {/* Named, and a full arrow rather than a chevron: a chevron only says
-          "there is more", where an arrow reads as "go", and this row's action
-          is worth spelling out. Not its own Pressable — the whole row is the
-          target, so the glyph never has to be hit. `numberOfLines` keeps a long
-          translation on one line rather than letting it push the title out.
-          A caller that does something OTHER than open passes its own trailing
-          control; passing null gives a row with none. */}
-      {trailing === undefined ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: space.xs,
-            // "Open Pothi" is "Ouvrir le pothi" in French and longer still in
-            // Spanish. Shrinking rather than holding its intrinsic width is what
-            // stops the label pushing the pothi's own name out of the row; the
-            // arrow never shrinks, so the affordance survives either way.
-            flexShrink: 1,
-          }}
-        >
-          <Text variant="caption" color="accent" numberOfLines={1} style={{ flexShrink: 1 }}>
-            {STRINGS.POTHI_OPEN}
-          </Text>
-          <ArrowRightIcon size={18} color={c.accent} />
-        </View>
-      ) : (
-        trailing
-      )}
+      {/* The chevron alone. Opening is the row's only job, so the label spelled
+          out what the glyph beside it already said — and did it in six
+          languages, competing with the pothi's own name for the same row. The
+          wording survives where it is actually needed, in the row's
+          accessibility label. Not its own Pressable: the whole row is the
+          target, so the glyph is never hit. A caller that does something OTHER
+          than open passes its own trailing control; null renders none. */}
+      {trailing === undefined ? <ChevronRight size={18} color={c.accent} /> : trailing}
     </Pressable>
   );
 };

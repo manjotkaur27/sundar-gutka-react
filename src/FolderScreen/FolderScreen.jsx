@@ -23,6 +23,7 @@ import AddBanisSheet from "../Pothi/components/AddBanisSheet";
 import BaniPickRow from "../Pothi/components/BaniPickRow";
 import PothiActionsSheet from "../Pothi/components/PothiActionsSheet";
 import useDeletePothi from "../Pothi/hooks/useDeletePothi";
+import useRequireOnline from "../Pothi/hooks/useRequireOnline";
 
 // Migrated onto the design system. The separate `header.js` and `styles.js` are
 // deleted: the header is now the shared `ScreenHeader`, which centres its title
@@ -54,6 +55,12 @@ const FolderScreen = ({ navigation, route }) => {
   // The same confirm-then-delete the Folders tab's long-press raises. See
   // useDeletePothi — one implementation, so the two cannot word it differently.
   const confirmDeletePothi = useDeletePothi();
+  // Every action on this screen writes to the pothi, and a signed-out or
+  // offline user has nowhere to write to. The Folders tab has gated its
+  // long-press, pin and reorder since they were built; this screen — which is
+  // where a pothi is ACTUALLY edited — was gating none of its four, and
+  // "Delete Banis" reached `removeBaniFromPothi` with no check at all.
+  const requireOnline = useRequireOnline();
 
   // A USER pothi's contents are read live from the store, not from the route.
   // Route params are a snapshot taken when the screen was pushed, so a bani
@@ -102,12 +109,17 @@ const FolderScreen = ({ navigation, route }) => {
       cancelText: STRINGS.CANCEL,
       confirmText: STRINGS.POTHI_DELETE,
       destructive: true,
+      // Checked again HERE, not only on the tap that opened selection mode.
+      // Picking banis takes as long as the user likes, and a connection can go
+      // in that time — the answer that matters is the one at the moment of the
+      // write. This is the dispatch that was running ungated.
       onConfirm: () => {
+        if (!requireOnline()) return;
         ids.forEach((id) => dispatch(actions.removeBaniFromPothi(pothiId, id)));
         setPicked(null);
       },
     });
-  }, [picked, dispatch, pothiId]);
+  }, [picked, dispatch, pothiId, requireOnline]);
 
   const onPress = (row) => {
     const { item } = row;
@@ -203,7 +215,10 @@ const FolderScreen = ({ navigation, route }) => {
             // the Folders tab, which is the same offer one level up.
             variant="ghost"
             icon={<PlusIcon size={layout.icon.sm} color={c.accent} />}
-            onPress={() => setEditing(true)}
+            // The same offer as the overflow's "Add Banis", so the same gate.
+            onPress={() => {
+              if (requireOnline()) setEditing(true);
+            }}
             // Button sets `alignSelf: "flex-start"` on itself, and a child's
             // own alignSelf beats the parent's alignItems — so the column
             // centring the message above had no effect on it.
@@ -352,8 +367,15 @@ const FolderScreen = ({ navigation, route }) => {
             key={action.label}
             title={action.label}
             titleStyle={action.destructive ? { color: c.error } : undefined}
+            // Gated on the TAP, not when the sheet or dialog it opens is
+            // finally submitted. Letting a signed-out user tick twenty banis,
+            // type a new name or read through a delete confirmation and only
+            // then be told none of it could be saved is the worst possible
+            // moment to say so. One check here covers all four actions, so a
+            // fifth cannot be added past it.
             onPress={() => {
               setMenuOpen(false);
+              if (!requireOnline()) return;
               action.run();
             }}
             accessibilityRole="button"

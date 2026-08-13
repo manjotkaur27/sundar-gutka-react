@@ -8,6 +8,7 @@ import { neutral } from "@theme/palette";
 import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
 import { getDayDetail } from "../../database/analytics";
+import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import EditBanisModal from "./EditBanisModal";
@@ -324,6 +325,14 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   const { map: baniMap, nameOf } = useBaniLookup();
 
   const [editVisible, setEditVisible] = useState(false);
+  // This card edits the Morning Nitnem POTHI, so it answers to the same gate
+  // every other pothi edit does. The modal already refused to save a
+  // signed-out change; refusing to open is what stops the user rearranging
+  // their nitnem first and being told afterwards.
+  const requireOnline = useRequireOnline();
+  const openEditor = useCallback(() => {
+    if (requireOnline()) setEditVisible(true);
+  }, [requireOnline]);
 
   const today = todayStr();
 
@@ -464,7 +473,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
       <SectionLabel
         title={STRINGS.TODAYS_NITNEM}
         right={
-          <Pressable onPress={() => setEditVisible(true)} hitSlop={8} style={styles.editRow}>
+          <Pressable onPress={openEditor} hitSlop={8} style={styles.editRow}>
             {/* Icon and label are ONE control and share one colour. */}
             <EditIcon color={accentBlue} />
             <CustomText style={[styles.editLink, { color: accentBlue }]}>
@@ -509,7 +518,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
             {cells.map((cell) => {
               if (cell.type === "add") {
                 return (
-                  <Pressable key="add" style={styles.gridItem} onPress={() => setEditVisible(true)}>
+                  <Pressable key="add" style={styles.gridItem} onPress={openEditor}>
                     <PlusCircle color={accentBlue} />
                     <CustomText style={[styles.baniName, { color: accentBlue }]} numberOfLines={1}>
                       {STRINGS.ADD_BANI}

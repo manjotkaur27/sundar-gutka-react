@@ -226,7 +226,7 @@ const STRINGS = new LocalizedStrings({
     POTHI_DELETE_CONFIRM: "Delete {name} pothi?",
     POTHI_DEFAULT_FOLDERS: "Default Folders",
     POTHI_SIGN_IN_HINT: "Sign in to ensure your pothis are saved and accessible across devices.",
-    POTHI_SIGN_IN_REQUIRED: "Sign in to add or delete folders.",
+    POTHI_SIGN_IN_REQUIRED: "Sign in to add or remove banis, rename, or delete a pothi.",
     POTHI_DELETE_BANIS: "Delete Banis",
     POTHI_DELETE_POTHI: "Delete Pothi",
     POTHI_MORE_ACTIONS: "More actions",
@@ -692,7 +692,7 @@ const STRINGS = new LocalizedStrings({
     POTHI_DELETE_CONFIRM: "{name} पोथी हटाएँ?",
     POTHI_DEFAULT_FOLDERS: "डिफ़ॉल्ट फ़ोल्डर",
     POTHI_SIGN_IN_HINT: "साइन इन करें ताकि आपकी पोथियाँ सुरक्षित रहें और सभी डिवाइस पर उपलब्ध हों।",
-    POTHI_SIGN_IN_REQUIRED: "फ़ोल्डर जोड़ने या हटाने के लिए साइन इन करें।",
+    POTHI_SIGN_IN_REQUIRED: "बाणी जोड़ने/हटाने, नाम बदलने या पोथी मिटाने के लिए साइन इन करें।",
     POTHI_DELETE_BANIS: "बाणियाँ हटाएँ",
     POTHI_DELETE_POTHI: "पोथी हटाएँ",
     POTHI_MORE_ACTIONS: "और विकल्प",
@@ -1161,7 +1161,7 @@ const STRINGS = new LocalizedStrings({
     POTHI_DELETE_CONFIRM: "{name} ਪੋਥੀ ਮਿਟਾਈਏ?",
     POTHI_DEFAULT_FOLDERS: "ਡਿਫਾਲਟ ਫੋਲਡਰ",
     POTHI_SIGN_IN_HINT: "ਸਾਈਨ ਇਨ ਕਰੋ ਤਾਂ ਜੋ ਤੁਹਾਡੀਆਂ ਪੋਥੀਆਂ ਸੰਭਾਲੀਆਂ ਜਾਣ ਅਤੇ ਹਰ ਡੀਵਾਈਸ ਉੱਤੇ ਮਿਲਣ।",
-    POTHI_SIGN_IN_REQUIRED: "ਫੋਲਡਰ ਸ਼ਾਮਲ ਕਰਨ ਜਾਂ ਹਟਾਉਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
+    POTHI_SIGN_IN_REQUIRED: "ਬਾਣੀ ਜੋੜਨ/ਹਟਾਉਣ, ਨਾਂ ਬਦਲਣ ਜਾਂ ਪੋਥੀ ਮਿਟਾਉਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
     POTHI_DELETE_BANIS: "ਬਾਣੀਆਂ ਹਟਾਓ",
     POTHI_DELETE_POTHI: "ਪੋਥੀ ਮਿਟਾਓ",
     POTHI_MORE_ACTIONS: "ਹੋਰ ਵਿਕਲਪ",
@@ -1636,7 +1636,8 @@ const STRINGS = new LocalizedStrings({
     POTHI_DEFAULT_FOLDERS: "Dossiers par défaut",
     POTHI_SIGN_IN_HINT:
       "Connectez-vous pour que vos pothis soient sauvegardés et accessibles sur tous vos appareils.",
-    POTHI_SIGN_IN_REQUIRED: "Connectez-vous pour ajouter ou supprimer des dossiers.",
+    POTHI_SIGN_IN_REQUIRED:
+      "Connectez-vous pour ajouter ou retirer des banis, renommer ou supprimer un pothi.",
     POTHI_DELETE_BANIS: "Supprimer des banis",
     POTHI_DELETE_POTHI: "Supprimer le pothi",
     POTHI_MORE_ACTIONS: "Plus d'actions",
@@ -2109,7 +2110,8 @@ const STRINGS = new LocalizedStrings({
     POTHI_DELETE_CONFIRM: "Eliminare il pothi {name}?",
     POTHI_DEFAULT_FOLDERS: "Cartelle predefinite",
     POTHI_SIGN_IN_HINT: "Accedi per salvare i tuoi pothi e ritrovarli su tutti i dispositivi.",
-    POTHI_SIGN_IN_REQUIRED: "Accedi per aggiungere o eliminare cartelle.",
+    POTHI_SIGN_IN_REQUIRED:
+      "Accedi per aggiungere o rimuovere bani, rinominare o eliminare un pothi.",
     POTHI_DELETE_BANIS: "Elimina bani",
     POTHI_DELETE_POTHI: "Elimina pothi",
     POTHI_MORE_ACTIONS: "Altre azioni",
@@ -2590,7 +2592,8 @@ const STRINGS = new LocalizedStrings({
     POTHI_DEFAULT_FOLDERS: "Carpetas predeterminadas",
     POTHI_SIGN_IN_HINT:
       "Inicia sesión para que tus pothis se guarden y estén disponibles en todos tus dispositivos.",
-    POTHI_SIGN_IN_REQUIRED: "Inicia sesión para añadir o eliminar carpetas.",
+    POTHI_SIGN_IN_REQUIRED:
+      "Inicia sesión para añadir o quitar banis, cambiar el nombre o eliminar un pothi.",
     POTHI_DELETE_BANIS: "Eliminar banis",
     POTHI_DELETE_POTHI: "Eliminar pothi",
     POTHI_MORE_ACTIONS: "Más acciones",
