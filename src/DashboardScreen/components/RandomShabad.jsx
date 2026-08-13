@@ -116,7 +116,7 @@ const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoa
         <>
           <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
-            <CustomText style={[styles.meta, { color: mutedText }]}>
+            <CustomText style={[styles.meta, { color: mutedText }]} numberOfLines={1}>
               {[shabad.ang ? `${STRINGS.ANG} ${shabad.ang}` : null, shabad.raag || null]
                 .filter(Boolean)
                 .join(" · ")}
@@ -175,9 +175,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   footerDivider: { height: 1, marginVertical: 16 },
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  meta: { fontSize: 13 },
-  readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  // `space-between` only produces a gap while there is room to spare. Once the
+  // raag and the link together exceed the row the gap collapses to nothing,
+  // they butt together and the link runs off the card. An explicit gap
+  // survives that, and the meta yields so the actionable half stays whole.
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  meta: { fontSize: 13, flexShrink: 1 },
+  readLink: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
   readText: { fontSize: 14, fontWeight: "600" },
   shuffleBtn: {
     flexDirection: "row",

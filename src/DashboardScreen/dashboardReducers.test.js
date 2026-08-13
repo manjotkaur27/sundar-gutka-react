@@ -24,6 +24,10 @@ const actions = {
     type: actionTypes.MARK_NITNEM_AUTO_DONE,
     payload: { date, baniIds },
   }),
+  markNitnemDone: (date, baniIds) => ({
+    type: actionTypes.MARK_NITNEM_DONE,
+    payload: { date, baniIds },
+  }),
   restoreNitnem: (value) => ({ type: actionTypes.RESTORE_NITNEM, value }),
 };
 
@@ -178,5 +182,92 @@ describe("Dashboard redesign reducers", () => {
     // the un-tick must stick (bani 2 already in autoSeeded, so not re-added).
     const state3 = rootReducer(state2, actions.markNitnemAutoDone(date, [2]));
     expect(state3.todaysNitnem.completed[date]).toEqual([]);
+  });
+
+  /**
+   * The "Mark done" BUTTON, which is a different promise from auto-detection.
+   * Auto-detect is a guess and yields to the user; the button IS the user, so
+   * nothing may veto it. Sharing MARK_NITNEM_AUTO_DONE meant the first press
+   * seeded every id, and every press after that hit the `freshIds.length === 0`
+   * early return — the button silently stopped working for the rest of the day.
+   */
+  it("Mark done still works after un-ticking (does not defer to autoSeeded)", () => {
+    const date = "2026-07-03";
+    const ids = [2, 3, 9];
+    const state0 = init();
+
+    const state1 = rootReducer(state0, actions.markNitnemDone(date, ids));
+    expect(state1.todaysNitnem.completed[date]).toEqual(ids);
+
+    const state2 = rootReducer(state1, actions.toggleNitnemDone(date, 3));
+    expect(state2.todaysNitnem.completed[date]).toEqual([2, 9]);
+
+    // Pressing it again must re-complete the day. This is the assertion that
+    // fails against the old shared-action behaviour.
+    const state3 = rootReducer(state2, actions.markNitnemDone(date, ids));
+    expect(new Set(state3.todaysNitnem.completed[date])).toEqual(new Set(ids));
+  });
+
+  it("Mark done still suppresses later auto-detection of the same banis", () => {
+    const date = "2026-07-04";
+    const state0 = init();
+    const state1 = rootReducer(state0, actions.markNitnemDone(date, [2, 3]));
+    // Un-tick one, then let a background auto-detect fire for both.
+    const state2 = rootReducer(state1, actions.toggleNitnemDone(date, 2));
+    const state3 = rootReducer(state2, actions.markNitnemAutoDone(date, [2, 3]));
+    // The un-tick survives: the button seeded them, so auto-detect adds nothing.
+    expect(state3.todaysNitnem.completed[date]).toEqual([3]);
+  });
+
+  /**
+   * Reading a bani to the end has to count, even if you ticked and un-ticked it
+   * earlier in the day. The old guard could not tell a NEW read from the same
+   * old one being re-reported on every dashboard refocus, so it suppressed
+   * both — and the bani stayed un-ticked no matter how many times you read it.
+   * The completion timestamp is what separates the two.
+   */
+  it("a genuine re-read AFTER an un-tick is marked complete", () => {
+    const date = "2026-07-05";
+    const state0 = init();
+
+    // 10:00 — read to 95%, auto-detected.
+    const t1 = 1000;
+    const state1 = rootReducer(state0, actions.markNitnemAutoDone(date, [{ id: 2, at: t1 }]));
+    expect(state1.todaysNitnem.completed[date]).toEqual([2]);
+
+    // 10:05 — user un-ticks it.
+    const state2 = rootReducer(state1, {
+      type: actionTypes.TOGGLE_NITNEM_DONE,
+      payload: { date, baniId: 2, at: 2000 },
+    });
+    expect(state2.todaysNitnem.completed[date]).toEqual([]);
+
+    // Refocus re-reports the SAME 10:00 read — must not undo the un-tick.
+    const state3 = rootReducer(state2, actions.markNitnemAutoDone(date, [{ id: 2, at: t1 }]));
+    expect(state3.todaysNitnem.completed[date]).toEqual([]);
+
+    // 10:30 — actually reads it again, to the end. This must count.
+    const state4 = rootReducer(state3, actions.markNitnemAutoDone(date, [{ id: 2, at: 3000 }]));
+    expect(state4.todaysNitnem.completed[date]).toEqual([2]);
+  });
+
+  it("re-ticking by hand clears the un-tick, so later auto-detection is not blocked", () => {
+    const date = "2026-07-06";
+    const state0 = init();
+    const s1 = rootReducer(state0, {
+      type: actionTypes.TOGGLE_NITNEM_DONE,
+      payload: { date, baniId: 4, at: 1000 },
+    });
+    // Tick on, then off at 2000, then on again at 3000.
+    const s2 = rootReducer(s1, {
+      type: actionTypes.TOGGLE_NITNEM_DONE,
+      payload: { date, baniId: 4, at: 2000 },
+    });
+    const s3 = rootReducer(s2, {
+      type: actionTypes.TOGGLE_NITNEM_DONE,
+      payload: { date, baniId: 4, at: 3000 },
+    });
+    expect(s3.todaysNitnem.untickedAt[date][4]).toBeUndefined();
+    expect(s3.todaysNitnem.completed[date]).toEqual([4]);
   });
 });

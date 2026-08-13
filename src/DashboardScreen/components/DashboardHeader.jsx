@@ -113,9 +113,12 @@ const DashboardHeader = ({
             // Gurmukhi falls back to the system font.
             { color: fatehColor, fontFamily: theme.typography.fonts.gurbaniHeavy },
           ]}
-          // Two lines, and never shrunk: adjustsFontSizeToFit would render the
-          // Fateh at a different size on every screen width.
-          numberOfLines={2}
+          // Never shrunk: adjustsFontSizeToFit would render the Fateh at a
+          // different size on every screen width. The line cap is generous
+          // rather than exact — at a raised text size two lines was not enough
+          // and the Fateh clipped to "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥…". Nothing here has
+          // a fixed height, so the header simply grows.
+          numberOfLines={3}
         >
           {FATEH}
         </CustomText>
@@ -137,12 +140,15 @@ const DashboardHeader = ({
           {/* No account system exists, so there is no name to greet. The Fateh
               above stands in its place as the header's title. */}
           {/* Gregorian + Nanakshahi date line. */}
-          <CustomText style={[styles.date, { color: belowNameColor }]} numberOfLines={1}>
+          {/* Two lines: "Thursday · August 13, 2026 · 30 Sawan 557" does not fit
+              on one at a raised text size, and a date clipped mid-month reads
+              as broken rather than abbreviated. */}
+          <CustomText style={[styles.date, { color: belowNameColor }]} numberOfLines={2}>
             {dateLine}
           </CustomText>
           {/* Temporary testing readout — remove once cloud sync is verified. */}
           {lastSyncedLabel ? (
-            <CustomText style={[styles.syncLine, { color: mutedText }]} numberOfLines={1}>
+            <CustomText style={[styles.syncLine, { color: mutedText }]} numberOfLines={2}>
               {`${STRINGS.LAST_SYNCED}: ${lastSyncedLabel}`}
             </CustomText>
           ) : null}

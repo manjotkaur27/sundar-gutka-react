@@ -51,26 +51,60 @@ const createStyles = (theme) => ({
     fontFamily: theme.typography.fonts.gurbaniPrimary,
     fontSize: theme.typography.sizes.huge,
     color: theme.c.headerFg,
+    // Never gives way. The app name beside it can wrap onto a second line; an
+    // ornament has no second line to wrap onto and half of one just looks
+    // broken, so the name absorbs the pressure instead.
+    flexShrink: 0,
   },
   newHeaderTitleText: {
     fontSize: 32,
+    // Explicit, and deliberately tight. With none set React Native applies the
+    // font's own generous default, which at 32pt left a visible trough between
+    // "ਸੁੰਦਰ" and "ਗੁਟਕਾ" once the name started wrapping. 36 keeps the two
+    // words reading as one title.
+    lineHeight: 36,
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     color: theme.c.headerFg,
     textAlign: "center",
     marginTop: 1.2, // 40% less than the original 2px gap to the invocation line above
+    // Shrinks before the ornaments do, and wraps rather than truncating.
+    flexShrink: 1,
+    // Was two literal spaces inside the string. Real padding survives wrapping;
+    // a leading space does not, and would have indented the first line.
+    paddingHorizontal: 8,
   },
-  // Title stays centred; the settings icon is absolutely positioned on the right
-  // (like the folder header's back arrow) so it never shifts the title off-centre.
-  titleRow: {
-    alignSelf: "stretch",
+  // Holds ornament + name + ornament on one line, centred, and is itself the
+  // flexible middle column between the two 48pt side slots.
+  titleCenter: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
+  // Three columns, not an absolutely-positioned icon over a full-width title.
+  //
+  // The gear used to be `position: absolute; right: 12` above a title that
+  // stretched the whole header. That keeps the title perfectly centred right up
+  // until it stops fitting — then the title and its flowers simply run
+  // UNDERNEATH the icon, and on a small screen at a raised text size the right
+  // ornament swallowed the gear entirely.
+  //
+  // `ScreenHeader` already documents this exact trap ("the folder header used
+  // absolute positioning, so a long Gurmukhi title ran underneath the arrow").
+  // Equal side slots keep the title optically centred AND reserve the gear's
+  // room, so the two cannot occupy the same pixels.
+  titleRow: {
+    alignSelf: "stretch",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  // Mirrors settingsWrap on the left so the centre column is truly centred.
+  titleSpacer: {
+    width: 48,
+  },
   settingsWrap: {
-    position: "absolute",
-    right: 12,
-    top: 0,
-    bottom: 0,
+    width: 48,
+    alignItems: "center",
     justifyContent: "center",
   },
   newHeaderGradientDivider: {

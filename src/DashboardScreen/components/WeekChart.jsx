@@ -101,7 +101,7 @@ const WeekChart = ({ refreshKey = 0 }) => {
         titleStyle={{ fontSize: theme.type.heading.fontSize, fontWeight: "600", letterSpacing: 0 }}
         right={
           <View style={styles.navRow}>
-            <CustomText style={[styles.avg, { color: mutedText }]} numberOfLines={1}>
+            <CustomText style={[styles.avg, { color: mutedText }]} numberOfLines={2}>
               {STRINGS.formatString(STRINGS.AVG_PER_DAY, { count: avg })}
             </CustomText>
             <Pressable
@@ -170,7 +170,9 @@ WeekChart.propTypes = { refreshKey: PropTypes.number };
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
   card: { paddingVertical: 8 },
-  avg: { fontSize: 12 },
+  // Yields before the week range does — the date is the heading, the average
+  // is a caption.
+  avg: { fontSize: 12, flexShrink: 1 },
   navRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   navBtn: { padding: 4 },
   navBtnDisabled: { opacity: 0.3 },

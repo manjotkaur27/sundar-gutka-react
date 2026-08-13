@@ -386,6 +386,15 @@ export const markNitnemAutoDone = (date, baniIds) => {
   return { type: actionTypes.MARK_NITNEM_AUTO_DONE, payload: { date, baniIds } };
 };
 
+export const markNitnemDone = (date, baniIds) => {
+  // The "Mark done" BUTTON — an explicit statement by the user that they read
+  // these elsewhere. Distinct from markNitnemAutoDone, which is a background
+  // guess from scroll position and therefore defers to any manual un-tick.
+  // Sharing that action made the button dead after the first press: it had
+  // already seeded every id, and the auto path refuses to re-add a seeded id.
+  return { type: actionTypes.MARK_NITNEM_DONE, payload: { date, baniIds } };
+};
+
 export const restoreNitnem = (value) => {
   // value: { completed?: { [date]: number[] } }
   return { type: actionTypes.RESTORE_NITNEM, value };

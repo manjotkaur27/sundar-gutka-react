@@ -289,7 +289,12 @@ export const getDayDetail = async (dateStr) => {
     // single session crossed the 95%-scrolled completion mark, matching
     // useReadingSession's per-session `completed` flag.
     runQuery(
-      `SELECT bani_id, bani_title, SUM(duration_seconds) as duration, MAX(completed) as completed
+      // completed_at is the newest session that actually crossed 95%. Without
+      // it a caller cannot tell "this bani was read at some point today" from
+      // "this bani was read again just now", which is the difference between
+      // re-reporting an old read and recording a new one.
+      `SELECT bani_id, bani_title, SUM(duration_seconds) as duration, MAX(completed) as completed,
+              MAX(CASE WHEN completed = 1 THEN start_time END) as completed_at
        FROM bani_read_history
        WHERE date(start_time / 1000, 'unixepoch', 'localtime') = ?
        GROUP BY bani_id

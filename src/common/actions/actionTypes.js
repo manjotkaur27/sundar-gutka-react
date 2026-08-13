@@ -120,6 +120,7 @@ export const RESET_DASHBOARD_LAYOUT = "RESET_DASHBOARD_LAYOUT";
 // here; the card edits the pothi through ADD_BANI_TO_POTHI/REMOVE_BANI_FROM_POTHI.
 export const TOGGLE_NITNEM_DONE = "TOGGLE_NITNEM_DONE";
 export const MARK_NITNEM_AUTO_DONE = "MARK_NITNEM_AUTO_DONE";
+export const MARK_NITNEM_DONE = "MARK_NITNEM_DONE";
 // Restore the whole nitnem slice at once (cross-device sync / GET /dashboard/latest)
 export const RESTORE_NITNEM = "RESTORE_NITNEM";
 

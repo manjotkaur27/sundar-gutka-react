@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, ScrollView, Pressable, StyleSheet, Image } from "react-native";
+import { View, ScrollView, Pressable, StyleSheet, Image, useWindowDimensions } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
@@ -122,6 +122,13 @@ const styles = StyleSheet.create({
 });
 
 const FeatureTilesRow = () => {
+  // The tiles live in a HORIZONTAL scroller, so width is cheap: a wider tile
+  // just means one fewer on screen at a time. At a fixed 148 the labels
+  // ("Learn Gurmukhi Words") ran to three lines and clipped against
+  // numberOfLines={2}. Growing with the text keeps them readable.
+  const { fontScale } = useWindowDimensions();
+  const tileWidth = Math.round(148 * Math.min(Math.max(fontScale || 1, 1), 1.5));
+
   const navigation = useNavigation();
   // The proper bani name, so the Reader header is not handed the server's
   // abbreviated title.
@@ -200,6 +207,7 @@ const FeatureTilesRow = () => {
             onPress={() => goToReader(lastRead)}
             style={({ pressed }) => [
               styles.tile,
+              { width: tileWidth },
               { backgroundColor: cardBg, borderColor },
               pressed && { opacity: 0.7 },
             ]}
@@ -225,6 +233,7 @@ const FeatureTilesRow = () => {
             onPress={() => goToReader(lastListened)}
             style={({ pressed }) => [
               styles.tile,
+              { width: tileWidth },
               { backgroundColor: cardBg, borderColor },
               pressed && { opacity: 0.7 },
             ]}
@@ -251,6 +260,7 @@ const FeatureTilesRow = () => {
             onPress={() => openInAppBrowser(url)}
             style={({ pressed }) => [
               styles.tile,
+              { width: tileWidth },
               { backgroundColor: cardBg, borderColor },
               pressed && { opacity: 0.7 },
             ]}

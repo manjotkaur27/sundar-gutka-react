@@ -244,10 +244,13 @@ const RemindersCard = () => {
                     <Icon color={iconColor} size={20} />
                   </View>
                   <View style={styles.textBlock}>
-                    <CustomText style={[styles.title, { color: titleColor }]} numberOfLines={1}>
+                    {/* Two lines. A bani name is the row's subject — clipping it
+                        to "ਰਹਰਾਸਿ ਸਾ…" loses which reminder this is. The row has
+                        no fixed height, so it grows instead. */}
+                    <CustomText style={[styles.title, { color: titleColor }]} numberOfLines={2}>
                       {nameOf(r.id) || r.translit}
                     </CustomText>
-                    <CustomText style={[styles.time, { color: timeColor }]} numberOfLines={1}>
+                    <CustomText style={[styles.time, { color: timeColor }]} numberOfLines={2}>
                       {labelForTime(r.time)} · {r.time}
                     </CustomText>
                   </View>

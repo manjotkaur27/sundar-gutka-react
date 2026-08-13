@@ -7,6 +7,10 @@ import { BackArrowIcon, BookmarkIcon, PlusIcon } from "@common/icons";
 import { CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
 
+// Only used for the frames before the header has measured itself. Any real
+// value comes from onLayout below.
+const HIDDEN_OFFSET_FALLBACK = 120;
+
 const Header = ({
   title,
   handleBackPress,
@@ -40,6 +44,11 @@ const Header = ({
   // sides being EQUAL, and this side now holds two icons whose combined width
   // depends on the device's font scale, so it cannot be a constant.
   const [actionsWidth, setActionsWidth] = useState(0);
+  // Same reasoning applied to the hide distance: measured, not assumed. Until
+  // the first onLayout lands there is nothing to measure, so fall back to the
+  // constant this used to hardcode.
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const hiddenOffset = measuredHeight || HIDDEN_OFFSET_FALLBACK;
 
   const headerLeft = () => (
     <Pressable
@@ -88,7 +97,7 @@ const Header = ({
   );
 
   useEffect(() => {
-    const value = isHeader ? 0 : -120;
+    const value = isHeader ? 0 : -hiddenOffset;
 
     // Stop any existing animation first
     animationPosition.stopAnimation();
@@ -110,21 +119,26 @@ const Header = ({
     return () => {
       animation.stop();
     };
-  }, [isHeader, animationPosition]);
+  }, [isHeader, animationPosition, hiddenOffset]);
 
   // Add animation reset as fallback for stuck states
   useEffect(() => {
     const resetTimer = setTimeout(() => {
       // Force position if animation seems stuck
-      const targetValue = isHeader ? 0 : -120;
+      const targetValue = isHeader ? 0 : -hiddenOffset;
       animationPosition.setValue(targetValue);
     }, 1000);
 
     return () => clearTimeout(resetTimer);
-  }, [isHeader, animationPosition]);
+  }, [isHeader, animationPosition, hiddenOffset]);
 
   return (
     <Animated.View
+      // Slides up by its OWN measured height. A fixed offset only ever suits one
+      // header: a title that wraps to two lines, or a raised OS font size, makes
+      // this taller than the constant and the overflow stays parked on screen.
+      // `|| FALLBACK` covers the first frame, before onLayout has reported.
+      onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       style={[
         styles.animatedView,
         {

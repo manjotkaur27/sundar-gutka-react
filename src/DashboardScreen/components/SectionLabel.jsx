@@ -31,7 +31,10 @@ const SectionLabel = ({
     <View style={styles.row}>
       <CustomText
         style={[styles.title, { color: color || defaultColor }, titleStyle]}
-        numberOfLines={1}
+        // Wraps rather than clipping. "August 2026" losing its year, or
+        // "This week" becoming "This we…", reads as broken; a second line
+        // just makes the heading taller.
+        numberOfLines={2}
       >
         {uppercase ? title.toUpperCase() : title}
       </CustomText>
@@ -67,7 +70,12 @@ const styles = StyleSheet.create({
   right: {
     flexDirection: "row",
     alignItems: "center",
-    flexShrink: 0,
+    // Shrinkable, but only its TEXT gives way: buttons and icons are flex
+    // items too and React Native defaults them to `flexShrink: 0`, so they
+    // keep full touch-target size. Rigid here meant the heading absorbed the
+    // entire overflow alone — "August" clipped to "Augus…" to protect a
+    // caption reading "8 days this month", which is the wrong one to save.
+    flexShrink: 1,
   },
 });
 

@@ -7,6 +7,7 @@ import PropTypes from "prop-types";
 import { neutral } from "@theme/palette";
 import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
+import { Text as UIText } from "@common/components/ui";
 import { getDayDetail } from "../../database/analytics";
 import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
 import DashboardCard from "./DashboardCard";
@@ -163,12 +164,27 @@ const ProgressRing = ({ done, total, accent, track, numColor, labelColor, numFon
       </Svg>
       <View style={StyleSheet.absoluteFill}>
         <View style={styles.ringCenter}>
-          <CustomText style={[styles.ringNum, { color: numColor, fontFamily: numFont }]}>
+          {/* Font scaling is capped INSIDE the ring. The ring is a fixed 64pt
+              SVG, and these two lines carry hardcoded line heights (17 and 11).
+              React Native scales `fontSize` with the OS setting but leaves an
+              explicit `lineHeight` alone, so at 1.5x a 22pt "0/5" sat in a 17dp
+              box and "banis" — pulled up by its own -1 margin — printed on top
+              of it. Capping keeps the label legible and inside its circle; the
+              same count is in the heading beside it either way. */}
+          <UIText
+            variant="inherit"
+            style={[styles.ringNum, { color: numColor, fontFamily: numFont }]}
+            maxFontSizeMultiplier={1}
+          >
             {done}/{total}
-          </CustomText>
-          <CustomText style={[styles.ringLabel, { color: labelColor }]}>
+          </UIText>
+          <UIText
+            variant="inherit"
+            style={[styles.ringLabel, { color: labelColor }]}
+            maxFontSizeMultiplier={1}
+          >
             {STRINGS.BANIS_LABEL}
-          </CustomText>
+          </UIText>
         </View>
       </View>
     </View>
@@ -354,7 +370,13 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
     getDayDetail(today)
       .then(({ reads }) => {
         if (!active) return;
-        const ids = reads.filter((r) => r.completed).map((r) => r.bani_id);
+        // Carry WHEN each read completed, not just which bani. The reducer
+        // needs it to tell this same read being re-reported on every refocus
+        // (must not undo an un-tick) from a genuinely new one after an un-tick
+        // (must count) — see MARK_NITNEM_AUTO_DONE.
+        const ids = reads
+          .filter((r) => r.completed)
+          .map((r) => ({ id: r.bani_id, at: r.completed_at ?? null }));
         if (ids.length > 0) dispatch(actions.markNitnemAutoDone(today, ids));
       })
       .catch(logError);
@@ -449,11 +471,13 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
             {`${STRINGS.CONTINUE} · ${nameOf(firstIncomplete) || ""}`.trim().replace(/·\s*$/, "")}
           </CustomText>
         </Pressable>
-        {/* Bulk mark-done for Nitnem completed outside the app — reuses the
-            same bulk merge the 95%-scroll auto-detection writes through. */}
+        {/* Bulk mark-done for Nitnem completed outside the app. Its OWN action,
+            not the auto-detection one: that path deliberately ignores any id it
+            has already seeded, so sharing it left this button dead from the
+            second press onward — tick all, untick one, and nothing happened. */}
         <Pressable
           style={[styles.secondaryBtn, { borderColor: separator }]}
-          onPress={() => dispatch(actions.markNitnemAutoDone(today, selectedBaniIds))}
+          onPress={() => dispatch(actions.markNitnemDone(today, selectedBaniIds))}
           accessibilityRole="button"
         >
           <CheckIcon color={accentBlue} />
@@ -520,7 +544,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
                 return (
                   <Pressable key="add" style={styles.gridItem} onPress={openEditor}>
                     <PlusCircle color={accentBlue} />
-                    <CustomText style={[styles.baniName, { color: accentBlue }]} numberOfLines={1}>
+                    <CustomText style={[styles.baniName, { color: accentBlue }]} numberOfLines={2}>
                       {STRINGS.ADD_BANI}
                     </CustomText>
                   </Pressable>
@@ -545,7 +569,10 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
                         { color: mutedText },
                         isDone && { color: accentTextColor, fontFamily: boldFont },
                       ]}
-                      numberOfLines={1}
+                      // Wraps onto a second line instead of clipping to
+                      // "ਜਪੁਜੀ ਸਾ…". The grid scrolls inside the card, so a
+                      // taller row costs nothing but reading the whole name.
+                      numberOfLines={2}
                     >
                       {nameOf(cell.id) || `Bani ${cell.id}`}
                     </CustomText>

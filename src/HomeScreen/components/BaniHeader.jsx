@@ -39,12 +39,28 @@ const BaniHeader = ({ navigate }) => {
           {" ਸ੍ਰੀ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥"}
         </CustomText>
         <View style={styles.titleRow}>
-          <CustomText style={styles.newHeaderTitleText}>
+          {/* Balances the settings slot on the right, so the title sits on the
+              header's true centre rather than being nudged left by it. */}
+          <View style={styles.titleSpacer} />
+          {/* The ornaments are SIBLINGS of the title, not children of it.
+              Nested inside one Text they shared its truncation, so the moment
+              the line did not fit the ellipsis ate the closing flower and the
+              title read "ਸੁੰਦਰ ਗੁਟ… " with nothing on the right. As their own
+              nodes they carry `flexShrink: 0`, so the name gives way first and
+              both flowers always survive. */}
+          <View style={styles.titleCenter}>
             {/* "Œ" and "‰" map to the floral ornaments in the Gurbani font. */}
             <CustomText style={styles.titleFlower}>Œ</CustomText>
-            {` ${STRINGS.sg_title} `}
+            {/* No line cap: the name WRAPS rather than ellipsizing, so a narrow
+                header reads
+                    ਸੁੰਦਰ
+                    ਗੁਟਕਾ
+                between the two ornaments instead of "ਸੁੰਦਰ …". The row is
+                `alignItems: center`, so the flowers stay vertically centred
+                against the taller two-line block. */}
+            <CustomText style={styles.newHeaderTitleText}>{STRINGS.sg_title}</CustomText>
             <CustomText style={styles.titleFlower}>‰</CustomText>
-          </CustomText>
+          </View>
           <View style={styles.settingsWrap}>
             <SettingsIconComponent
               size={26}

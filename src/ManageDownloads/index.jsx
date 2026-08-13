@@ -341,14 +341,24 @@ const ManageDownloads = ({ navigation }) => {
               accessibilityLabel={`${STRINGS.delete} (${selected.size})`}
               style={styles.deleteButton}
             >
-              <Icon
-                name="delete-outline"
-                type="material-community"
-                size={layout.icon.md}
-                color={c.error}
-              />
-              <View style={styles.deleteBadge}>
-                <Text style={styles.deleteBadgeText}>{String(selected.size)}</Text>
+              {/* The badge anchors to THIS wrapper, so it hugs the icon's own
+                  corner rather than the corner of the 48pt touch target. */}
+              <View style={styles.deleteIconWrap}>
+                <Icon
+                  name="delete-outline"
+                  type="material-community"
+                  size={layout.icon.md}
+                  color={c.error}
+                />
+                <View style={styles.deleteBadge}>
+                  {/* The one place font scaling is capped. The badge is a fixed
+                      circle, so a 1.5x digit simply overflows it and sits off
+                      centre. The count is not lost to anyone: the Pressable's
+                      accessibilityLabel above already announces it. */}
+                  <Text style={styles.deleteBadgeText} maxFontSizeMultiplier={1}>
+                    {String(selected.size)}
+                  </Text>
+                </View>
               </View>
             </Pressable>
           ) : null

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Pressable, StyleSheet, Image } from "react-native";
+import { View, Pressable, StyleSheet, Image, useWindowDimensions } from "react-native";
 import PropTypes from "prop-types";
 import { CustomText, STRINGS } from "@common";
 import DashboardCard, { CARD_RADIUS } from "./DashboardCard";
@@ -18,6 +18,13 @@ const DARBAR_SAHIB = require("../../assets/images/darbar-sahib.jpg");
 // user is on the Vaak tab — switching is then instant. The active child renders
 // "embedded" (bare, no own card/title) since this card + the active tab frame it.
 const ShabadVaak = ({ refreshKey = 0 }) => {
+  // Side by side, the two pills plus the shuffle button need more width than a
+  // small screen has once the labels grow — "RANDOM SHABAD" clipped to
+  // "RANDO…". Stacking them puts each on its own full-width row, which reads
+  // better than two half-legible pills.
+  const { fontScale } = useWindowDimensions();
+  const stackedTabs = (fontScale || 1) > 1.15;
+
   const { mutedText, gold, palette } = useDashboardTheme();
   const [tab, setTab] = useState("vaak");
   const [shabadNonce, setShabadNonce] = useState(0);
@@ -54,8 +61,8 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
         ) : null}
 
         {/* Tabs (+ shuffle for the shabad tab) live INSIDE the card header. */}
-        <View style={styles.header}>
-          <View style={styles.tabsGroup}>
+        <View style={[styles.header, stackedTabs && styles.headerStacked]}>
+          <View style={[styles.tabsGroup, stackedTabs && styles.tabsGroupStacked]}>
             {tabs.map((t) => {
               const active = tab === t.id;
               return (
@@ -66,7 +73,10 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}
                 >
-                  <CustomText style={[styles.tabText, { color: active ? gold : mutedText }]}>
+                  <CustomText
+                    style={[styles.tabText, { color: active ? gold : mutedText }]}
+                    numberOfLines={1}
+                  >
                     {t.label.toUpperCase()}
                   </CustomText>
                 </Pressable>
@@ -133,7 +143,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tabsGroup: { flexDirection: "row", gap: 6, flexShrink: 1 },
-  tab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16 },
+  // One pill per row, each taking the full width of the card.
+  tabsGroupStacked: { flexDirection: "column", alignSelf: "stretch", flexShrink: 0 },
+  // The shuffle button moves to the top of the column rather than sitting
+  // beside a two-storey stack.
+  headerStacked: { alignItems: "flex-start" },
+  // The group shrinking is not enough on its own: a child that cannot shrink
+  // keeps its full width and simply overflows the shrunken parent, which is how
+  // the shuffle button ended up painted ON TOP of "RANDOM SHABAD".
+  tab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, flexShrink: 1 },
   tabText: { fontSize: 13, fontWeight: "600" },
   // Icon-only circular button (text "Shuffle" was overflowing the row alongside
   // the two tab pills); keeps the header on a single line.
@@ -144,6 +162,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
+    // Round, icon-only and already at the touch-target floor.
+    flexShrink: 0,
   },
   // Dimmed while a shabad is in flight, so the control reads as busy rather
   // than broken when it stops responding to taps.

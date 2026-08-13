@@ -615,15 +615,29 @@ const todaysNitnem = createReducer(
   // `completed[date]`  : ids done today (manual ticks + auto 95%-scroll reads).
   // `autoSeeded[date]` : ids auto-completion has already folded in once, so a
   //                      manual un-tick is never resurrected on the next refocus.
-  { completed: {}, autoSeeded: {} },
+  // `untickedAt[date][baniId]` : when a manual un-tick happened, so a LATER
+  //                      genuine re-read still counts (autoSeeded alone could
+  //                      not tell the two apart and blocked both).
+  { completed: {}, autoSeeded: {}, untickedAt: {} },
   {
     [actionTypes.TOGGLE_NITNEM_DONE]: (state, action) => {
-      const { date, baniId } = action.payload;
+      const { date, baniId, at = Date.now() } = action.payload;
       const dayList = state.completed[date] ?? [];
-      const nextDay = dayList.includes(baniId)
-        ? dayList.filter((id) => id !== baniId)
-        : [...dayList, baniId];
-      return { ...state, completed: { ...state.completed, [date]: nextDay } };
+      const removing = dayList.includes(baniId);
+      const nextDay = removing ? dayList.filter((id) => id !== baniId) : [...dayList, baniId];
+      // WHEN the un-tick happened, so auto-detection can tell a read that
+      // predates it (the same old read, re-reported on every dashboard
+      // refocus — must stay un-ticked) from one that came after it (the user
+      // genuinely went and read the bani again — must count).
+      const untickedAt = state.untickedAt ?? {};
+      const dayMarks = { ...(untickedAt[date] ?? {}) };
+      if (removing) dayMarks[baniId] = at;
+      else delete dayMarks[baniId];
+      return {
+        ...state,
+        completed: { ...state.completed, [date]: nextDay },
+        untickedAt: { ...untickedAt, [date]: dayMarks },
+      };
     },
     // Auto-detected 95%-scroll completions fold into the same per-day list
     // TOGGLE_NITNEM_DONE writes — but only ids we've NEVER auto-added before
@@ -634,7 +648,23 @@ const todaysNitnem = createReducer(
       if (!baniIds || baniIds.length === 0) return state;
       const autoSeeded = state.autoSeeded ?? {};
       const seededDay = autoSeeded[date] ?? [];
-      const freshIds = baniIds.filter((id) => !seededDay.includes(id));
+      const untickedDay = (state.untickedAt ?? {})[date] ?? {};
+      // Entries are either a bare id or `{ id, at }` carrying the moment the
+      // read actually completed.
+      const freshIds = baniIds
+        .map((entry) => (typeof entry === "object" && entry !== null ? entry : { id: entry }))
+        .filter(({ id, at }) => {
+          const unticked = untickedDay[id];
+          // A read we can date beats the seed list outright: the user un-ticked
+          // this, then went and read it again, and that second read has to
+          // count. Judging it by `autoSeeded` alone is what left a fully
+          // scrolled bani stuck un-ticked for the rest of the day.
+          if (at != null) return unticked == null || at > unticked;
+          // Undated (a bulk call, or a legacy caller) — fall back to the seed
+          // list, which still stops a refocus resurrecting an un-tick.
+          return !seededDay.includes(id);
+        })
+        .map(({ id }) => id);
       if (freshIds.length === 0) return state;
       const dayList = state.completed[date] ?? [];
       return {
@@ -647,6 +677,33 @@ const todaysNitnem = createReducer(
           ...autoSeeded,
           [date]: Array.from(new Set([...seededDay, ...freshIds])),
         },
+      };
+    },
+    // The "Mark done" button. Unlike MARK_NITNEM_AUTO_DONE this consults no
+    // seed list: the user is stating outright that these are read, so a
+    // previous auto-seed of the same id must not veto it. It seeds too, so the
+    // background auto-detection has nothing left to re-add afterwards.
+    [actionTypes.MARK_NITNEM_DONE]: (state, action) => {
+      const { date, baniIds } = action.payload;
+      if (!baniIds || baniIds.length === 0) return state;
+      const autoSeeded = state.autoSeeded ?? {};
+      const dayList = state.completed[date] ?? [];
+      // Marking done clears any earlier un-tick for these banis — the user has
+      // just overridden it, so it must not go on suppressing auto-detection.
+      const untickedAt = state.untickedAt ?? {};
+      const dayMarks = { ...(untickedAt[date] ?? {}) };
+      baniIds.forEach((id) => delete dayMarks[id]);
+      return {
+        ...state,
+        completed: {
+          ...state.completed,
+          [date]: Array.from(new Set([...dayList, ...baniIds])),
+        },
+        autoSeeded: {
+          ...autoSeeded,
+          [date]: Array.from(new Set([...(autoSeeded[date] ?? []), ...baniIds])),
+        },
+        untickedAt: { ...untickedAt, [date]: dayMarks },
       };
     },
     // Completion history only. The restored payload still carries the old

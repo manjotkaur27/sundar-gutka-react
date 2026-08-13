@@ -192,12 +192,27 @@ const createStyles = ({ c, space, layout, radii, type }) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Wraps the icon alone, so the badge below has the icon's box to anchor to.
+  deleteIconWrap: { position: "relative" },
+  // Sits ON the icon's top-right corner. The offsets are negative because the
+  // anchor is the icon wrapper (24pt), not the 48pt touch target — measured
+  // from the button, `right: 2` put the badge clear of the icon's right edge
+  // entirely, which is the gap it used to float in.
   deleteBadge: {
     position: "absolute",
-    top: space.xs,
-    right: space.xxs,
-    minWidth: space.lg,
-    minHeight: space.lg,
+    // A corner badge sits MOSTLY outside its icon — roughly half on, half off.
+    // At -4 it landed across the middle of the bin instead, obscuring the glyph
+    // it is meant to annotate. Half the badge width clears the corner properly.
+    top: -space.sm,
+    right: -space.sm,
+    minWidth: layout.icon.xs,
+    // A FIXED height, not `minHeight`. Caption is 12pt at a 1.4 line height, so
+    // the glyph box is ~17pt and a `minHeight: 16` box grew to fit it — one pt
+    // taller than it was wide, which is why a single digit rendered as a slight
+    // oval instead of a circle. Pinning the height keeps it square, and
+    // `radii.pill` then makes it round. A 2+ digit count still widens into a
+    // stadium, which is the conventional shape for that.
+    height: layout.icon.xs,
     borderRadius: radii.pill,
     backgroundColor: c.error,
     alignItems: "center",
@@ -208,6 +223,9 @@ const createStyles = ({ c, space, layout, radii, type }) => ({
     ...type.caption,
     // Was fontSize 9 — below any readable minimum, and it did not scale with
     // the user's text-size setting either.
+    // Matched to the badge height so the glyph centres and cannot push the box
+    // out of round.
+    lineHeight: layout.icon.xs,
     color: c.onError,
     textAlign: "center",
   },

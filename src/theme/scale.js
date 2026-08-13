@@ -80,6 +80,16 @@ const scaleMap = (map, factor) =>
  * spacing rate. Radii and border widths never scale — a 1px hairline is 1px at
  * every font size, and a corner radius is a shape, not a measurement.
  *
+ * `actionSize` never scales, for the same reason as `topClearance` below: it is
+ * a fact about fingers, not about type. It wraps an ICON — a back arrow, a
+ * delete bin — and an icon does not grow with the font, so there is nothing for
+ * it to contain. Scaled at the container rate it turned a 48pt header button
+ * into 72pt, and two of those took 144dp of a 320dp screen (a small phone at a
+ * raised display size), starving the title column until "Manage Downloads"
+ * clipped to "Manage Downlo…". Damping it instead is no good either: the width
+ * factor then pulled it to 42pt on a compact screen, under the 44pt touch floor
+ * `scale.test.js` rightly guards. A constant 48 satisfies both.
+ *
  * `topClearance` never scales either, and for a different reason: it describes a
  * region of the DEVICE — the camera cutout and status bar strip — not a piece of
  * layout. Raising the text size must not push a header further down the screen,
@@ -87,9 +97,9 @@ const scaleMap = (map, factor) =>
  * the shared header reads it through `useTokens` (scaled) while the Reader's own
  * header reads the raw theme. That is exactly how the two drifted apart.
  */
-const CONTAINER_KEYS = /^(minHeight|minHeightTwoLine|height|touchTarget|actionSize|checkbox)$/;
+const CONTAINER_KEYS = /^(minHeight|minHeightTwoLine|height|touchTarget|checkbox)$/;
 const UNSCALED_KEYS =
-  /^(maxHeightRatio|durationMs|borderWidth|hairline|thick|focus|topClearance)$/;
+  /^(maxHeightRatio|durationMs|borderWidth|hairline|thick|focus|topClearance|actionSize)$/;
 
 export const scaleLayout = (layout, scale) => {
   const walk = (node) =>

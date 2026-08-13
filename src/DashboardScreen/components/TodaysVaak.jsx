@@ -134,7 +134,7 @@ const TodaysVaak = ({ refreshKey = 0, embedded = false }) => {
         <>
           <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
-            <CustomText style={[styles.meta, { color: mutedText }]}>
+            <CustomText style={[styles.meta, { color: mutedText }]} numberOfLines={1}>
               {[vaak.ang ? `${STRINGS.ANG} ${vaak.ang}` : null, vaak.raag || null]
                 .filter(Boolean)
                 .join(" · ")}
@@ -192,9 +192,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   footerDivider: { height: 1, marginVertical: 16 },
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  meta: { fontSize: 13 },
-  readLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  // `space-between` only yields a gap while there is room to spare; once there
+  // is not, the two halves butt together ("…ਰਾਗੁ ਸੋਰਠਿRead Hukamnama") and the
+  // link runs off the card. Same defect as RandomShabad, same fix.
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  meta: { fontSize: 13, flexShrink: 1 },
+  readLink: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
   // No fontWeight — matches the "Ang · Raag" meta text beside it (Baloo Paaji
   // Regular via CustomText's default resolution) instead of the bold brand font.
   readText: { fontSize: 14, fontWeight: "600" },

@@ -37,6 +37,10 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
+  // Wraps onto a second line rather than clipping — "Customize Layout"
+  // reduced to "Customi…" no longer names the sheet you are looking at.
+  // `flex: 1` already keeps it clear of Cancel and Save, so a taller title
+  // only makes the header taller.
   headerTitle: { flex: 1, fontSize: 17, textAlign: "center", paddingHorizontal: 8 },
   // 44pt minimum touch targets on both header controls.
   headerBtn: { minHeight: 44, minWidth: 60, justifyContent: "center" },
@@ -193,7 +197,7 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
       </Pressable>
       <CustomText
         style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {STRINGS.CUSTOMIZE_LAYOUT}
       </CustomText>
@@ -219,7 +223,7 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
       </Pressable>
       <CustomText
         style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {STRINGS.SECTIONS}
       </CustomText>

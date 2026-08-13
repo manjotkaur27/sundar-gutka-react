@@ -290,7 +290,7 @@ const StreakCard = ({ refreshKey = 0 }) => {
               {`   ${STRINGS.DAY_STREAK}`}
             </CustomText>
           </CustomText>
-          <CustomText style={[styles.sub, { color: belowStreakColor }]} numberOfLines={1}>
+          <CustomText style={[styles.sub, { color: belowStreakColor }]} numberOfLines={2}>
             {STRINGS.BEST_STREAK_LABEL} · {longest}
             {longest === 1 ? " day" : " days"}
             {/* A brand-new user hasn't started a streak yet — "keep it going" reads

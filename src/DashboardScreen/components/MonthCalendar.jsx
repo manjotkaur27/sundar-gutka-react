@@ -377,7 +377,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
           {/* Suppressed only when a future month has nothing to report; a
               future month WITH activity still shows its count. */}
           {isFutureMonth && activeDaysCount === 0 ? null : (
-            <CustomText style={[styles.daysCount, { color: mutedText }]} numberOfLines={1}>
+            <CustomText style={[styles.daysCount, { color: mutedText }]} numberOfLines={2}>
               {STRINGS.formatString(
                 activeDaysCount === 1 ? STRINGS.DAY_THIS_MONTH : STRINGS.DAYS_THIS_MONTH,
                 { count: activeDaysCount }
