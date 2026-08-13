@@ -130,7 +130,11 @@ const SevaScreen = () => {
   const styles = useThemedStyles(createStyles);
   // The app-wide themed scrollbar, not the unthemed native one.
   const { scrollViewProps, Indicator } = useCustomScrollbar();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight, fontScale } = useWindowDimensions();
+  // Past this the frequency pair stops sharing a line — see the control below
+  // and `frequencyContainerStacked`. The same threshold the shared list Row
+  // uses for its own title/value pair, so the two read alike at a given size.
+  const stackFrequency = fontScale >= 1.3;
 
   // ─── Responsive metrics ─────────────────────────────────────────────────────
   // Every size below is derived from the viewport and then CLAMPED, so the page
@@ -798,12 +802,21 @@ const SevaScreen = () => {
           radios. Announced as a radio group so a screen reader reads it as the
           single either-or choice it is, and each half states whether it is the
           chosen one; before this neither carried a role at all. */}
-      <View style={styles.frequencyContainer} accessibilityRole="radiogroup">
+      <View
+        style={[styles.frequencyContainer, stackFrequency && styles.frequencyContainerStacked]}
+        accessibilityRole="radiogroup"
+      >
         {["Monthly", "One Time"].map((freq, index) => {
           const selected = frequency === freq;
           return (
             <React.Fragment key={freq}>
-              {index > 0 && <View style={styles.frequencyDivider} />}
+              {index > 0 && (
+                <View
+                  style={
+                    stackFrequency ? styles.frequencyDividerStacked : styles.frequencyDivider
+                  }
+                />
+              )}
               <Pressable
                 style={({ pressed }) => [
                   styles.frequencyOption,

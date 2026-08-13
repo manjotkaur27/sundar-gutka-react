@@ -58,11 +58,19 @@ const createStyles = (theme) => ({
   },
   newHeaderTitleText: {
     fontSize: 32,
-    // Explicit, and deliberately tight. With none set React Native applies the
-    // font's own generous default, which at 32pt left a visible trough between
-    // "ਸੁੰਦਰ" and "ਗੁਟਕਾ" once the name started wrapping. 36 keeps the two
-    // words reading as one title.
-    lineHeight: 36,
+    // Explicit, and between two failures rather than at one of them.
+    //
+    // Unset, React Native applies the font's own generous default, which at
+    // 32pt left a visible trough between "ਸੁੰਦਰ" and "ਗੁਟਕਾ" once the name
+    // started wrapping. 36 closed that — but 36 on 32 is a ratio of 1.125, and
+    // a line box that tight is centred on the letter bodies and trims what sits
+    // outside them. Gurmukhi puts marks ABOVE the letter, so the tippi on
+    // "ਸੁੰਦਰ" was the part that got cut, and worst at a raised OS text size
+    // where the scaled box rounds against the glyph.
+    //
+    // 40 (1.25) clears the tippi and is still well inside the default, so the
+    // two words go on reading as one title.
+    lineHeight: 40,
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     color: theme.c.headerFg,
     textAlign: "center",

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { View, Pressable, StyleSheet, PanResponder } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { hexToRgb } from "@theme/colorUtils";
-import { weekdayNarrowRow, formatMonthYear } from "@common/dateLocale";
 import PropTypes from "prop-types";
+import { weekdayNarrowRow, formatMonthYear } from "@common/dateLocale";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
 import { getDailyActivity, getOrCreateSummary } from "../../database/analytics";
@@ -43,8 +43,8 @@ const buildWeekRows = (year, month) => {
   const firstDow = new Date(year, month - 1, 1).getDay(); // 0=Sun
   const daysInMonth = new Date(year, month, 0).getDate();
   const cells = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  for (let i = 0; i < firstDow; i += 1) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
   const rows = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
@@ -325,7 +325,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
 
   // Today is always a light-blue fill + accent ring (not the activity heat fill),
   // so it reads as a distinct "today" marker regardless of how active the day is.
-  const todayFill = palette.todayFill;
+  const { todayFill } = palette;
 
   return (
     <View style={styles.wrap}>
@@ -351,18 +351,21 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
               </Pressable>
             )}
             {/* Tap the label to jump to an arbitrary month via the date picker,
-                bounded by DASHBOARD_HISTORY_FLOOR..today (see below). flexShrink
-                lets it give up width to the arrows/daysCount before overflowing
-                on a narrow phone; numberOfLines+ellipsis is the last resort. */}
+                bounded by DASHBOARD_HISTORY_FLOOR..today (see below).
+                `flexShrink` lets it give up width to the arrows and daysCount,
+                which do not shrink.
+
+                Giving up width has to mean WRAPPING, not truncating. Capped at
+                one line it clipped to "Augus…" the moment the OS text size grew,
+                and a month you cannot read is the one thing this control exists
+                to tell you. Nothing in the header has a fixed height, so it
+                becomes "August" over "2026" and the row grows. */}
             <Pressable
               onPress={() => setPickerVisible(true)}
               hitSlop={6}
               style={styles.monthLabelBtn}
             >
-              <CustomText
-                style={[styles.monthText, { color: palette.brandText }]}
-                numberOfLines={1}
-              >
+              <CustomText style={[styles.monthText, { color: palette.brandText }]}>
                 {monthYearLabel}
               </CustomText>
             </Pressable>

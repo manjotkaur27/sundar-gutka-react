@@ -137,13 +137,24 @@ const createStyles = (theme) => {
     // whatever width is available, so the row is identical everywhere.
     amountButtons: {
       flexDirection: "row",
+      // Wraps onto a second line rather than dividing one line four ways
+      // whatever the labels need. See amountButton.
+      flexWrap: "wrap",
       justifyContent: "center",
       gap: 10,
       width: "100%",
     },
     amountButton: {
-      flex: 1,
-      minWidth: 0,
+      // Grows to share the row, but STARTS from its own label's width.
+      //
+      // It was `flex: 1, minWidth: 0` — an exact quarter of the row each, and
+      // permission to shrink below the content. At a raised OS text size a
+      // quarter is narrower than the word, and a word with nowhere to wrap
+      // breaks mid-word: "Other" rendered as "Othe" over "r". Starting from the
+      // label's own width means a chip is never handed less room than its word,
+      // and the row wraps when four of them no longer fit across.
+      flexGrow: 1,
+      flexBasis: "auto",
       paddingHorizontal: 6,
       paddingVertical: 12,
       borderRadius: 8,
@@ -206,12 +217,29 @@ const createStyles = (theme) => {
     frequencyOptionPressed: {
       opacity: 0.7,
     },
+    // Past a raised text size the two halves cannot share a line: half the
+    // panel is narrower than "Monthly", and a single word with nowhere to wrap
+    // breaks mid-word — it rendered as "Monthl" over "y". Stacked, each half
+    // has the full width and the words stay whole.
+    frequencyContainerStacked: {
+      flexDirection: "column",
+      // No longer a pair of columns to centre; the panel takes the width it is
+      // given and each row fills it.
+      alignSelf: "stretch",
+    },
     // A hairline between the halves, inset top and bottom so it reads as a
     // divider rather than as the panel being two boxes.
     frequencyDivider: {
       width: StyleSheet.hairlineWidth,
       backgroundColor: c.border,
       marginVertical: 12,
+    },
+    // The same rule turned through 90 degrees when the halves stack, inset on
+    // the sides for the same reason it is inset top and bottom when upright.
+    frequencyDividerStacked: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: c.border,
+      marginHorizontal: 12,
     },
     // A CIRCLE — radius is half the box. It was 7 on a 22pt box, which is a
     // rounded square, and both states were drawn in the accent, so a chosen

@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import PropTypes from "prop-types";
 // The commonjs build: the package's default entry is ESM, which jest cannot
 // transform and Metro would have to be told about.
@@ -43,8 +43,47 @@ const ROWS = [...KEY_ROWS, [SPACE, BKSP]];
 const GAP = 3;
 const EDGE = 4;
 
+// ── Why the keys do NOT grow with the text-size setting ────────────────────
+// A key's height came from `layout.touchTarget`, which scales at the full font
+// rate: 44pt becomes 66pt at the 1.5x cap. Across seven rows that is 460pt of
+// keys before gaps, and the keyboard is a PINNED sheet footer — it takes its
+// height before the body gets any. So the sheet showed its title and a sliver
+// of the name field, with the field itself and both buttons clipped away
+// entirely, on the one screen whose whole job is typing a name.
+//
+// Raising the text size must make the GLYPHS bigger, not push the field being
+// typed into off the screen. Both platforms' own keyboards work this way: key
+// height is a share of the display and holds steady as text size changes.
+//
+/** The most of the window the keys may take, gaps and plate included. */
+const MAX_WINDOW_SHARE = 0.55;
+/**
+ * The floor, for a short screen. Below `layout.touchTarget` on purpose: these
+ * keys are already only ~29pt WIDE (twelve to a row is what InScript needs),
+ * so height was never the binding constraint on the target. 34x29 clears the
+ * 24x24 minimum in WCAG 2.5.8.
+ */
+const MIN_KEY_HEIGHT = 34;
+
 const GurmukhiKeyboard = ({ value, onKey, onBackspace }) => {
-  const { c, space, radii, layout } = useTokens();
+  const { c, radii, layout, theme } = useTokens();
+  const { height } = useWindowDimensions();
+
+  // UNSCALED tokens throughout the plate, deliberately. `layout.touchTarget`
+  // and `space.*` from useTokens are already multiplied by the OS text scale,
+  // and scaling is the very thing being avoided: were the padding to grow with
+  // the text size it would eat the budget below and the keys would shrink to
+  // pay for it, which is font-scale dependence by another route.
+  const pad = theme.space.md;
+  const clearance = theme.space.lg;
+  const baseKeyHeight = theme.layout.touchTarget;
+  // Everything in the plate that is not a key: its own padding, the gaps
+  // between rows, and the margin clearing whatever sits above it.
+  const plateChrome = pad * 2 + clearance + GAP * (ROWS.length - 1);
+  const keyHeight = Math.max(
+    MIN_KEY_HEIGHT,
+    Math.min(baseKeyHeight, Math.floor((height * MAX_WINDOW_SHARE - plateChrome) / ROWS.length))
+  );
 
   const press = (key) => {
     if (key === BKSP) {
@@ -77,9 +116,9 @@ const GurmukhiKeyboard = ({ value, onKey, onBackspace }) => {
         // Clears whatever sits above it. Pinned as a sheet footer it is flush
         // against the last control otherwise, so the Done button and the top
         // row of keys read as one block.
-        marginTop: space.lg,
+        marginTop: clearance,
         paddingHorizontal: EDGE,
-        paddingVertical: space.md,
+        paddingVertical: pad,
         gap: GAP,
         // A keyboard is a RECESSED plate with RAISED keys on it — the plate has
         // to sit behind both the sheet and the keys. `fillSubtle` was used here
@@ -112,7 +151,11 @@ const GurmukhiKeyboard = ({ value, onKey, onBackspace }) => {
                   alignItems: "center",
                   justifyContent: "center",
                   // Tall enough to hit; the WIDTH is what the row divides up.
-                  minHeight: layout.touchTarget,
+                  // A height, not a minimum: a minimum would let the glyph grow
+                  // the key back with the text size, which is what this exists
+                  // to stop. The glyph itself still scales and wraps to one
+                  // line inside it.
+                  height: keyHeight,
                   // No horizontal padding: at twelve keys to a row it is width
                   // this cannot spare. The hairline IS affordable and earns its
                   // place — it keeps the keys legible in a theme whose `surface`

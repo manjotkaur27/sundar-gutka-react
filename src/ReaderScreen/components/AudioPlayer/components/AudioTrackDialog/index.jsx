@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
-import { useSelector } from "react-redux";
 import TrackPlayer, { State } from "react-native-track-player";
+import { useSelector } from "react-redux";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
 import { useNetwork } from "@common/context";
@@ -9,12 +9,12 @@ import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
 import { audioTrackDialogStyles } from "../../style";
 import { useAudioTheme, useAudioThemedStyles } from "../../useAudioTheme";
-import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 import {
   ensurePreviewDownloaded,
   getPreviewRemoteUrl,
   deletePreviewClip,
 } from "../../utils/audioDownloader";
+import ScrollViewComponent, { isOfflineAvailable } from "../ScrollViewComponent";
 
 const PREVIEW_DURATION_MS = 15000;
 const ACTIVE_TRACK_POLL_MS = 150;
@@ -188,8 +188,8 @@ const AudioTrackDialog = ({
         if (clampedElapsed >= PREVIEW_DURATION_MS) {
           clearPreviewInterval();
           if (previewSessionRef.current !== sessionId) return;
-          try { await stop(); } catch (_) {}
-          try { await reset(); } catch (_) {}
+          try { await stop(); } catch (_) { /* nothing was playing to stop */ }
+          try { await reset(); } catch (_) { /* already reset; a second one is a no-op */ }
           await restoreNotificationCapabilities();
           setPreviewLoadingTrackId(null);
           setPreviewActiveTrackId(null);
@@ -396,8 +396,8 @@ const AudioTrackDialog = ({
           // The local clip likely wrote truncated — drop it so it re-downloads
           // clean next time, and fall through to the full-track stream.
           await deletePreviewClip(canonicalUrl).catch(() => {});
-          try { await stop(); } catch (_) {}
-          try { await reset(); } catch (_) {}
+          try { await stop(); } catch (_) { /* nothing was playing to stop */ }
+          try { await reset(); } catch (_) { /* already reset; a second one is a no-op */ }
           if (previewSessionRef.current !== sessionId) {
             setPreviewLoadingTrackId(null);
             return;
@@ -424,8 +424,8 @@ const AudioTrackDialog = ({
         setPreviewLoadingTrackId(null);
         setPreviewActiveTrackId(null);
         setPlayingTrack(null);
-        try { await stop(); } catch (_) {}
-        try { await reset(); } catch (_) {}
+        try { await stop(); } catch (_) { /* nothing was playing to stop */ }
+        try { await reset(); } catch (_) { /* already reset; a second one is a no-op */ }
         await restoreNotificationCapabilities();
       }
     } catch (_) {
@@ -502,26 +502,11 @@ const AudioTrackDialog = ({
           <CloseIcon size={30} color={theme.c.textBrand} />
         </Pressable>
 
-        {isHeader && tracks.length > 0 && (
-          <View style={styles.header}>
-            <CustomText style={styles.welcomeText}>{STRINGS.welcome_to_sundar_gutka}</CustomText>
-            <CustomText style={styles.subtitleText}>
-              {STRINGS.please_choose_a_track} <CustomText style={{ fontFamily: fontFace }}>{title}</CustomText>
-            </CustomText>
-            <CustomText style={styles.previewHintText}>
-              {STRINGS.AUDIO_PREVIEW_HINT}
-            </CustomText>
-          </View>
-        )}
-
-        {hasUnplayableOffline && (
-          <View style={styles.offlineBanner}>
-            <CustomText style={styles.offlineBannerText}>
-              {STRINGS.OFFLINE_TRACKS_NOTICE}
-            </CustomText>
-          </View>
-        )}
-
+        {/* The intro and the offline notice scroll WITH the artist list rather
+            than standing above it. At a raised OS text size they are together
+            taller than the card, and as fixed blocks they pushed the rows and
+            Next off the bottom — all that was left on screen was the welcome
+            line. Next stays pinned below, because it is outside the scroller. */}
         <ScrollViewComponent
           tracks={tracks}
           selectedTrack={selectedTrack}
@@ -532,6 +517,31 @@ const AudioTrackDialog = ({
           previewDurationMs={PREVIEW_DURATION_MS}
           isOffline={isOffline}
           handleSelectTrack={handleSelectTrack}
+          header={
+            <>
+              {isHeader && tracks.length > 0 && (
+                <View style={styles.header}>
+                  <CustomText style={styles.welcomeText}>
+                    {STRINGS.welcome_to_sundar_gutka}
+                  </CustomText>
+                  <CustomText style={styles.subtitleText}>
+                    {STRINGS.please_choose_a_track}{" "}
+                    <CustomText style={{ fontFamily: fontFace }}>{title}</CustomText>
+                  </CustomText>
+                  <CustomText style={styles.previewHintText}>
+                    {STRINGS.AUDIO_PREVIEW_HINT}
+                  </CustomText>
+                </View>
+              )}
+              {hasUnplayableOffline && (
+                <View style={styles.offlineBanner}>
+                  <CustomText style={styles.offlineBannerText}>
+                    {STRINGS.OFFLINE_TRACKS_NOTICE}
+                  </CustomText>
+                </View>
+              )}
+            </>
+          }
         />
 
         {isFooter && tracks.length > 0 && (

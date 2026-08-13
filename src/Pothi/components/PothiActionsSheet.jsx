@@ -93,7 +93,11 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
         visible={visible}
         onClose={onClose}
         title={pothi.name}
-        scrollable={false}
+        // Scrollable, because renaming pins the Punjabi keyboard below this.
+        // As a plain View the body could only be squeezed by it, so at a raised
+        // text size the name field and Save were clipped away rather than being
+        // reachable — on the sheet whose entire purpose is typing a name.
+        scrollable
         // Pinned, so the keys cannot be pushed past the bottom edge.
         footer={
           renaming && gurmukhi ? (
@@ -126,7 +130,16 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
                 <>
                   <Button
                     title={STRINGS.CANCEL}
-                    onPress={() => setRenaming(false)}
+                    // Back out of the sheet, not into a menu the user never
+                    // came through. Opened from the folder screen's overflow,
+                    // rename IS the sheet — `startRenaming` skips the choice
+                    // row on the way in, so falling back to it on the way out
+                    // stranded the user on a panel whose only content was a
+                    // second Rename button (and not even a Delete beside it,
+                    // for a default pothi). Long-pressed from the Folders tab,
+                    // where that row is where rename was chosen, Cancel still
+                    // returns to it.
+                    onPress={startRenaming ? onClose : () => setRenaming(false)}
                     variant="ghost"
                     style={grow}
                   />

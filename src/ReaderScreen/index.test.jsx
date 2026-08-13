@@ -631,32 +631,43 @@ describe("Reader", () => {
     expect(getByTestId("audio-player")).toBeTruthy();
   });
 
-  it("renders AutoScrollComponent when isAutoScroll is true", () => {
-    mockState.isAutoScroll = true;
-    const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
-
-    // A bani OPENS with its chrome showing, so the auto-scroll bar is there
-    // straight away. It used to open hidden, and this test had to simulate a tap
-    // to reveal it — which left nothing on screen to tell a new reader that a
-    // tap was what brought the controls back.
-    expect(getByTestId("auto-scroll-component")).toBeTruthy();
-  });
-
-  it("hides the chrome when the reader taps the page", () => {
+  it("renders AutoScrollComponent when isAutoScroll is true, once the chrome is up", () => {
     mockState.isAutoScroll = true;
     const { getByTestId, queryByTestId } = render(
       <Reader navigation={mockNavigation} route={mockRoute} />
     );
-    expect(queryByTestId("auto-scroll-component")).toBeTruthy();
+
+    // A bani OPENS on the bani alone — no header, no bottom navigation, and so
+    // no auto-scroll bar either. Reading is what the screen is for; the chrome
+    // is what you reach for afterwards.
+    expect(queryByTestId("auto-scroll-component")).toBeNull();
 
     // Tap detection lives in the WebView's injected JS, which posts "toggle".
-    const webview = getByTestId("webview");
     act(() => {
-      webview.props.onMessage({ nativeEvent: { data: "toggle" } });
+      getByTestId("webview").props.onMessage({ nativeEvent: { data: "toggle" } });
     });
+    expect(getByTestId("auto-scroll-component")).toBeTruthy();
+  });
+
+  it("toggles the chrome when the reader taps the page", () => {
+    mockState.isAutoScroll = true;
+    const { getByTestId, queryByTestId } = render(
+      <Reader navigation={mockNavigation} route={mockRoute} />
+    );
+    const tapThePage = () =>
+      act(() => {
+        getByTestId("webview").props.onMessage({ nativeEvent: { data: "toggle" } });
+      });
+
+    // Hidden on arrival, so the FIRST tap reveals rather than hides — the
+    // direction is what changed when the bani started opening bare.
+    expect(queryByTestId("auto-scroll-component")).toBeNull();
+    tapThePage();
+    expect(queryByTestId("auto-scroll-component")).toBeTruthy();
 
     // The wrapper stays mounted but is display:none, which the query layer
     // treats as hidden — the same thing the reader sees.
+    tapThePage();
     expect(queryByTestId("auto-scroll-component")).toBeNull();
   });
 

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
 import Svg, { Line } from "react-native-svg";
 import { useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PropTypes from "prop-types";
+import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
 import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { getNanakshahiDate } from "../../services/dashboard";
@@ -113,12 +113,19 @@ const DashboardHeader = ({
             // Gurmukhi falls back to the system font.
             { color: fatehColor, fontFamily: theme.typography.fonts.gurbaniHeavy },
           ]}
-          // Never shrunk: adjustsFontSizeToFit would render the Fateh at a
-          // different size on every screen width. The line cap is generous
-          // rather than exact — at a raised text size two lines was not enough
-          // and the Fateh clipped to "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥…". Nothing here has
-          // a fixed height, so the header simply grows.
-          numberOfLines={3}
+          // NO line cap, and never shrunk either.
+          //
+          // adjustsFontSizeToFit would render the Fateh at a different size on
+          // every screen width. A line cap is no better: the string carries its
+          // own newline, so it is two lines by design, but at a raised OS text
+          // size each half can wrap again and needs four — a cap of three cut
+          // the last one and left "…ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ …" with the closing ॥
+          // ellipsized away. Any fixed number is a guess at a width and a text
+          // size, and the one case it gets wrong is the one that truncates
+          // scripture.
+          //
+          // Nothing in this header has a fixed height, so with no cap the block
+          // simply takes the lines it needs and the header grows under it.
         >
           {FATEH}
         </CustomText>

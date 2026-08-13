@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ScrollView, useWindowDimensions, View } from "react-native";
+import { View } from "react-native";
 import PropTypes from "prop-types";
 import useBaniTitle from "@common/hooks/useBaniTitle";
 import useTokens from "@common/hooks/useTokens";
@@ -42,18 +42,8 @@ const PickBanisStep = ({
   onConfirm,
   confirmDisabled = false,
 }) => {
-  const { space, layout } = useTokens();
-  const { height } = useWindowDimensions();
+  const { space } = useTokens();
   const { titleFor, titleFontFamily } = useBaniTitle();
-
-  // A share of the LIVE window, not a fixed slab. See layout.sheet for why.
-  const listMaxHeight = Math.max(
-    layout.sheet.listMinHeight,
-    height *
-      (gurmukhiOpen
-        ? layout.sheet.pickStepListMaxHeightRatioWithKeyboard
-        : layout.sheet.pickStepListMaxHeightRatio)
-  );
 
   // Leaf banis only. A bundled folder is a container, not something a pothi can
   // hold — its children are offered individually instead.
@@ -119,15 +109,24 @@ const PickBanisStep = ({
         receivingKeys={gurmukhiOpen}
       />
 
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        // `maxHeight` is a CEILING, not a demand. React Native defaults
-        // `flexShrink` to 0, so without this the list insisted on its full share
-        // and ran underneath the actions below it — it must yield to the fixed
-        // furniture before it takes the space that is left.
-        style={{ maxHeight: listMaxHeight, flexShrink: 1 }}
-        contentContainerStyle={{ paddingVertical: space.md_12 }}
-      >
+      {/* The list does NOT scroll itself. The host Sheet does, and one scroller
+          is the whole point.
+
+          It used to be a ScrollView capped at a share of the window. Two
+          problems, both of which the keyboard made unbearable. A nested
+          vertical scroller inside the sheet's own meant the two fought for
+          every drag, which is why scrolling these sheets was so hard. And the
+          cap was measured against the FULL window with a `listMinHeight`
+          FLOOR — so with the keys up it went on claiming height that no longer
+          existed, and the search field and both buttons were pushed off the
+          bottom of a sheet that could not scroll to reach them.
+
+          Rendered inline, the column is simply as tall as it is and the sheet
+          scrolls it. Nothing is ever unreachable at any text size, and the keys
+          stay pinned below because they are the Sheet's footer, not part of
+          this. The rows were already all rendered by this map, so nothing is
+          virtualised now that was not before. */}
+      <View style={{ paddingVertical: space.md_12 }}>
         {options.map((bani) => (
           <BaniPickRow
             key={bani.id}
@@ -137,7 +136,7 @@ const PickBanisStep = ({
             onPress={() => toggle(bani)}
           />
         ))}
-      </ScrollView>
+      </View>
 
       {/* Wraps rather than clips: at a large OS font size two translated labels
           do not fit one row, and each grows to share the width it does get. */}

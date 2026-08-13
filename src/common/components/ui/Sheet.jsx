@@ -70,13 +70,24 @@ const SheetContent = ({
   // full content height and pushes the footer straight off the bottom of the
   // screen. That is exactly what put the Punjabi keyboard half off-display once
   // a bani list opened above it.
+  // …but `flexShrink: 1` with nothing to stop it shrinks the body to ZERO when
+  // the footer is tall enough, which is the other half of the same problem: the
+  // Punjabi keyboard is seven rows, and at a raised OS text size it claimed the
+  // whole sheet, leaving the title above a clipped field and no buttons at all.
+  // A floor keeps the body on screen and scrolling; the keyboard caps its own
+  // height so the two meet in the middle rather than fighting.
+  const bodyFloor = footer ? layout.sheet.listMinHeight : undefined;
   const bodyProps = scrollable
     ? {
-        style: { flexShrink: 1 },
+        style: { flexShrink: 1, minHeight: bodyFloor },
         contentContainerStyle: { gap: bodyGap, paddingBottom: bodyGap },
         bounces: false,
+        // A row inside a sheet that has a keyboard up must take the tap on the
+        // FIRST press. The default swallows it to dismiss the keyboard, so
+        // ticking a bani while searching took two taps and looked broken.
+        keyboardShouldPersistTaps: "handled",
       }
-    : { style: { gap: bodyGap, flexShrink: 1 } };
+    : { style: { gap: bodyGap, flexShrink: 1, minHeight: bodyFloor } };
 
   // Unmount only once the closing slide has finished.
   if (!mounted) return null;

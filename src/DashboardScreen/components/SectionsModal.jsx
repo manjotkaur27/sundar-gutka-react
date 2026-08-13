@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import DraggableFlatList, {
   ShadowDecorator,
   ScaleDecorator,
@@ -37,14 +37,43 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
-  // Wraps onto a second line rather than clipping — "Customize Layout"
-  // reduced to "Customi…" no longer names the sheet you are looking at.
-  // `flex: 1` already keeps it clear of Cancel and Save, so a taller title
-  // only makes the header taller.
-  headerTitle: { flex: 1, fontSize: 17, textAlign: "center", paddingHorizontal: 8 },
+  // Starts from its OWN width, not from zero.
+  //
+  // `flex: 1` here meant `flexBasis: 0`: the title began at zero width and
+  // lived on whatever Cancel and Save left over. Both of those carry text that
+  // grows with the OS text setting, so at a raised size the leftover was
+  // narrower than the word "Customize" — and a word with nowhere to wrap breaks
+  // mid-word, which is how the title rendered as "Custo / mize lay…". Starting
+  // from its own width means the three shrink in proportion instead.
+  //
+  // `alignItems: center` on the row keeps Cancel and Save centred against a
+  // title that has grown to two lines.
+  headerTitle: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: "auto",
+    fontSize: 17,
+    textAlign: "center",
+    paddingHorizontal: 8,
+  },
   // 44pt minimum touch targets on both header controls.
   headerBtn: { minHeight: 44, minWidth: 60, justifyContent: "center" },
   headerBtnEnd: { alignItems: "flex-end" },
+  // The same bar with the title lifted onto its own line — see headerBar.
+  headerStacked: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  // Owns the full width here, so it neither pads itself in from the actions nor
+  // grows — `flexGrow` in a COLUMN would stretch it vertically instead.
+  headerTitleStacked: { flexGrow: 0, paddingHorizontal: 0 },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   action: { fontSize: 15 },
   saveBtn: {
     minHeight: 44,
@@ -88,6 +117,12 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
   const boldFont = theme.typography.fonts.balooPaajiSemiBold;
   const dispatch = useDispatch();
   const layout = useSelector((state) => state.dashboardLayout);
+
+  // Past this the header's three parts stop sharing a line — see headerBar.
+  // The same threshold the shared list Row uses for its title/value pair, so
+  // the app breaks to two lines at one size rather than several.
+  const { fontScale } = useWindowDimensions();
+  const stackHeader = fontScale >= 1.3;
 
   const [editing, setEditing] = useState(false);
   const [order, setOrder] = useState(layout.order);
@@ -190,57 +225,92 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
     [hidden, cardBg, mutedText, primaryText, accentBlue, palette, toggleHidden]
   );
 
-  const header = editing ? (
-    <View style={[styles.header, { borderBottomColor: separator }]}>
-      <Pressable onPress={() => setEditing(false)} style={styles.headerBtn} hitSlop={8}>
-        <CustomText style={[styles.action, { color: mutedText }]}>{STRINGS.CANCEL}</CustomText>
-      </Pressable>
-      <CustomText
-        style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}
-        numberOfLines={2}
-      >
-        {STRINGS.CUSTOMIZE_LAYOUT}
-      </CustomText>
-      {/* Primary action, styled as a button — matches Edit Banis. */}
-      <Pressable
-        onPress={save}
-        style={({ pressed }) => [
-          styles.saveBtn,
-          { backgroundColor: accentBlue },
-          pressed && styles.pressed,
-        ]}
-        hitSlop={8}
-      >
-        <CustomText style={[styles.saveText, { fontFamily: boldFont, color: c.onAccent }]}>
-          {STRINGS.SAVE}
-        </CustomText>
-      </Pressable>
-    </View>
-  ) : (
-    <View style={[styles.header, { borderBottomColor: separator }]}>
-      <Pressable onPress={onClose} style={styles.headerBtn} hitSlop={8}>
-        <CustomText style={[styles.action, { color: mutedText }]}>{STRINGS.CANCEL}</CustomText>
-      </Pressable>
-      <CustomText
-        style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}
-        numberOfLines={2}
-      >
-        {STRINGS.SECTIONS}
-      </CustomText>
-      {/* Rearranging is the rarer job, so it is a quiet link here rather than
-          the filled button — that weight belongs to Save, inside the edit view. */}
-      <Pressable
-        onPress={() => setEditing(true)}
-        style={[styles.headerBtn, styles.headerBtnEnd]}
-        hitSlop={8}
-        accessibilityRole="button"
-      >
-        <CustomText style={[styles.action, { color: accentBlue, fontFamily: boldFont }]}>
-          {STRINGS.EDIT}
-        </CustomText>
-      </Pressable>
+  // Both views wear the same bar — [action] [title] [action] — so it is built
+  // once. The two differ only in what those three are.
+  //
+  // Past a raised OS text size the three cannot share a line. Cancel and Save
+  // both carry text that grows with the setting and neither can shrink, so what
+  // is left in the middle ends up narrower than the word "Customize" — and a
+  // word with nowhere to wrap breaks mid-word, which is how the title rendered
+  // as "Custo / mize lay…". Giving the title a proper flex basis was not enough
+  // because the room genuinely was not there; stacked, it owns the full width
+  // and the two actions share the row beneath it.
+  const headerBar = (left, title, right) => (
+    <View
+      style={[stackHeader ? styles.headerStacked : styles.header, { borderBottomColor: separator }]}
+    >
+      {stackHeader ? (
+        <>
+          <CustomText
+            style={[
+              styles.headerTitle,
+              styles.headerTitleStacked,
+              { color: primaryText, fontFamily: boldFont },
+            ]}
+          >
+            {title}
+          </CustomText>
+          <View style={styles.headerActions}>
+            {left}
+            {right}
+          </View>
+        </>
+      ) : (
+        <>
+          {left}
+          <CustomText
+            style={[styles.headerTitle, { color: primaryText, fontFamily: boldFont }]}
+            numberOfLines={2}
+          >
+            {title}
+          </CustomText>
+          {right}
+        </>
+      )}
     </View>
   );
+
+  const cancelAction = (onPress) => (
+    <Pressable onPress={onPress} style={styles.headerBtn} hitSlop={8}>
+      <CustomText style={[styles.action, { color: mutedText }]}>{STRINGS.CANCEL}</CustomText>
+    </Pressable>
+  );
+
+  const header = editing
+    ? headerBar(
+        cancelAction(() => setEditing(false)),
+        STRINGS.CUSTOMIZE_LAYOUT,
+        // Primary action, styled as a button — matches Edit Banis.
+        <Pressable
+          onPress={save}
+          style={({ pressed }) => [
+            styles.saveBtn,
+            { backgroundColor: accentBlue },
+            pressed && styles.pressed,
+          ]}
+          hitSlop={8}
+        >
+          <CustomText style={[styles.saveText, { fontFamily: boldFont, color: c.onAccent }]}>
+            {STRINGS.SAVE}
+          </CustomText>
+        </Pressable>
+      )
+    : headerBar(
+        cancelAction(onClose),
+        STRINGS.SECTIONS,
+        // Rearranging is the rarer job, so it is a quiet link here rather than
+        // the filled button — that weight belongs to Save, inside the edit view.
+        <Pressable
+          onPress={() => setEditing(true)}
+          style={[styles.headerBtn, styles.headerBtnEnd]}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
+          <CustomText style={[styles.action, { color: accentBlue, fontFamily: boldFont }]}>
+            {STRINGS.EDIT}
+          </CustomText>
+        </Pressable>
+      );
 
   return (
     <SheetModal visible={visible} onClose={onClose} heightRatio={0.75}>

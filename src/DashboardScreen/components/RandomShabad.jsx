@@ -116,7 +116,11 @@ const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoa
         <>
           <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
-            <CustomText style={[styles.meta, { color: mutedText }]} numberOfLines={1}>
+            {/* No line cap. Capped at one, "Ang 1234 · Raag Gauri" clipped the
+                moment the OS text size grew — the row shares its width with the
+                Read link, which does not shrink. The footer has no fixed
+                height, so wrapping simply makes it taller. */}
+            <CustomText style={[styles.meta, { color: mutedText }]}>
               {[shabad.ang ? `${STRINGS.ANG} ${shabad.ang}` : null, shabad.raag || null]
                 .filter(Boolean)
                 .join(" · ")}
@@ -186,8 +190,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   meta: { fontSize: 13, flexShrink: 1 },
-  readLink: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
-  readText: { fontSize: 14, fontWeight: "600" },
+  // Shrinks and wraps like the "Ang · Raag" meta it sits beside. It was
+  // flexShrink 0, so at a raised OS text size the meta gave way and this did
+  // not — one half of the footer wrapping while the other held its line read as
+  // lopsided. Both halves now yield, and the chevron keeps its size either way.
+  readLink: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 1 },
+  readText: { fontSize: 14, fontWeight: "600", flexShrink: 1 },
   shuffleBtn: {
     flexDirection: "row",
     alignItems: "center",

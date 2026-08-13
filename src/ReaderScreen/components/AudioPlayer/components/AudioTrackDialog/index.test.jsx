@@ -2,9 +2,11 @@
 /* eslint-disable react/jsx-props-no-spreading */
 
 import React from "react";
-import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
-import AudioTrackDialog from "./index";
 import TrackPlayer from "react-native-track-player";
+
+import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
+
+import AudioTrackDialog from "./index";
 
 // -------------------- MOCKS --------------------
 
@@ -111,8 +113,13 @@ jest.mock("@react-native-community/netinfo", () => ({
 
 jest.mock("../ScrollViewComponent", () => {
   const { View, Pressable, Text } = require("react-native");
-  const Comp = ({ tracks, handleSelectTrack, previewLoadingTrackId }) => (
+  // `header` is rendered INSIDE the scroller by the real component, so that the
+  // intro scrolls with the rows instead of pushing them and Next off the card
+  // at a raised OS text size. The stub has to honour that or the dialog's own
+  // header assertions would pass against a component that never showed it.
+  const Comp = ({ tracks, handleSelectTrack, previewLoadingTrackId, header }) => (
     <View testID="tracks-list">
+      {header}
       <Text testID="preview-loading-id">{previewLoadingTrackId || ""}</Text>
       {tracks.map((track) => (
         <Pressable

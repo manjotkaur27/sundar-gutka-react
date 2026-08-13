@@ -7,7 +7,7 @@ import PropTypes from "prop-types";
 import { useCustomScrollbar } from "@common/components/ScrollIndicator";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
-import { audioTrackDialogStyles, TRACK_ROW_BORDER_WIDTH } from "../style";
+import { audioTrackDialogStyles } from "../style";
 import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
 import { getLocalTrackPath } from "../utils/audioDownloader";
 import PreviewSweep from "./PreviewSweep";
@@ -39,6 +39,7 @@ const ScrollViewComponent = ({
   previewDurationMs = 0,
   isOffline = false,
   handleSelectTrack,
+  header = null,
 }) => {
   const { theme } = useAudioTheme();
   const styles = useAudioThemedStyles(audioTrackDialogStyles);
@@ -147,6 +148,14 @@ const ScrollViewComponent = ({
         contentContainerStyle={styles.trackListContent}
         nestedScrollEnabled
       >
+        {/* The dialog's own intro rides INSIDE this scroller rather than
+            sitting above it. Three paragraphs at a raised OS text size are
+            taller than the whole card, so as a fixed block above a fixed list
+            it pushed the artist rows and the Next button clean off the bottom
+            of a card that had no way to scroll to them — leaving the welcome
+            line and nothing else. Scrolling with the list, it can be as tall as
+            the translation needs and everything below it is still reachable. */}
+        {header}
         {downloadedTracks.length > 0 && (
           <>
             <CustomText style={styles.trackSectionHeader}>{STRINGS.DOWNLOADED}</CustomText>
@@ -186,6 +195,8 @@ ScrollViewComponent.propTypes = {
   previewDurationMs: PropTypes.number,
   isOffline: PropTypes.bool,
   handleSelectTrack: PropTypes.func.isRequired,
+  /** Rendered above the first row, INSIDE the scroller — see the note there. */
+  header: PropTypes.node,
 };
 
 export default ScrollViewComponent;

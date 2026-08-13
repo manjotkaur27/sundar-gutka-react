@@ -109,24 +109,12 @@ const layout = {
     handleHeight: 4,
     /** A sheet never covers the whole screen; the ground stays visible. */
     maxHeightRatio: 0.9,
-    /** Below this a list is not worth showing; the sheet scrolls instead. */
-    listMinHeight: 120,
     /**
-     * How much of the WINDOW the bani pick-list inside a sheet may take.
-     *
-     * A ratio, not a point height. A fixed slab (this was 240pt, and 360pt in
-     * the other picker) is right on exactly one device: on a short screen it
-     * pushed the sheet's own buttons — and the keyboard below them — off the
-     * bottom of the display, and on a tall one it wasted the space it did have.
-     * A ratio of the live `useWindowDimensions()` height scales with the device
-     * and re-measures on rotation.
-     *
-     * Generous, because the picker is always the WHOLE step of its sheet —
-     * nothing else competes for the height there.
+     * The floor a sheet's scrolling body keeps when a footer is pinned below
+     * it, so a tall footer — the Punjabi keyboard is eight rows — cannot shrink
+     * the body to nothing and leave the sheet showing only its title.
      */
-    pickStepListMaxHeightRatio: 0.7,
-    /** The same list once the in-app keyboard claims the lower half. */
-    pickStepListMaxHeightRatioWithKeyboard: 0.38,
+    listMinHeight: 120,
   },
 
   dialog: {

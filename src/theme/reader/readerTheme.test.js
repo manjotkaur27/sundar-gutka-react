@@ -1,4 +1,5 @@
 import { withAlpha } from "@theme/colorUtils";
+import { navy } from "@theme/palette";
 import { light as lightColors, dark as darkColors } from "@theme/semanticColors";
 import { AUDIO_ROLES } from "./bases/appBase";
 import darkBase from "./bases/darkBase";
@@ -196,8 +197,21 @@ describe("Follow app theme is byte-identical to today's Reader", () => {
         expect(base.text.transliteration.color).toBe(c.textBrand);
       });
 
-      it("keeps the sync-scroll highlight on c.accentSubtle", () => {
-        expect(base.highlight.color).toBe(c.accentSubtle);
+      it("marks the sung line visibly, in whichever mode", () => {
+        // Dark keeps the role as-is. Light cannot: `accentSubtle` is navy[50]
+        // and the light ground is neutral[100], two near-whites 1.01:1 apart —
+        // the wash was there in the DOM and invisible on the page. It is a
+        // translucent accent instead, tuned to the same strength dark gets.
+        expect(base.highlight.color).toBe(
+          mode === "dark" ? c.accentSubtle : withAlpha(navy[400], 0.45)
+        );
+        // The point of the wash is that you can see it, so that is the
+        // assertion — not the value it happens to be written as.
+        const onGround = contrastRatio(
+          flattenColor(base.highlight.color, base.background.color),
+          base.background.color
+        );
+        expect(onGround).toBeGreaterThan(1.4);
       });
 
       it("keeps the header foreground and progress bar on their roles", () => {

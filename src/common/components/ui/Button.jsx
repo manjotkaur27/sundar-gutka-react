@@ -72,6 +72,22 @@ const Button = ({
     <Pressable
       onPress={onPress}
       disabled={inactive}
+      // A disabled button must not eat a scroll that starts on top of it.
+      //
+      // Pressability declines the responder when disabled
+      // (`onStartShouldSetResponder` returns `!disabled`), so the gesture
+      // bubbles PAST this button to the first ancestor that will take it —
+      // inside a Sheet that is the panel's own tap-swallowing Pressable, and an
+      // ancestor holding the responder is what stops the ScrollView underneath
+      // from scrolling. An enabled button never hits this: it grants the
+      // responder itself and the scroll view steals it back on move.
+      //
+      // `box-none` takes this view out of hit testing while leaving it
+      // interactive to the platform, so the drag resolves to the scrollable
+      // behind it. NOT `none`, which sets userInteractionEnabled = NO on iOS
+      // and would take a disabled button out of VoiceOver — it still has to be
+      // announced, and announced as disabled.
+      pointerEvents={inactive ? "box-none" : "auto"}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityHint={accessibilityHint}

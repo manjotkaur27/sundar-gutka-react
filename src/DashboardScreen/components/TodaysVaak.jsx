@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, logError, openInAppBrowser } from "@common";
 import { formatFullDate } from "@common/dateLocale";
+import { CustomText, STRINGS, logError, openInAppBrowser } from "@common";
 import { getDailyVaak } from "../../services/dashboard";
 import { OfflineError } from "../../services/dashboard/connectivity";
 import DashboardCard from "./DashboardCard";
@@ -134,7 +134,10 @@ const TodaysVaak = ({ refreshKey = 0, embedded = false }) => {
         <>
           <View style={[styles.footerDivider, { backgroundColor: translationColor }]} />
           <View style={styles.footer}>
-            <CustomText style={[styles.meta, { color: mutedText }]} numberOfLines={1}>
+            {/* No line cap — same reason as Random Shabad's identical footer:
+                one line clipped "Ang 1234 · Raag Gauri" as soon as the OS text
+                size grew, and the Read link beside it does not shrink. */}
+            <CustomText style={[styles.meta, { color: mutedText }]}>
               {[vaak.ang ? `${STRINGS.ANG} ${vaak.ang}` : null, vaak.raag || null]
                 .filter(Boolean)
                 .join(" · ")}
@@ -202,10 +205,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   meta: { fontSize: 13, flexShrink: 1 },
-  readLink: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
+  // Shrinks and wraps like the "Ang · Raag" meta beside it — same reasoning as
+  // Random Shabad's identical footer: one half wrapping while the other held
+  // its line read as lopsided. The chevron keeps its size either way.
+  readLink: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 1 },
   // No fontWeight — matches the "Ang · Raag" meta text beside it (Baloo Paaji
   // Regular via CustomText's default resolution) instead of the bold brand font.
-  readText: { fontSize: 14, fontWeight: "600" },
+  readText: { fontSize: 14, fontWeight: "600", flexShrink: 1 },
   skeletonInner: { alignItems: "center", gap: 10, paddingVertical: 6 },
   lineSkeletonWide: { width: "80%", height: 18 },
   lineSkeletonNarrow: { width: "55%", height: 18 },

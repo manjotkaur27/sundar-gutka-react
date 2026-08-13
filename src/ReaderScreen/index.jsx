@@ -117,11 +117,16 @@ const Reader = ({ navigation, route }) => {
   const webViewRef = useRef(null);
   const { webView } = styles;
   const { title, id, titleUni } = route.params.params || {};
-  // A bani OPENS with its chrome showing. It used to start hidden, so arriving
-  // on the screen gave no header and no bottom navigation until you tapped —
-  // there was nothing on screen to tell you a tap would bring them back. The
-  // idle timer still hides them once you settle into reading.
-  const [isHeader, toggleHeader] = useState(true);
+  // A bani OPENS on the bani alone — no header, no bottom navigation.
+  //
+  // Reading is what the screen is for, and the chrome is what you reach for
+  // afterwards, so it is not there until asked for: a tap brings it back, as
+  // does a scroll up, and a scroll down puts it away again.
+  //
+  // The transform values below already sit at their hidden positions on mount,
+  // so this is where the screen settles rather than somewhere it animates to —
+  // the bars do not appear for a frame and slide away.
+  const [isHeader, toggleHeader] = useState(false);
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());

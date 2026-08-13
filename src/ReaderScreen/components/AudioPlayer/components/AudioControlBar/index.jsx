@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
-import { useNavigation, useIsFocused } from "@react-navigation/native";
 import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
 import { BlurView } from "@react-native-community/blur";
-
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import { setAudioProgress } from "@common/actions";
 // Used by the two bani-length guards below. It was referenced without being
@@ -31,10 +30,7 @@ import {
 import { audioControlBarStyles, MINIMIZED_PLAYER_FOOTPRINT } from "../../style";
 import { useAudioTheme, useAudioThemedStyles } from "../../useAudioTheme";
 import checkLyricsFileAvailable from "../../utils/checkLRC";
-import {
-  getSequenceFromPosition,
-  getPositionFromSequence,
-} from "../../utils/getSequenceFromPosition";
+import { getSequenceFromPosition } from "../../utils/getSequenceFromPosition";
 import ActionComponents from "../ActionComponent";
 import AudioSettingsModal from "../AudioSettingsModal";
 import DownloadButton from "../DownloadButton";
@@ -58,8 +54,6 @@ const AudioControlBar = ({
   isTrackDownloaded,
   tracks,
   seekTo,
-  reset,
-  pause,
   setRate,
   isInitialized,
   addAndPlayTrack,
@@ -546,8 +540,9 @@ const AudioControlBar = ({
         if (
           baniLengthChangedRef.current &&
           constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID))
-        )
+        ) {
           return;
+        }
         // Save sequence along with position
         (async () => {
           let sequence = null;
@@ -577,8 +572,9 @@ const AudioControlBar = ({
       if (
         baniLengthChangedRef.current &&
         constant.BANI_IDS_WITH_LENGTH_VARIANTS.includes(Number(baniID))
-      )
+      ) {
         return;
+      }
 
       const persistDuration =
         sanitizeDuration(currentProgress?.duration) ||
@@ -701,10 +697,10 @@ const AudioControlBar = ({
 
           {isMoreTracksModalOpen && (
             <View style={styles.moreTracksModalContainer}>
-              <CustomText style={styles.moreTracksHeaderText}>
-                {STRINGS.please_choose_a_track}{" "}
-                <CustomText style={{ fontFamily: fontFace }}>{title}</CustomText>
-              </CustomText>
+              {/* The heading rides INSIDE the scroller. Above it, in a panel
+                  capped by an animated maxHeight, it was the first thing lost
+                  at a raised OS text size — and lost silently, since there was
+                  no way to scroll up to something clipped off the top. */}
               <ScrollViewComponent
                 tracks={tracks}
                 selectedTrack={currentPlaying}
@@ -712,6 +708,12 @@ const AudioControlBar = ({
                 isPlaying={isPlaying}
                 isOffline={isOffline}
                 handleSelectTrack={handleInlineTrackSelect}
+                header={
+                  <CustomText style={styles.moreTracksHeaderText}>
+                    {STRINGS.please_choose_a_track}{" "}
+                    <CustomText style={{ fontFamily: fontFace }}>{title}</CustomText>
+                  </CustomText>
+                }
               />
             </View>
           )}
@@ -722,12 +724,21 @@ const AudioControlBar = ({
         {/* Main Playback Section */}
         <View style={[styles.mainSection]}>
           <View style={styles.trackInfo}>
-            {/* Artist name — flex:1 so it shrinks before pushing the right group */}
-            <View style={[styles.trackInfoLeft, { flex: 1, minWidth: 0 }]}>
+            {/* Artist name. Gives way to the download icon and the timestamp,
+                which keep their size — but STARTS from its own width rather
+                than from zero. `flex: 1` here meant `flexBasis: 0`, so the pair
+                on the right was served in full and the name lived on the
+                remainder, which at a raised OS text size is a couple of words
+                wide. */}
+            <View style={[styles.trackInfoLeft, { flexGrow: 1, flexShrink: 1, flexBasis: "auto" }]}>
               {currentPlaying && currentPlaying.displayName && (
-                <CustomText style={styles.trackName} numberOfLines={1} ellipsizeMode="tail">
-                  {currentPlaying.displayName}
-                </CustomText>
+                // No line cap. One line gave "Bhai Jarnai…"; two gave "Bibi /
+                // Indermoha…" — each cap is a guess at how many lines a reciter's
+                // name needs, and the guess fails on the next longer name. A
+                // truncated name identifies nobody, which defeats the one job
+                // this label has. Nothing in the player has a fixed height, so
+                // it takes the lines it needs.
+                <CustomText style={styles.trackName}>{currentPlaying.displayName}</CustomText>
               )}
             </View>
             {/* Download indicator + timestamp — stay right-aligned as a unit */}
@@ -834,8 +845,6 @@ AudioControlBar.propTypes = {
     })
   ).isRequired,
   seekTo: PropTypes.func.isRequired,
-  reset: PropTypes.func.isRequired,
-  pause: PropTypes.func.isRequired,
   setRate: PropTypes.func.isRequired,
   isInitialized: PropTypes.bool.isRequired,
   addAndPlayTrack: PropTypes.func.isRequired,

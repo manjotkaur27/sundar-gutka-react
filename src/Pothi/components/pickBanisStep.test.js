@@ -38,11 +38,27 @@ describe("the bani picker has one implementation", () => {
     });
   });
 
-  it("is the only thing that sizes the pick list", () => {
-    const callers = fs
-      .readdirSync(HERE)
-      .filter((name) => /\.jsx$/.test(name))
-      .filter((name) => /pickStepListMaxHeightRatio/.test(read(name)));
-    expect(callers).toEqual(["PickBanisStep.jsx"]);
+  it("does not size the pick list at all, and does not scroll it either", () => {
+    // It used to cap the list at a share of the window. Two things were wrong
+    // with that and the in-app keyboard made both unbearable: the cap was
+    // measured against the FULL window, so with the keys up it went on claiming
+    // height that no longer existed and pushed the search field and both
+    // buttons off a sheet with no way to scroll down to them; and a scroller
+    // nested inside the sheet's own meant the two fought for every drag.
+    //
+    // The list is plain rows now and the host Sheet is the single scroller, so
+    // the column is simply as tall as it is and everything stays reachable at
+    // any text size. A `maxHeight` or a second ScrollView here would be the
+    // old design coming back.
+    const text = read("PickBanisStep.jsx");
+    expect(text).not.toMatch(/maxHeight:/);
+    expect(text).not.toMatch(/<ScrollView/);
+  });
+
+  it("is scrolled by both of its sheets, so nothing in it can be stranded", () => {
+    // `scrollable={false}` on either host is what stranded the actions.
+    ["CreatePothiSheet.jsx", "AddBanisSheet.jsx"].forEach((file) => {
+      expect(read(file)).not.toMatch(/scrollable=\{(false|step === 1)\}/);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { withAlpha } from "@theme/colorUtils";
-import { vishraam } from "@theme/palette";
+import { navy, vishraam } from "@theme/palette";
 import { light as lightColors, dark as darkColors } from "@theme/semanticColors";
 
 // The complete default record for a reading theme, built FROM the app's own
@@ -175,7 +175,22 @@ const createAppBase = (c, mode) => ({
   },
 
   // The sync-scroll / audio active-line wash.
-  highlight: { color: c.accentSubtle },
+  //
+  // LIGHT ONLY is derived. `c.accentSubtle` is navy[50] (#eff3fb) and the
+  // Reader's light ground is neutral[100] (#f3f4f6) — two near-whites 1.01:1
+  // apart, so the wash marking the line being sung was mathematically
+  // invisible.
+  //
+  // It is navy[400], NOT the light theme's own accent. Every blue role in light
+  // is navy[800], which is dark: thinned enough to sit under scripture it turns
+  // blue-GREY (a composite only 26 points of blue-over-red — it read as a grey
+  // bar, not a blue one). A mid-navy keeps its hue as it thins, so 0.45 gives
+  // 43 points of tint at 1.57:1 against the ground — a shade stronger than dark
+  // manages (1.46:1) — with the Gurbani over it still at 7.22:1, well past AA.
+  //
+  // Dark keeps `accentSubtle` untouched: it was never the broken one. Nothing
+  // else in the app reads `highlight`, so this moves the sung-line wash alone.
+  highlight: { color: mode === "dark" ? c.accentSubtle : withAlpha(navy[400], 0.45) },
 
   // Reading marks, whose meaning does not change with the theme — so the two
   // bases keep the fixed palette values the Reader uses now. Only a designed

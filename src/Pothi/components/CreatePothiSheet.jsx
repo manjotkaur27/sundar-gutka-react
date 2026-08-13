@@ -93,12 +93,13 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
         onClose={onClose}
         // Step 2 is about THIS pothi, so it wears the name just typed.
         title={step === 1 ? STRINGS.POTHI_NEW : name}
-        // Step 2 must NOT scroll as a whole. The search field and the actions
-        // are fixed furniture; the bani list is the only thing that moves, and
-        // it scrolls inside its own capped box (see PickBanisField). Scrolling
-        // the sheet as well let the search field and the buttons slide away
-        // while browsing, which is the one time you need them.
-        scrollable={step === 1}
+        // BOTH steps scroll. Step 2 used to hold still while its list scrolled
+        // inside a capped box, so that the search field and the actions could
+        // not slide away while browsing. With the keys up at a raised text size
+        // there was no room for them to hold still IN: they were pushed off a
+        // sheet that then had no way to scroll down to them. Reachable beats
+        // stationary, and one scroller beats two — see PickBanisStep.
+        scrollable
         // Scrollable, and the keyboard is a PINNED footer: with the bani list
         // open there is more content than a capped sheet can show, so the body
         // has to give way rather than push the keys off the bottom.

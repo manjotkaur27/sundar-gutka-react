@@ -42,10 +42,10 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
         visible={visible}
         onClose={onClose}
         title={STRINGS.POTHI_ADD_BANIS}
-        // The step's list scrolls inside its own capped box; scrolling the
-        // sheet as well would let the search field and the actions slide away
-        // while browsing, which is the one time they are needed.
-        scrollable={false}
+        // The sheet is the one and only scroller — the step's list renders
+        // inline inside it. Nested scrollers fought for every drag, and a
+        // still sheet left the actions unreachable once the keys were up.
+        scrollable
         // Pinned below the body, so the keys can never be pushed past the
         // bottom edge however long the list gets.
         footer={

@@ -78,7 +78,11 @@ export const audioControlBarStyles = (theme) => ({
   modalAnimation: {
     backgroundColor: theme.c.surface,
     overflow: "hidden",
-    justifyContent: "center",
+    // flex-start, NOT center. The panel is capped by an animated maxHeight and
+    // clips what does not fit; centring content taller than the cap clips it at
+    // BOTH ends, which is why the "Select a track" heading was nowhere to be
+    // seen — it was cut off the top rather than sitting above the list.
+    justifyContent: "flex-start",
     zIndex: 1,
   },
   moreTracksModalContainer: {
@@ -87,6 +91,10 @@ export const audioControlBarStyles = (theme) => ({
     marginRight: "auto",
     marginTop: theme.spacing.lg,
     zIndex: 20,
+    // Shrinks, so the cap above reaches the list inside it. Without this the
+    // chain stopped here: the list kept its full content height, overflowed the
+    // panel and was clipped instead of scrolling.
+    flexShrink: 1,
   },
   moreTracksHeaderText: {
     fontFamily: theme.typography.fonts.balooPaaji,
@@ -134,6 +142,18 @@ export const audioControlBarStyles = (theme) => ({
     // scales down to fit instead of wrapping or clipping.
     flexShrink: 1,
     minWidth: 0,
+    // The pill centres its icon and its label by their BOXES. Android adds font
+    // padding above and below the glyphs, and Baloo's own ascent/descent are
+    // generous on top of that, so the label's box centre sits away from the
+    // letters you can actually see — and the label read off-centre against an
+    // icon that was centred exactly. Dropping that padding makes the box agree
+    // with the glyphs.
+    includeFontPadding: false,
+    // With the padding gone the line box is only as tall as the metrics say, so
+    // this puts the room back deliberately — Gurmukhi labels carry marks above
+    // AND below the letter, and those are what a tight line box clips first.
+    lineHeight: Math.round(theme.typography.sizes.lg * 1.4),
+    textAlignVertical: "center",
   },
   actionButtonContent: {
     flexDirection: "row",
@@ -174,6 +194,11 @@ export const audioControlBarStyles = (theme) => ({
     fontSize: theme.typography.sizes.xl,
     fontFamily: theme.typography.fonts.balooPaaji,
     color: theme.c.textPrimary,
+    // `trackInfoLeft` is a ROW, and RN gives text flexShrink 0 — so without
+    // this the name would hold its measured width and spill out sideways once
+    // the column narrowed, instead of wrapping inside it. It carries no line
+    // cap now, so wrapping is the whole mechanism.
+    flexShrink: 1,
   },
   trackInfoText: {
     fontSize: theme.typography.sizes.md,
@@ -332,9 +357,17 @@ export const audioTrackDialogStyles = (theme) => ({
   trackListWrapper: {
     position: "relative",
     zIndex: 1,
+    // Shrinks so the card's own maxHeight is honoured by the LIST rather than
+    // by clipping whatever happens to be last, which was the Next button.
+    flexShrink: 1,
   },
   trackList: {
-    maxHeight: 200,
+    // No fixed height. It was a flat 200pt slab that could not shrink — React
+    // Native defaults flexShrink to 0 — so once the intro grew with the OS text
+    // size the card went over its cap and the footer below was cut off. The
+    // list now takes what is left after the pinned Next button and scrolls the
+    // rest, which is the same arrangement the pothi sheets use.
+    flexShrink: 1,
     zIndex: 1,
   },
   trackSectionHeader: {
