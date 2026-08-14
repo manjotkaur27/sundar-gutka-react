@@ -463,7 +463,12 @@ const fallbackWord = () => ({
 // or the day-scoped cache — i.e. the card is showing offline content and should
 // refetch once connectivity returns. Exported so the UI doesn't have to know the
 // `_source` tag values; see useRefetchOnReconnect.
-export const isBundledWord = ({ _source: source } = {}) => source === "fallback";
+// Takes null as well as undefined: the Discover card holds `useState(null)`
+// until the first fetch settles, and a default parameter only covers undefined.
+export const isBundledWord = (word) => {
+  const { _source: source } = word ?? {};
+  return source === "fallback";
+};
 
 const fetchJson = async (url) => {
   const controller = new AbortController();

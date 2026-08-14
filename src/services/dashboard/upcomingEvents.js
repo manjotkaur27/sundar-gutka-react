@@ -354,7 +354,12 @@ const computeLocalEvents = () => {
 // backend feed or the day-scoped cache — i.e. the card is showing offline
 // content and should refetch once connectivity returns. Exported so the UI
 // doesn't have to know the `_source` tag values; see useRefetchOnReconnect.
-export const isBundledEvent = ({ _source: source } = {}) => source === "list";
+// Takes null as well as undefined: the Discover card holds `useState(null)`
+// until the first fetch settles, and a default parameter only covers undefined.
+export const isBundledEvent = (event) => {
+  const { _source: source } = event ?? {};
+  return source === "list";
+};
 
 export const getUpcomingEvents = async ({ requireOnline = false } = {}) => {
   // 1. Today's cached feed → use it (offline-safe, refreshes daily).

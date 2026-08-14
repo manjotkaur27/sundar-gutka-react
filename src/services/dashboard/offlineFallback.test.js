@@ -101,3 +101,41 @@ describe("dashboard content with no internet", () => {
     await expect(getUpcomingEvents()).resolves.toBeTruthy();
   });
 });
+
+// Regression: these are called on every Discover render, including the first —
+// before either fetch settles, when the card's state is still useState(null).
+// They were written as `({ _source: source } = {}) => …`, and a default
+// parameter only covers undefined, so null threw a TypeError during render and
+// took the whole Dashboard down to the error boundary on mount.
+describe("bundled-source predicates accept an unresolved card", () => {
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["an empty object", {}],
+    ["an object with no _source", { gurmukhi: "ਕਿਤਾਬ" }],
+  ])("isBundledWord(%s) is false, not a throw", (_label, value) => {
+    expect(() => isBundledWord(value)).not.toThrow();
+    expect(isBundledWord(value)).toBe(false);
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["an empty object", {}],
+    ["an object with no _source", { name: "Hola Mohalla" }],
+  ])("isBundledEvent(%s) is false, not a throw", (_label, value) => {
+    expect(() => isBundledEvent(value)).not.toThrow();
+    expect(isBundledEvent(value)).toBe(false);
+  });
+
+  it("still recognises genuinely bundled data", () => {
+    expect(isBundledWord({ _source: "fallback" })).toBe(true);
+    expect(isBundledEvent({ _source: "list" })).toBe(true);
+  });
+
+  it("does not mistake network or cached data for bundled", () => {
+    expect(isBundledWord({ _source: "api" })).toBe(false);
+    expect(isBundledWord({ _source: "hukamnama" })).toBe(false);
+    expect(isBundledEvent({ _source: "api" })).toBe(false);
+  });
+});
