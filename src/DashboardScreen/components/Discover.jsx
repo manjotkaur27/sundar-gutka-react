@@ -3,13 +3,19 @@ import { View, StyleSheet, useWindowDimensions } from "react-native";
 import PropTypes from "prop-types";
 import { gurmukhiToDevanagari } from "@common/gurmukhiToDevanagari";
 import { CustomText, STRINGS } from "@common";
-import { getWordOfDay, getNextEvent } from "../../services/dashboard";
+import {
+  getWordOfDay,
+  getNextEvent,
+  isBundledWord,
+  isBundledEvent,
+} from "../../services/dashboard";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import SectionError from "./SectionError";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
+import useRefetchOnReconnect from "./useRefetchOnReconnect";
 
 const Discover = ({ refreshKey = 0 }) => {
   // Word of the Day and Upcoming sit side by side, each on half the width.
@@ -76,6 +82,14 @@ const Discover = ({ refreshKey = 0 }) => {
   const eventTask = useCallback(() => getNextEvent().then(setEvent), []);
   const eventSection = useAsyncSection(eventTask);
 
+  // Both services fall back to a bundled list when there is no internet, so a
+  // device that was offline at mount would otherwise keep showing that fallback
+  // for the whole session — Upcoming especially, since it never refetches on
+  // focus. Data that came from the API or the day-scoped cache is real and is
+  // left alone, so a reconnect costs nothing in the normal case.
+  useRefetchOnReconnect(isBundledWord(word), wordSection.retry);
+  useRefetchOnReconnect(isBundledEvent(event), eventSection.retry);
+
   return (
     <View>
       <SectionLabel title={STRINGS.DISCOVER} />
@@ -113,7 +127,10 @@ const Discover = ({ refreshKey = 0 }) => {
               >
                 {displayWord}
               </CustomText>
-              <CustomText style={[styles.translit, { color: cardSecondaryColor }]} numberOfLines={1}>
+              <CustomText
+                style={[styles.translit, { color: cardSecondaryColor }]}
+                numberOfLines={1}
+              >
                 {/* Devanagari under Hindi, roman elsewhere. The line above is
                     always Gurmukhi, so this is never a duplicate of it. */}
                 {secondLine}
@@ -168,7 +185,10 @@ const Discover = ({ refreshKey = 0 }) => {
                 {event?.name ?? ""}
               </CustomText>
               {event?.subtitle ? (
-                <CustomText style={[styles.meaning, { color: cardSecondaryColor }]} numberOfLines={1}>
+                <CustomText
+                  style={[styles.meaning, { color: cardSecondaryColor }]}
+                  numberOfLines={1}
+                >
                   {event.subtitle}
                 </CustomText>
               ) : null}

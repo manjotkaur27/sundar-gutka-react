@@ -1,7 +1,3 @@
-// Deep-import the ESM build directly (same reason as nanakshahiDate.js: Metro 0.78
-// doesn't enable package "exports", so a bare import would resolve the IIFE build).
-// eslint-disable-next-line import/extensions, import/no-unresolved
-import { findMovableGurpurab as libFindMovableGurpurab } from "nanakshahi/dist/index.js";
 import { constant, logError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
 import { readFreshCache, writeCache } from "./dailyCache";
@@ -10,72 +6,250 @@ import { readFreshCache, writeCache } from "./dailyCache";
 // computed relative to "today", so a same-day cache is always correct).
 const CACHE_KEY = "@upcoming_events_cache_v1";
 
-// Sikh Gurpurabs / historical days for the Discover "Upcoming" card.
+// Sikh Gurpurabs and celebrations for the Discover "Upcoming" card — the
+// offline mirror of the backend's /dashboard/events feed. Keep the two in sync:
+// the canonical copy is gurpurabs.data.ts in khalis-users-api, and this list is
+// what users see when that feed is unreachable.
 //
-// Fixed-date (solar) Nanakshahi gurpurabs recur on the same Gregorian date each
-// year and are listed below. The lunar/movable ones (Guru Nanak Parkash, Bandi
-// Chhor/Diwali, Holla Mohalla, and the bhagat birthdays) drift year to year, so
-// those are computed from the official nanakshahi library instead of hardcoded.
+// Source of truth is the SGPC calendar as published by SikhNet
+// (https://sikhnet.com/pages/sikh-gurpurab-calendar), Nanakshahi Samat 558.
+// Scope is Guru events plus celebrations; non-Guru births/martyrdoms, purely
+// historical days and political events are deliberately not listed.
+//
+// `subtitle` is the Nanakshahi date, which is also what distinguishes the two
+// same-named Foundation Stone entries.
+//
+// These are NOT stable Gregorian dates — SGPC reckons the solar months
+// sidereally, so they drift a day between years, and the `nanakshahi` package
+// implements the older 2003 calendar instead (it puts Parkash Guru Nanak Dev Ji
+// and Bandi Chhor one day earlier than SGPC does). That is why the movable
+// gurpurabs are listed here too rather than computed. Refresh from the URL above
+// once the next Samat's calendar is published; see SAMAT_VALID_THROUGH below.
 const GURPURABS = [
-  { name: "Parkash Parv Guru Gobind Singh", month: 1, day: 5 },
-  { name: "Birth Baba Deep Singh Ji Shaheed", month: 1, day: 26 },
-  { name: "Birth Sahibzada Baba Ajit Singh Ji", month: 2, day: 11 },
-  { name: "Prakash Sri Guru Har Rai Sahib Ji", month: 2, day: 14 },
-  { name: "Nanakshahi New Year", month: 3, day: 14 },
-  { name: "Shaheedi Sardar Bhagat Singh", month: 3, day: 23 },
-  { name: "Gurgaddi Sri Guru Har Rai Sahib Ji", month: 3, day: 30 },
-  { name: "Gurgaddi Guru Amar Das Ji", month: 4, day: 2 },
-  { name: "Joti Jot Sri Guru Angad Dev Ji", month: 4, day: 5 },
-  { name: "Joti Jot Sri Guru Hargobind Sahib Ji", month: 4, day: 6 },
-  { name: "Birth Sahibzada Baba Jujhar Singh Ji", month: 4, day: 9 },
-  { name: "Khalsa Sajna Diwas - Vaisakhi", month: 4, day: 14 },
-  { name: "Joti Jot Guru Harkrishan Sahib Ji", month: 4, day: 14 },
-  { name: "Gurgaddi Guru Tegh Bahadur Sahib", month: 4, day: 14 },
-  { name: "Parkash Sri Guru Angad Dev Ji", month: 4, day: 18 },
-  { name: "Parkash Guru Tegh Bahadur Sahib Ji", month: 4, day: 21 },
-  { name: "Birth Bhagat Dhana Ji", month: 4, day: 21 },
-  { name: "Joti Jot Baba Gurditta Ji", month: 4, day: 22 },
-  { name: "Parkash Shri Guru Arjan Dev Ji", month: 4, day: 23 },
-  { name: "Birth Shaheed Bhai Mani Singh Ji", month: 4, day: 24 },
-  { name: "Parkash Shri Guru Amar Das Sahib Ji", month: 4, day: 30 },
-  { name: "Sirhind Fateh Diwas", month: 5, day: 12 },
-  { name: "Gurgaddi Sri Guru Hargobind Sahib Ji", month: 6, day: 8 },
-  { name: "Parkash Shri Guru Hargobind Sahib", month: 6, day: 15 },
-  { name: "Shaheedi Guru Arjan Dev Ji", month: 6, day: 18 },
-  { name: "Shaheedi Baba Banda Singh Ji Bahadur", month: 6, day: 25 },
-  { name: "Prakash Sri Guru Hargobind Sahib Ji", month: 6, day: 30 },
-  { name: "Historical Miri Piri Divas", month: 7, day: 9 },
-  { name: "Shaheedi Bhai Taru Singh Ji", month: 7, day: 16 },
-  { name: "Parkash Guru Harkrishan Sahib Ji", month: 7, day: 22 },
-  { name: "First Parkash of Guru Granth Sahib", month: 8, day: 28 },
-  { name: "Gurgaddi Guru Arjan Dev Ji", month: 8, day: 29 },
-  { name: "Sampuranta Divas Sri Guru Granth Sahib Ji", month: 8, day: 30 },
-  { name: "Joti Jot Guru Ramdas Ji", month: 8, day: 30 },
-  { name: "Gurgaddi Guru Ramdas Sahib", month: 9, day: 8 },
-  { name: "Joti Jot Sri Guru Amar Das Ji", month: 9, day: 10 },
-  { name: "Gurgaddi Guru Angad Dev Ji", month: 9, day: 15 },
-  { name: "Joti Jot Guru Nanak Sahib", month: 9, day: 20 },
-  { name: "Birth Sardar Shaheed Bhagat Singh", month: 9, day: 28 },
-  { name: "Parkash Guru Ramdas Sahib", month: 10, day: 11 },
-  { name: "Joti Jot Guru Har Rai Sahib", month: 10, day: 19 },
-  { name: "Gurgaddi Guru Harkrishan Sahib", month: 10, day: 19 },
-  { name: "Birth Baba Budha Ji", month: 10, day: 23 },
-  { name: "Joti Jot Guru Gobind Singh Sahib", month: 10, day: 29 },
-  { name: "Shaheedi Baba Deep Singh Ji", month: 11, day: 15 },
-  { name: "Shaheedi Guru Tegh Bahadur Sahib", month: 11, day: 28 },
-  { name: "Birth Sahibzada Baba Zorawar Singh Ji", month: 11, day: 30 },
-  { name: "Gurgaddi Guru Gobind Singh Sahib", month: 12, day: 6 },
-  { name: "Birth Sahibzada Baba Fateh Singh Ji", month: 12, day: 14 },
-  { name: "Birth Baba Atal Rai Ji", month: 12, day: 22 },
-  { name: "Shaheedi Sahibzada Baba Ajit Singh Ji", month: 12, day: 23 },
-  { name: "Shaheedi Sahibzada Baba Jujhar Singh Ji", month: 12, day: 23 },
-  { name: "Shaheedi Sahibzada Baba Jorawar Singh Ji", month: 12, day: 28 },
-  { name: "Shaheedi Sahibzada Baba Fateh Singh Ji", month: 12, day: 28 },
+  {
+    name: "Foundation Stone of Sachkhand Sri Harimandir Sahib",
+    month: 1,
+    day: 14,
+    subtitle: "01 Magh",
+  },
+  {
+    name: "Jorh Mela Sri Muktsar Sahib (Maaghi)",
+    month: 1,
+    day: 14,
+    subtitle: "01 Magh",
+  },
+  {
+    name: "Prakash Guru Gobind Singh Sahib Ji",
+    month: 1,
+    day: 15,
+    subtitle: "02 Magh",
+  },
+  {
+    name: "Marriage of Guru Gobind Singh Ji & Mata Jito Ji",
+    month: 2,
+    day: 11,
+    subtitle: "29 Magh",
+  },
+  { name: "Nanakshahi New Year", month: 3, day: 14, subtitle: "01 Chet" },
+  {
+    name: "Gurgaddi Guru Har Rai Sahib Ji",
+    month: 3,
+    day: 17,
+    subtitle: "04 Chet",
+  },
+  {
+    name: "Gurgaddi Guru Amar Das Sahib Ji",
+    month: 3,
+    day: 19,
+    subtitle: "06 Chet",
+  },
+  {
+    name: "Joti Jot Guru Angad Dev Ji",
+    month: 3,
+    day: 22,
+    subtitle: "09 Chet",
+  },
+  {
+    name: "Joti Jot Guru Hargobind Sahib Ji",
+    month: 3,
+    day: 23,
+    subtitle: "10 Chet",
+  },
+  {
+    name: "Gurgaddi Guru Tegh Bahadur Sahib Ji",
+    month: 4,
+    day: 1,
+    subtitle: "19 Chet",
+  },
+  {
+    name: "Joti Jot Guru Har Krishan Sahib Ji",
+    month: 4,
+    day: 1,
+    subtitle: "19 Chet",
+  },
+  {
+    name: "Prakash Guru Tegh Bahadur Sahib Ji",
+    month: 4,
+    day: 7,
+    subtitle: "25 Chet",
+  },
+  { name: "Prakash Guru Arjan Dev Ji", month: 4, day: 9, subtitle: "27 Chet" },
+  { name: "Sikh Dastaar Divas", month: 4, day: 13, subtitle: "31 Chet" },
+  {
+    name: "Khalsa Saajna Divas (Vaisakhi)",
+    month: 4,
+    day: 14,
+    subtitle: "01 Vaisakh",
+  },
+  {
+    name: "Prakash Guru Angad Dev Ji",
+    month: 4,
+    day: 18,
+    subtitle: "05 Vaisakh",
+  },
+  {
+    name: "Prakash Guru Amar Das Sahib Ji",
+    month: 4,
+    day: 30,
+    subtitle: "17 Vaisakh",
+  },
+  {
+    name: "Gurgaddi Guru Hargobind Sahib Ji",
+    month: 6,
+    day: 8,
+    subtitle: "25 Jeth",
+  },
+  {
+    name: "Shaheedi Guru Arjan Dev Ji",
+    month: 6,
+    day: 18,
+    subtitle: "04 Harh",
+  },
+  {
+    name: "Prakash Guru Hargobind Sahib Ji",
+    month: 6,
+    day: 30,
+    subtitle: "16 Harh",
+  },
+  {
+    name: "Foundation Stone of Sachkhand Sri Harimandir Sahib",
+    month: 7,
+    day: 5,
+    subtitle: "21 Harh",
+  },
+  { name: "Miri Piri Divas", month: 7, day: 24, subtitle: "09 Savan" },
+  {
+    name: "Prakash Guru Har Krishan Sahib Ji",
+    month: 8,
+    day: 7,
+    subtitle: "23 Savan",
+  },
+  {
+    name: "Sampuranta Divas Sri Guru Granth Sahib Ji",
+    month: 8,
+    day: 30,
+    subtitle: "14 Bhadon",
+  },
+  {
+    name: "First Prakash Sri Guru Granth Sahib Ji",
+    month: 9,
+    day: 12,
+    subtitle: "27 Bhadon",
+  },
+  {
+    name: "Gurgaddi Guru Arjan Dev Ji",
+    month: 9,
+    day: 13,
+    subtitle: "28 Bhadon",
+  },
+  {
+    name: "Joti Jot Guru Ram Das Ji",
+    month: 9,
+    day: 14,
+    subtitle: "29 Bhadon",
+  },
+  {
+    name: "Jorh Mela Gurdwara Kandh Sahib (Marriage of Guru Nanak Dev Ji)",
+    month: 9,
+    day: 18,
+    subtitle: "02 Assu",
+  },
+  { name: "Gurgaddi Guru Ram Das Ji", month: 9, day: 24, subtitle: "08 Assu" },
+  { name: "Joti Jot Guru Amar Das Ji", month: 9, day: 26, subtitle: "10 Assu" },
+  {
+    name: "Gurgaddi Guru Angad Dev Ji",
+    month: 10,
+    day: 1,
+    subtitle: "15 Assu",
+  },
+  {
+    name: "Joti Jot Guru Nanak Dev Ji",
+    month: 10,
+    day: 5,
+    subtitle: "19 Assu",
+  },
+  {
+    name: "Darbar Khalsa (Dussehra)",
+    month: 10,
+    day: 20,
+    subtitle: "04 Katak",
+  },
+  { name: "Prakash Guru Ram Das Ji", month: 10, day: 27, subtitle: "11 Katak" },
+  {
+    name: "Gurgaddi Guru Har Krishan Sahib Ji",
+    month: 11,
+    day: 3,
+    subtitle: "18 Katak",
+  },
+  {
+    name: "Joti Jot Guru Har Rai Sahib Ji",
+    month: 11,
+    day: 3,
+    subtitle: "18 Katak",
+  },
+  { name: "Bandi Chhor Divas", month: 11, day: 8, subtitle: "23 Katak" },
+  {
+    name: "Gurgaddi Sri Guru Granth Sahib Ji (Nanded)",
+    month: 11,
+    day: 11,
+    subtitle: "26 Katak",
+  },
+  {
+    name: "Joti Jot Guru Gobind Singh Ji",
+    month: 11,
+    day: 14,
+    subtitle: "29 Katak",
+  },
+  {
+    name: "Prakash Guru Nanak Dev Ji",
+    month: 11,
+    day: 24,
+    subtitle: "09 Maghar",
+  },
+  {
+    name: "Gurgaddi Guru Gobind Singh Ji",
+    month: 12,
+    day: 12,
+    subtitle: "27 Maghar",
+  },
+  {
+    name: "Shaheedi Guru Tegh Bahadur Sahib Ji",
+    month: 12,
+    day: 14,
+    subtitle: "29 Maghar",
+  },
+  {
+    name: "Gurgaddi Guru Khalsa Panth (Chamkaur Sahib)",
+    month: 12,
+    day: 14,
+    subtitle: "29 Maghar",
+  },
+  { name: "Hola Mohalla", month: 3, day: 4, subtitle: "21 Phagun" },
 ];
 
-// Movable (lunar) gurpurabs the nanakshahi library can resolve to an exact
-// Gregorian date for a given year.
-const MOVABLE_KEYS = ["gurunanak", "bandichhorr", "holla", "ravidaas", "kabeer", "naamdev"];
+// Last date the list above is known-good for (end of Samat 558). Past this the
+// dates are last year's — the backend feed logs a warning at the same boundary.
+const SAMAT_VALID_THROUGH = "2027-02-28";
 
 const startOfToday = () => {
   const t = new Date();
@@ -90,42 +264,18 @@ const daysAwayFrom = (month, day) => {
   return Math.round((target - today) / 86400000);
 };
 
+// Device-local "today" as YYYY-MM-DD, for comparing against SAMAT_VALID_THROUGH.
+const todayIso = () => {
+  const t = startOfToday();
+  const mm = String(t.getMonth() + 1).padStart(2, "0");
+  const dd = String(t.getDate()).padStart(2, "0");
+  return `${t.getFullYear()}-${mm}-${dd}`;
+};
+
 const daysAwayFromDate = (d) => {
   const today = startOfToday();
   const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   return Math.round((target - today) / 86400000);
-};
-
-// Computes each movable gurpurab's next future occurrence by checking this year
-// and next year (the library appends "(year)" to names, which we strip).
-const movableEvents = () => {
-  const today = startOfToday();
-  const years = [today.getFullYear(), today.getFullYear() + 1];
-  const out = [];
-  MOVABLE_KEYS.forEach((key) => {
-    years.forEach((yr) => {
-      try {
-        const r = libFindMovableGurpurab(key, yr);
-        const daysAway = daysAwayFromDate(r.gregorianDate);
-        if (daysAway >= 0 && daysAway <= 366) {
-          out.push({
-            name: r.gurpurab.en.replace(/\s*\(\d{4}\)\s*$/, ""),
-            subtitle: "",
-            daysAway,
-            _source: "nanakshahi",
-          });
-        }
-      } catch (_) {
-        // Year outside the library's supported range — skip this occurrence.
-      }
-    });
-  });
-  // Keep only the nearest occurrence per event name.
-  const nearest = {};
-  out.forEach((e) => {
-    if (!nearest[e.name] || e.daysAway < nearest[e.name].daysAway) nearest[e.name] = e;
-  });
-  return Object.values(nearest);
 };
 
 const fetchJson = async (url) => {
@@ -171,29 +321,40 @@ const parseApiEvents = (data) => {
       daysAway = daysAwayFrom(Number(e.month), Number(e.day)); // recurring
     }
     if (daysAway == null) return;
-    out.push({ name: e.name, subtitle: e.subtitle ?? "", daysAway, _source: "api" });
+    out.push({
+      name: e.name,
+      subtitle: e.subtitle ?? "",
+      daysAway,
+      _source: "api",
+    });
   });
   return out.length ? out.sort((a, b) => a.daysAway - b.daysAway) : null;
 };
 
-// Bundled local computation — always available. Fixed gurpurabs recur yearly;
-// movable ones come from the nanakshahi lib. Used offline or until the backend
-// feed is deployed.
+// Bundled local computation — always available. Used offline, or if the backend
+// feed is unreachable. Warns once the table is out of its Samat rather than
+// quietly serving last year's dates.
 const computeLocalEvents = () => {
-  const fixed = GURPURABS.map((e) => ({
+  if (todayIso() > SAMAT_VALID_THROUGH) {
+    logError(
+      new Error(
+        `Bundled gurpurab dates expired on ${SAMAT_VALID_THROUGH} — refresh GURPURABS from the SGPC calendar`
+      )
+    );
+  }
+  return GURPURABS.map((e) => ({
     name: e.name,
     subtitle: e.subtitle ?? "",
     daysAway: daysAwayFrom(e.month, e.day),
     _source: "list",
-  }));
-  let movable = [];
-  try {
-    movable = movableEvents();
-  } catch (err) {
-    logError(new Error(`movable gurpurabs failed: ${err?.message || err}`));
-  }
-  return [...fixed, ...movable].sort((a, b) => a.daysAway - b.daysAway);
+  })).sort((a, b) => a.daysAway - b.daysAway || a.name.localeCompare(b.name));
 };
+
+// True when an event came from the bundled GURPURABS list rather than the
+// backend feed or the day-scoped cache — i.e. the card is showing offline
+// content and should refetch once connectivity returns. Exported so the UI
+// doesn't have to know the `_source` tag values; see useRefetchOnReconnect.
+export const isBundledEvent = ({ _source: source } = {}) => source === "list";
 
 export const getUpcomingEvents = async ({ requireOnline = false } = {}) => {
   // 1. Today's cached feed → use it (offline-safe, refreshes daily).
