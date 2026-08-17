@@ -340,7 +340,16 @@ const FolderScreen = ({ navigation, route }) => {
         {[
           { label: STRINGS.POTHI_ADD_BANIS, run: () => setEditing(true) },
           { label: STRINGS.POTHI_RENAME, run: () => setRenaming(true) },
-          { label: STRINGS.POTHI_DELETE_BANIS, run: () => setPicked(new Set()) },
+          {
+            label: STRINGS.POTHI_DELETE_BANIS,
+            // Red like the delete below it: both remove something, and a row
+            // that removes should not read as the same kind of action as "Add
+            // banis" or "Rename", which only ever add or relabel. What separates
+            // the two deletes is order and wording, not colour — this one edits
+            // the contents, the last one destroys the pothi itself.
+            destructive: true,
+            run: () => setPicked(new Set()),
+          },
           // Morning and Evening Nitnem are not offered a delete at all — see
           // PothiActionsSheet for why. Filtered out rather than disabled: a
           // greyed row invites a tap and then explains nothing.
@@ -349,12 +358,10 @@ const FolderScreen = ({ navigation, route }) => {
             : [
                 {
                   label: STRINGS.POTHI_DELETE_POTHI,
-                  // Last, and the only one drawn in the error colour — it
-                  // destroys the whole pothi rather than editing it, so it must
-                  // not sit indistinguishable from "Delete Banis" directly
-                  // above it. The confirm is raised at the app root, which is
-                  // why leaving the screen straight after does not take it down
-                  // with us.
+                  // Last, and the heavier of the two deletes — it destroys the
+                  // whole pothi rather than editing its contents. The confirm is
+                  // raised at the app root, which is why leaving the screen
+                  // straight after does not take it down with us.
                   destructive: true,
                   run: () =>
                     confirmDeletePothi({ id: pothiId, name: pothi?.name, count: rows.length }, () =>

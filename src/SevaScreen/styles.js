@@ -308,6 +308,11 @@ const createStyles = (theme) => {
       color: c.onControlAccent,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
+    // Pairs with the flattened disabled fill on the button — see the gradient in
+    // index.jsx. Matches the shared ui/Button's disabled foreground.
+    donateButtonTextDisabled: {
+      color: c.textDisabled,
+    },
     footerText: {
       fontSize: 13,
       color: c.textSecondary,

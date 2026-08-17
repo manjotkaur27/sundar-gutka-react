@@ -96,24 +96,34 @@ const MEANS_META = {
   other: { Icon: StarIcon },
 };
 
+/** Half-period of the caret blink, matching a native text cursor. */
+const BLINK_MS = 450;
+
 // A blinking text cursor for the custom-amount inline display (the real
 // TextInput is hidden — see the amount card — so the ₹ symbol and the digits
 // can be rendered as one baseline-aligned inline Text).
+//
+// It toggles the glyph's COLOUR on an interval rather than animating opacity,
+// and that is load-bearing. This caret is an inline span inside the figure's
+// `CustomText` → `ui/Text` → RN `Text`, and React Native flattens nested text
+// into a VIRTUAL node with no backing native view. An `Animated` opacity loop
+// with `useNativeDriver: true` therefore has nothing to attach to: it ran
+// happily and changed nothing, so the caret rendered permanently solid instead
+// of blinking. Colour is a text attribute, so it does apply to a virtual span.
+//
+// Toggling to "transparent" rather than swapping the character out keeps the
+// glyph's advance width constant, so the digits beside it do not jitter.
+//
+// No fontFamily: "sans-serif" is an ANDROID family name — on iOS it is not a
+// real family and RN logs "Unrecognized font family" before falling back. A
+// bar needs no particular face, so it inherits the figure's.
 const BlinkingCursor = ({ color, fontSize }) => {
-  const opacity = useRef(new Animated.Value(1)).current;
+  const [on, setOn] = useState(true);
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0, duration: 450, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity]);
-  return (
-    <Animated.Text style={{ opacity, color, fontSize, fontFamily: "sans-serif" }}>|</Animated.Text>
-  );
+    const id = setInterval(() => setOn((visible) => !visible), BLINK_MS);
+    return () => clearInterval(id);
+  }, []);
+  return <Text style={{ color: on ? color : "transparent", fontSize }}>|</Text>;
 };
 
 BlinkingCursor.propTypes = {
@@ -190,6 +200,14 @@ const SevaScreen = () => {
   const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [frequency, setFrequency] = useState("Monthly");
+  // Whether the hidden amount input actually holds focus — NOT the same thing
+  // as `isOtherSelected`. The caret is the only visible sign the field is live
+  // (the real TextInput is 1x1 and fully transparent), so it has to follow real
+  // focus: the keyboard can be dismissed — hardware back, or a tap outside —
+  // while `isOtherSelected` stays true, and a caret still sitting there claims
+  // keystrokes will land when they will not. See focusOtherAmount below, which
+  // documents the same divergence from the other side.
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
 
   // Explicit focus for the "Other" amount input — see the effect below.
   const otherAmountInputRef = useRef(null);
@@ -329,6 +347,11 @@ const SevaScreen = () => {
     if (!isOther) {
       setSelectedAmount(amount);
       setCustomAmount("");
+      // Leaving "Other" unmounts the hidden input, and an unmounting TextInput
+      // does not reliably fire onBlur — so clear this by hand. Left stale-true,
+      // re-entering "Other" would show the caret a beat before the field was
+      // actually focused, which is the thing the caret is supposed to mean.
+      setIsAmountFocused(false);
     }
     hasInteractedRef.current = true;
     markStep("amount_selected");
@@ -396,6 +419,19 @@ const SevaScreen = () => {
 
   const effectiveDonationType = donationTypeOf(frequency);
 
+  // ─── The one definition of "is there an amount to donate" ──────────────────
+  // The Donate button's disabled state and handleDonate both read `canDonate`,
+  // so the button can never say one thing while the tap does another.
+  //
+  // `localAmount` is in the DONOR's currency (the typed figure in "Other" mode,
+  // else the selected preset tier); `donationUsd` is what Qgiv is prefilled
+  // with, because Qgiv charges USD. localToUsd returns 0 for ""/"0"/non-numeric
+  // and floors a real amount at $1, so `> 0` is an exact test for "the donor
+  // has chosen something" with no second threshold to keep in sync.
+  const localAmount = isOtherSelected ? customAmount : selectedAmount;
+  const donationUsd = localToUsd(localAmount, currency);
+  const canDonate = donationUsd > 0;
+
   // ─── Shared browser helper ─────────────────────────────────────────────────
   const openBrowserForUrl = useCallback(
     async (url) => {
@@ -452,14 +488,15 @@ const SevaScreen = () => {
   }, []);
 
   const handleDonate = useCallback(async () => {
-    // Both the selected preset and a typed custom amount are in the LOCAL
-    // currency — convert to USD, because Qgiv charges in USD. (See
-    // services/currency.js: figures are localised, the charge is not.)
-    const localAmount = isOtherSelected ? customAmount : selectedAmount;
-    let finalAmount = localToUsd(localAmount, currency);
-    if (Number.isNaN(finalAmount) || finalAmount <= 0) {
-      finalAmount = 10; // Fallback (USD)
-    }
+    // Guarded twice on purpose — the button is disabled AND the handler refuses,
+    // so no future caller can reach the hand-off without an amount.
+    //
+    // There used to be a `finalAmount = 10` fallback here for an empty or zero
+    // amount. It meant an empty box opened Qgiv prefilled with $10 the donor had
+    // never chosen — and in a raw US dollar figure that a non-USD donor was
+    // never shown. A donor must only ever be handed a figure they picked.
+    // `donationUsd` is derived above and is what the button gates on.
+    if (!canDonate) return;
 
     hasDonatedRef.current = true;
     markStep("payment_started");
@@ -471,12 +508,12 @@ const SevaScreen = () => {
     trackSevaEvent("payment_started", {
       provider: "qgiv",
       is_custom: isOtherSelected,
-      amount_bucket: bucketAmount(finalAmount),
+      amount_bucket: bucketAmount(donationUsd),
       donation_type: effectiveDonationType,
     });
 
     const url = buildQgivUrl({
-      amount: finalAmount,
+      amount: donationUsd,
       isCustomAmount: isOtherSelected,
       donationType: effectiveDonationType,
       frequency,
@@ -501,14 +538,13 @@ const SevaScreen = () => {
     // same point on both platforms. Params are always real, non-empty values.
     trackSevaEvent("payment_success", {
       provider: "qgiv",
-      amount_bucket: bucketAmount(finalAmount),
+      amount_bucket: bucketAmount(donationUsd),
       donation_type: effectiveDonationType,
     });
   }, [
+    canDonate,
+    donationUsd,
     isOtherSelected,
-    customAmount,
-    selectedAmount,
-    currency,
     effectiveDonationType,
     frequency,
     dispatch,
@@ -736,7 +772,12 @@ const SevaScreen = () => {
               ) : (
                 displayAmount
               )}
-              {isOtherSelected && (
+              {/* Gated on REAL focus, not on "Other is selected" — so the caret
+                  disappears with the keyboard when the field is tapped out of,
+                  instead of sitting there on a field that takes no keystrokes.
+                  Absent rather than merely still: a motionless caret is exactly
+                  what made the old state unreadable. */}
+              {isOtherSelected && isAmountFocused && (
                 <BlinkingCursor color={c.textPrimary} fontSize={amountFontSize} />
               )}
               {frequency !== "One Time" && (
@@ -749,6 +790,11 @@ const SevaScreen = () => {
                 style={styles.hiddenInput}
                 value={customAmount}
                 onChangeText={handleCustomAmountChange}
+                // The only source of truth for whether this field is live. The
+                // effect above focuses it whenever Other is selected, so the
+                // caret still appears the moment the amount card is tapped.
+                onFocus={() => setIsAmountFocused(true)}
+                onBlur={() => setIsAmountFocused(false)}
                 keyboardType="numeric"
                 caretHidden
               />
@@ -812,9 +858,7 @@ const SevaScreen = () => {
             <React.Fragment key={freq}>
               {index > 0 && (
                 <View
-                  style={
-                    stackFrequency ? styles.frequencyDividerStacked : styles.frequencyDivider
-                  }
+                  style={stackFrequency ? styles.frequencyDividerStacked : styles.frequencyDivider}
                 />
               )}
               <Pressable
@@ -841,10 +885,26 @@ const SevaScreen = () => {
         })}
       </View>
 
-      {/* Donate button */}
-      <Pressable style={styles.donateButton} onPress={handleDonate}>
+      {/* Donate button. Inert until there is an amount to donate — it used to
+          stay live on an empty box and open Qgiv at a substituted $10. */}
+      <Pressable
+        style={styles.donateButton}
+        onPress={handleDonate}
+        disabled={!canDonate}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.donate}
+        accessibilityState={{ disabled: !canDonate }}
+      >
         <LinearGradient
-          colors={[c.controlAccent, c.controlAccentPressed]}
+          // Disabled FLATTENS the fill rather than fading it under an opacity,
+          // so the label keeps its own contrast — the same treatment the shared
+          // ui/Button gives a disabled primary. LinearGradient needs two stops,
+          // hence the repeated colour.
+          colors={
+            canDonate
+              ? [c.controlAccent, c.controlAccentPressed]
+              : [c.surfaceSelected, c.surfaceSelected]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={{
@@ -857,8 +917,12 @@ const SevaScreen = () => {
             paddingVertical: 14,
           }}
         >
-          <DonateIcon size={30} color={c.onControlAccent} />
-          <CustomText style={styles.donateButtonText}>{STRINGS.donate}</CustomText>
+          <DonateIcon size={30} color={canDonate ? c.onControlAccent : c.textDisabled} />
+          <CustomText
+            style={[styles.donateButtonText, !canDonate && styles.donateButtonTextDisabled]}
+          >
+            {STRINGS.donate}
+          </CustomText>
         </LinearGradient>
       </Pressable>
     </>

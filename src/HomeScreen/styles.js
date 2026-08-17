@@ -56,27 +56,29 @@ const createStyles = (theme) => ({
     // broken, so the name absorbs the pressure instead.
     flexShrink: 0,
   },
+  // Shrinks in place of the Text it wraps. A `Text` carrying `flexShrink`
+  // directly inside a row is measured for height at its UNSHRUNK width — one
+  // line — and keeps that height after the width is narrowed, so the wrapped
+  // second line is laid out past the bottom of the box and clipped. That is why
+  // the header showed "ਸੁੰਦਰ" with no "ਗੁਟਕਾ" on an ordinary phone. A View has
+  // no such coupling: it shrinks, and the Text inside reports its real wrapped
+  // height.
+  titleNameWrap: {
+    flexShrink: 1,
+  },
   newHeaderTitleText: {
     fontSize: 32,
-    // Explicit, and between two failures rather than at one of them.
-    //
-    // Unset, React Native applies the font's own generous default, which at
-    // 32pt left a visible trough between "ਸੁੰਦਰ" and "ਗੁਟਕਾ" once the name
-    // started wrapping. 36 closed that — but 36 on 32 is a ratio of 1.125, and
-    // a line box that tight is centred on the letter bodies and trims what sits
-    // outside them. Gurmukhi puts marks ABOVE the letter, so the tippi on
-    // "ਸੁੰਦਰ" was the part that got cut, and worst at a raised OS text size
-    // where the scaled box rounds against the glyph.
-    //
-    // 40 (1.25) clears the tippi and is still well inside the default, so the
-    // two words go on reading as one title.
-    lineHeight: 40,
+    // lineHeight is NOT set here — it is passed in by BaniHeader, scaled with
+    // the OS text setting. React Native grows `fontSize` with that setting but
+    // leaves an explicit `lineHeight` untouched, so a constant here would hold
+    // the line box at 40 while the glyphs grew past it and the two wrapped
+    // lines collided. See TITLE_LINE_RATIO there for why the ratio is 1.25:
+    // tighter trims the tippi above "ਸੁੰਦਰ" (Gurmukhi marks sit above the
+    // letter body), looser reads as two titles rather than one.
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     color: theme.c.headerFg,
     textAlign: "center",
     marginTop: 1.2, // 40% less than the original 2px gap to the invocation line above
-    // Shrinks before the ornaments do, and wraps rather than truncating.
-    flexShrink: 1,
     // Was two literal spaces inside the string. Real padding survives wrapping;
     // a leading space does not, and would have indented the first line.
     paddingHorizontal: 8,
