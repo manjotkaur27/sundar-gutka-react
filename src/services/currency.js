@@ -117,14 +117,117 @@ export const getDeviceCountryCode = () => {
 };
 
 /**
+ * IANA timezone → ISO country, for the regions whose currency we support.
+ * Anything unlisted resolves to USD anyway, so US zones need no entries and
+ * the table stays small. Australia is handled by prefix (every Australia/*
+ * zone is AU). Both Kolkata spellings are present — older Android images still
+ * report the Asia/Calcutta alias.
+ */
+const TZ_TO_COUNTRY = {
+  "Asia/Kolkata": "IN",
+  "Asia/Calcutta": "IN",
+  "Europe/London": "GB",
+  // Canada
+  "America/Toronto": "CA",
+  "America/Montreal": "CA",
+  "America/Vancouver": "CA",
+  "America/Edmonton": "CA",
+  "America/Winnipeg": "CA",
+  "America/Halifax": "CA",
+  "America/St_Johns": "CA",
+  "America/Regina": "CA",
+  "America/Moncton": "CA",
+  "America/Whitehorse": "CA",
+  "America/Yellowknife": "CA",
+  "America/Iqaluit": "CA",
+  // Eurozone — mapped to their country, which countryToCurrencyCode folds to EUR
+  "Europe/Paris": "FR",
+  "Europe/Berlin": "DE",
+  "Europe/Madrid": "ES",
+  "Europe/Rome": "IT",
+  "Europe/Amsterdam": "NL",
+  "Europe/Brussels": "BE",
+  "Europe/Vienna": "AT",
+  "Europe/Dublin": "IE",
+  "Europe/Lisbon": "PT",
+  "Europe/Helsinki": "FI",
+  "Europe/Athens": "GR",
+  "Europe/Bratislava": "SK",
+  "Europe/Ljubljana": "SI",
+  "Europe/Tallinn": "EE",
+  "Europe/Riga": "LV",
+  "Europe/Vilnius": "LT",
+  "Europe/Luxembourg": "LU",
+  "Europe/Malta": "MT",
+  "Europe/Zagreb": "HR",
+  "Asia/Nicosia": "CY",
+  "Europe/Nicosia": "CY",
+};
+
+/**
+ * The device's IANA timezone, or "" when the JS engine can't supply one.
+ * Hermes does not always ship timezone data and answers "UTC" for everyone when
+ * it doesn't, so a literal "UTC" is treated as "unknown" and falls through to
+ * the offset tier rather than being trusted. (A real UK device reports
+ * Europe/London, not UTC.)
+ */
+const getDeviceTimeZone = () => {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    return tz === "UTC" ? "" : tz;
+  } catch (_) {
+    return "";
+  }
+};
+
+/**
+ * Raw UTC offset → country, for offsets that belong to exactly one country we
+ * support. Only UTC+5:30 qualifies: it is India (Sri Lanka shares it, and
+ * nobody else does). Deliberately not extended to +10/+11 etc., which are
+ * shared with countries whose donors should stay on USD.
+ * getTimezoneOffset() is plain ECMAScript — it works in every engine, needs no
+ * Intl and no native module.
+ */
+const countryFromOffset = () => {
+  try {
+    return new Date().getTimezoneOffset() === -330 ? "IN" : "";
+  } catch (_) {
+    return "";
+  }
+};
+
+/**
+ * The donor's country, resolved on-device in three tiers, all local and
+ * instant — no network call, no native module, no permissions:
+ *
+ *   1. IANA timezone   ("Asia/Kolkata" → IN)
+ *   2. UTC offset      (UTC+5:30 → IN) — covers engines with no timezone data
+ *   3. Device region   ("en_IN" → IN) — last resort only
+ *
+ * Timezone leads because it is set from the network and is INDEPENDENT OF
+ * LANGUAGE. Device region is last precisely because it is unreliable here: most
+ * Indian users run their phone in English (US) or English (UK), so the region
+ * reads US/GB and the donate page shows $ or £ — the bug this ladder fixes.
+ * India is always caught by tier 1 or 2, so it never reaches tier 3.
+ */
+export const resolveDeviceCountry = () => {
+  const tz = getDeviceTimeZone();
+  if (tz) {
+    if (tz.startsWith("Australia/")) return "AU";
+    if (TZ_TO_COUNTRY[tz]) return TZ_TO_COUNTRY[tz];
+  }
+  return countryFromOffset() || getDeviceCountryCode();
+};
+
+/**
  * Resolves the currency to display. Pass an explicit ISO country code (e.g.
  * the backend's `countryCode`, from services/sevaConfig.js) to override
- * device detection; omit it, or pass null/undefined, to fall back to the
- * device locale.
+ * device detection; omit it, or pass null/undefined, to resolve from the
+ * device via resolveDeviceCountry().
  * @returns {{code: string, symbol: string, rate: number}}
  */
 export const resolveCurrency = (overrideCountryCode) => {
-  const country = overrideCountryCode || getDeviceCountryCode();
+  const country = overrideCountryCode || resolveDeviceCountry();
   const code = countryToCurrencyCode(country);
   return { code, ...CURRENCIES[code] };
 };
