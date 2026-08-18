@@ -51,13 +51,6 @@ export const EVENING_ID = "default_evening_nitnem";
 export const MORNING_NITNEM_IDS = [2, 4, 6, 9, 10];
 export const EVENING_NITNEM_IDS = [21, 23];
 
-/**
- * Ids of the pothis this app seeds while signed out. The API seeds its own
- * equivalents with random uuids, so these are the ones that stand down when the
- * two meet — see `mergeRemote`.
- */
-export const LOCAL_DEFAULT_IDS = new Set([MORNING_ID, EVENING_ID]);
-
 /** The two default pothis, by the role each plays. */
 export const DEFAULT_KINDS = ["morning", "evening"];
 
@@ -412,7 +405,7 @@ export const toUpsertBody = (state) => ({
  * comparison would not. A folder only local (never synced) is kept; a folder
  * only remote is adopted.
  */
-export const mergeRemote = (state, remoteFolders = []) => {
+export const mergeRemote = (state, remoteFolders = [], now = Date.now()) => {
   const local = new Map(state.folders.map((folder) => [folder.id, folder]));
   // A folder this device deleted is NOT a new one from the server.
   const buried = new Set(state.deletedIds ?? []);
@@ -424,21 +417,49 @@ export const mergeRemote = (state, remoteFolders = []) => {
     merged.push(mine && mine.updatedAt > remote.updatedAt ? mine : remote);
     local.delete(remote.id);
   });
-  // A local default gives way to the server’s own copy of it.
+  // A local default gives way to the server’s own copy of it — but its
+  // EDITS do not.
   //
   // The API seeds Morning/Evening Nitnem with random uuids; a device that
   // seeded its pair while signed out then has two of each, and they cannot be
   // collapsed by name because the local ones are localised. They ARE the same
-  // pothi though — same banis in the same order — so the local copy stands
-  // down in favour of the server’s, which is the one both clients agree on.
+  // pothi, so the local one always stands down — an account must never end up
+  // with two Morning Nitnems.
+  //
+  // What standing down must NOT discard is the edit. A nitnem arranged before
+  // signing in is real work, and on a first sign-in it is the only copy that
+  // exists. So when the local default was actually edited — its banis differ
+  // from the seeded set — and is newer than the server’s, its items move onto
+  // the server’s folder, keeping the server’s id and stamped so the next push
+  // carries them up.
+  //
+  // An untouched seed is never adopted. Its `updatedAt` is the moment it was
+  // seeded, which is easily newer than a server copy edited days ago, so time
+  // alone would let a stock list overwrite a real one.
   //
   // The Morning/Evening pointer is NOT rewritten here: dropping the local
   // folder leaves the pointer dangling, and `reconcile` below re-resolves it by
   // bani signature — which lands on the server's copy, the very folder that
   // superseded it.
-  const remoteBaniSets = new Set(remoteFolders.map(baniSignature));
-  const supersededDefault = (folder) =>
-    LOCAL_DEFAULT_IDS.has(folder.id) && remoteBaniSets.has(baniSignature(folder));
+  const localDefaultId = { morning: MORNING_ID, evening: EVENING_ID };
+  const adoptedItems = new Map();
+  DEFAULT_KINDS.forEach((kind) => {
+    const mine = local.get(localDefaultId[kind]);
+    if (!mine) return;
+    const theirId = resolveDefaultId(kind, remoteFolders, null);
+    if (!theirId) return;
+    local.delete(localDefaultId[kind]);
+    const theirs = merged.find((folder) => folder.id === theirId);
+    const edited = baniSignature(mine) !== DEFAULT_SIGNATURES[kind];
+    if (theirs && edited && mine.updatedAt > theirs.updatedAt) {
+      adoptedItems.set(theirId, mine.items);
+    }
+  });
+  const resolved = merged.map((folder) =>
+    adoptedItems.has(folder.id)
+      ? { ...folder, items: adoptedItems.get(folder.id), updatedAt: now }
+      : folder
+  );
 
   // A tombstone retires ONLY when a pull proves the server no longer has that
   // id — not when DELETE returns 204.
@@ -455,7 +476,7 @@ export const mergeRemote = (state, remoteFolders = []) => {
   // Whatever is left is local-only — created offline, or before signing in.
   return reconcile({
     ...state,
-    folders: [...[...local.values()].filter((f) => !supersededDefault(f)), ...merged],
+    folders: [...local.values(), ...resolved],
     deletedIds: stillThere,
   });
 };

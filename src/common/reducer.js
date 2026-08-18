@@ -709,10 +709,20 @@ const todaysNitnem = createReducer(
     // Completion history only. The restored payload still carries the old
     // `selectedBaaniIds`, but the bani SET now comes from the Morning Nitnem
     // pothi, which My Pothi syncs on its own account — see usePothiSync.
-    [actionTypes.RESTORE_NITNEM]: (state, action) => ({
-      ...state,
-      completed: action.value?.completed ?? state.completed,
-    }),
+    // Union per date, NOT replace. A tick records that a bani was read that
+    // day — a fact rather than a preference — so a day ticked on either side
+    // stays ticked. Replacing wholesale threw away whatever this device had
+    // done while signed out, which on a restore is the user's own work, and
+    // it made the cloud snapshot beat a second device for the same day.
+    [actionTypes.RESTORE_NITNEM]: (state, action) => {
+      const incoming = action.value?.completed;
+      if (!incoming) return state;
+      const completed = { ...state.completed };
+      Object.keys(incoming).forEach((date) => {
+        completed[date] = [...new Set([...(completed[date] ?? []), ...(incoming[date] ?? [])])];
+      });
+      return { ...state, completed };
+    },
   },
 );
 

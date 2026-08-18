@@ -163,6 +163,29 @@ describe("applyAccountScope", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  // A first sign-in has no previous ACCOUNT to protect — only whatever this
+  // person did on the device before signing in, which is their own. Purging
+  // it destroyed a nitnem arranged while signed out, which is exactly the
+  // work the signed-out editing is there to allow.
+  it("CLAIMS a first sign-in rather than purging it", async () => {
+    expect(await readLastAccount()).toBeNull();
+    const purged = await applyAccountScope("a@khalis.net", dispatch);
+    expect(purged).toBe(false);
+    expect(mockClearAllAnalyticsData).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+    // Still records the owner, so the NEXT account is a real switch.
+    expect(await readLastAccount()).toBe("a@khalis.net");
+  });
+
+  it("purges in full once a second account signs in after that", async () => {
+    await applyAccountScope("a@khalis.net", dispatch);
+    jest.clearAllMocks();
+    const purged = await applyAccountScope("b@khalis.net", dispatch);
+    expect(purged).toBe(true);
+    expect(mockClearAllAnalyticsData).toHaveBeenCalledTimes(1);
+    expect(await readLastAccount()).toBe("b@khalis.net");
+  });
+
   it("does nothing on a launch that was never signed in", async () => {
     const purged = await applyAccountScope(null, dispatch);
     expect(purged).toBe(false);

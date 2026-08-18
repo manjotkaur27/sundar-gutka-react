@@ -76,6 +76,12 @@ const usePothiSync = () => {
   useEffect(() => {
     if (isSignedIn) return;
     if (!pothis || pothis.seededDefaults || seededFor.current === pothis) return;
+    // Nothing to seed onto a slice that already holds folders. After an
+    // account purge `seededDefaults` is false again — the purge resets the
+    // slice and `mergeRemote` carries the flag through unchanged — so without
+    // this the next SIGN-OUT seeded a second Morning/Evening pair on top of
+    // the account's own and repointed Today's Nitnem at the empty new one.
+    if (pothis.folders?.length) return;
     const defaults = buildDefaultPothis(baniList, {
       morning: STRINGS.POTHI_DEFAULT_MORNING,
       evening: STRINGS.POTHI_DEFAULT_EVENING,

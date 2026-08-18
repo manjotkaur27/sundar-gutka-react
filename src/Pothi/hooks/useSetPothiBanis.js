@@ -20,11 +20,13 @@ import useRequireOnline from "./useRequireOnline";
  * Gated by `useRequireOnline`, so a signed-out or offline caller is told why
  * nothing happened rather than making an edit with nowhere to sync to.
  *
+ * @param {{ localEdit?: boolean }} [options] forwarded to `useRequireOnline`;
+ *   set by the Today's Nitnem editor, whose list is valid without an account.
  * @returns {(pothi: object, next: Array) => boolean} true if it was applied.
  */
-const useSetPothiBanis = () => {
+const useSetPothiBanis = ({ localEdit = false } = {}) => {
   const dispatch = useDispatch();
-  const requireOnline = useRequireOnline();
+  const requireOnline = useRequireOnline({ localEdit });
 
   return useCallback(
     (pothi, next) => {

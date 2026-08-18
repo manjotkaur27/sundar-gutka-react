@@ -99,12 +99,22 @@ export const purgeLocalUserData = async (dispatch) => {
  * Called on every session change. Purges only when the account actually
  * differs, then records the new owner.
  *
+ * A FIRST sign-in is the exception. There is no previous account whose data
+ * needs protecting — only whatever the person did on this device before they
+ * signed in, which is their own. That is claimed, not destroyed, so a nitnem
+ * arranged signed-out survives the sign-in that gives it somewhere to live.
+ * Every later change of account still purges in full.
+ *
  * Returns true if a purge happened (useful for tests and logging).
  */
 export const applyAccountScope = async (email, dispatch) => {
   try {
     const last = await readLastAccount();
     if (!isAccountChange(email, last)) return false;
+    if (!normalise(last) && normalise(email)) {
+      await writeLastAccount(normalise(email));
+      return false;
+    }
     await purgeLocalUserData(dispatch);
     await writeLastAccount(email ? normalise(email) : null);
     return true;

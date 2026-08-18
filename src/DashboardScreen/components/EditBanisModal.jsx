@@ -123,8 +123,8 @@ const EditBanisModal = ({ visible, onClose }) => {
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const baniListRedux = useSelector((state) => state.baniList);
   const morning = useSelector((state) => defaultPothi(state.pothis, "morning"));
-  const setBanis = useSetPothiBanis();
-  const requireOnline = useRequireOnline();
+  const setBanis = useSetPothiBanis({ localEdit: true });
+  const requireOnline = useRequireOnline({ localEdit: true });
 
   const [allBanis, setAllBanis] = useState([]);
   const [picked, setPicked] = useState([]);

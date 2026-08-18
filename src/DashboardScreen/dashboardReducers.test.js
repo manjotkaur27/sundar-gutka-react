@@ -149,6 +149,26 @@ describe("Dashboard redesign reducers", () => {
     expect(state1.todaysNitnem.selectedBaniIds).toBeUndefined();
   });
 
+  // A tick records that a bani WAS read that day — a fact, not a preference.
+  // Replacing wholesale discarded whatever this device had done while signed
+  // out, which on a restore is the user's own work.
+  it("restoreNitnem UNIONS with what the device already had, per date", () => {
+    let s = init();
+    s = rootReducer(s, actions.toggleNitnemDone("2026-06-11", 2));
+    s = rootReducer(s, actions.toggleNitnemDone("2026-06-12", 4));
+    s = rootReducer(s, actions.restoreNitnem({ completed: { "2026-06-11": [9] } }));
+    expect(s.todaysNitnem.completed["2026-06-11"].sort()).toEqual([2, 9]);
+    // A date the snapshot says nothing about is left exactly as it was.
+    expect(s.todaysNitnem.completed["2026-06-12"]).toEqual([4]);
+  });
+
+  it("restoreNitnem does not duplicate a bani both sides already had", () => {
+    let s = init();
+    s = rootReducer(s, actions.toggleNitnemDone("2026-06-11", 9));
+    s = rootReducer(s, actions.restoreNitnem({ completed: { "2026-06-11": [9] } }));
+    expect(s.todaysNitnem.completed["2026-06-11"]).toEqual([9]);
+  });
+
   it("toggleNitnemDone adds then removes a bani for a given date", () => {
     const date = "2026-06-17";
     const state0 = init();

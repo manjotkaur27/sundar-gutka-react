@@ -14,13 +14,7 @@ jest.mock("@common/context/NetworkContext", () => ({ useNetwork: jest.fn() }));
 
 jest.mock("@common", () => ({
   actions: { toggleAudio: (v) => ({ type: "TOGGLE_AUDIO", v }) },
-  // POTHI_ENABLED: useRequireOnline short-circuits open without it.
-  constant: {
-    READER: "Reader",
-    POTHI_READER: "PothiReader",
-    SETTINGS: "Settings",
-    POTHI_ENABLED: true,
-  },
+  constant: { READER: "Reader", POTHI_READER: "PothiReader", SETTINGS: "Settings" },
   showToast: jest.fn(),
   STRINGS: {
     POTHI_SIGN_IN_REQUIRED: "Sign in required",

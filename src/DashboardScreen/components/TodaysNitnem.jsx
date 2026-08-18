@@ -341,11 +341,13 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   const { map: baniMap, nameOf } = useBaniLookup();
 
   const [editVisible, setEditVisible] = useState(false);
-  // This card edits the Morning Nitnem POTHI, so it answers to the same gate
-  // every other pothi edit does. The modal already refused to save a
-  // signed-out change; refusing to open is what stops the user rearranging
-  // their nitnem first and being told afterwards.
-  const requireOnline = useRequireOnline();
+  // This card edits the Morning Nitnem POTHI, so it goes through the same gate
+  // every other pothi edit does — but as a LOCAL edit. Signed in, the two are
+  // one list and the change syncs on the account. Signed out, the nitnem is
+  // still the user's to arrange; it simply stays on the device until there is
+  // an account to carry it. `localEdit` is what says so, and it is deliberately
+  // not tied to POTHI_ENABLED: this holds whether My Pothi ships or not.
+  const requireOnline = useRequireOnline({ localEdit: true });
   const openEditor = useCallback(() => {
     if (requireOnline()) setEditVisible(true);
   }, [requireOnline]);

@@ -8,14 +8,6 @@ jest.mock("react-redux", () => ({ useSelector: jest.fn() }));
 jest.mock("@common/context/NetworkContext", () => ({ useNetwork: jest.fn() }));
 jest.mock("@common", () => ({
   showToast: jest.fn(),
-  // Flipped per test to exercise both sides of the feature switch. A getter,
-  // because jest.mock factories hoist above every const in this file — a
-  // captured value would still be in its temporal dead zone at import time.
-  constant: {
-    get POTHI_ENABLED() {
-      return global.pothiEnabledFlag;
-    },
-  },
   STRINGS: {
     POTHI_INTERNET_REQUIRED: "Internet required",
     POTHI_SIGN_IN_REQUIRED: "Sign in required",
@@ -36,7 +28,6 @@ const mockAuth = (status) => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockAuth("signedIn");
-  global.pothiEnabledFlag = true;
 });
 
 describe("useRequireOnline", () => {
@@ -74,15 +65,23 @@ describe("useRequireOnline", () => {
     expect(guard()()).toBe(false);
   });
 
-  // With My Pothi off the only edit reaching this gate is Today's Nitnem, and
-  // that list is then local — no account to sync to, no request to make. So a
-  // signed-out user on no connection must still be able to edit it, silently.
-  it("lets the edit through when the feature is off, signed out AND offline", () => {
-    global.pothiEnabledFlag = false;
+  // Today's Nitnem is the user's own list whether or not there is an account
+  // to sync it to, so `localEdit` passes signed out AND offline, silently.
+  // Deliberately not tied to whether My Pothi ships — the client wants that
+  // list editable without a session either way.
+  it("lets a localEdit through when signed out AND offline", () => {
     useNetwork.mockReturnValue({ isOffline: true });
     mockAuth("signedOut");
-    expect(guard()()).toBe(true);
+    const local = renderHook(() => useRequireOnline({ localEdit: true })).result.current;
+    expect(local()).toBe(true);
     expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("still blocks an ordinary pothi edit in the same conditions", () => {
+    useNetwork.mockReturnValue({ isOffline: true });
+    mockAuth("signedOut");
+    expect(guard()()).toBe(false);
+    expect(showToast).toHaveBeenCalledWith("Sign in required");
   });
 
   it("prefers the sign-in message when both signed out and offline", () => {

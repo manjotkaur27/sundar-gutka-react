@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNetwork } from "@common/context/NetworkContext";
-import { constant, showToast, STRINGS } from "@common";
+import { showToast, STRINGS } from "@common";
 
 /**
  * Gate for every pothi mutation.
@@ -21,18 +21,18 @@ import { constant, showToast, STRINGS } from "@common";
  * ONLINE — so the startup window never blocks a legitimate edit, and only a
  * confirmed offline state stops one.
  *
+ * @param {{ localEdit?: boolean }} [options]
+ *   `localEdit` marks an edit that is meaningful WITHOUT an account — today
+ *   only Today's Nitnem, whose list the user may keep signed out. Such an
+ *   edit needs neither a session nor a connection, so both checks are
+ *   skipped. Signed in it still lands in the same pothi and still syncs.
  * @returns {() => boolean} true to proceed; false having already toasted.
  */
-const useRequireOnline = () => {
+const useRequireOnline = ({ localEdit = false } = {}) => {
   const { isOffline } = useNetwork();
   const isSignedIn = useSelector((state) => state.auth?.status === "signedIn");
   return useCallback(() => {
-    // With My Pothi off, the only edit that reaches this gate is Today's Nitnem
-    // on the Dashboard, and that list is then a purely LOCAL one: there is no
-    // account to sync it to and no request to make, so it needs neither a
-    // session nor a connection. Signed in, nothing is lost — the edit lands in
-    // the same pothi and usePothiSync uploads it as it always did.
-    if (!constant.POTHI_ENABLED) return true;
+    if (localEdit) return true;
     if (!isSignedIn) {
       showToast(STRINGS.POTHI_SIGN_IN_REQUIRED);
       return false;
@@ -42,7 +42,7 @@ const useRequireOnline = () => {
       return false;
     }
     return true;
-  }, [isOffline, isSignedIn]);
+  }, [isOffline, isSignedIn, localEdit]);
 };
 
 export default useRequireOnline;

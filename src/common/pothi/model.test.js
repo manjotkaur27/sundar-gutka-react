@@ -308,6 +308,72 @@ describe("mergeRemote", () => {
   });
 });
 
+// A nitnem arranged BEFORE signing in is real work, and on a first sign-in it is
+// the only copy that exists. It has to reach the account — without becoming a
+// second Morning Nitnem inside it.
+describe("adopting a signed-out default pothi", () => {
+  const items = (baniIds) => baniIds.map((id) => makeBaniItem({ baaniId: id, title: `B${id}` }));
+  const mineMorning = (baniIds, updatedAt) => ({
+    id: MORNING_ID,
+    // Localised, as the local seed makes it — which is why name cannot match.
+    name: "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ",
+    source: SOURCE,
+    items: items(baniIds),
+    createdAt: 1,
+    updatedAt,
+    isPublic: false,
+    pinned: false,
+  });
+  const theirMorning = (baniIds, updatedAt) => ({
+    id: "srv-morning-uuid",
+    name: "Morning Nitnem",
+    source: SOURCE,
+    items: items(baniIds),
+    createdAt: 1,
+    updatedAt,
+    isPublic: false,
+    pinned: false,
+  });
+
+  it("moves an EDITED local nitnem onto the account's folder, keeping its id", () => {
+    const state = { ...emptyPothis(), folders: [mineMorning([2, 4], 9000)] };
+    const merged = mergeRemote(state, [theirMorning(MORNING_NITNEM_IDS, 5000)], 12345);
+    expect(merged.folders).toHaveLength(1);
+    const [folder] = merged.folders;
+    expect(folder.id).toBe("srv-morning-uuid");
+    expect(folder.items.map((i) => i.baaniId)).toEqual([2, 4]);
+    // Stamped, so the next push actually carries the adopted list up.
+    expect(folder.updatedAt).toBe(12345);
+  });
+
+  // The local seed's updatedAt is the moment it was seeded, easily newer than
+  // an account copy edited days ago — so time alone would let a stock list
+  // overwrite a real one. Only an EDITED local default is ever adopted.
+  it("leaves the account's list alone when the local one was never edited", () => {
+    const state = { ...emptyPothis(), folders: [mineMorning(MORNING_NITNEM_IDS, 9000)] };
+    const merged = mergeRemote(state, [theirMorning([2, 4], 5000)], 12345);
+    expect(merged.folders).toHaveLength(1);
+    expect(merged.folders[0].items.map((i) => i.baaniId)).toEqual([2, 4]);
+    expect(merged.folders[0].updatedAt).toBe(5000);
+  });
+
+  it("never leaves two Morning Nitnems behind", () => {
+    const state = { ...emptyPothis(), folders: [mineMorning([2], 9000)] };
+    const merged = mergeRemote(state, [theirMorning(MORNING_NITNEM_IDS, 5000)]);
+    expect(merged.folders.filter((f) => f.id === MORNING_ID)).toHaveLength(0);
+    expect(merged.folders).toHaveLength(1);
+  });
+
+  // Nothing to adopt into: the account has no default of its own, so the local
+  // pair stays and is uploaded as it is.
+  it("keeps the local pothi when the account has no default to adopt into", () => {
+    const state = { ...emptyPothis(), folders: [mineMorning([2, 4], 9000)] };
+    const merged = mergeRemote(state, []);
+    expect(merged.folders).toHaveLength(1);
+    expect(merged.folders[0].id).toBe(MORNING_ID);
+  });
+});
+
 // Which folder is Morning Nitnem and which is Evening.
 //
 // Neither the id nor the name is stable — the app seeds one pair with fixed ids
