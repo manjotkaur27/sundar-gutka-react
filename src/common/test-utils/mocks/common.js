@@ -24,8 +24,7 @@ export const createCommonMock = (overrides = {}) => {
     showSuccessToast: jest.fn(),
     showConfirm: jest.fn(),
     navigate: jest.fn(),
-    StatusBarComponent: ({ children, ...rest }) =>
-      React.createElement(RN.View, rest, children),
+    StatusBarComponent: ({ children, ...rest }) => React.createElement(RN.View, rest, children),
     trackSevaEvent: jest.fn(),
     openInAppBrowser: jest.fn(() => Promise.resolve()),
     useBackHandler: jest.fn(),
@@ -45,6 +44,23 @@ export const createCommonMock = (overrides = {}) => {
       LONG: "LONG",
       EXTRA_LONG: "EXTRA_LONG",
       ICON_SIZE_SMALL: 16,
+      // Real values, because sectionRegistry.js reads
+      // `constant.DASHBOARD_SECTIONS` at MODULE scope — so an absent key here
+      // is not a missing field, it is a TypeError while the module body runs,
+      // and every consumer of that registry fails to load. Keep in step with
+      // constant.js.
+      DASHBOARD_SECTIONS: {
+        STREAK: "streak",
+        NITNEM: "nitnem",
+        EXPLORE: "explore",
+        PRACTICE: "practice",
+        CALENDAR: "calendar",
+        WEEK_CHART: "weekChart",
+        DISCOVER: "discover",
+        REMINDERS: "reminders",
+        SHABAD_VAAK: "shabadVaak",
+      },
+      DASHBOARD_MIN_VISIBLE: 4,
       ...overrides.constant,
     },
     STRINGS: {

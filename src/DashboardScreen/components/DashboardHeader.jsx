@@ -8,7 +8,7 @@ import PropTypes from "prop-types";
 import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
 import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
-import { getNanakshahiDate } from "../../services/dashboard";
+import { getNanakshahiDate, fetchNanakshahiDate } from "../../services/dashboard";
 import { LAST_PUSH_KEY } from "../useDashboardSync";
 import useDashboardTheme from "./dashboardTheme";
 
@@ -69,13 +69,31 @@ const DashboardHeader = ({
   // of the golden Fateh it sits next to. Matches the Seva header's cross.
   const closeIconColor = c.headerFg;
 
+  // Seeded from the bundled table so the line is complete on the first frame —
+  // a date that appears a beat after everything else reads as a fault, and the
+  // two agree in the ordinary case anyway (the table holds the same SGPC month
+  // starts the backend serves). The remote value then replaces it, which is
+  // what lets a correction upstream reach users without an app release.
+  const [nanakLabel, setNanakLabel] = useState(() => getNanakshahiDate(new Date()).label);
+
+  useEffect(() => {
+    let active = true;
+    // Resolves null rather than throwing when there is nothing better to show,
+    // so an outage simply leaves the bundled label in place.
+    fetchNanakshahiDate().then((remote) => {
+      if (active && remote?.label) setNanakLabel(remote.label);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const dateLine = useMemo(() => {
     const now = new Date();
-    const weekday = formatWeekdayLong(now);
-    const dayMonth = formatDayMonth(now);
-    const nanak = getNanakshahiDate(now);
-    return `${weekday} · ${dayMonth} · ${nanak.label}`;
-  }, []);
+    return `${formatWeekdayLong(now)} · ${formatDayMonth(now)} · ${nanakLabel}`;
+    // STRINGS.getLanguage() so the weekday and month re-localise on a language
+    // switch, exactly as the sync label below does.
+  }, [nanakLabel, STRINGS.getLanguage()]);
 
   // Temporary, for testing the cloud sync push (see useDashboardSync.js). Reads
   // on every refreshKey change (screen focus) since pushNow() runs on blur/

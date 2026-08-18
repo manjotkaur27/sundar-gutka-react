@@ -1,4 +1,4 @@
-export { default as getNanakshahiDate } from "./nanakshahiDate";
+export { default as getNanakshahiDate, fetchNanakshahiDate } from "./nanakshahiDate";
 export { default as getRandomShabad } from "./randomShabad";
 export { default as getDailyVaak } from "./dailyVaak";
 export { default as getWordOfDay, isBundledWord } from "./wordOfDay";

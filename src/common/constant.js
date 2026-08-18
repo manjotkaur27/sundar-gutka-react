@@ -237,6 +237,10 @@ export default {
   // bundled local computation when this is unreachable or not yet deployed, so it
   // is safe to point at the endpoint before the backend ships it.
   UPCOMING_EVENTS_API_URL: `${KHALIS_API_BASE}/dashboard/events`,
+  // The Nanakshahi date under the Fateh. Proxied by our backend from the
+  // SGPC-sourced calendar rather than computed in the app, so the header and
+  // the gurpurab list can never disagree about what today is.
+  NANAKSHAHI_DATE_API_URL: `${KHALIS_API_BASE}/dashboard/nanakshahi-date`,
   NANAKSHAHI_API_URL: "",
   // Reachability probe for dashboard network services (see services/dashboard/
   // connectivity.js). Same globally-distributed 204 endpoint the app's NetInfo
