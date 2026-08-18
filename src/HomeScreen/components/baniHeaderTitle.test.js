@@ -15,10 +15,11 @@ import createStyles from "../styles";
 //      line is laid out past the bottom of its own box and clipped. That is the
 //      bug this file exists for: the header read "ਸੁੰਦਰ" with no "ਗੁਟਕਾ".
 //
-//   2. lineHeight is NOT a constant in the stylesheet. React Native scales
-//      fontSize with the OS text setting but leaves an explicit lineHeight
-//      alone, so a fixed value holds the line box still while the glyphs grow
-//      into each other. BaniHeader passes a scaled one instead.
+//   2. There is NO explicit lineHeight anywhere on this Text. React Native
+//      cuts a Text off on Android when it carries one inside a row layout
+//      (facebook/react-native#53286), and this Text sits in a row — that is
+//      the second way the header loses "ਗੁਟਕਾ". The font's own line spacing
+//      scales with fontSize, so nothing is lost by leaving it unset.
 
 const flat = (s) => StyleSheet.flatten(s) ?? {};
 
@@ -43,8 +44,16 @@ describe("the home header title", () => {
     expect(flat(styles.newHeaderTitleText).flexShrink).toBeUndefined();
   });
 
-  it("leaves lineHeight to the component, so it can scale with the OS setting", () => {
+  it("sets no lineHeight in the stylesheet", () => {
     expect(flat(styles.newHeaderTitleText).lineHeight).toBeUndefined();
+  });
+
+  // The stylesheet check alone would miss one handed in through the style
+  // array, which is exactly how it was passed before RN#53286 was traced.
+  it("does not let the component hand one in either", () => {
+    const src = fs.readFileSync(path.join(__dirname, "BaniHeader.jsx"), "utf8");
+    const titleBlock = src.slice(src.indexOf("titleNameWrap"), src.indexOf("settingsWrap"));
+    expect(titleBlock).not.toMatch(/lineHeight:/);
   });
 
   it("never caps the name to one line — wrapping is the whole point", () => {
@@ -65,33 +74,5 @@ describe("the home header title", () => {
   it("centres the row, so the ornaments sit level with a two-line name", () => {
     expect(flat(styles.titleCenter).alignItems).toBe("center");
     expect(flat(styles.titleCenter).flexDirection).toBe("row");
-  });
-});
-
-describe("the title line height", () => {
-  // Mirrors BaniHeader's own computation. Pinned here because the failure it
-  // guards against is silent: the lines simply overlap at a raised text size.
-  const FONT = 32;
-  const RATIO = 1.25;
-  const CAP = 1.5;
-  const lineHeightAt = (fontScale) => Math.round(FONT * RATIO * Math.min(fontScale || 1, CAP));
-
-  it("holds the tuned ratio at the default text size", () => {
-    expect(lineHeightAt(1)).toBe(40);
-  });
-
-  it("grows with the OS text setting instead of standing still", () => {
-    expect(lineHeightAt(1.3)).toBeGreaterThan(lineHeightAt(1));
-  });
-
-  it("stops growing at the same cap the text primitive uses", () => {
-    expect(lineHeightAt(3)).toBe(lineHeightAt(CAP));
-  });
-
-  it("always clears the scaled glyphs, which is what stops the overlap", () => {
-    [1, 1.15, 1.3, 1.5, 2].forEach((s) => {
-      const scaledFont = FONT * Math.min(s, CAP);
-      expect(lineHeightAt(s)).toBeGreaterThan(scaledFont);
-    });
   });
 });

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNetwork } from "@common/context/NetworkContext";
-import { showToast, STRINGS } from "@common";
+import { constant, showToast, STRINGS } from "@common";
 
 /**
  * Gate for every pothi mutation.
@@ -27,6 +27,12 @@ const useRequireOnline = () => {
   const { isOffline } = useNetwork();
   const isSignedIn = useSelector((state) => state.auth?.status === "signedIn");
   return useCallback(() => {
+    // With My Pothi off, the only edit that reaches this gate is Today's Nitnem
+    // on the Dashboard, and that list is then a purely LOCAL one: there is no
+    // account to sync it to and no request to make, so it needs neither a
+    // session nor a connection. Signed in, nothing is lost — the edit lands in
+    // the same pothi and usePothiSync uploads it as it always did.
+    if (!constant.POTHI_ENABLED) return true;
     if (!isSignedIn) {
       showToast(STRINGS.POTHI_SIGN_IN_REQUIRED);
       return false;

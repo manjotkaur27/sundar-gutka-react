@@ -16,6 +16,8 @@ jest.mock("@common", () => ({
   actions: { deletePothi: jest.fn((id) => ({ type: "DELETE_POTHI", id })) },
   showConfirm: jest.fn(),
   showToast: jest.fn(),
+  // useRequireOnline reads this; without it the gate short-circuits open.
+  constant: { POTHI_ENABLED: true },
   STRINGS: {
     CANCEL: "Cancel",
     POTHI_DELETE: "Delete",

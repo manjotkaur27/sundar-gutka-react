@@ -15,7 +15,10 @@ import { actions, logMessage, STRINGS } from "@common";
 // well as connectivity. There is nowhere for a signed-out edit to go: it
 // cannot reach the account it isn't attached to, and letting it sit local-only
 // is how the app ended up with pothis that outlived the session that made
-// them. `reducer.js` clears the whole slice on sign-out for the same reason.
+// them. The slice is person-owned data, so it is listed in `reducer.js`'s
+// USER_DATA_SLICES and wiped when a DIFFERENT account signs in — see
+// sso/accountScope. NOT on sign-out: the same account coming back, offline,
+// keeps the pothis it already had.
 //
 // ── Local-first ONCE signed in ─────────────────────────────────────────────
 // Every edit still lands in redux (and redux-persist) first and syncs

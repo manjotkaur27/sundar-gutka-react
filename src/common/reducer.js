@@ -747,6 +747,9 @@ const pothis = createReducer(pothiModel.emptyPothis(), {
   // SET_AUTH_SESSION. Reacting to the auth actions coupled My Pothi to the
   // sign-in/sign-out path, which is not this feature's business — the auth
   // flow must behave exactly as it did before My Pothi existed.
+  // The account BOUNDARY is still enforced, one level up: `pothis` is in
+  // USER_DATA_SLICES below, so CLEAR_USER_DATA resets it when a different
+  // account signs in.
   [actionTypes.SET_POTHIS_SYNCED_AT]: (state, action) => ({
     ...state,
     lastSyncedAt: action.value ?? null,
@@ -824,6 +827,11 @@ const appReducer = combineReducers({
 // the registry orphans them) and every display preference (theme, font size,
 // language). Those describe how this phone is set up, not who is holding it.
 const USER_DATA_SLICES = [
+  // A pothi is the clearest case of person-owned data there is: the folders a
+  // user built, synced to THEIR account. Left out, they survived an account
+  // switch and usePothiSync uploaded the previous account's folders into the
+  // new one on its first push.
+  "pothis",
   "userProfile",
   "dashboardLayout",
   "todaysNitnem",

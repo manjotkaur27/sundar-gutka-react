@@ -18,6 +18,7 @@ jest.mock("@common", () => ({
     removeBaniFromPothi: jest.fn((id, baaniId) => ({ type: "REMOVE", id, baaniId })),
   },
   showToast: jest.fn(),
+  constant: { POTHI_ENABLED: true },
   STRINGS: {
     POTHI_INTERNET_REQUIRED: "Internet required",
     POTHI_SIGN_IN_REQUIRED: "Sign in required",

@@ -40,6 +40,18 @@ export default {
   // be reached at all. The carousel and its slides stay in the build untouched:
   // set this back to true to restore the feature with no other change.
   ONBOARDING_ENABLED: false,
+  // Master switch for My Pothi — the folders a USER makes. While false, Home
+  // has no tab bar at all: it is one bani list with Sundar Gutka's own bundled
+  // folders sitting in it, exactly as it was before My Pothi existed. The
+  // reader's add-to-pothi button is hidden with it, so there is no way to
+  // create, rename, reorder, pin or delete a pothi. The feature stays in the
+  // build: set this back to true to restore it with no other change.
+  //
+  // The pothi SLICE and usePothiSync keep running either way, deliberately.
+  // Today's Nitnem on the Dashboard IS the Morning Nitnem pothi (see
+  // TodaysNitnem), so disabling those would empty that section — and for
+  // signed-in users especially, whose copy comes from the server pull.
+  POTHI_ENABLED: false,
   EXTRA_SMALL: "EXTRA_SMALL",
   SMALL: "SMALL",
   MEDIUM: "MEDIUM",

@@ -4,7 +4,7 @@ import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { BackArrowIcon, BookmarkIcon, PlusIcon } from "@common/icons";
-import { CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
+import { constant, CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
 
 // Only used for the frames before the header has measured itself. Any real
@@ -69,20 +69,24 @@ const Header = ({
   // in the corner it has always been in.
   const headerRight = () => (
     <>
-      <Pressable
-        onPress={() => {
-          handleAddToPothiPress();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={STRINGS.POTHI_ADD_TO}
-        hitSlop={layout.hitSlop}
-      >
-        {/* A plus, not a folder. The action is "add this bani to something",
-            and a folder glyph beside a bookmark read as a second place to go
-            rather than as something to do to the bani in front of you. The
-            accessibility label above still names the destination. */}
-        <PlusIcon size={26} color={headerForeground} />
-      </Pressable>
+      {/* Hidden with the feature off — filing a bani needs somewhere to file
+          it to, and there are no user pothis then. See constant.POTHI_ENABLED. */}
+      {constant.POTHI_ENABLED && (
+        <Pressable
+          onPress={() => {
+            handleAddToPothiPress();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.POTHI_ADD_TO}
+          hitSlop={layout.hitSlop}
+        >
+          {/* A plus, not a folder. The action is "add this bani to something",
+              and a folder glyph beside a bookmark read as a second place to go
+              rather than as something to do to the bani in front of you. The
+              accessibility label above still names the destination. */}
+          <PlusIcon size={26} color={headerForeground} />
+        </Pressable>
+      )}
       <Pressable
         onPress={() => {
           handleBookmarkPress();

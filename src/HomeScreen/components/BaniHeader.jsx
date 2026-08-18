@@ -1,6 +1,5 @@
 import React from "react";
-import { View, useWindowDimensions } from "react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
+import { View } from "react-native";
 import { paletteFor } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
 import { SettingsIconComponent } from "@common/components";
@@ -15,25 +14,12 @@ import {
 } from "@common";
 import createStyles from "../styles";
 
-// Base metrics for the app name. The 1.25 ratio is tuned: tighter and the line
-// box trims the tippi above "ਸੁੰਦਰ"; looser and the two words drift apart into
-// separate titles. See newHeaderTitleText in ../styles.
-const TITLE_FONT_SIZE = 32;
-const TITLE_LINE_RATIO = 1.25;
+// The title carries NO explicit lineHeight — see the note on the name below.
 
 const BaniHeader = ({ navigate }) => {
   const { theme } = useTheme();
   const { c } = theme;
   const styles = useThemedStyles(createStyles);
-  // React Native scales `fontSize` with the OS text setting but leaves an
-  // explicit `lineHeight` exactly as written — so a fixed 40 here would stay 40
-  // while the glyphs grew to 48, and the two wrapped lines would collide. The
-  // ratio is held instead, capped at the same FONT_SCALE_MAX the text primitive
-  // caps at so the two agree on how large "large" gets.
-  const { fontScale } = useWindowDimensions();
-  const titleLineHeight = Math.round(
-    TITLE_FONT_SIZE * TITLE_LINE_RATIO * Math.min(fontScale || 1, FONT_SCALE_MAX)
-  );
   // The one header foreground: brand navy in light, white in dark.
   const iconColor = c.headerFg;
   // The top inset strip belongs to the header, so it takes the header's own
@@ -83,9 +69,16 @@ const BaniHeader = ({ navigate }) => {
                   between the two ornaments instead of "ਸੁੰਦਰ …". The row is
                   `alignItems: center`, so the flowers stay vertically centred
                   against the taller two-line block. */}
-              <CustomText style={[styles.newHeaderTitleText, { lineHeight: titleLineHeight }]}>
-                {STRINGS.sg_title}
-              </CustomText>
+              {/* NO explicit lineHeight, and it must stay that way. React Native
+                  cuts a Text off on Android when it carries one and is laid out
+                  inside a row — facebook/react-native#53286 — and this Text sits
+                  in `titleCenter`, a row. With one set, the wrapped second line
+                  vanished and the header read "ਸੁੰਦਰ" with no "ਗੁਟਕਾ".
+                  Leaving it unset is also the more correct answer: the font's own
+                  line spacing scales with `fontSize`, so the OS text setting is
+                  followed for free, which is the very thing a hand-computed
+                  lineHeight had to work to reproduce. */}
+              <CustomText style={styles.newHeaderTitleText}>{STRINGS.sg_title}</CustomText>
             </View>
             <CustomText style={styles.titleFlower}>‰</CustomText>
           </View>

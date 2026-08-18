@@ -68,13 +68,15 @@ const createStyles = (theme) => ({
   },
   newHeaderTitleText: {
     fontSize: 32,
-    // lineHeight is NOT set here — it is passed in by BaniHeader, scaled with
-    // the OS text setting. React Native grows `fontSize` with that setting but
-    // leaves an explicit `lineHeight` untouched, so a constant here would hold
-    // the line box at 40 while the glyphs grew past it and the two wrapped
-    // lines collided. See TITLE_LINE_RATIO there for why the ratio is 1.25:
-    // tighter trims the tippi above "ਸੁੰਦਰ" (Gurmukhi marks sit above the
-    // letter body), looser reads as two titles rather than one.
+    // NO lineHeight — not here, and not passed in by BaniHeader either. This
+    // Text is laid out inside a row (`titleCenter`), and React Native cuts a
+    // Text off on Android when it carries an explicit lineHeight in a row:
+    // facebook/react-native#53286. That is what made the header read "ਸੁੰਦਰ"
+    // with no "ਗੁਟਕਾ" — the wrapped second line simply never drew.
+    //
+    // Unset is also the more correct answer. The font supplies its own line
+    // spacing, which scales with `fontSize`, so the OS text setting is followed
+    // without a hand-computed value having to reproduce it.
     fontFamily: theme.typography.fonts.balooPaajiSemiBold,
     color: theme.c.headerFg,
     textAlign: "center",

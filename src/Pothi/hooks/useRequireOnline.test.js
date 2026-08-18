@@ -8,6 +8,14 @@ jest.mock("react-redux", () => ({ useSelector: jest.fn() }));
 jest.mock("@common/context/NetworkContext", () => ({ useNetwork: jest.fn() }));
 jest.mock("@common", () => ({
   showToast: jest.fn(),
+  // Flipped per test to exercise both sides of the feature switch. A getter,
+  // because jest.mock factories hoist above every const in this file — a
+  // captured value would still be in its temporal dead zone at import time.
+  constant: {
+    get POTHI_ENABLED() {
+      return global.pothiEnabledFlag;
+    },
+  },
   STRINGS: {
     POTHI_INTERNET_REQUIRED: "Internet required",
     POTHI_SIGN_IN_REQUIRED: "Sign in required",
@@ -28,6 +36,7 @@ const mockAuth = (status) => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockAuth("signedIn");
+  global.pothiEnabledFlag = true;
 });
 
 describe("useRequireOnline", () => {
@@ -63,6 +72,17 @@ describe("useRequireOnline", () => {
     useNetwork.mockReturnValue({ isOffline: false });
     mockAuth("unknown");
     expect(guard()()).toBe(false);
+  });
+
+  // With My Pothi off the only edit reaching this gate is Today's Nitnem, and
+  // that list is then local — no account to sync to, no request to make. So a
+  // signed-out user on no connection must still be able to edit it, silently.
+  it("lets the edit through when the feature is off, signed out AND offline", () => {
+    global.pothiEnabledFlag = false;
+    useNetwork.mockReturnValue({ isOffline: true });
+    mockAuth("signedOut");
+    expect(guard()()).toBe(true);
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("prefers the sign-in message when both signed out and offline", () => {

@@ -145,6 +145,20 @@ describe("CLEAR_USER_DATA", () => {
       payload: { date: "2026-08-13", baniId: 2 },
     });
     s = rootReducer(s, { type: actionTypes.SET_BOOKMARK_POSITION, value: 1234 });
+    // A folder the user made. Wire shape, mirroring pothi/model createPothi.
+    s = rootReducer(s, {
+      type: actionTypes.CREATE_POTHI,
+      value: {
+        id: "p_account_a",
+        name: "A pothi",
+        source: "mypothi",
+        items: [],
+        createdAt: 1,
+        updatedAt: 1,
+        isPublic: false,
+        pinned: false,
+      },
+    });
     s = rootReducer(s, { type: actionTypes.TOGGLE_REMINDERS, value: true });
     // Device-scoped, must survive.
     s = rootReducer(s, {
@@ -172,6 +186,23 @@ describe("CLEAR_USER_DATA", () => {
     expect(after.isReminders).toEqual(fresh.isReminders);
     expect(after.reminderBanis).toEqual(fresh.reminderBanis);
     expect(after.reminderSound).toEqual(fresh.reminderSound);
+    expect(after.pothis).toEqual(fresh.pothis);
+  });
+
+  // My Pothi was added AFTER this list existed and was never opted into it, so
+  // account A's folders survived the switch — and usePothiSync then uploaded
+  // them into account B on its first push. A leak, not merely stale state.
+  it("resets the pothis, so one account's folders cannot follow into another", () => {
+    const before = populated();
+    expect(before.pothis.folders).toHaveLength(1);
+    expect(before.pothis.folders[0].name).toBe("A pothi");
+
+    const after = rootReducer(before, clearUserData());
+    expect(after.pothis.folders).toEqual([]);
+    // Tombstones are account-scoped too: A's deletions must not suppress a
+    // folder of B's that happens to share an id.
+    expect(after.pothis.deletedIds).toEqual([]);
+    expect(after.pothis).toEqual(initial().pothis);
   });
 
   // Downloaded audio belongs to the phone, not the person. Clearing the registry

@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { createPothi, isValidName, makeBaniItem, MAX_NAME_LENGTH } from "@common/pothi/model";
-import { actions, STRINGS, trackPothiEvent } from "@common";
+import {
+  createPothi,
+  isValidName,
+  makeBaniItem,
+  MAX_FOLDERS,
+  MAX_NAME_LENGTH,
+} from "@common/pothi/model";
+import { actions, showToast, STRINGS, trackPothiEvent } from "@common";
 import {
   Button,
   GurmukhiKeyboard,
@@ -32,6 +38,10 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   const { space } = useTokens();
   const dispatch = useDispatch();
   const requireOnline = useRequireOnline();
+  // Counted from the store rather than passed in: both entry points (the
+  // Folders tab and the reader's add-to-pothi sheet) would otherwise need to
+  // know about the cap.
+  const folderCount = useSelector((state) => state.pothis?.folders?.length ?? 0);
   const [name, setName] = useState("");
   // Chosen before the pothi exists, so they go in with it. Without this a new
   // pothi was always born empty and had to be filled in a second pass.
@@ -61,6 +71,14 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
 
   const submit = () => {
     if (!isValidName(name) || !requireOnline()) return;
+    // The API 400s the whole PUT past MAX_FOLDERS, so `addPothi` refuses the
+    // 51st and hands back the state untouched. Unchecked, the sheet went on to
+    // report success and close for a pothi that was never created.
+    if (folderCount >= MAX_FOLDERS) {
+      showToast(STRINGS.formatString(STRINGS.POTHI_LIMIT, { count: MAX_FOLDERS }));
+      onClose();
+      return;
+    }
     const pothi = createPothi({
       name,
       items: [

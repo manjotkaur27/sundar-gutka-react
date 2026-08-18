@@ -98,11 +98,23 @@ const HomeScreen = React.memo(({ navigation }) => {
     dispatch(setBaniOrder(order));
   }, []);
 
-  // Every row here is a bani: `baniRows` filters the folders out, so there is no
-  // longer a folder branch to take.
+  // With My Pothi ON, `baniRows` filters the folders out and every row here is
+  // a bani. With it OFF the bundled folders are back in this list, so opening
+  // one has to reach FolderScreen again — the branch this screen carried before
+  // the Folders tab took the folders over.
   const onPress = (row) => {
     const bani = row.item;
     dispatch(actions.toggleAudio(false));
+    if (bani.folder) {
+      navigate(constant.FOLDERSCREEN, {
+        key: `Folder-${bani.gurmukhi}`,
+        // No `pothiId`: a bundled folder is not editable. `titleVariant`
+        // defaults to the GurbaniAkhar face, which is what these ASCII names
+        // need — see FolderScreen.
+        params: { data: bani.folder, title: bani.gurmukhi },
+      });
+      return;
+    }
     navigate(constant.READER, {
       key: `Reader-${bani.id}`,
       params: {
@@ -113,14 +125,22 @@ const HomeScreen = React.memo(({ navigation }) => {
     });
   };
 
-  // All Banis lists banis only. The bundled folders (Amrit Bani, Bhagat Bani
-  // and the rest) are rendered by the Folders tab, so listing them here as well
-  // showed the same four rows twice on one screen.
+  // With My Pothi on, All Banis lists banis only: the bundled folders (Amrit
+  // Bani, Bhagat Bani and the rest) are rendered by the Folders tab, so listing
+  // them here as well showed the same four rows twice on one screen. With it
+  // off there is no Folders tab, so they belong here — see POTHI_ENABLED.
   //
   // Filtered at the render, NOT in `baniListData` itself: `systemPothis` builds
   // the Folders tab from these very rows, so dropping them upstream would empty
   // the tab this change exists to defer to.
-  const baniRows = useMemo(() => baniListData.filter((bani) => !bani.folder), [baniListData]);
+  const baniRows = useMemo(
+    () => (constant.POTHI_ENABLED ? baniListData.filter((bani) => !bani.folder) : baniListData),
+    [baniListData]
+  );
+
+  // One list and no tab bar with the feature off, so Home looks exactly as it
+  // did before My Pothi: the bundled folders sit among the banis.
+  const showPothis = constant.POTHI_ENABLED && tab === TAB_FOLDERS;
 
   // The bani list keeps its own ground on every surface of this screen, so no
   // strip of the semantic background shows above or behind the header.
@@ -133,24 +153,26 @@ const HomeScreen = React.memo(({ navigation }) => {
       <StatusBarComponent backgroundColor={baniGround} />
       <View style={[{ backgroundColor: baniGround }, styles.container]}>
         <BaniHeader navigate={navigate} />
-        <SegmentedTabs
-          tabs={[
-            { key: TAB_BANIS, label: STRINGS.ALL_BANIS },
-            { key: TAB_FOLDERS, label: STRINGS.POTHIS_TAB },
-          ]}
-          value={tab}
-          onChange={setTab}
-          style={styles.tabs}
-        />
-        {tab === TAB_BANIS ? (
-          <BaniList data={baniRows} onPress={onPress} />
-        ) : (
+        {constant.POTHI_ENABLED && (
+          <SegmentedTabs
+            tabs={[
+              { key: TAB_BANIS, label: STRINGS.ALL_BANIS },
+              { key: TAB_FOLDERS, label: STRINGS.POTHIS_TAB },
+            ]}
+            value={tab}
+            onChange={setTab}
+            style={styles.tabs}
+          />
+        )}
+        {showPothis ? (
           <PothiList
             baniListData={baniListData}
             onOpenPothi={openPothi}
             onCreatePress={openCreate}
             onPinLimit={onPinLimit}
           />
+        ) : (
+          <BaniList data={baniRows} onPress={onPress} />
         )}
       </View>
       <CreatePothiSheet
