@@ -3,18 +3,19 @@ import { View, Pressable, ScrollView, StyleSheet } from "react-native";
 import Svg, { Circle, Polyline, Path, Line } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
-import PropTypes from "prop-types";
 import { neutral } from "@theme/palette";
+import PropTypes from "prop-types";
+import { Text as UIText } from "@common/components/ui";
+import useBaniLookup from "@common/hooks/useBaniLookup";
 import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
-import { Text as UIText } from "@common/components/ui";
 import { getDayDetail } from "../../database/analytics";
 import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
+import { requestPush } from "../../services/dashboard/syncSignal";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import EditBanisModal from "./EditBanisModal";
 import SectionLabel from "./SectionLabel";
-import useBaniLookup from "@common/hooks/useBaniLookup";
 
 const todayStr = () => {
   const n = new Date();
@@ -479,7 +480,10 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
             second press onward — tick all, untick one, and nothing happened. */}
         <Pressable
           style={[styles.secondaryBtn, { borderColor: separator }]}
-          onPress={() => dispatch(actions.markNitnemDone(today, selectedBaniIds))}
+          onPress={() => {
+            dispatch(actions.markNitnemDone(today, selectedBaniIds));
+            requestPush("nitnem-mark-all");
+          }}
           accessibilityRole="button"
         >
           <CheckIcon color={accentBlue} />
@@ -560,7 +564,10 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
                       so it both marks AND un-marks (incl. auto-completed banis). */}
                   <Pressable
                     hitSlop={8}
-                    onPress={() => dispatch(actions.toggleNitnemDone(today, cell.id))}
+                    onPress={() => {
+                      dispatch(actions.toggleNitnemDone(today, cell.id));
+                      requestPush("nitnem-tick");
+                    }}
                   >
                     <Check filled={isDone} accent={accentBlue} muted={mutedText} />
                   </Pressable>

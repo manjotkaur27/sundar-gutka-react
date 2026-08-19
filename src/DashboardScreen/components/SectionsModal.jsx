@@ -9,6 +9,7 @@ import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { ChevronRight, DragHandleIcon, EyeIcon } from "@common/icons";
 import { CustomText, STRINGS, constant, actions, showErrorToast } from "@common";
+import { requestPush } from "../../services/dashboard/syncSignal";
 import useDashboardTheme from "./dashboardTheme";
 import { sectionLabel } from "./sectionRegistry";
 import SheetModal from "./SheetModal";
@@ -161,13 +162,18 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
     [visibleCount]
   );
 
+  // The layout is account data, not device data — it travels with the person.
+  // Both paths ring the sync signal; without it a rearranged dashboard sat on
+  // this phone until something unrelated happened to trigger a push.
   const save = useCallback(() => {
     dispatch(actions.setDashboardLayout({ order, hidden }));
+    requestPush("dashboard-layout");
     setEditing(false);
   }, [order, hidden, dispatch]);
 
   const reset = useCallback(() => {
     dispatch(actions.resetDashboardLayout());
+    requestPush("dashboard-layout-reset");
     setEditing(false);
   }, [dispatch]);
 

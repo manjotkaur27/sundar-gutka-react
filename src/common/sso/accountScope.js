@@ -14,6 +14,8 @@ import { clearAllAnalyticsData } from "../../database/analytics";
 import {
   DASHBOARD_RESTORED_KEY,
   DASHBOARD_LAST_PUSH_KEY,
+  DASHBOARD_APPLIED_AT_KEY,
+  DASHBOARD_LOCAL_MUTATED_AT_KEY,
   RESTORED_TOP_BANIS_KEY,
 } from "../../services/dashboard/syncKeys";
 import { clearUserData } from "../actions";
@@ -80,7 +82,19 @@ export const purgeLocalUserData = async (dispatch) => {
   // not unschedule them — without this, B keeps getting A's notifications.
   await cancelAllReminders();
 
-  await AsyncStorage.multiRemove([DASHBOARD_LAST_PUSH_KEY, RESTORED_TOP_BANIS_KEY]);
+  // DASHBOARD_APPLIED_AT_KEY goes with them: it records how fresh the LAST
+  // ACCOUNT's applied snapshot was. Left behind, the incoming account's own
+  // snapshot could look older than it and be skipped as "nothing new".
+  // DASHBOARD_LOCAL_MUTATED_AT_KEY goes too: the purge has just deleted the
+  // data that timestamp described, so leaving it would tell the incoming
+  // account that this device holds newer changes than the cloud — and its own
+  // snapshot would be discarded in favour of nothing.
+  await AsyncStorage.multiRemove([
+    DASHBOARD_LAST_PUSH_KEY,
+    RESTORED_TOP_BANIS_KEY,
+    DASHBOARD_APPLIED_AT_KEY,
+    DASHBOARD_LOCAL_MUTATED_AT_KEY,
+  ]);
 
   if (constant.SSO_ACCOUNT_SCOPED_SYNC) {
     // Backend keys snapshots on the account: clear the marker so the signing-in

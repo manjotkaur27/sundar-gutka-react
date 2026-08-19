@@ -34,6 +34,7 @@ import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
 import useReminderRearm from "./src/common/hooks/useReminderRearm";
 import useSsoSession from "./src/common/hooks/useSsoSession";
+import useDashboardSync from "./src/services/dashboard/useDashboardSync";
 
 const { store, persistor } = createStore();
 
@@ -60,6 +61,10 @@ const GlobalServices = () => {
   useOfflineSyncToast();
   useReminderRearm();
   useSsoSession();
+  // Account dashboard sync. Mounted HERE and not in DashboardScreen: on that
+  // screen both the push and the restore only existed while it was mounted, so
+  // signing in anywhere else never got the account's data up or down.
+  useDashboardSync();
   return null;
 };
 

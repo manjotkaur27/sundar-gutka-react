@@ -96,7 +96,17 @@ const MainTabs = () => {
         headerShown: false,
         tabBarHideOnKeyboard: true,
       }}
-      backBehavior="none"
+      // Android back returns to Home from any tab, rather than leaving the app.
+      //
+      // This was "none", which tells the tab navigator not to handle back AT
+      // ALL. Settings hid that: it has its own handler falling back to Home. The
+      // Dashboard and Seva tabs have none, so their back press fell through to
+      // the root stack — which sits at index 0 while the tabs are showing — and
+      // the app exited from what is, to the user, a page they navigated into.
+      //
+      // "initialRoute" is the platform convention: back always walks toward the
+      // start destination, and only Home itself exits.
+      backBehavior="initialRoute"
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Dashboard" component={DashboardScreen} />

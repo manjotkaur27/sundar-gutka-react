@@ -10,6 +10,7 @@ import android.view.KeyEvent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -22,11 +23,62 @@ class MainActivity : ReactActivity() {
    */
   override fun getMainComponentName(): String = "SundarGutka"
 
+  /**
+   * Routes the system back gesture into React Native.
+   *
+   * ── Why this has to exist ─────────────────────────────────────────────────
+   * React Native 0.78 handles back by overriding the DEPRECATED
+   * Activity.onBackPressed(). Nothing in the React Native AAR registers an
+   * OnBackPressedCallback.
+   *
+   * This app targets SDK 36, and from Android 16 the platform no longer calls
+   * onBackPressed() — back is delivered through OnBackInvokedDispatcher, which
+   * androidx forwards to onBackPressedDispatcher. With no callback registered
+   * there, the dispatcher falls through to its default and FINISHES THE
+   * ACTIVITY. The press never reached JavaScript, so every screen exited the app
+   * instead of navigating back, and no amount of BackHandler work in JS could
+   * have caught it — BackHandler was never being called.
+   *
+   * Registering here restores the delivery path. It is deliberately not gated on
+   * an API level: on older devices the legacy onBackPressed() override inside
+   * ReactActivity consumes the press before the dispatcher is ever consulted, so
+   * this callback simply does not fire and behaviour is unchanged.
+   */
+  private val backPressedCallback = object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() {
+          // Hands the press to JS exactly as ReactActivity.onBackPressed() did:
+          // React Navigation, then any screen's BackHandler listener.
+          if (!reactActivityDelegate.onBackPressed()) {
+              // No React instance yet (very early startup) — act like the platform.
+              isEnabled = false
+              this@MainActivity.onBackPressedDispatcher.onBackPressed()
+              isEnabled = true
+          }
+      }
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
       SplashScreen.show(this)
       super.onCreate(null)
       // Lay out content edge-to-edge so the window draws behind system bars.
       WindowCompat.setDecorFitsSystemWindows(window, false)
+      onBackPressedDispatcher.addCallback(this, backPressedCallback)
+  }
+
+  /**
+   * Called by React Native when NO JavaScript listener consumed the press — i.e.
+   * there is nothing left to go back to.
+   *
+   * The inherited implementation calls super.onBackPressed(), which now routes
+   * through OnBackPressedDispatcher and straight back into the callback above,
+   * round and round forever. Disabling the callback for the duration lets the
+   * dispatcher fall through to the platform default instead, which is exactly
+   * what leaving the app used to mean.
+   */
+  override fun invokeDefaultOnBackPressed() {
+      backPressedCallback.isEnabled = false
+      onBackPressedDispatcher.onBackPressed()
+      backPressedCallback.isEnabled = true
   }
 
   /**

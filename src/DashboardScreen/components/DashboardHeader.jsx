@@ -3,13 +3,12 @@ import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 import { useSelector } from "react-redux";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import PropTypes from "prop-types";
 import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
 import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { getNanakshahiDate, fetchNanakshahiDate } from "../../services/dashboard";
-import { LAST_PUSH_KEY } from "../useDashboardSync";
+import { useSyncStatus, formatSyncStatus } from "../../services/dashboard/syncStatus";
 import useDashboardTheme from "./dashboardTheme";
 
 const MenuIcon = ({ color }) => (
@@ -39,7 +38,6 @@ const DashboardHeader = ({
   onMenuPress = () => {},
   onClosePress = () => {},
   onAvatarPress = () => {},
-  refreshKey = 0,
 }) => {
   const { mutedText, theme, c, layout, palette } = useDashboardTheme();
   const { top: safeTop } = useSafeAreaInsets();
@@ -95,27 +93,16 @@ const DashboardHeader = ({
     // switch, exactly as the sync label below does.
   }, [nanakLabel, STRINGS.getLanguage()]);
 
-  // Temporary, for testing the cloud sync push (see useDashboardSync.js). Reads
-  // on every refreshKey change (screen focus) since pushNow() runs on blur/
-  // background, so the value written during the *previous* visit only becomes
-  // visible the next time this mounts/focuses.
-  const [lastSyncedLabel, setLastSyncedLabel] = useState(null);
-  useEffect(() => {
-    let active = true;
-    AsyncStorage.getItem(LAST_PUSH_KEY).then((raw) => {
-      if (!active) return;
-      if (!raw) {
-        setLastSyncedLabel(STRINGS.NEVER);
-        return;
-      }
-      setLastSyncedLabel(formatDateTime(new Date(Number(raw))));
-    });
-    return () => {
-      active = false;
-    };
-    // STRINGS.getLanguage() in deps so "never" / the formatted timestamp
-    // re-localise when the user switches language.
-  }, [refreshKey, STRINGS.getLanguage()]);
+  // Diagnostic, for the cloud sync push (see services/dashboard/syncStatus).
+  //
+  // It used to show only a timestamp, so a device that had never pushed read
+  // "never" whether the push was skipped before it started or the server
+  // refused it — and those need opposite fixes. It now carries the reason.
+  // Live: re-renders the moment a push or pull is recorded, so a sync that
+  // completes while this screen is open is visible immediately. STRINGS is read
+  // during render, so a language switch relocalises it too.
+  const syncStatus = useSyncStatus();
+  const lastSyncedLabel = formatSyncStatus(syncStatus, formatDateTime, STRINGS.NEVER);
 
   const bg = c.backgroundAlt;
 
@@ -222,7 +209,6 @@ DashboardHeader.propTypes = {
   onMenuPress: PropTypes.func,
   onClosePress: PropTypes.func,
   onAvatarPress: PropTypes.func,
-  refreshKey: PropTypes.number,
 };
 
 const styles = StyleSheet.create({

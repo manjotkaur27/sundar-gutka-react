@@ -19,3 +19,39 @@ export const DASHBOARD_LAST_PUSH_KEY = "@dashboard_last_push";
 // Top read/listened banis captured at the last cloud restore, so the Explore
 // tiles survive a reinstall (raw session history does not).
 export const RESTORED_TOP_BANIS_KEY = "@restored_top_banis_v1";
+
+// When local dashboard data last changed on THIS device.
+//
+// Stamped by `requestPush` — every call site of it is, by definition, "the user
+// just changed something that belongs in the snapshot": finished a bani, ticked
+// one off, rearranged the dashboard. It is stamped whether or not a push
+// follows, which is the point: while signed out or offline the push cannot go,
+// but the change still happened and the device needs to remember when.
+//
+// Compared against the account's `syncedAt` when a session begins or
+// connectivity returns, to decide which side is authoritative. See the
+// reconciliation in useDashboardSync.
+export const DASHBOARD_LOCAL_MUTATED_AT_KEY = "@dashboard_local_mutated_at_v1";
+
+// Fingerprint of the payload we last pushed successfully.
+//
+// Most pushes carry a snapshot identical to the previous one — the app was
+// opened, looked at, and backgrounded. Comparing against this lets those end
+// before the request, which at 16k users is the difference between a write per
+// backgrounding and a write per actual change.
+export const DASHBOARD_PAYLOAD_HASH_KEY = "@dashboard_payload_hash_v1";
+
+// Watermark for the per-date activity push: SQLite `updated_at` seconds, so the
+// next push carries only days that have changed since. Advanced only on
+// success, so a failed push simply re-sends the same days.
+export const DASHBOARD_ACTIVITY_PUSHED_AT_KEY = "@dashboard_activity_pushed_at_v1";
+
+// The server's `syncedAt` for the snapshot we last APPLIED.
+//
+// This is the one server-authored timestamp the client already receives and
+// used to throw away. Holding on to it is what makes a repeat pull cheap and
+// safe: if what the server offers is not newer than what we last applied, there
+// is nothing to do and we leave local state completely alone. Without it every
+// foreground pull would re-apply the same snapshot over the top of whatever the
+// user has done since.
+export const DASHBOARD_APPLIED_AT_KEY = "@dashboard_applied_at_v1";

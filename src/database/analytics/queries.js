@@ -187,6 +187,22 @@ export const getDailyActivity = async (year, month) => {
   return rowsToArray(result);
 };
 
+// Days whose totals have changed since a given moment — the delta the per-date
+// sync endpoint wants.
+//
+// `updated_at` rather than the `sync_status` flag the table also carries: the
+// flag needs a matching write to clear it, and `daily_activity` is keyed on
+// `date` with no `id`, so `markSynced` (which clears by id) cannot address it.
+// A timestamp watermark needs no write-back at all, and the endpoint replaces
+// rather than accumulates, so re-sending a day is free.
+export const getActivityUpdatedSince = async (unixSeconds) => {
+  const result = await runQuery(
+    `SELECT * FROM daily_activity WHERE updated_at >= ? ORDER BY date ASC LIMIT 400`,
+    [Math.floor(unixSeconds)]
+  );
+  return rowsToArray(result);
+};
+
 export const getUnsyncedActivity = async () => {
   const result = await runQuery(`SELECT * FROM daily_activity WHERE sync_status = 0 LIMIT 100`);
   return rowsToArray(result);
@@ -383,21 +399,93 @@ export const getCompletedBanisCount = async () => {
 // without needing to fully replace the baseline approach (which is still the
 // more complete source across a reinstall that only restores one month's
 // day-by-day breakdown).
-export const getAllTimeTotals = async () => {
+//
+// The BASELINE half lives in user_stats_summary.total_*; the LIVE half is
+// recounted from the raw tables on every call. Keeping the two separable is
+// what `raiseAllTimeBaseline` below needs, so both come out of one place.
+const allTimeParts = async () => {
   const [summary, live, liveBanisCompleted, dailyTotals] = await Promise.all([
     getOrCreateSummary(),
     getReadingListeningTotals(),
     getCompletedBanisCount(),
     getDailyActivityTotals(),
   ]);
-  const baselineReading = (summary?.total_reading_seconds ?? 0) + live.total_reading_seconds;
-  const baselineListening = (summary?.total_listening_seconds ?? 0) + live.total_listening_seconds;
-  return {
-    banisCompleted: (summary?.total_banis_read ?? 0) + liveBanisCompleted,
-    readingSeconds: Math.max(baselineReading, dailyTotals.total_reading_seconds),
-    listeningSeconds: Math.max(baselineListening, dailyTotals.total_listening_seconds),
-    audioSessions: (summary?.total_audio_sessions ?? 0) + live.total_audio_sessions,
+  const liveParts = {
+    banisCompleted: liveBanisCompleted,
+    readingSeconds: live.total_reading_seconds,
+    listeningSeconds: live.total_listening_seconds,
+    audioSessions: live.total_audio_sessions,
   };
+  const baseline = {
+    banisCompleted: summary?.total_banis_read ?? 0,
+    readingSeconds: summary?.total_reading_seconds ?? 0,
+    listeningSeconds: summary?.total_listening_seconds ?? 0,
+    audioSessions: summary?.total_audio_sessions ?? 0,
+  };
+  return {
+    live: liveParts,
+    baseline,
+    totals: {
+      banisCompleted: baseline.banisCompleted + liveParts.banisCompleted,
+      readingSeconds: Math.max(
+        baseline.readingSeconds + liveParts.readingSeconds,
+        dailyTotals.total_reading_seconds
+      ),
+      listeningSeconds: Math.max(
+        baseline.listeningSeconds + liveParts.listeningSeconds,
+        dailyTotals.total_listening_seconds
+      ),
+      audioSessions: baseline.audioSessions + liveParts.audioSessions,
+    },
+  };
+};
+
+export const getAllTimeTotals = async () => (await allTimeParts()).totals;
+
+// Column each all-time figure is stored in. Only these four have a live half;
+// current_streak/longest_streak/total_days_active have none, so they are plain
+// summary fields and a restore may write them directly.
+const BASELINE_COLUMNS = {
+  banisCompleted: "total_banis_read",
+  readingSeconds: "total_reading_seconds",
+  listeningSeconds: "total_listening_seconds",
+  audioSessions: "total_audio_sessions",
+};
+
+// Raises the frozen baseline so the REPORTED all-time totals are at least the
+// figures a cloud snapshot carries — without re-counting this install's own
+// sessions.
+//
+// The distinction matters because the two are different quantities that were
+// being conflated. What a snapshot carries is a REPORTED total: the device that
+// pushed it had already added its own live rows in. Writing that number back
+// into the baseline column, which is then added to THIS device's live rows
+// again, ratchets the figure upward by the live count on every single refresh.
+// That is the "bani count goes up by one every time I pull to refresh" report:
+// one completed bani on this install, one extra bani counted per pull, forever,
+// and none at all on a device with no live sessions of its own.
+//
+// So solve for the baseline instead of assigning to it. The target is what we
+// want the user to SEE — the larger of what we already show and what the cloud
+// says — and the baseline is whatever makes the sum come out there:
+//
+//     shown  = baseline + live        (what getAllTimeTotals returns)
+//     target = max(shown, incoming)   (monotonic: a stale snapshot cannot
+//                                      drag a real number down)
+//     baseline := target - live
+//
+// which is idempotent: run it twice with the same snapshot and the second pass
+// computes the same baseline, because `shown` already equals `target`.
+export const raiseAllTimeBaseline = async (incoming = {}) => {
+  const { live, totals } = await allTimeParts();
+  const fields = {};
+  Object.keys(BASELINE_COLUMNS).forEach((key) => {
+    if (incoming[key] == null) return;
+    const target = Math.max(Number(incoming[key]) || 0, totals[key]);
+    fields[BASELINE_COLUMNS[key]] = Math.max(0, target - live[key]);
+  });
+  if (Object.keys(fields).length) await updateSummary(fields);
+  return fields;
 };
 
 // ─── Sync helpers ─────────────────────────────────────────────────────────────

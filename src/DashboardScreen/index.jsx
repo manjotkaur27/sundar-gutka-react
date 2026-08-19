@@ -1,16 +1,17 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
+import { ScrollView, View, StyleSheet, InteractionManager, RefreshControl } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { themeForScreen } from "@theme/screenPalettes";
 import useSsoActions from "@common/hooks/useSsoActions";
 import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } from "@common";
 import { getOrCreateSummary } from "../database/analytics";
+import { useRestoreTick } from "../services/dashboard/restoreSignal";
+import { requestPull } from "../services/dashboard/syncSignal";
 import { computeStreaks } from "../services/streakEngine";
 import DashboardHeader from "./components/DashboardHeader";
 import { SECTION_REGISTRY } from "./components/sectionRegistry";
 import SectionsModal from "./components/SectionsModal";
-import useDashboardSync from "./useDashboardSync";
 
 // Registry-driven dashboard. Sections render in the user's persisted order and
 // visibility (see dashboardLayout slice). Add a new section by registering it in
@@ -60,8 +61,25 @@ const DashboardScreen = () => {
     signIn();
   }, [authStatus, navigation, signIn]);
 
-  // Cross-device sync for the signed-in account (see useDashboardSync).
-  const restoreTick = useDashboardSync();
+  // Sync itself runs app-wide from GlobalServices, not here — see
+  // services/dashboard/useDashboardSync. This screen only listens for the
+  // moment a restore settles.
+  const restoreTick = useRestoreTick();
+
+  // Pull to refresh. The scheduled pull is throttled to once every few minutes,
+  // which is right for a background poll and wrong for someone who has just
+  // walked to their other device and wants their reading to appear. This is the
+  // manual override; `requestPull` resolves when the pull has actually
+  // finished, so the spinner reflects the request rather than a fixed delay.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await requestPull("pull-to-refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   // Sections that fetch their own data on mount (YourPractice, MonthCalendar)
   // race the restore's SQLite writes — on a fresh install, they can fetch
@@ -113,12 +131,14 @@ const DashboardScreen = () => {
         style={{ flex: 1, backgroundColor: bg }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.textPrimary} />
+        }
       >
         <DashboardHeader
           onMenuPress={() => setSectionsVisible(true)}
           onClosePress={() => navigation.navigate("Home")}
           onAvatarPress={handleAvatarPress}
-          refreshKey={refreshKey}
         />
 
         {visibleSections.map((key) => {

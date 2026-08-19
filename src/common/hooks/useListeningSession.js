@@ -1,9 +1,21 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { logError, logMessage, trackAudioStarted, trackAudioCompleted } from "@common";
-import { insertAudioSession, upsertDailyActivity, enqueueAnalyticsWrite } from "../../database/analytics";
+import {
+  insertAudioSession,
+  upsertDailyActivity,
+  enqueueAnalyticsWrite,
+} from "../../database/analytics";
+import { requestPush } from "../../services/dashboard/syncSignal";
 
-const useListeningSession = ({ baniId, baniTitle, isPlaying, currentPlayingId, artistId, artistName }) => {
+const useListeningSession = ({
+  baniId,
+  baniTitle,
+  isPlaying,
+  currentPlayingId,
+  artistId,
+  artistName,
+}) => {
   const navigation = useNavigation();
 
   const accumulatedRef = useRef(0);
@@ -14,24 +26,36 @@ const useListeningSession = ({ baniId, baniTitle, isPlaying, currentPlayingId, a
   const currentPlayingIdRef = useRef(currentPlayingId);
   const artistIdRef = useRef(artistId);
   const artistNameRef = useRef(artistName);
-  useEffect(() => { currentPlayingIdRef.current = currentPlayingId; }, [currentPlayingId]);
-  useEffect(() => { artistIdRef.current = artistId; }, [artistId]);
-  useEffect(() => { artistNameRef.current = artistName; }, [artistName]);
+  useEffect(() => {
+    currentPlayingIdRef.current = currentPlayingId;
+  }, [currentPlayingId]);
+  useEffect(() => {
+    artistIdRef.current = artistId;
+  }, [artistId]);
+  useEffect(() => {
+    artistNameRef.current = artistName;
+  }, [artistName]);
 
   // Accumulate wall-clock time while isPlaying = true; fire analytics on first play
   useEffect(() => {
     if (isPlaying) {
       if (!hasTrackedStartRef.current) {
         hasTrackedStartRef.current = true;
-        logMessage(`audio_play: id=${currentPlayingIdRef.current ?? "unknown"} artist=${artistIdRef.current ?? "unknown"}`);
-        trackAudioStarted(currentPlayingIdRef.current ?? null, baniTitle ?? null, artistNameRef.current ?? null).catch(() => {});
+        logMessage(
+          `audio_play: id=${currentPlayingIdRef.current ?? "unknown"} artist=${
+            artistIdRef.current ?? "unknown"
+          }`
+        );
+        trackAudioStarted(
+          currentPlayingIdRef.current ?? null,
+          baniTitle ?? null,
+          artistNameRef.current ?? null
+        ).catch(() => {});
       }
       playStartRef.current = Date.now();
-    } else {
-      if (playStartRef.current) {
-        accumulatedRef.current += (Date.now() - playStartRef.current) / 1000;
-        playStartRef.current = null;
-      }
+    } else if (playStartRef.current) {
+      accumulatedRef.current += (Date.now() - playStartRef.current) / 1000;
+      playStartRef.current = null;
     }
   }, [isPlaying]);
 
@@ -70,6 +94,10 @@ const useListeningSession = ({ baniId, baniTitle, isPlaying, currentPlayingId, a
           }),
         ]);
         trackAudioCompleted(durationSeconds, artistIdRef.current ?? null).catch(() => {});
+        // Local totals just moved, so the cloud copy is stale. Fire-and-forget:
+        // the sync hook debounces, so a long listening session that ends in
+        // several saves still results in one push.
+        requestPush("listening-session");
       } catch (err) {
         logError(new Error(`useListeningSession save failed: ${err?.message || err}`));
       }

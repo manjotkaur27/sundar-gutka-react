@@ -202,6 +202,19 @@ export default {
   // snapshot — handing the new account the previous one's data, the exact bug
   // the purge exists to fix. See docs/SSO.md.
   SSO_ACCOUNT_SCOPED_SYNC: true,
+  // Show the TECHNICAL reason a sync did not happen under the dashboard date —
+  // "never (HTTP 500)", "never (restore-pending)" and so on.
+  //
+  // Off for release. Those strings are diagnostics, not product copy: they are
+  // meaningless to someone reading their nitnem, and one of them (HTTP 500)
+  // reads as the app being broken even when the cause is a server-side problem
+  // already being fixed. With this off the line is a plain timestamp, or the
+  // localised "never".
+  //
+  // It earned its keep, though — this readout is how the stale device-scoped
+  // unique index was finally identified after days of guessing. Flip it to true
+  // to get that back rather than deleting the machinery.
+  SYNC_DIAGNOSTICS: false,
 
   // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
   DASHBOARD_API_BASE_URL: KHALIS_API_BASE,
@@ -253,6 +266,10 @@ export default {
   // SGPC-sourced calendar rather than computed in the app, so the header and
   // the gurpurab list can never disagree about what today is.
   NANAKSHAHI_DATE_API_URL: `${KHALIS_API_BASE}/dashboard/nanakshahi-date`,
+  // Per-date activity. The additive counterpart to /dashboard/cache: rows keyed
+  // (account, local day, device) that the server SUMS, so a phone and a tablet
+  // used on the same day add up instead of overwriting one another.
+  DASHBOARD_ACTIVITY_API_URL: `${KHALIS_API_BASE}/dashboard/activity`,
   NANAKSHAHI_API_URL: "",
   // Reachability probe for dashboard network services (see services/dashboard/
   // connectivity.js). Same globally-distributed 204 endpoint the app's NetInfo

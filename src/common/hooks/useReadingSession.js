@@ -7,6 +7,7 @@ import {
   incrementBaniReadCount,
   enqueueAnalyticsWrite,
 } from "../../database/analytics";
+import { requestPush } from "../../services/dashboard/syncSignal";
 
 // Completion is based on how far the user scrolled through the bani, not time
 // spent — a bani is "read" once the scroll bar crosses this percentage.
@@ -55,6 +56,9 @@ const useReadingSession = ({ baniId, baniTitle, navigation, scrollPercentRef }) 
           incrementBaniReadCount(baniId, baniTitle ?? null),
         ]);
         trackBaniCompleted(baniId, baniTitle, durationSeconds).catch(() => {});
+        // Local totals just moved, so the cloud copy is stale. Fire-and-forget:
+        // the sync hook debounces, so a sitting of several banis is one push.
+        requestPush("reading-session");
       } catch (err) {
         logError(new Error(`useReadingSession save failed: ${err?.message || err}`));
       }

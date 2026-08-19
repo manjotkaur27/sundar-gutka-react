@@ -6,9 +6,12 @@ export { default as getUpcomingEvents, getNextEvent, isBundledEvent } from "./up
 export { isOnline, OfflineError } from "./connectivity";
 export {
   getDashboardLatest,
+  getDashboardSnapshot,
   applyDashboardRestore,
   seedAnalyticsFromSnapshot,
   getRestoredTopBanis,
   buildCachePayload,
   pushDashboardCache,
 } from "./dashboardSync";
+export { default as useDashboardSync } from "./useDashboardSync";
+export { useRestoreTick, bumpRestoreTick, resetRestoreTick } from "./restoreSignal";
