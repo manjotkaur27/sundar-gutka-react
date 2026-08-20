@@ -21,140 +21,216 @@ jest.mock("@common", () => ({
 }));
 
 // eslint-disable-next-line import/first
-import { formatSyncStatus, SKIP_NOT_RESTORED, SKIP_COOLDOWN } from "./syncStatus";
+import { formatSyncLine, formatRelativeSync, SKIP_NOT_RESTORED, SKIP_COOLDOWN } from "./syncStatus";
 
-const fmt = () => "18 Aug, 11:21";
-const NEVER = "never";
+// Stands in for formatDayMonth, which is language-aware and tested elsewhere.
+const dayMonth = () => "19 August";
 
-// ── Release behaviour: a plain timestamp, never developer text ─────────────
-// "never (HTTP 500)" is the right thing to show a developer and the wrong thing
-// to show someone reading their nitnem — it reads as the app being broken even
-// when the cause is server-side and already fixed.
-describe("formatSyncStatus in a release build", () => {
+// Only the keys the formatter reads. Real values, so a missing substitution or
+// a stray prefix shows up as wrong TEXT rather than "undefined".
+const S = {
+  SYNC_NOT_SIGNED_IN: "Your progress isn't saved. Sign in to save it.",
+  SYNC_NOT_YET: "Not synced yet",
+  SYNC_JUST_NOW: "Synced just now",
+  SYNC_FEW_MINUTES: "Synced a few minutes ago",
+  SYNC_AN_HOUR: "Synced an hour ago",
+  SYNC_FEW_HOURS: "Synced a few hours ago",
+  SYNC_A_DAY: "Synced a day ago",
+  SYNC_DAY_AGO: "Synced {count} day ago",
+  SYNC_DAYS_AGO: "Synced {count} days ago",
+  SYNC_A_WEEK: "Synced a week ago",
+  SYNC_ON: "Synced {date}",
+};
+
+const NOW = Date.parse("2026-08-19T12:00:00.000Z");
+const SEC = 1000;
+const MIN = 60 * SEC;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+const ago = (ms) => NOW - ms;
+
+const line = (over = {}) =>
+  formatSyncLine({
+    authStatus: "signedIn",
+    now: NOW,
+    strings: S,
+    formatDayMonth: dayMonth,
+    ...over,
+  });
+
+// ── Which of the three auth states we are in ───────────────────────────────
+describe("formatSyncLine and the auth state", () => {
   beforeEach(() => {
     mockDiagnostics = false;
   });
 
-  it("shows a plain timestamp once a push has succeeded", () => {
-    expect(formatSyncStatus({ push: { at: 1, ok: true } }, fmt, NEVER)).toBe("18 Aug, 11:21");
+  it("REGRESSION: says NOTHING while auth is still unknown", () => {
+    // `auth` is excluded from redux-persist, so every cold start begins at
+    // "unknown" until the Keychain read resolves. Treating that as signed out
+    // would flash "your progress isn't saved" at a signed-in person on every
+    // single launch.
+    expect(line({ authStatus: "unknown", status: {} })).toBeNull();
+    expect(line({ authStatus: undefined, status: {} })).toBeNull();
   });
 
-  it("shows 'never' and nothing else before the first successful push", () => {
-    expect(formatSyncStatus({ attempt: { at: 1, ok: false, status: 500 } }, fmt, NEVER)).toBe(
-      "never"
+  it("nudges a signed-out user", () => {
+    expect(line({ authStatus: "signedOut", status: { push: { at: NOW, ok: true } } })).toBe(
+      S.SYNC_NOT_SIGNED_IN
     );
   });
 
-  it("never leaks an HTTP status to the reader", () => {
-    const out = formatSyncStatus(
-      { push: { at: 1, ok: true }, attempt: { at: 2, ok: false, status: 500 } },
-      fmt,
-      NEVER
-    );
-    expect(out).toBe("18 Aug, 11:21");
-    expect(out).not.toMatch(/HTTP|500/);
+  it("says so plainly when signed in but nothing has synced yet", () => {
+    expect(line({ status: {} })).toBe("Not synced yet");
+    expect(line({ status: undefined })).toBe("Not synced yet");
   });
 
-  it("never leaks an internal gate name", () => {
-    const out = formatSyncStatus({ attempt: { at: 1, skipped: SKIP_NOT_RESTORED } }, fmt, NEVER);
-    expect(out).toBe("never");
-    expect(out).not.toMatch(/restore-pending/);
-  });
-
-  it("never leaks a pull status", () => {
-    expect(
-      formatSyncStatus({ push: { at: 1, ok: true }, pull: { status: "failed" } }, fmt, NEVER)
-    ).toBe("18 Aug, 11:21");
+  it("carries its own verb, so nothing is prefixed onto it", () => {
+    // "Last synced: Synced just now" was the failure mode of prefixing.
+    expect(line({ status: { push: { at: NOW, ok: true } } })).toBe("Synced just now");
   });
 });
 
-describe("formatSyncStatus", () => {
-  // The diagnostic machinery is kept, not deleted — this readout is how the
-  // stale device-scoped unique index was finally identified.
+// ── The ladder, boundary by boundary ───────────────────────────────────────
+// Every row is a specified edge. The pairs matter more than the middles: an
+// off-by-one here is invisible in review and obvious to a user who watches the
+// label change at the wrong moment.
+describe("formatRelativeSync", () => {
+  const rel = (elapsed) => formatRelativeSync(ago(elapsed), NOW, S, dayMonth);
+
+  it.each([
+    ["0s", 0, "Synced just now"],
+    ["59s — last moment of just now", 59 * SEC, "Synced just now"],
+    ["exactly 1 min", MIN, "Synced a few minutes ago"],
+    ["29 min", 29 * MIN, "Synced a few minutes ago"],
+    ["exactly 30 min", 30 * MIN, "Synced an hour ago"],
+    ["59 min", 59 * MIN, "Synced an hour ago"],
+    ["exactly 1 hr", HOUR, "Synced a few hours ago"],
+    ["2 hr 59 min", 2 * HOUR + 59 * MIN, "Synced a few hours ago"],
+    ["exactly 3 hr", 3 * HOUR, "Synced a day ago"],
+    ["23 hr 59 min", 23 * HOUR + 59 * MIN, "Synced a day ago"],
+    ["exactly 1 day", DAY, "Synced 1 day ago"],
+    ["1 day 23 hr — still 1", DAY + 23 * HOUR, "Synced 1 day ago"],
+    ["exactly 2 days", 2 * DAY, "Synced 2 days ago"],
+    ["3 days", 3 * DAY, "Synced 3 days ago"],
+    ["4 days", 4 * DAY, "Synced 4 days ago"],
+    ["5 days", 5 * DAY, "Synced 5 days ago"],
+    ["5 days 23 hr — still 5", 5 * DAY + 23 * HOUR, "Synced 5 days ago"],
+    ["exactly 6 days", 6 * DAY, "Synced a week ago"],
+    ["6 days 23 hr", 6 * DAY + 23 * HOUR, "Synced a week ago"],
+    ["exactly 7 days", 7 * DAY, "Synced 19 August"],
+    ["400 days", 400 * DAY, "Synced 19 August"],
+  ])("%s", (_label, elapsed, expected) => {
+    expect(rel(elapsed)).toBe(expected);
+  });
+
+  it("uses the SINGULAR day string only at exactly one day", () => {
+    expect(rel(DAY)).toBe("Synced 1 day ago");
+    expect(rel(2 * DAY)).toBe("Synced 2 days ago");
+  });
+
+  it("CLAMPS a future timestamp instead of counting backwards", () => {
+    // `at` is the device's own clock from when the push landed, so a timezone
+    // change or an NTP correction can put it ahead of now.
+    expect(formatRelativeSync(NOW + 5 * MIN, NOW, S, dayMonth)).toBe("Synced just now");
+    expect(formatRelativeSync(NOW + 400 * DAY, NOW, S, dayMonth)).toBe("Synced just now");
+  });
+
+  it("leaves no placeholder unsubstituted, anywhere on the ladder", () => {
+    [0, MIN, 30 * MIN, HOUR, 3 * HOUR, DAY, 2 * DAY, 5 * DAY, 6 * DAY, 7 * DAY].forEach((d) => {
+      const out = rel(d);
+      expect(out).not.toContain("{count}");
+      expect(out).not.toContain("{date}");
+    });
+  });
+});
+
+// ── Release behaviour: never developer text ───────────────────────────────
+// "Synced just now (HTTP 500)" is the right thing to show a developer and the
+// wrong thing to show someone reading their nitnem — it reads as the app being
+// broken even when the cause is server-side and already fixed.
+const lineFor = (status) => line({ status });
+
+describe("the diagnostic tail in a release build", () => {
+  beforeEach(() => {
+    mockDiagnostics = false;
+  });
+
+  it("shows the plain line once a push has succeeded", () => {
+    expect(lineFor({ push: { at: ago(2 * MIN), ok: true } })).toBe("Synced a few minutes ago");
+  });
+
+  it("hides an HTTP failure behind the flag", () => {
+    expect(lineFor({ attempt: { at: NOW, ok: false, status: 500 } })).toBe("Not synced yet");
+  });
+
+  it("hides a skip reason behind the flag", () => {
+    expect(lineFor({ attempt: { at: NOW, skipped: SKIP_NOT_RESTORED } })).toBe("Not synced yet");
+  });
+
+  it("hides a failing pull behind the flag", () => {
+    expect(lineFor({ push: { at: ago(2 * MIN), ok: true }, pull: { status: "failed" } })).toBe(
+      "Synced a few minutes ago"
+    );
+  });
+});
+
+describe("the diagnostic tail with diagnostics on", () => {
   beforeEach(() => {
     mockDiagnostics = true;
   });
 
-  it("reads 'never' when nothing has been attempted at all", () => {
-    expect(formatSyncStatus({}, fmt, NEVER)).toBe(NEVER);
-    expect(formatSyncStatus(undefined, fmt, NEVER)).toBe(NEVER);
-  });
-
-  it("shows a plain timestamp once a push has succeeded", () => {
-    expect(formatSyncStatus({ push: { at: 1, ok: true } }, fmt, NEVER)).toBe("18 Aug, 11:21");
-  });
-
-  it("REGRESSION: a later cooldown skip does not erase a real success", () => {
-    // Observed on device: synced at 10:42, then every backgrounding re-attempted
-    // and was skipped by the cooldown. The header read "never (cooldown)" on a
-    // device that had plainly synced — a failure reported where none happened.
+  it("keeps the last SUCCESS as the timestamp, not the last attempt", () => {
+    // Holding one field meant a cooldown skip — the overwhelmingly common
+    // outcome, since every backgrounding tries again — erased the record of a
+    // push that had genuinely succeeded minutes earlier, and the header then
+    // reported a failure that never happened.
     const afterCooldown = {
-      push: { at: 1, ok: true },
-      attempt: { at: 2, skipped: SKIP_COOLDOWN },
+      push: { at: ago(2 * MIN), ok: true },
+      attempt: { at: NOW, skipped: SKIP_COOLDOWN },
     };
-    expect(formatSyncStatus(afterCooldown, fmt, NEVER)).toBe("18 Aug, 11:21");
+    expect(lineFor(afterCooldown)).toBe("Synced a few minutes ago");
   });
 
-  it("keeps the last success visible even when a LATER attempt genuinely failed", () => {
-    const brokeAfterworking = {
-      push: { at: 1, ok: true },
-      attempt: { at: 2, ok: false, status: 500 },
+  it("appends the reason when a real attempt failed after a good one", () => {
+    const brokeAfterWorking = {
+      push: { at: ago(2 * MIN), ok: true },
+      attempt: { at: NOW, ok: false, status: 500 },
     };
-    expect(formatSyncStatus(brokeAfterworking, fmt, NEVER)).toBe("18 Aug, 11:21 (HTTP 500)");
+    expect(lineFor(brokeAfterWorking)).toBe("Synced a few minutes ago (HTTP 500)");
   });
 
-  it("names the gate when the push never left the device", () => {
-    expect(formatSyncStatus({ attempt: { at: 1, skipped: SKIP_NOT_RESTORED } }, fmt, NEVER)).toBe(
-      "never (restore-pending)"
+  it("names a skip that is NOT benign", () => {
+    expect(lineFor({ attempt: { at: NOW, skipped: SKIP_NOT_RESTORED } })).toBe(
+      `Not synced yet (${SKIP_NOT_RESTORED})`
     );
   });
 
-  it("stays silent about a cooldown on a device that has never synced", () => {
-    // A cooldown means "we synced recently enough", so it is never the reason
-    // something is wrong — reporting it only buries the real state.
-    expect(formatSyncStatus({ attempt: { at: 1, skipped: SKIP_COOLDOWN } }, fmt, NEVER)).toBe(
-      "never"
+  it("stays quiet about a cooldown — that is a healthy outcome", () => {
+    expect(lineFor({ attempt: { at: NOW, skipped: SKIP_COOLDOWN } })).toBe("Not synced yet");
+  });
+
+  it("reports a transport error by message", () => {
+    expect(lineFor({ attempt: { at: NOW, ok: false, error: "Network request failed" } })).toBe(
+      "Not synced yet (Network request failed)"
     );
   });
 
-  it("shows the HTTP status when the server refused it — the case we could not see before", () => {
-    expect(formatSyncStatus({ attempt: { at: 1, ok: false, status: 400 } }, fmt, NEVER)).toBe(
-      "never (HTTP 400)"
-    );
-    expect(formatSyncStatus({ attempt: { at: 1, ok: false, status: 500 } }, fmt, NEVER)).toBe(
-      "never (HTTP 500)"
+  it("appends a pull that did not simply succeed", () => {
+    const good = { push: { at: ago(2 * MIN), ok: true } };
+    expect(lineFor({ ...good, pull: { status: "failed" } })).toBe(
+      "Synced a few minutes ago · pull failed"
     );
   });
 
-  it("shows a transport failure, which has no status at all", () => {
-    expect(
-      formatSyncStatus(
-        { attempt: { at: 1, ok: false, error: "Network request failed" } },
-        fmt,
-        NEVER
-      )
-    ).toBe("never (Network request failed)");
+  it("says nothing about a pull that worked", () => {
+    expect(lineFor({ push: { at: ago(2 * MIN), ok: true }, pull: { status: "ok" } })).toBe(
+      "Synced a few minutes ago"
+    );
   });
 
-  it("appends a failing pull, so a one-way failure is still visible", () => {
+  it("never leaks diagnostics into the signed-out nudge", () => {
     expect(
-      formatSyncStatus({ push: { at: 1, ok: true }, pull: { status: "failed" } }, fmt, NEVER)
-    ).toBe("18 Aug, 11:21 · pull failed");
-    expect(
-      formatSyncStatus({ push: { at: 1, ok: true }, pull: { status: "unauthorized" } }, fmt, NEVER)
-    ).toBe("18 Aug, 11:21 · pull unauthorized");
-  });
-
-  it("stays quiet about a healthy pull", () => {
-    expect(
-      formatSyncStatus({ push: { at: 1, ok: true }, pull: { status: "ok" } }, fmt, NEVER)
-    ).toBe("18 Aug, 11:21");
-  });
-
-  it("distinguishes an account with no cloud data from one that failed to reach it", () => {
-    // `empty` is a 404 — authoritative, and NOT an error. It should not be
-    // dressed up as one, or a genuinely new account looks broken.
-    const emptyPull = { push: { at: 1, ok: true }, pull: { status: "empty" } };
-    expect(formatSyncStatus(emptyPull, fmt, NEVER)).toBe("18 Aug, 11:21 · pull empty");
+      line({ authStatus: "signedOut", status: { attempt: { at: NOW, ok: false, status: 500 } } })
+    ).toBe(S.SYNC_NOT_SIGNED_IN);
   });
 });

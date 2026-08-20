@@ -4,11 +4,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { formatWeekdayLong, formatDayMonth, formatDateTime } from "@common/dateLocale";
+import { formatWeekdayLong, formatDayMonth } from "@common/dateLocale";
 import { CloseIcon, PersonIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { getNanakshahiDate, fetchNanakshahiDate } from "../../services/dashboard";
-import { useSyncStatus, formatSyncStatus } from "../../services/dashboard/syncStatus";
+import { useSyncStatus, formatSyncLine } from "../../services/dashboard/syncStatus";
+import { useNowTick } from "../../services/dashboard/useNowTick";
 import useDashboardTheme from "./dashboardTheme";
 
 const MenuIcon = ({ color }) => (
@@ -46,6 +47,10 @@ const DashboardHeader = ({
   // greeting — the Fateh is its title — so this changes the glyph inside the
   // existing circle and nothing else.
   const authUser = useSelector((state) => state.auth.user);
+  // The STATUS, not just the user: "unknown" (the Keychain read has not
+  // resolved yet) has to stay distinguishable from "signedOut", or every cold
+  // start tells a signed-in person their progress is not being saved.
+  const authStatus = useSelector((state) => state.auth.status);
   const avatarInitial = (authUser?.firstname || authUser?.email || "")
     .trim()
     .charAt(0)
@@ -102,7 +107,16 @@ const DashboardHeader = ({
   // completes while this screen is open is visible immediately. STRINGS is read
   // during render, so a language switch relocalises it too.
   const syncStatus = useSyncStatus();
-  const lastSyncedLabel = formatSyncStatus(syncStatus, formatDateTime, STRINGS.NEVER);
+  // Ticks so the relative label stays true while the screen sits open; the sync
+  // store alone only fires when a push or pull is recorded.
+  const now = useNowTick();
+  const syncLine = formatSyncLine({
+    status: syncStatus,
+    authStatus,
+    now,
+    strings: STRINGS,
+    formatDayMonth,
+  });
 
   const bg = c.backgroundAlt;
 
@@ -158,11 +172,18 @@ const DashboardHeader = ({
           <CustomText style={[styles.date, { color: belowNameColor }]} numberOfLines={2}>
             {dateLine}
           </CustomText>
-          {/* Temporary testing readout — remove once cloud sync is verified. */}
-          {lastSyncedLabel ? (
-            <CustomText style={[styles.syncLine, { color: mutedText }]} numberOfLines={2}>
-              {`${STRINGS.LAST_SYNCED}: ${lastSyncedLabel}`}
-            </CustomText>
+          {/* Either "Last synced: 2 mins ago" or, signed out, the nudge that the
+              work being done here is not being kept anywhere. Null while auth is
+              still unknown, so neither claim is made before it is true.
+
+              NO line cap, for the same reason the Fateh above has none: the
+              signed-out sentence is long, longer again in Punjabi and Hindi, and
+              longer still at a raised OS text size. Any fixed number is a guess
+              at a width, and the case it gets wrong is the one that truncates
+              the message telling someone their progress is at risk. The header
+              has no fixed height, so it simply grows. */}
+          {syncLine ? (
+            <CustomText style={[styles.syncLine, { color: mutedText }]}>{syncLine}</CustomText>
           ) : null}
         </View>
 
