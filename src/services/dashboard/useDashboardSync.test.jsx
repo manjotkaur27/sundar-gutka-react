@@ -224,7 +224,7 @@ describe("bootstrap vs refresh", () => {
       expect.anything(),
       expect.objectContaining({ reschedule: true })
     );
-    expect(mockSeed).toHaveBeenCalledWith({ streaks: {} });
+    expect(mockSeed).toHaveBeenCalledWith({ streaks: {} }, { merge: true });
     expect(mockStorageMap.get(DASHBOARD_APPLIED_AT_KEY)).toBe("2026-08-18T09:00:00.000Z");
   });
 
@@ -598,95 +598,102 @@ describe("adopting preferences on a refresh", () => {
 // A device can accumulate real work while signed out or offline. When a session
 // begins or connectivity returns, two copies exist and only one can survive.
 // The rule: whichever changed later wins outright.
-describe("reconciling local data against the account", () => {
+// ── PULL → MERGE → PUSH ────────────────────────────────────────────────────
+//
+// There is no longer a "which side wins" decision on sign-in, because there is
+// no longer a side that loses. The account's snapshot is always applied, always
+// merged into local, and the union is always sent back.
+//
+// What this replaced: the old code compared this device's clock against the
+// server's, and if local looked newer AND held any history at all, it SKIPPED
+// the restore and force-pushed local over the account. Both halves were
+// unsound. A device that has just been signed out always looks newer — the
+// sign-out itself stamps the clock — and "any history at all" accepted three
+// seconds of reading. A real account lost its streak and every completed bani
+// to a device holding three seconds.
+describe("bootstrap merges rather than picking a winner", () => {
   const remote = (syncedAt) => ({
     status: "ok",
     payload: { streaks: { current: 9 } },
     syncedAt,
   });
 
-  it("KEEPS local and pushes it when local changed after the account's snapshot", async () => {
-    // Read banis offline this morning; the account's snapshot is from last night.
+  it("REGRESSION: applies the account's snapshot even when local looks newer", async () => {
+    // The exact shape that destroyed an account: a local stamp from after the
+    // snapshot, on a device that holds something. It must no longer be able to
+    // skip the restore.
     mockStorageMap.set(
       DASHBOARD_LOCAL_MUTATED_AT_KEY,
       String(Date.parse("2026-08-19T10:00:00.000Z"))
     );
-    mockGetSnapshot.mockResolvedValue(remote("2026-08-19T08:00:00.000Z"));
-    mount();
-    await flush();
-
-    // Nothing from the server was applied — the offline work survives.
-    expect(mockApplyRestore).not.toHaveBeenCalled();
-    expect(mockSeed).not.toHaveBeenCalled();
-    // And it goes up.
-    expect(mockPush).toHaveBeenCalled();
-  });
-
-  it("REGRESSION: an EMPTY local copy never outranks an account with history", async () => {
-    // A timestamp is not evidence of data. The purge's own clearUserData
-    // dispatch stamps the local-change clock, so a just-wiped device looked
-    // "newer" than an account holding years of history — the restore was
-    // skipped and the Dashboard sat at 0/0 until a manual refresh happened to
-    // take the other branch. This is the fresh-sign-in zeros report.
-    mockStorageMap.set(
-      DASHBOARD_LOCAL_MUTATED_AT_KEY,
-      String(Date.parse("2026-08-19T10:00:00.000Z"))
-    );
-    mockIsEmpty.mockReturnValue(true); // nothing on this device
+    mockIsEmpty.mockReturnValue(false); // this device has "history"
     mockGetSnapshot.mockResolvedValue(remote("2026-08-19T08:00:00.000Z"));
     mount();
     await flush();
 
     expect(mockApplyRestore).toHaveBeenCalled();
     expect(mockSeed).toHaveBeenCalled();
-    // ...and the empty local copy is still refused as a push, both guards holding.
-    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("does not even build a payload when the stamp is older than the snapshot", async () => {
-    // The emptiness check costs a full payload build, so it must only run on
-    // the branch that could actually discard the account's copy.
-    mockGetSnapshot.mockResolvedValue(remote("2026-08-19T10:00:00.000Z"));
-    mount();
-    await flush();
-    expect(mockBuildPayload).not.toHaveBeenCalled();
-  });
-
-  it("DISCARDS local and takes the snapshot when the account moved on later", async () => {
+  it("REGRESSION: an empty local copy never outranks an account with history", async () => {
     mockStorageMap.set(
       DASHBOARD_LOCAL_MUTATED_AT_KEY,
-      String(Date.parse("2026-08-19T08:00:00.000Z"))
+      String(Date.parse("2026-08-19T10:00:00.000Z"))
     );
-    mockGetSnapshot.mockResolvedValue(remote("2026-08-19T10:00:00.000Z"));
+    mockIsEmpty.mockReturnValue(true);
+    mockGetSnapshot.mockResolvedValue(remote("2026-08-19T08:00:00.000Z"));
     mount();
     await flush();
 
     expect(mockApplyRestore).toHaveBeenCalled();
-    expect(mockSeed).toHaveBeenCalledWith({ streaks: { current: 9 } });
+    expect(mockSeed).toHaveBeenCalled();
   });
 
-  it("clears the local stamp once the snapshot has superseded it", async () => {
-    // Otherwise the next launch re-decides in favour of data we just overwrote.
-    mockStorageMap.set(
-      DASHBOARD_LOCAL_MUTATED_AT_KEY,
-      String(Date.parse("2026-08-19T08:00:00.000Z"))
-    );
+  it("MERGES history rather than overwriting it", async () => {
+    // merge:true is what stops the restore erasing days the account has never
+    // seen — signed-out reading carried in, or an earlier unpushed session.
     mockGetSnapshot.mockResolvedValue(remote("2026-08-19T10:00:00.000Z"));
     mount();
     await flush();
 
-    expect(mockStorageMap.has(DASHBOARD_LOCAL_MUTATED_AT_KEY)).toBe(false);
+    expect(mockSeed).toHaveBeenCalledWith({ streaks: { current: 9 } }, { merge: true });
+  });
+
+  it("pushes the union straight back up", async () => {
+    // This is what makes a full-snapshot push safe: the client cannot send a
+    // SUBSET of the server, because it has just merged the server into itself.
+    mockGetSnapshot.mockResolvedValue(remote("2026-08-19T10:00:00.000Z"));
+    mount();
+    await flush();
+
+    expect(mockPush).toHaveBeenCalled();
+  });
+
+  it("MERGES BEFORE it pushes — the ordering is the whole guarantee", async () => {
+    // If the push ran first it would send local before the account's snapshot
+    // had been folded in, which is a subset — exactly the shape that overwrote
+    // real history. Restore must always land first.
+    mockStorageMap.set(
+      DASHBOARD_LOCAL_MUTATED_AT_KEY,
+      String(Date.parse("2026-08-19T10:00:00.000Z"))
+    );
+    mockGetSnapshot.mockResolvedValue(remote("2026-08-19T08:00:00.000Z"));
+    mount();
+    await flush();
+
+    expect(mockSeed).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalled();
+    expect(mockSeed.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
   });
 
   it("takes the snapshot when the device has no local changes at all", async () => {
-    // A fresh install: nothing local, so there is nothing to weigh.
     mockGetSnapshot.mockResolvedValue(remote("2026-08-19T10:00:00.000Z"));
     mount();
     await flush();
     expect(mockApplyRestore).toHaveBeenCalled();
   });
 
-  it("uploads offline work when the account has NO snapshot to compare against", async () => {
+  it("uploads local work when the account has NO snapshot to compare against", async () => {
     mockStorageMap.set(DASHBOARD_LOCAL_MUTATED_AT_KEY, String(Date.now()));
     mockGetSnapshot.mockResolvedValue({ status: "empty" });
     mount();

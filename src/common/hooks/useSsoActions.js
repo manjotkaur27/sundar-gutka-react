@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setAuthSession, clearAuthSession, setAuthBusy } from "../actions";
 import { showConfirm } from "../components/ConfirmDialog";
 import STRINGS from "../localization";
-import { purgeLocalUserData, writeLastAccount } from "../sso/accountScope";
+import { purgeLocalUserData, switchAnalyticsAccount, writeLastAccount } from "../sso/accountScope";
 import { startLogin, startLogout } from "../sso/khalisSso";
 import { readToken } from "../sso/tokenStore";
 import { showErrorToast, showInfoToast } from "../toast";
@@ -55,14 +55,29 @@ const useSsoActions = () => {
           const { remote } = await startLogout(token);
           dispatch(clearAuthSession());
 
-          // Signing out is an explicit "I am done on this device", so the data
-          // goes with the session. Without this the next person to open the app
-          // — signed in as someone else, or not signed in at all — still sees
-          // this account's streaks, history and bookmarks.
+          // Signing out is an explicit "I am done on this device", so the
+          // dashboard goes with the session. Without this the next person to
+          // open the app — signed in as someone else, or not signed in at all —
+          // still sees this account's streaks, history and bookmarks.
           //
           // Deliberately here and NOT in useSsoSession.endSession, which also
-          // fires on token expiry: wiping there would cost a user their own
-          // history for the crime of not opening the app for a week.
+          // fires on token expiry: resetting there would cost a user their own
+          // dashboard for the crime of not opening the app for a week.
+          //
+          // TWO separate things, and missing either one leaves half a session
+          // on screen:
+          //
+          //   switchAnalyticsAccount — points SQLite back at the signed-out
+          //     store. Without it the app keeps reading the account's own
+          //     database file, so the streak, the calendar and the completed
+          //     count all stay on screen after signing out. Nothing is deleted;
+          //     the account's file is simply no longer the one being read.
+          //   purgeLocalUserData — resets the redux preferences: layout,
+          //     reminders, nitnem, bookmarks.
+          //
+          // The database first, so no frame renders signed-out preferences over
+          // the previous account's numbers.
+          await switchAnalyticsAccount(null);
           await purgeLocalUserData(dispatch);
           await writeLastAccount(null);
           // An expired token can't end the IdP session (the SP 401s it), so be

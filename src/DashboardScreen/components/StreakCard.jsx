@@ -9,6 +9,7 @@ import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight as ChevronRightIcon } from "@common/icons";
 import { CustomText, STRINGS, constant, showInfoToast } from "@common";
 import { getOrCreateSummary, getDailyActivity } from "../../database/analytics";
+import { dayQualifies, getLocalDate } from "../../services/streakDays";
 import useDashboardTheme from "./dashboardTheme";
 import DayDetailModal from "./DayDetailModal";
 import SectionError from "./SectionError";
@@ -110,17 +111,6 @@ const ChevronRight = ({ color }) => (
 );
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
-const ymd = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
-    2,
-    "0"
-  )}`;
-
-const qualifies = (row) =>
-  row &&
-  ((row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-    (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS);
-
 const hasAnyActivity = (row) =>
   !!row && ((row.reading_seconds ?? 0) > 0 || (row.listening_seconds ?? 0) > 0);
 
@@ -189,13 +179,13 @@ const StreakCard = ({ refreshKey = 0 }) => {
       map[r.date] = r;
     });
 
-    const todayStr = ymd(new Date());
+    const todayStr = getLocalDate();
     const list = weekDates.map((d) => {
-      const key = ymd(d);
+      const key = getLocalDate(d);
       return {
         date: key,
         letter: weekdayNarrow(d.getDay()),
-        done: qualifies(map[key]),
+        done: dayQualifies(map[key]),
         hasActivity: hasAnyActivity(map[key]),
         isToday: key === todayStr,
         isFuture: key > todayStr,

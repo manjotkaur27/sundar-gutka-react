@@ -7,6 +7,7 @@ import { neutral } from "@theme/palette";
 import PropTypes from "prop-types";
 import { Text as UIText } from "@common/components/ui";
 import useBaniLookup from "@common/hooks/useBaniLookup";
+import { DEFAULT_NITNEM_BANI_IDS } from "@common/nitnem/defaults";
 import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
 import { getDayDetail } from "../../database/analytics";
@@ -335,10 +336,19 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   // here, because there is only ever one list. It used to keep its own
   // `selectedBaniIds`, which meant the same user had two different Nitnems.
   const morning = useSelector((state) => defaultPothi(state.pothis, "morning"));
-  const selectedBaniIds = useMemo(
-    () => (morning?.items ?? []).map((item) => item.baaniId),
-    [morning]
-  );
+  // The pothi when it has banis — that is where a signed-in account's own list
+  // arrives from — and the defaults when it does not.
+  //
+  // The fallback is what stops the card rendering empty. `pothis` is
+  // person-owned data, so the sign-out purge resets it, and the only re-seed
+  // lives in a hook mounted on the Home TAB; signing out on the Dashboard used
+  // to leave this reading "No banis in this pothi". A constant needs nothing
+  // mounted. It is READ-only: nothing here writes the pothi or the sync
+  // payload, so the account's list is never overwritten by a default.
+  const selectedBaniIds = useMemo(() => {
+    const fromPothi = (morning?.items ?? []).map((item) => item.baaniId);
+    return fromPothi.length ? fromPothi : DEFAULT_NITNEM_BANI_IDS;
+  }, [morning]);
   const { map: baniMap, nameOf } = useBaniLookup();
 
   const [editVisible, setEditVisible] = useState(false);

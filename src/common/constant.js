@@ -146,8 +146,11 @@ export default {
   },
   ICON_SIZE_SMALL: 18,
   ANALYTICS_DB_NAME: "analytics_v01.db",
-  MIN_READ_SESSION_SECONDS: 240,
-  MIN_LISTEN_SESSION_SECONDS: 240,
+  // A day counts toward the streak when reading and listening COMBINED reach
+  // this many seconds. The two channels POOL — 3 min read + 3 min listened is
+  // an active day. They were previously judged separately (>=240 in EITHER
+  // channel), which silently failed anyone who split their time between them.
+  MIN_DAILY_ACTIVE_SECONDS: 240,
   KHALIS_APPS_API_URL: "",
   ANALYTICS_SYNC_API_URL: "",
 

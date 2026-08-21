@@ -4,8 +4,9 @@ import Svg, { Polyline, Path } from "react-native-svg";
 import { weekdayNarrowRow, monthLong } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
-import { CustomText, useTheme, constant, logError } from "@common";
+import { CustomText, useTheme, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
+import { dayQualifies } from "../../services/streakDays";
 import DayDetailModal from "./DayDetailModal";
 
 const ChevronLeft = ({ color }) => (
@@ -115,19 +116,12 @@ const ActivityCalendar = ({ refreshKey = 0 }) => {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const row = activityMap[dateStr];
     const isToday = dateStr === todayStr;
-    const qualifies = row && (
-      (row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-      (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
-    );
+    const qualifies = dayQualifies(row);
     const hasAny = row && (row.reading_seconds + row.listening_seconds) > 0;
     return { qualifies, hasAny, isToday };
   };
 
-  const activeDaysCount = Object.values(activityMap).filter(
-    (row) =>
-      (row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-      (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
-  ).length;
+  const activeDaysCount = Object.values(activityMap).filter(dayQualifies).length;
 
   const navColor = c.textPrimary;
   const disabledColor = c.textSecondary;

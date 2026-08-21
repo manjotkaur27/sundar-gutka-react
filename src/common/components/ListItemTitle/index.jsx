@@ -26,10 +26,20 @@ const ListItemTitle = ({ title, style = null, numberOfLines = 2 }) => {
   // screen did exactly that: its header style sets size and spacing only.
   //
   // Callers that do pass a colour still win, because `style` is spread after.
+  // includeFontPadding:false + textAlignVertical:center for the same reason the
+  // AudioPlayer pill needs them: Android's font padding is asymmetric, so the
+  // glyphs sit off-centre inside their own line box. The row centres the BOX
+  // correctly while the visible text still looks pushed up or down — the "not
+  // vertically aligned" bug. It varies by OEM and by script because the
+  // reserved padding follows the RESOLVED font's metrics (visible on
+  // Realme/ColorOS in hi/pa, not on Samsung/OPPO/OnePlus). Hugging the glyphs
+  // makes centring the box centre what you actually see.
   const base = {
     fontFamily: theme.typography.fonts.balooPaaji,
     color: theme.c.textPrimary,
     flexShrink: 1,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   };
   const textStyle = Array.isArray(style) ? [base, ...style] : [base, style];
 

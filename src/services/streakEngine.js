@@ -1,75 +1,91 @@
 import { logError, constant } from "@common";
-import { getDayActivity, getOrCreateSummary, updateSummary } from "../database/analytics";
+import { getQualifyingDates, getOrCreateSummary, updateSummary } from "../database/analytics";
+import { getLocalDate, shiftDate } from "./streakDays";
 
-// Returns YYYY-MM-DD in the device's local timezone
-const getLocalDate = () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
-// Returns the number of calendar days between two YYYY-MM-DD strings (a - b)
-const diffDays = (a, b) => {
-  if (!a || !b) return Infinity;
-  const msPerDay = 86400000;
-  return Math.round((new Date(a) - new Date(b)) / msPerDay);
-};
-
-const dayQualifies = (row) => {
-  if (!row) return false;
-  return (
-    (row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-    (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
-  );
-};
-
+// Derives the streak from the `daily_activity` history on every run, rather
+// than nudging a stored counter forward one Dashboard visit at a time.
+//
+// The counter approach measured "days you opened the Dashboard after reading",
+// not "days you read": it only advanced `last_active_date` when the screen
+// happened to be opened on a day that had already qualified. Someone who read
+// daily but checked the Dashboard weekly reset to 1 every week, and someone
+// whose routine was "check Dashboard, then read" never advanced it at all and
+// sat on 0 forever — under a week strip full of gold check marks, because that
+// strip reads `daily_activity` directly and was always right.
+//
+// Recomputing is idempotent and order-independent, so it does not care when
+// (or whether) the user visits the screen. It also heals historical damage:
+// the day rows were always written correctly, so the first run after this
+// change restores everyone's true streak.
 export const computeStreaks = async () => {
   try {
     const today = getLocalDate();
     const summary = await getOrCreateSummary();
     if (!summary) return;
 
-    const { current_streak, longest_streak, total_days_active, last_active_date } = summary;
+    const dates = await getQualifyingDates(constant.MIN_DAILY_ACTIVE_SECONDS);
 
-    // Already processed today and today already qualifies — nothing to recalculate
-    if (last_active_date === today) return;
+    // Nothing to derive from. On a fresh install the restore's day rows may not
+    // have landed yet, and writing zeros here would wipe the streak the restore
+    // just wrote. Leave the summary alone — the next focus recomputes.
+    if (dates.length === 0) return;
 
-    const dayGap = diffDays(today, last_active_date);
+    const latest = dates[0];
 
-    // If user missed more than 1 day, the streak is broken regardless of today
-    const streakBroken = dayGap > 1;
+    // The summary claims activity on a day with no row behind it. That means a
+    // restored snapshot carried a summary whose day history was truncated, so
+    // the streak cannot be verified from history we do not have — better to
+    // keep the restored number than to overwrite it with a known-short one.
+    if (summary.last_active_date && summary.last_active_date > latest) return;
 
-    // Check whether today already has qualifying activity
-    // (user may have read before the app went to background and returned)
-    const todayRow = await getDayActivity(today);
-    const todayQualifies = dayQualifies(todayRow);
+    const qualified = new Set(dates);
 
-    let newStreak = streakBroken ? 0 : current_streak;
-    let newTotalDaysActive = total_days_active ?? 0;
-    let newLastActive = last_active_date;
-
-    if (todayQualifies) {
-      // Extend streak from yesterday (gap=1) or start fresh (gap>1 or first ever)
-      newStreak = dayGap === 1 ? newStreak + 1 : 1;
-      newLastActive = today;
-      // Only count a new active day if this date wasn't already the last active
-      if (last_active_date !== today) {
-        newTotalDaysActive += 1;
-      }
+    // Anchor on today if it has already qualified, otherwise on yesterday: a
+    // day still in progress is "at risk", not a break, so the number shouldn't
+    // read 0 every morning until the user has read.
+    let cursor = qualified.has(today) ? today : shiftDate(today, -1);
+    let current = 0;
+    while (qualified.has(cursor)) {
+      current += 1;
+      cursor = shiftDate(cursor, -1);
     }
 
-    const newLongest = Math.max(newStreak, longest_streak ?? 0);
+    // The walk ran off the start of the history rather than stopping on a day
+    // the user actually missed, so the real run may be longer than what is
+    // stored locally — a restored snapshot only carries recent months. We
+    // cannot disprove a bigger stored streak, so don't lower it. Any walk that
+    // halted on a genuine gap INSIDE the history is trusted and does reset.
+    const historyExhausted = cursor < dates[dates.length - 1];
 
-    const fields = {
-      current_streak: newStreak,
-      longest_streak: newLongest,
-      total_days_active: newTotalDaysActive,
-      last_active_date: newLastActive,
-    };
+    // Longest run anywhere in the history — one ascending pass over the same
+    // list, so the all-time best is recoverable instead of inheriting whatever
+    // the old counter happened to reach.
+    let longest = 0;
+    let run = 0;
+    let prev = null;
+    for (let i = dates.length - 1; i >= 0; i -= 1) {
+      const date = dates[i];
+      run = prev && shiftDate(prev, 1) === date ? run + 1 : 1;
+      if (run > longest) longest = run;
+      prev = date;
+    }
 
-    await updateSummary(fields);
+    // Re-read immediately before writing. A cloud restore can land between the
+    // read above and this update — both fire on Dashboard mount, and this is
+    // three separate slots on the serialized DB chain, not a transaction. The
+    // floors below are applied against the freshest row so a restore arriving
+    // mid-computation is preserved rather than clobbered by stale values.
+    const fresh = (await getOrCreateSummary()) ?? summary;
+    if (fresh.last_active_date && fresh.last_active_date > latest) return;
+
+    await updateSummary({
+      current_streak: historyExhausted ? Math.max(current, fresh.current_streak ?? 0) : current,
+      // Lifetime figures never walk backwards: a snapshot restored from a
+      // device with a shorter local history must not erase a real achievement.
+      longest_streak: Math.max(longest, fresh.longest_streak ?? 0),
+      total_days_active: Math.max(dates.length, fresh.total_days_active ?? 0),
+      last_active_date: latest > (fresh.last_active_date ?? "") ? latest : fresh.last_active_date,
+    });
   } catch (err) {
     logError(new Error(`computeStreaks failed: ${err?.message || err}`));
   }

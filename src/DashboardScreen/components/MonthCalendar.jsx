@@ -7,6 +7,7 @@ import { weekdayNarrowRow, formatMonthYear } from "@common/dateLocale";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
 import { getDailyActivity, getOrCreateSummary } from "../../database/analytics";
+import { dayQualifies } from "../../services/streakDays";
 import useDashboardTheme from "./dashboardTheme";
 import DayDetailModal from "./DayDetailModal";
 import MonthYearPickerModal from "./MonthYearPickerModal";
@@ -294,12 +295,7 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
   const rows = buildWeekRows(year, month);
 
   const activeDaysCount = useMemo(
-    () =>
-      Object.values(activityMap).filter(
-        (r) =>
-          (r.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-          (r.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS
-      ).length,
+    () => Object.values(activityMap).filter(dayQualifies).length,
     [activityMap]
   );
 

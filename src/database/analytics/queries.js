@@ -48,6 +48,13 @@ export const getUnsyncedReadSessions = async () => {
   return rowsToArray(result);
 };
 
+// Every row, not just the unsynced ones — used to carry a signed-out store
+// into the account that claims it, which needs the whole table.
+export const getAllReadSessions = async () => {
+  const result = await runQuery(`SELECT * FROM bani_read_history ORDER BY start_time ASC`);
+  return rowsToArray(result);
+};
+
 export const getTopReadBanis = async (limit = 5) => {
   const result = await runQuery(
     `SELECT bani_id, bani_title,
@@ -101,6 +108,11 @@ export const insertAudioSession = async ({
 
 export const getUnsyncedAudioSessions = async () => {
   const result = await runQuery(`SELECT * FROM audio_history WHERE sync_status = 0 LIMIT 100`);
+  return rowsToArray(result);
+};
+
+export const getAllAudioSessions = async () => {
+  const result = await runQuery(`SELECT * FROM audio_history ORDER BY created_at ASC`);
   return rowsToArray(result);
 };
 
@@ -172,10 +184,49 @@ export const setDailyActivity = async ({ date, reading_seconds = 0, listening_se
   );
 };
 
+// Every day row in this store, oldest first. Used to carry signed-out activity
+// into the account that signs in next — that needs the whole table, not one
+// month of it.
+export const getAllDailyActivity = async () => {
+  const result = await runQuery(`SELECT * FROM daily_activity ORDER BY date ASC`);
+  return rowsToArray(result);
+};
+
+// Empties the day table of THIS store only. Used on the anonymous store once
+// its rows have been added to an account, so a later sign-in cannot add them a
+// second time. Deliberately not a "clear my data" — it takes no other table.
+export const clearDailyActivity = async () => {
+  return runQuery(`DELETE FROM daily_activity`);
+};
+
 export const getDayActivity = async (date) => {
   const result = await runQuery(`SELECT * FROM daily_activity WHERE date = ? LIMIT 1`, [date]);
   const rows = rowsToArray(result);
   return rows[0] ?? null;
+};
+
+// Every date that met the streak bar, newest first. The streak engine walks
+// this list instead of the stored counter, so one query replaces one-query-per-
+// day-walked-backwards; even a multi-year daily reader is a few hundred short
+// strings, and non-qualifying days never leave SQLite.
+export const getQualifyingDates = async (minActiveSeconds) => {
+  const result = await runQuery(
+    // Sums the two columns rather than reading `total_seconds`, so the rule
+    // cannot be thrown off if that denormalized column ever drifts.
+    //
+    // CAST(? AS INTEGER) is load-bearing, not defensive. `reading_seconds >= ?`
+    // worked because a COLUMN carries INTEGER affinity, which makes SQLite
+    // coerce the bound parameter to a number. `(a + b)` is an EXPRESSION and has
+    // NO affinity, so no coercion happens — and if the bridge hands the value
+    // over as text, every numeric value sorts before every text value, so the
+    // comparison is false for every row and the query silently returns nothing.
+    // That is precisely what it did: a 344-second day never matched 240.
+    `SELECT date FROM daily_activity
+     WHERE (reading_seconds + listening_seconds) >= CAST(? AS INTEGER)
+     ORDER BY date DESC`,
+    [minActiveSeconds]
+  );
+  return rowsToArray(result).map((r) => r.date);
 };
 
 export const getDailyActivity = async (year, month) => {

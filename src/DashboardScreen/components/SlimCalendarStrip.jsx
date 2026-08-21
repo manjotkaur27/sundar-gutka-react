@@ -3,8 +3,9 @@ import { View, StyleSheet, Animated } from "react-native";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { weekdayNarrow } from "@common/dateLocale";
 import PropTypes from "prop-types";
-import { CustomText, useTheme, constant, logError } from "@common";
+import { CustomText, useTheme, logError } from "@common";
 import { getDailyActivity } from "../../database/analytics";
+import { dayQualifies } from "../../services/streakDays";
 
 const getTodayStr = () => {
   const now = new Date();
@@ -100,10 +101,7 @@ const SlimCalendarStrip = ({ refreshKey = 0 }) => {
         {weekDays.map(({ dateStr, dayNum, dow }) => {
           const row = activityMap[dateStr];
           const isToday = dateStr === todayStr;
-          const qualifies =
-            row &&
-            ((row.reading_seconds ?? 0) >= constant.MIN_READ_SESSION_SECONDS ||
-              (row.listening_seconds ?? 0) >= constant.MIN_LISTEN_SESSION_SECONDS);
+          const qualifies = dayQualifies(row);
           const hasAny = row && row.reading_seconds + row.listening_seconds > 0;
           return (
             <View key={dow} style={styles.cell}>

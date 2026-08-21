@@ -12,11 +12,43 @@
  * (→ localization, a native module), none of which this logic depends on.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  DASHBOARD_RESTORED_KEY,
+  DASHBOARD_LAST_PUSH_KEY,
+  RESTORED_TOP_BANIS_KEY,
+} from "../../services/dashboard/syncKeys";
+import {
+  isAccountChange,
+  purgeLocalUserData,
+  applyAccountScope,
+  readLastAccount,
+  writeLastAccount,
+} from "./accountScope";
+
 const mockClearAllAnalyticsData = jest.fn(() => Promise.resolve());
+const mockUseAnalyticsAccount = jest.fn(() => Promise.resolve(true));
+const mockGetAllDailyActivity = jest.fn(() => Promise.resolve([]));
+const mockGetAllReadSessions = jest.fn(() => Promise.resolve([]));
+const mockGetAllAudioSessions = jest.fn(() => Promise.resolve([]));
+const mockGetAllBaniReadCounts = jest.fn(() => Promise.resolve([]));
+const mockInsertReadSession = jest.fn(() => Promise.resolve());
+const mockInsertAudioSession = jest.fn(() => Promise.resolve());
+const mockIncrementBaniReadCount = jest.fn(() => Promise.resolve());
+const mockUpsertDailyActivity = jest.fn(() => Promise.resolve());
 const mockCancelAllReminders = jest.fn(() => Promise.resolve());
 
 jest.mock("../../database/analytics", () => ({
   clearAllAnalyticsData: (...a) => mockClearAllAnalyticsData(...a),
+  useAnalyticsAccount: (...a) => mockUseAnalyticsAccount(...a),
+  getAllDailyActivity: (...a) => mockGetAllDailyActivity(...a),
+  getAllReadSessions: (...a) => mockGetAllReadSessions(...a),
+  getAllAudioSessions: (...a) => mockGetAllAudioSessions(...a),
+  getAllBaniReadCounts: (...a) => mockGetAllBaniReadCounts(...a),
+  upsertDailyActivity: (...a) => mockUpsertDailyActivity(...a),
+  insertReadSession: (...a) => mockInsertReadSession(...a),
+  insertAudioSession: (...a) => mockInsertAudioSession(...a),
+  incrementBaniReadCount: (...a) => mockIncrementBaniReadCount(...a),
 }));
 jest.mock("../actions", () => ({
   clearUserData: () => ({ type: "CLEAR_USER_DATA" }),
@@ -41,20 +73,6 @@ jest.mock("../constant", () => ({
     SSO_KEYCHAIN_SERVICE: "khalis_sso",
   },
 }));
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  DASHBOARD_RESTORED_KEY,
-  DASHBOARD_LAST_PUSH_KEY,
-  RESTORED_TOP_BANIS_KEY,
-} from "../../services/dashboard/syncKeys";
-import {
-  isAccountChange,
-  purgeLocalUserData,
-  applyAccountScope,
-  readLastAccount,
-  writeLastAccount,
-} from "./accountScope";
 
 beforeEach(async () => {
   jest.clearAllMocks();
@@ -103,9 +121,13 @@ describe("isAccountChange", () => {
 describe("purgeLocalUserData", () => {
   const dispatch = jest.fn();
 
-  it("clears analytics SQLite — the dashboard's real source of truth", async () => {
+  // The history is SCOPED per account now, not deleted. Deleting it is what
+  // let a device holding three seconds of reading push over a real account:
+  // sign out wiped local, a few minutes of signed-out reading refilled it, and
+  // the sync layer treated that as the account's truth.
+  it("does NOT delete analytics history — it is scoped per account instead", async () => {
     await purgeLocalUserData(dispatch);
-    expect(mockClearAllAnalyticsData).toHaveBeenCalledTimes(1);
+    expect(mockClearAllAnalyticsData).not.toHaveBeenCalled();
   });
 
   it("dispatches CLEAR_USER_DATA", async () => {
@@ -147,12 +169,73 @@ describe("purgeLocalUserData", () => {
 describe("applyAccountScope", () => {
   const dispatch = jest.fn();
 
-  it("purges and records the new owner on a real account change", async () => {
+  it("resets preferences and records the new owner on a real account change", async () => {
     await writeLastAccount("a@khalis.net");
     const purged = await applyAccountScope("b@khalis.net", dispatch);
     expect(purged).toBe(true);
-    expect(mockClearAllAnalyticsData).toHaveBeenCalledTimes(1);
+    // Preferences reset; HISTORY is scoped, not deleted.
+    expect(dispatch).toHaveBeenCalledWith({ type: "CLEAR_USER_DATA" });
+    expect(mockClearAllAnalyticsData).not.toHaveBeenCalled();
     expect(await readLastAccount()).toBe("b@khalis.net");
+  });
+
+  // The database has to follow the session even when the account did not
+  // change: a relaunch starts on the anonymous store, and everything that reads
+  // or writes history afterwards would otherwise hit the wrong file.
+  it("points the database at the session on EVERY call, change or not", async () => {
+    await writeLastAccount("a@khalis.net");
+    await applyAccountScope("a@khalis.net", dispatch);
+    expect(mockUseAnalyticsAccount).toHaveBeenCalledWith("a@khalis.net");
+  });
+
+  it("carries signed-out activity into the account that signs in", async () => {
+    mockGetAllDailyActivity.mockResolvedValueOnce([
+      { date: "2026-08-20", reading_seconds: 300, listening_seconds: 60 },
+    ]);
+    await applyAccountScope("a@khalis.net", dispatch);
+    // ADDED as a delta: signed-out reading is genuinely extra activity for that
+    // day, not a competing copy of it.
+    expect(mockUpsertDailyActivity).toHaveBeenCalledWith({
+      date: "2026-08-20",
+      reading_seconds_delta: 300,
+      listening_seconds_delta: 60,
+    });
+    // ...then the anonymous store is emptied COMPLETELY, so a second sign-in
+    // cannot add it twice and a later sign-OUT shows a genuinely blank
+    // dashboard rather than the previous account's streak and most-read lists.
+    expect(mockClearAllAnalyticsData).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries the session histories too, not just the day rows", async () => {
+    // Carrying only `daily_activity` left the summary, the session tables and
+    // the read counts behind in the pre-accounts database — so signing out
+    // still showed the previous account's numbers.
+    mockGetAllReadSessions.mockResolvedValueOnce([
+      { bani_id: 4, bani_title: "Japji", start_time: 1, end_time: 2, duration_seconds: 300 },
+    ]);
+    mockGetAllAudioSessions.mockResolvedValueOnce([{ bani_id: 9, duration_played: 120 }]);
+    mockGetAllBaniReadCounts.mockResolvedValueOnce([
+      { bani_id: 4, bani_title: "Japji", read_count: 2 },
+    ]);
+
+    await applyAccountScope("a@khalis.net", dispatch);
+
+    expect(mockInsertReadSession).toHaveBeenCalledTimes(1);
+    expect(mockInsertAudioSession).toHaveBeenCalledTimes(1);
+    // read_count 2 replays as two increments, so the count lands at 2.
+    expect(mockIncrementBaniReadCount).toHaveBeenCalledTimes(2);
+    expect(mockClearAllAnalyticsData).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves signed-out activity in place if adding it failed", async () => {
+    mockGetAllDailyActivity.mockResolvedValueOnce([
+      { date: "2026-08-20", reading_seconds: 300, listening_seconds: 0 },
+    ]);
+    mockUpsertDailyActivity.mockRejectedValueOnce(new Error("db locked"));
+    await applyAccountScope("a@khalis.net", dispatch);
+    // Nothing cleared: the rows are still there for the next attempt. Clearing
+    // before a successful add would lose the reading outright.
+    expect(mockClearAllAnalyticsData).not.toHaveBeenCalled();
   });
 
   it("does nothing when the same account signs back in", async () => {
@@ -182,7 +265,7 @@ describe("applyAccountScope", () => {
     jest.clearAllMocks();
     const purged = await applyAccountScope("b@khalis.net", dispatch);
     expect(purged).toBe(true);
-    expect(mockClearAllAnalyticsData).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "CLEAR_USER_DATA" });
     expect(await readLastAccount()).toBe("b@khalis.net");
   });
 
@@ -202,7 +285,7 @@ describe("applyAccountScope", () => {
   // A failed purge must not block sign-in — the user would be stuck unable to
   // log in at all, which is worse than briefly stale data.
   it("reports false rather than throwing when the purge fails", async () => {
-    mockClearAllAnalyticsData.mockRejectedValueOnce(new Error("db locked"));
+    mockUseAnalyticsAccount.mockRejectedValueOnce(new Error("db locked"));
     await writeLastAccount("a@khalis.net");
     await expect(applyAccountScope("b@khalis.net", dispatch)).resolves.toBe(false);
   });

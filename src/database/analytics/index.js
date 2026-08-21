@@ -1,8 +1,11 @@
-export { getAnalyticsDB, closeAnalyticsDB } from "./connect";
+export { getAnalyticsDB, closeAnalyticsDB, useAnalyticsAccount } from "./connect";
+export { accountKeyFor, currentAccountKey, ANONYMOUS_KEY } from "./accountDb";
 export { enqueueAnalyticsWrite } from "./queue";
 export {
   insertReadSession,
   getUnsyncedReadSessions,
+  getAllReadSessions,
+  getAllAudioSessions,
   getTopReadBanis,
   getRecentReadBanis,
   insertAudioSession,
@@ -12,8 +15,11 @@ export {
   upsertDailyActivity,
   setDailyActivity,
   getDayActivity,
+  getAllDailyActivity,
+  clearDailyActivity,
   getDayDetail,
   getDailyActivity,
+  getQualifyingDates,
   getUnsyncedActivity,
   getActivityUpdatedSince,
   getOrCreateSummary,

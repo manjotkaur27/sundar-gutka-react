@@ -370,8 +370,16 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, letterSpacing: 0.5 },
   // 18 was tighter than the 1.4 ratio that already clipped Baloo's Gurmukhi and
   // Devanagari matras in Settings, and it now has to hold up to three lines.
-  title: { fontSize: 16, lineHeight: 24 },
-  subtitle: { fontSize: 12, lineHeight: 17, marginTop: 3 },
+  // includeFontPadding:false on both lines, same reason as the AudioPlayer's
+  // timestamp/artistName pair: Android reserves ascent/descent padding inside
+  // each Text from the RESOLVED font's metrics. Baloo Paaji ships no Devanagari
+  // at all, so Hindi falls back to the system face — and ColorOS (Realme)
+  // resolves Indic scripts differently from Samsung/OPPO/OnePlus. Same style,
+  // different reserved padding, which is why the gap under the title appeared
+  // only there and only in hi/pa. Stripping it makes the line box hug the
+  // glyphs so the explicit lineHeights below are the whole spacing story.
+  title: { fontSize: 16, lineHeight: 24, includeFontPadding: false },
+  subtitle: { fontSize: 12, lineHeight: 17, marginTop: 3, includeFontPadding: false },
   tileSkeleton: { width: "100%", height: 88 },
 });
 

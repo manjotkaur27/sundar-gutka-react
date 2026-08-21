@@ -197,91 +197,62 @@ const useDashboardSync = () => {
         }
 
         if (!bootstrapped) {
-          // ── Which side is authoritative? ─────────────────────────────────
+          // ── PULL → MERGE → PUSH ──────────────────────────────────────────
           //
-          // This is the moment a session begins, or connectivity returns, and
-          // the device may hold work done while signed out or offline. Two
-          // copies exist and only one can win, so compare when each last
-          // changed:
+          // The account's snapshot is applied FIRST, always. There is no longer
+          // a "which side wins" decision, because there is no longer a side
+          // that loses: history merges, so both copies survive.
           //
-          //   local newer  → the account's snapshot is stale. Keep local and
-          //                  push it up; do NOT apply the remote, or the
-          //                  offline work is silently destroyed.
-          //   local older  → the account has moved on elsewhere. Discard local
-          //                  and take the snapshot wholesale.
+          // What this replaces, and why: the old code compared this device's
+          // clock against the server's, and if local looked newer AND held any
+          // history at all, it skipped the restore and force-pushed local over
+          // the account. Both halves were unsound. A device that has just been
+          // signed out ALWAYS looks newer — the sign-out itself stamps the
+          // clock — and "any history at all" accepted three seconds of reading.
+          // An account lost a real streak and every completed bani to a device
+          // holding three seconds. There is no version of that comparison worth
+          // keeping.
           //
-          // `mutatedAt` is this device's clock and `syncedAt` is the server's,
-          // so the comparison crosses clocks. That is unavoidable for
-          // last-write-wins and fine while they agree to within seconds; a
-          // badly wrong device clock will pick the wrong winner, which is the
-          // known cost of this rule.
-          const mutatedRaw = await AsyncStorage.getItem(LOCAL_MUTATED_AT_KEY);
-          const localMutatedAt = mutatedRaw ? Number(mutatedRaw) : 0;
-          const remoteSyncedAt = syncedAt ? new Date(syncedAt).getTime() : 0;
-          const localChangedLater = localMutatedAt > 0 && localMutatedAt > remoteSyncedAt;
-
-          // ...and only if there is anything local to protect.
+          // Nothing is destroyed now: the snapshot is merged into local, then
+          // the union is pushed straight back, so the account gains whatever
+          // this device held rather than being replaced by it.
           //
-          // A timestamp is not evidence of data. The stamp is written by the
-          // store watcher for ANY change to a watched slice, and several of
-          // those are not user work at all: the purge's own `clearUserData`
-          // dispatch writes one, and so does any settings write made while
-          // signed out. A device that has just been wiped therefore looks
-          // "newer" than an account holding years of history, so the restore
-          // was skipped and the Dashboard sat at 0/0 until a manual refresh
-          // took the other branch and merged it in — which is precisely the
-          // reported "fresh login on an account with data shows zeros".
-          //
-          // Built the same way a push is, and judged by the same predicate, so
-          // the two definitions of "there is nothing here" cannot drift apart.
-          let localHasHistory = false;
-          if (localChangedLater) {
-            const local = await buildCachePayload({
-              state: store.getState(),
-              version: DeviceInfo.getVersion(),
-              deviceId: await DeviceInfo.getUniqueId(),
-            });
-            localHasHistory = !isEmptySnapshot(local.payload);
-          }
-          const localIsNewer = localChangedLater && localHasHistory;
-
-          // Marked BEFORE applying: the restore overwrites preferences, including
+          // Marked BEFORE applying: the restore writes preferences, including
           // reminder state. If applying threw halfway, an unmarked device would
-          // restore again on the next launch and silently re-apply the snapshot's
-          // reminders over whatever the user had since set. One attempt is what a
-          // bootstrap gets.
+          // restore again on the next launch and silently re-apply the
+          // snapshot's reminders over whatever the user had since set. One
+          // attempt is what a bootstrap gets.
           await AsyncStorage.setItem(RESTORED_KEY, "1");
           bootstrappedForRef.current = forAccount;
 
-          if (localIsNewer) {
-            // Local wins. Nothing is applied; the gate is now open, so send it.
-            await recordPull({ status: "local-newer" });
-            settled = true;
-            await pushNowRef.current?.({ force: true });
-            return;
-          }
-
           // Held across BOTH calls. The marker above has already opened the
           // push gate, and applying takes long enough — Redux dispatches, a
-          // bani-name lookup, a month of SQLite writes — for the post-sign-in
-          // push to land in the middle of it. That is what zeroed real
-          // accounts: local was empty, so the payload was empty, and it
-          // overwrote the very snapshot being restored.
+          // bani-name lookup, a month of SQLite writes — for a push to land in
+          // the middle of it and send a half-applied snapshot.
           restoringRef.current = true;
           try {
+            // PREFERENCES wholesale: layout, reminders and the nitnem list are
+            // single-valued, and this is the account's own copy of them. Merging
+            // those would resurrect a reminder the user deleted elsewhere.
             await applyDashboardRestore(payload, dispatch, {
               reschedule: true,
               transliterationLanguage: store.getState().transliterationLanguage,
             });
-            await seedAnalyticsFromSnapshot(payload);
+            // HISTORY merged: `merge` floors every counter at what this device
+            // already holds and takes the larger of the two for each day, so a
+            // day the account has never seen — reading done signed out and
+            // carried in, or an earlier session on this device that was never
+            // pushed — survives the restore instead of being overwritten by it.
+            await seedAnalyticsFromSnapshot(payload, { merge: true });
           } finally {
             restoringRef.current = false;
           }
-          // The local copy has been superseded, so it is no longer "newer than
-          // the account" — clearing this stops the next launch re-deciding in
-          // favour of data we just overwrote. Also clears the stamp the restore's
-          // OWN dispatches would otherwise have left behind.
-          await AsyncStorage.removeItem(LOCAL_MUTATED_AT_KEY);
+
+          settled = true;
+          // Local is now the union of both copies, so send it up. This is what
+          // makes a full-snapshot push safe: the client never pushes a SUBSET
+          // of the server, because it has just merged the server into itself.
+          await pushNowRef.current?.({ force: true });
         } else {
           // Refresh. `syncedAt` is the server's own clock and the only comparison
           // the client has — the payload carries no per-field modified-at. If it

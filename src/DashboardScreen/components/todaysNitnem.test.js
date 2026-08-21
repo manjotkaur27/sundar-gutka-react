@@ -39,13 +39,29 @@ describe("Today's Nitnem is the Morning Nitnem pothi", () => {
     expect(modal).toContain('defaultPothi(state.pothis, "morning")');
   });
 
-  it("left no way to write a separate nitnem bani set", () => {
-    // The action, its type and the old dashboard-only default are all gone. A
-    // reference anywhere is a second source of truth growing back.
+  it("left no way to WRITE a separate nitnem bani set", () => {
+    // The action and its type stay gone: a second writable list is how the two
+    // Nitnems drifted apart in the first place.
     const offenders = sourceFiles().filter((file) =>
-      /SET_NITNEM_BANIS|setNitnemBanis|DEFAULT_NITNEM_BANI_IDS/.test(read(file))
+      /SET_NITNEM_BANIS|setNitnemBanis/.test(read(file))
     );
     expect(offenders).toEqual([]);
+  });
+
+  it("falls back to the defaults so the card can never render empty", () => {
+    // The sign-out bug: the purge resets `pothis`, and the only re-seed is a
+    // hook on the Home tab, so the Dashboard showed "No banis in this pothi".
+    const card = here("TodaysNitnem.jsx");
+    expect(card).toContain("DEFAULT_NITNEM_BANI_IDS");
+    expect(card).toContain("fromPothi.length ? fromPothi : DEFAULT_NITNEM_BANI_IDS");
+  });
+
+  it("keeps the fallback READ-only — it never writes the pothi or the payload", () => {
+    // A default must never be pushed over an account's real list.
+    const sync = read(path.join(SRC, "services", "dashboard", "dashboardSync.js"));
+    expect(sync).toContain('defaultPothi(state.pothis, "morning")');
+    expect(sync).not.toContain("DEFAULT_NITNEM_BANI_IDS");
+    expect(here("EditBanisModal.jsx")).not.toContain("DEFAULT_NITNEM_BANI_IDS");
   });
 
   it("keeps the heading, which is the one thing that does not change", () => {
