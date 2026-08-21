@@ -209,9 +209,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 8,
   },
+  // No lineHeight, matching `title` above and the type scale. 21 at 15pt was
+  // under Baloo's own 1.771em box (26.6), which squeezes the line and shifts the
+  // glyphs off-centre in hi/pa — see the note in `theme/type.js`. This message
+  // wraps to several lines, so it was the most visible instance left.
   message: {
     fontSize: 15,
-    lineHeight: 21,
     opacity: 0.85,
     marginBottom: 8,
   },

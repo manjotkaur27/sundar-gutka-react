@@ -3,7 +3,7 @@ import React from "react";
 import { act, render, screen } from "@testing-library/react-native";
 import darkTheme from "@theme/darkTheme";
 import lightTheme from "@theme/lightTheme";
-import { FONT_SCALE_MAX } from "@theme/scale";
+import { FONT_SCALE_MAX } from "@theme/scale";
 
 import Button from "./Button";
 import Card from "./Card";
@@ -95,12 +95,21 @@ describe("Text", () => {
     expect(flat(screen.getByTestId("t").props.style).color).toBe(theme.c.textSecondary);
   });
 
-  it("carries size, line height and face together", () => {
+  it("carries size and face together", () => {
     withTheme(lightTheme, <Text testID="t" variant="heading" />);
     const s = flat(screen.getByTestId("t").props.style);
     expect(s.fontSize).toBe(lightTheme.type.heading.fontSize);
-    expect(s.lineHeight).toBe(lightTheme.type.heading.lineHeight);
     expect(s.fontFamily).toBe(lightTheme.type.heading.fontFamily);
+  });
+
+  // Asserted as a literal absence, not against the theme. This used to read
+  // `expect(s.lineHeight).toBe(lightTheme.type.heading.lineHeight)`, which is
+  // self-referential — it would pass whatever the scale said, including the
+  // squeezed values that misaligned hi/pa text on Realme and on tablets. See
+  // `theme/typeMetrics.test.js` for the threshold this protects.
+  it("imposes no line height, so the face supplies its own", () => {
+    withTheme(lightTheme, <Text testID="t" variant="heading" />);
+    expect(flat(screen.getByTestId("t").props.style).lineHeight).toBeUndefined();
   });
 
   it("falls back to body for an unknown variant rather than rendering unstyled", () => {
