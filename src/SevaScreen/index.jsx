@@ -27,6 +27,7 @@ import {
   useThemedStyles,
   STRINGS,
   openInAppBrowser,
+  showInfoToast,
   trackSevaEvent,
   useCustomScrollbar,
 } from "@common";
@@ -45,6 +46,8 @@ import {
   resolveCurrency,
   usdToLocal,
   localToUsd,
+  minLocalAmount,
+  formatCurrency,
   formatNumber,
   resolveLocalPresets,
 } from "../services/currency";
@@ -432,6 +435,13 @@ const SevaScreen = () => {
   const donationUsd = localToUsd(localAmount, currency);
   const canDonate = donationUsd > 0;
 
+  // Below this, the hand-off would charge MORE than the donor typed. Qgiv takes
+  // whole US dollars with a $1 minimum of its own, and localToUsd floors at $1,
+  // so ₹1 arrived at Qgiv as $1 — about ₹96. The button stays live and the tap
+  // explains itself rather than going dead with no reason given.
+  const minLocal = minLocalAmount(currency);
+  const belowMinimum = Number(localAmount) > 0 && Number(localAmount) < minLocal;
+
   // ─── Shared browser helper ─────────────────────────────────────────────────
   const openBrowserForUrl = useCallback(
     async (url) => {
@@ -497,6 +507,17 @@ const SevaScreen = () => {
     // never shown. A donor must only ever be handed a figure they picked.
     // `donationUsd` is derived above and is what the button gates on.
     if (!canDonate) return;
+    // Refused here rather than by disabling the button: a dead control tells the
+    // donor nothing, and the reason — Qgiv charges whole US dollars — is not
+    // something they can be expected to infer from a rupee figure.
+    if (belowMinimum) {
+      showInfoToast(
+        STRINGS.formatString(STRINGS.SEVA_MIN_AMOUNT, {
+          amount: formatCurrency(minLocal, currency),
+        })
+      );
+      return;
+    }
 
     hasDonatedRef.current = true;
     markStep("payment_started");
@@ -543,6 +564,9 @@ const SevaScreen = () => {
     });
   }, [
     canDonate,
+    belowMinimum,
+    minLocal,
+    currency,
     donationUsd,
     isOtherSelected,
     effectiveDonationType,

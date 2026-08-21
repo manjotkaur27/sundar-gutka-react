@@ -15,6 +15,7 @@ import {
   formatCurrency,
   formatNumber,
   localPresets,
+  minLocalAmount,
   resolveLocalPresets,
   CURRENCIES,
 } from "./currency";
@@ -47,6 +48,37 @@ describe("currency", () => {
 
     it("is case-insensitive", () => {
       expect(countryToCurrencyCode("in")).toBe("INR");
+    });
+  });
+
+  describe("minLocalAmount", () => {
+    // Qgiv charges whole US dollars and localToUsd floors at $1, so anything
+    // below a dollar was handed over AS a dollar — ₹1 arrived as ~₹96.
+    it("is a clean round figure in every supported currency", () => {
+      expect(minLocalAmount("USD")).toBe(1);
+      expect(minLocalAmount("GBP")).toBe(1); // £0.75/$ → £1
+      expect(minLocalAmount("EUR")).toBe(1); // €0.88/$ → €1
+      expect(minLocalAmount("CAD")).toBe(2); // CA$1.41/$ → CA$2
+      expect(minLocalAmount("AUD")).toBe(2); // A$1.43/$ → A$2
+      expect(minLocalAmount("INR")).toBe(100); // ₹96/$ → ₹100
+    });
+
+    it("is never worth less than a dollar, in any currency", () => {
+      Object.keys(CURRENCIES).forEach((code) => {
+        expect(localToUsd(minLocalAmount(code), code)).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    it("follows the live rate rather than the static fallback", () => {
+      getLiveRate.mockReturnValue(110); // rupee weakens
+      expect(minLocalAmount("INR")).toBe(110);
+    });
+
+    it("rejects exactly the figures that would overcharge the donor", () => {
+      // ₹1 and ₹50 both convert to the $1 Qgiv floor — roughly ₹96 either way.
+      expect(1).toBeLessThan(minLocalAmount("INR"));
+      expect(50).toBeLessThan(minLocalAmount("INR"));
+      expect(100).toBeGreaterThanOrEqual(minLocalAmount("INR"));
     });
   });
 

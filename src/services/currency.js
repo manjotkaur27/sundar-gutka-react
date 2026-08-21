@@ -291,6 +291,33 @@ export const localToUsd = (local, currency) => {
   return Math.max(1, Math.round(usd));
 };
 
+/** Rounds UP to a clean figure, with the step growing by magnitude. */
+const roundUpToStep = (value) => {
+  const v = Number(value) || 0;
+  if (v <= 0) return 0;
+  let step = 50;
+  if (v < 10) step = 1;
+  else if (v < 500) step = 10;
+  return Math.ceil(v / step) * step;
+};
+
+/**
+ * The smallest local amount worth handing to Qgiv.
+ *
+ * Qgiv charges in USD and enforces a $1 minimum of its own, and localToUsd
+ * floors at $1 — so ANY positive local figure below a dollar was handed over as
+ * $1 regardless. A donor who typed ₹1 got a Qgiv form prefilled with $1, about
+ * ₹96: a ninety-six-fold gap between what they chose and what they would be
+ * charged, and on a monthly plan it repeated.
+ *
+ * Derived from the effective (live) rate rather than tabled per currency, so it
+ * cannot go stale as rates move, and rounded UP so it reads as a deliberate
+ * floor rather than a conversion artefact — ₹100, £1, €1, CA$2, A$2, $1 at
+ * current rates. Always at or above one dollar, so the donor is never charged
+ * more than the figure they entered.
+ */
+export const minLocalAmount = (currency) => roundUpToStep(effectiveRate(asCurrency(currency)));
+
 /** A whole number with thousands grouping and no symbol, e.g. 1000 → "1,000". */
 export const formatNumber = (amount) => groupThousands(Math.round(Number(amount) || 0));
 
