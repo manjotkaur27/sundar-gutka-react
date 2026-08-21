@@ -368,18 +368,28 @@ const styles = StyleSheet.create({
   // measures about 2:1 and fails 1.4.3 outright, in BOTH themes.
   // No fontWeight either — Baloo is a named TTF, so a weight loses the glyph.
   badgeText: { fontSize: 10, letterSpacing: 0.5 },
-  // 18 was tighter than the 1.4 ratio that already clipped Baloo's Gurmukhi and
-  // Devanagari matras in Settings, and it now has to hold up to three lines.
-  // includeFontPadding:false on both lines, same reason as the AudioPlayer's
-  // timestamp/artistName pair: Android reserves ascent/descent padding inside
-  // each Text from the RESOLVED font's metrics. Baloo Paaji ships no Devanagari
-  // at all, so Hindi falls back to the system face — and ColorOS (Realme)
-  // resolves Indic scripts differently from Samsung/OPPO/OnePlus. Same style,
-  // different reserved padding, which is why the gap under the title appeared
-  // only there and only in hi/pa. Stripping it makes the line box hug the
-  // glyphs so the explicit lineHeights below are the whole spacing story.
-  title: { fontSize: 16, lineHeight: 24, includeFontPadding: false },
-  subtitle: { fontSize: 12, lineHeight: 17, marginTop: 3, includeFontPadding: false },
+  // The title carries NO lineHeight, and that is the fix for the gap that opened
+  // between a card's title and its subtitle in pa/hi on Realme and on tablets.
+  //
+  // Baloo Paaji 2 is a 1000upem face with hhea ascent/descent 1157/-614, so its
+  // own line box is 1.771em — 28.3pt at this size. Pinning lineHeight to 24 left
+  // it 4pt short, and Android answers a too-small box by measuring a line it then
+  // never draws (facebook/react-native#53286). That phantom line is what pushed
+  // the subtitle down a full 24pt on some cards and not others. The face's own
+  // spacing is both correct and self-scaling, so it is left unset — the same
+  // conclusion HomeScreen's header title and the Reader header already reached.
+  //
+  // `includeFontPadding: false` used to sit on both of these and was removed: it
+  // is inert next to a lineHeight. RN's CustomLineHeightSpan ends by setting
+  // fm.top = fm.ascent and fm.bottom = fm.descent, which are the only two values
+  // setIncludePad() would have substituted. It was tested on device and changed
+  // nothing. Do not add it back expecting a vertical shift.
+  title: { fontSize: 16 },
+  // Keeps an explicit value because it wraps (numberOfLines={2}) and the gap
+  // between its two lines is worth controlling. 20 clears the clipping floor —
+  // ink box 1.541em vs hhea 1.771em leaves 0.091em a side, so 1.589em (19.1pt
+  // here) is the minimum before half-leading starts cutting into the glyphs.
+  subtitle: { fontSize: 12, lineHeight: 20, marginTop: 3 },
   tileSkeleton: { width: "100%", height: 88 },
 });
 
