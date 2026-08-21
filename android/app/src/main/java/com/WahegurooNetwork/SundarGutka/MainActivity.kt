@@ -88,20 +88,35 @@ class MainActivity : ReactActivity() {
   override fun onWindowFocusChanged(hasFocus: Boolean) {
       super.onWindowFocusChanged(hasFocus)
       if (hasFocus) {
-          hideSystemBars()
+          hideNavigationBar()
       }
   }
 
   /**
-   * Set BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE so the system bars (status bar +
-   * gesture navigation bar) are hidden by default and reappear transiently when
-   * the user swipes from an edge, then auto-hide again without any app interaction.
+   * Hides the NAVIGATION bar only, and re-applies it above so it survives a
+   * notification shade pull or a lock/unlock.
+   *
+   * It used to hide `Type.systemBars()`, which is the navigation bar AND the
+   * status bar. That is what made the app's own Hide Status Bar setting look
+   * broken: React Native's StatusBar component would show the bar as the user
+   * asked, and the next focus change — a shade pull, a dialog closing,
+   * unlocking the phone — hid it again a moment later. The setting was being
+   * saved correctly all along; it simply never survived contact with this
+   * method, which is also why turning it off appeared to do nothing after a
+   * relaunch.
+   *
+   * Narrowing it to the navigation bar hands the status bar back to the JS
+   * setting, which is the only thing that should be deciding it, and leaves
+   * every other assumption in the app untouched: the navigation bar stays
+   * hidden exactly as before, so the bottom inset stays zero and nothing that
+   * lays out against it — the audio player, its progress track, the dialogs —
+   * moves a pixel.
    */
-  private fun hideSystemBars() {
+  private fun hideNavigationBar() {
       val controller = WindowInsetsControllerCompat(window, window.decorView)
       controller.systemBarsBehavior =
           WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-      controller.hide(WindowInsetsCompat.Type.systemBars())
+      controller.hide(WindowInsetsCompat.Type.navigationBars())
   }
  
   /**

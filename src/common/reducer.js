@@ -58,7 +58,14 @@ const readerThemeSeeded = createReducer(
   }
 );
 
-const isStatusBar = createReducer(true, {
+// `true` means HIDDEN — it is the value of the "Hide Status Bar" switch, not of
+// the bar. It ships OFF, so a fresh install shows the clock, battery and signal
+// like any other app and the user opts into full screen rather than out of it.
+//
+// It used to default to `true`, which put a switch labelled "Hide Status Bar"
+// in the ON position on first launch, and left no way to tell a deliberate
+// choice from the default.
+const isStatusBar = createReducer(false, {
   [actionTypes.TOGGLE_STATUS_BAR]: (state, action) => action.value,
 });
 
