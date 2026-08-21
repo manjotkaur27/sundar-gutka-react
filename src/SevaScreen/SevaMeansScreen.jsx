@@ -247,7 +247,7 @@ const SevaMeansScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeArea backgroundColor={headerBg}>
+    <SafeArea backgroundColor={headerBg} edges={["bottom"]}>
       <StatusBarComponent backgroundColor={headerBg} />
       {/* The shared header — same clearance, row height and back control as
           every other screen. */}

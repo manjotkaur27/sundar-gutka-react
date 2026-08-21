@@ -12,8 +12,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : ReactActivity() {
  
@@ -82,41 +80,54 @@ class MainActivity : ReactActivity() {
   }
 
   /**
-   * Called every time the window regains/loses focus. We re-apply sticky-immersive
-   * flags here so they survive notification shade pulls, lock/unlock cycles, etc.
+   * Called every time the window regains/loses focus. The edge-to-edge flag is
+   * re-applied here so it survives notification shade pulls, lock/unlock cycles,
+   * and — see below — React Native's own status bar handling.
    */
   override fun onWindowFocusChanged(hasFocus: Boolean) {
       super.onWindowFocusChanged(hasFocus)
       if (hasFocus) {
-          hideNavigationBar()
+          applyEdgeToEdge()
       }
   }
 
   /**
-   * Hides the NAVIGATION bar only, and re-applies it above so it survives a
-   * notification shade pull or a lock/unlock.
+   * Lays the window out edge-to-edge, and NOTHING else. In particular it hides
+   * no system bar: whatever the device is set to — three buttons or a gesture
+   * pill — stays on screen, and the status bar belongs to the app's own Hide
+   * Status Bar setting.
    *
-   * It used to hide `Type.systemBars()`, which is the navigation bar AND the
-   * status bar. That is what made the app's own Hide Status Bar setting look
-   * broken: React Native's StatusBar component would show the bar as the user
-   * asked, and the next focus change — a shade pull, a dialog closing,
-   * unlocking the phone — hid it again a moment later. The setting was being
-   * saved correctly all along; it simply never survived contact with this
-   * method, which is also why turning it off appeared to do nothing after a
-   * relaunch.
+   * This method used to hide `Type.systemBars()` and then, briefly,
+   * `Type.navigationBars()`. Both were wrong, for different reasons.
    *
-   * Narrowing it to the navigation bar hands the status bar back to the JS
-   * setting, which is the only thing that should be deciding it, and leaves
-   * every other assumption in the app untouched: the navigation bar stays
-   * hidden exactly as before, so the bottom inset stays zero and nothing that
-   * lays out against it — the audio player, its progress track, the dialogs —
-   * moves a pixel.
+   * Hiding `systemBars()` took the status bar with it, which is what made the
+   * Hide Status Bar setting look broken: React Native's StatusBar showed the
+   * bar as the user asked and the next focus change hid it again a moment
+   * later.
+   *
+   * Hiding `navigationBars()` alone fixed that but kept the worse half. There
+   * is one inset type for the navigation bar whichever way the device draws it,
+   * so hiding it took the BUTTONS from anyone on three-button navigation — back,
+   * home and recents gone, reachable only by swiping up first, and re-hidden on
+   * every focus change. A gesture user lost a cosmetic pill; a button user lost
+   * the ability to leave the app. There was no setting for it either way.
+   *
+   * Nothing in the app has to change to accommodate the bar. Its own chrome is
+   * already written against the bottom inset — `BottomNavigation` wraps itself
+   * in a bottom-edge `SafeArea`, and the Reader lifts the audio player and its
+   * progress track by `insets.bottom` — and that code has simply been resolving
+   * to zero for as long as the bar was hidden. Edge-to-edge stays on, so those
+   * are still the things deciding where the app's own bars sit; they now sit
+   * above a bar that is really there.
+   *
+   * Re-applied on focus rather than set once in `onCreate` because React
+   * Native's StatusBar owns the status bar: showing it runs
+   * `Window.statusBarShow()`, which calls `setDecorFitsSystemWindows(TRUE)` and
+   * resets the cutout mode, quietly taking the window out of edge-to-edge the
+   * first time anyone turns Hide Status Bar off.
    */
-  private fun hideNavigationBar() {
-      val controller = WindowInsetsControllerCompat(window, window.decorView)
-      controller.systemBarsBehavior =
-          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-      controller.hide(WindowInsetsCompat.Type.navigationBars())
+  private fun applyEdgeToEdge() {
+      WindowCompat.setDecorFitsSystemWindows(window, false)
   }
  
   /**

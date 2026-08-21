@@ -154,20 +154,39 @@ const Reader = ({ navigation, route }) => {
   const { shabad, isLoading } = useFetchShabad(id);
   const { bottom: insetBottom } = useSafeAreaInsets();
 
-  // Bottom-nav overlay footprint (nav height + the 5px progress track on top).
-  // The audio player is lifted by exactly this much when the bars show so it
-  // clears the nav.
-  const navChromeHeight = theme.components.bottomNavigation.height + 5;
+  // Bottom-nav overlay footprint (nav height + the 5px progress track on top,
+  // plus the bottom safe-area inset). The audio player is lifted by exactly
+  // this much when the bars show so it clears the nav.
+  //
+  // The inset is part of the footprint because `BottomNavigation` wraps itself
+  // in a bottom-edge `SafeArea`, so the bar on screen is that much taller than
+  // its own height token whenever the system navigation bar is drawn. Reading
+  // the token alone was correct only while the app hid that bar and the inset
+  // was always zero; with the bar left visible it under-measured the nav by the
+  // inset, which put the audio player over the top of it and left the last line
+  // of bani behind it.
+  const navChromeHeight = theme.components.bottomNavigation.height + 5 + insetBottom;
 
   // Native-driver transforms (NOT a JS height animation) so toggling the bars
   // never resizes the flex WebView underneath — the reflow was the low-end-
   // Android jank source. navSlideAnim slides the nav overlay off-screen;
   // audioLiftAnim rides the audio player above the nav; progressLiftAnim lifts
   // the progress bar to sit on top of the nav when the bars are shown.
+  //
+  // Note what "down" means for the two lifted layers. Both are pinned at
+  // `bottom: 0`, which is the bottom of the WINDOW, and the window is laid out
+  // edge-to-edge — so 0 puts them UNDER the system navigation bar. That was
+  // invisible while the app hid that bar, and it is why the progress track and
+  // the audio player disappeared behind the three buttons the moment the app's
+  // own bars auto-hid. Their resting place is −insetBottom, sitting on top of
+  // the system bar; the shown position stacks the app's nav on top of that,
+  // which is what `navChromeHeight` already includes.
   const navSlideAnim = useRef(new Animated.Value(300)).current; // starts hidden
   const navClusterHeightRef = useRef(0);
-  const audioLiftAnim = useRef(new Animated.Value(0)).current; // starts down
-  const progressLiftAnim = useRef(new Animated.Value(0)).current;
+  // Both rest at −insetBottom, not 0: see the effect below. Seeded with it so a
+  // freshly opened bani does not slide them up over the system bar on mount.
+  const audioLiftAnim = useRef(new Animated.Value(-insetBottom)).current;
+  const progressLiftAnim = useRef(new Animated.Value(-insetBottom)).current;
 
   useEffect(() => {
     const distance = navClusterHeightRef.current || 300;
@@ -178,14 +197,14 @@ const Reader = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
       Animated.timing(audioLiftAnim, {
-        toValue: isHeader ? -navChromeHeight : 0,
+        toValue: isHeader ? -navChromeHeight : -insetBottom,
         duration: 300,
         useNativeDriver: true,
       }),
       Animated.timing(progressLiftAnim, {
         // Lift the progress bar onto the nav (nav height = navChromeHeight − 5px
-        // track) when shown; drop it back to the bottom edge when hidden.
-        toValue: isHeader ? -(navChromeHeight - 5) : 0,
+        // track) when shown; drop it back to the bottom when they hide.
+        toValue: isHeader ? -(navChromeHeight - 5) : -insetBottom,
         duration: 300,
         useNativeDriver: true,
       }),
@@ -198,7 +217,7 @@ const Reader = ({ navigation, route }) => {
     // does not exist" (RN #12893 / #37267). Stopping first also prevents the old
     // and new animations overlapping on the same values across isHeader toggles.
     return () => anim.stop();
-  }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight]);
+  }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight, insetBottom]);
 
   // ── Bar-visibility funnel + idle auto-hide ──────────────────────────────
   // Live state mirrored into refs so the stable (empty-dep) scheduler never
@@ -792,6 +811,12 @@ const Reader = ({ navigation, route }) => {
             notificationTitle={titleUni || titleText}
             webViewRef={webViewRef}
             isNavBarVisible={isHeader}
+            // How far this whole wrapper DROPS when the bars hide: the lift
+            // goes from -navChromeHeight to -insetBottom. The floating pill
+            // rides inside it, so its drag floor has to reserve this or a pill
+            // parked at the bottom while the bars are up leaves the screen with
+            // them. See MinimizePlayer's release clamp.
+            barsDrop={navChromeHeight - insetBottom}
             // Opening the full player from the circle must not bring the bars
             // back with it — the user asked for the controls, not the chrome.
             onHideBars={() => setBarsVisible(false, "player_expanded")}
@@ -873,6 +898,34 @@ const Reader = ({ navigation, route }) => {
           ]}
         />
       </Animated.View>
+      {/* Ground behind the system navigation bar.
+          
+          Every other screen paints this by putting "bottom" in its root
+          SafeArea's edges, which pads the inset and fills it with the screen's
+          own background. The Reader cannot: its chrome — the nav overlay, the
+          progress track, the audio player — is absolutely positioned against
+          `bottom: 0`, which resolves to the SafeArea's PADDING box, so the pad
+          would shift all three down a second time on top of the lifts they
+          already carry.
+          
+          A plain strip does the same job without touching the layout. It takes
+          the reading theme's ground, so the bar reads as the bottom of the page
+          rather than a gap in it, and it sits under the chrome (zIndex 10) so
+          the app's own nav still covers it when the bars are shown. */}
+      {insetBottom > 0 && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: insetBottom,
+            backgroundColor: readerBgColor,
+            zIndex: 5,
+          }}
+        />
+      )}
     </SafeArea>
   );
 };

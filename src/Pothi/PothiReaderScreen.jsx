@@ -104,7 +104,7 @@ const PothiReaderScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeArea backgroundColor={readerBg} edges={["left", "right"]}>
+    <SafeArea backgroundColor={readerBg} edges={["bottom", "left", "right"]}>
       <StatusBarComponent backgroundColor={readerBg} />
       <View style={{ flex: 1, backgroundColor: readerBg }}>
         <ScreenHeader

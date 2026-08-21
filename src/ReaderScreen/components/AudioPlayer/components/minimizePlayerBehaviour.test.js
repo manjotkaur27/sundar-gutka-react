@@ -147,3 +147,114 @@ describe("mini <-> full conversions", () => {
     expect(controlBar).toMatch(/setMinimized\(true, "control"\)/);
   });
 });
+
+// Dragging the circle and dragging the pill are the same gesture through the
+// same PanResponder, but they did not behave the same way. Two reasons, both
+// fixed here: the release clamp used a different footprint for each form, and
+// only the pill had a timer that could fire mid-drag.
+describe("dragging behaves the same in both forms", () => {
+  const release = source.slice(
+    source.indexOf("onPanResponderRelease"),
+    source.indexOf("// ── Progress arc")
+  );
+
+  it("clamps by one footprint, not by whichever form it is in", () => {
+    // It was `isExpandedRef.current ? w : w + delta` — the circle was held a
+    // whole text panel inside the edge while the pill got no slack at all, so
+    // the same drag brought one back and not the other.
+    expect(release).toMatch(/const expandedW = Math\.max\(w, metricsRef\.current\.pillChrome \+ delta\)/);
+    expect(release).not.toMatch(/expandedW = isExpandedRef\.current/);
+  });
+
+  it("springs back to the clamped position when dragged out of bounds", () => {
+    expect(release).toMatch(/if \(dx !== 0 \|\| dy !== 0\)/);
+    expect(release).toMatch(/Animated\.spring\(pan/);
+  });
+});
+
+describe("the drag floor", () => {
+  const metrics = source.slice(
+    source.indexOf("dragSideMargin:"),
+    source.indexOf("}, [scale, screenH")
+  );
+
+  it("clears the system navigation bar", () => {
+    // `screenH` is the whole window in edge-to-edge, bars included, so a plain
+    // percentage of it knows nothing about the bar the pill can be lost behind.
+    expect(metrics).toMatch(/insetBottom \+ Math\.round\(16 \* scale\)/);
+  });
+
+  it("never drops below the clearance it already had", () => {
+    // The inset is a FLOOR under the old value, not a replacement for it.
+    expect(metrics).toMatch(/dragBottomMargin: Math\.max\(/);
+    expect(metrics).toMatch(/Math\.min\(110, Math\.max\(64, Math\.round\(screenH \* 0\.05\)\)\)/);
+  });
+});
+
+describe("a drag holds the pill open", () => {
+  it("restarts the idle countdown when the finger goes down", () => {
+    const grant = source.slice(
+      source.indexOf("onPanResponderGrant"),
+      source.indexOf("onPanResponderMove")
+    );
+    // Armed once on expansion and never restarted, the countdown measured time
+    // since EXPANSION rather than since the last touch, so a drag begun four
+    // seconds in collapsed under the finger.
+    expect(grant).toMatch(/if \(isExpandedRef\.current\) armCollapseRef\.current\(\)/);
+  });
+
+  it("and restarts it again from the moment it is let go", () => {
+    const release = source.slice(
+      source.indexOf("onPanResponderRelease"),
+      source.indexOf("viewRef.current?.measureInWindow")
+    );
+    expect(release).toMatch(/if \(isExpandedRef\.current\) armCollapseRef\.current\(\)/);
+  });
+
+  it("reaches armCollapse through a ref, since the responder is built once", () => {
+    expect(source).toMatch(/armCollapseRef\.current = armCollapse/);
+  });
+});
+
+// The pill does not live in a fixed frame. It rides inside the Reader's audio
+// wrapper, which is lifted while the bars are up and dropped when they hide —
+// and touching the player is what restarts the countdown that hides them.
+describe("the drag floor reserves the drop that is coming", () => {
+  const release = source.slice(
+    source.indexOf("onPanResponderRelease"),
+    source.indexOf("// \u2500\u2500 Progress arc")
+  );
+
+  it("adds the wrapper's pending drop to the floor", () => {
+    // Without it, a pill parked on the floor with the bars up was exactly
+    // barsDrop below it four seconds later — under the system navigation bar
+    // and off the screen, with nothing to re-run the clamp.
+    expect(release).toMatch(/const BOTTOM = dragBottomMargin \+ dropReserveRef\.current/);
+  });
+
+  it("reserves nothing when the bars are already down", () => {
+    // Nothing left to fall, so the pill keeps its full range.
+    expect(source).toMatch(/dropReserveRef\.current = isNavBarVisible \? barsDrop : 0/);
+  });
+
+  it("reaches the value through a ref, since the responder is built once", () => {
+    const grantToRelease = source.slice(0, source.indexOf("onPanResponderGrant"));
+    expect(grantToRelease).toMatch(/const dropReserveRef = useRef\(0\)/);
+  });
+
+  it("re-renders when the drop changes, so the ref cannot go stale", () => {
+    expect(source).toMatch(/prevProps\.barsDrop !== nextProps\.barsDrop/);
+  });
+});
+
+// The Reader is the one that knows the distance.
+describe("the Reader hands down its own lift", () => {
+  const reader = fs.readFileSync(
+    path.join(__dirname, "..", "..", "..", "index.jsx"),
+    "utf8"
+  );
+
+  it("passes the gap between the lifted and resting positions", () => {
+    expect(reader).toMatch(/barsDrop=\{navChromeHeight - insetBottom\}/);
+  });
+});

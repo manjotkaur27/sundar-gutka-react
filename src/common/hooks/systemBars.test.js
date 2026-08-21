@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import reducer from "../reducer";
-import { migrations } from "../store";
+import { persistConfig } from "../store";
 
 /**
  * The Hide Status Bar setting never worked.
@@ -12,38 +12,43 @@ import { migrations } from "../store";
  * time; it just never survived contact with that method, which is why toggling
  * it off also looked like it had not been remembered after a relaunch.
  *
- * Native now hides the navigation bar only. These pin the two JS halves: the
- * switch ships off, and everyone already on the app is brought to that too.
+ * Native now hides the navigation bar only. These pin the JS side of the
+ * contract: the app opens full screen, and after that the switch — and nothing
+ * else — decides.
  */
 describe("the Hide Status Bar setting", () => {
-  it("ships OFF, so a fresh install shows the status bar", () => {
-    // `isStatusBar` is the value of the SWITCH, so false means "not hidden".
-    // It used to default to true, which put a switch labelled "Hide Status Bar"
-    // in the on position before the user had touched anything.
+  it("ships ON, so a first launch is full screen", () => {
+    // `isStatusBar` is the value of the SWITCH, so true means "hidden".
     const state = reducer(undefined, { type: "@@INIT" });
-    expect(state.isStatusBar).toBe(false);
+    expect(state.isStatusBar).toBe(true);
   });
 
-  it("holds the value the user sets", () => {
-    const hidden = reducer(undefined, { type: "TOGGLE_STATUS_BAR", value: true });
-    expect(hidden.isStatusBar).toBe(true);
-    const shown = reducer(hidden, { type: "TOGGLE_STATUS_BAR", value: false });
+  it("holds the value the user sets, in both directions", () => {
+    const shown = reducer(undefined, { type: "TOGGLE_STATUS_BAR", value: false });
     expect(shown.isStatusBar).toBe(false);
+    const hidden = reducer(shown, { type: "TOGGLE_STATUS_BAR", value: true });
+    expect(hidden.isStatusBar).toBe(true);
+  });
+
+  it("keeps a value the user turned OFF through unrelated actions", () => {
+    // The bug read as "it forgets what I chose", so the guard is that nothing
+    // short of the toggle itself puts it back.
+    const shown = reducer(undefined, { type: "TOGGLE_STATUS_BAR", value: false });
+    const later = reducer(shown, { type: "SET_FONT_SIZE", value: 5 });
+    expect(later.isStatusBar).toBe(false);
   });
 });
 
-describe("the upgrade path for people already on the app", () => {
-  it("shows the status bar for an existing install too", () => {
-    // Their saved `true` is not a preference — the setting was overruled on
-    // every focus change, so nobody could have chosen it. Without this they
-    // would stay full-screen forever while new installs got the bar.
-    const migrated = migrations[1]({ isStatusBar: true, fontSize: 3 });
-    expect(migrated.isStatusBar).toBe(false);
+describe("persistence of the setting", () => {
+  it("is written to storage, so it survives a relaunch", () => {
+    // Blacklisting is the only way a key silently stops being remembered.
+    expect(persistConfig.blacklist).not.toContain("isStatusBar");
   });
 
-  it("touches nothing else in the saved state", () => {
-    const before = { isStatusBar: true, fontSize: 3, isNightMode: true, language: "pa" };
-    const after = migrations[1](before);
-    expect(after).toEqual({ ...before, isStatusBar: false });
+  it("is never rewritten by a migration", () => {
+    // A migration would overwrite a choice the user had already made — the one
+    // thing this setting must not do again.
+    expect(persistConfig.migrate).toBeUndefined();
+    expect(persistConfig.version).toBeUndefined();
   });
 });

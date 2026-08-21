@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { View, Pressable, Animated, PanResponder, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
@@ -31,11 +32,15 @@ const MinimizePlayer = ({
   opacityStyle = null,
   pointerEvents = "auto",
   isNavBarVisible = false,
+  barsDrop = 0,
   onHideBars = () => {},
 }) => {
   const { theme } = useAudioTheme();
   const styles = useAudioThemedStyles(minimizePlayerStyles);
   const { width: screenW, height: screenH } = useWindowDimensions();
+  // `screenH` is the whole window in edge-to-edge, system bars included, so the
+  // drag floor below has to subtract the bar itself — see dragBottomMargin.
+  const { bottom: insetBottom } = useSafeAreaInsets();
   const dispatch = useDispatch();
 
   // ── Responsive metrics ────────────────────────────────────────────────────
@@ -74,16 +79,30 @@ const MinimizePlayer = ({
       // should stay proportionally similar whether the device is a short
       // phone or a tall tablet.
       dragSideMargin: Math.round(8 * scale),
-      dragBottomMargin: Math.min(110, Math.max(64, Math.round(screenH * 0.05))),
+      // Never less than the system navigation bar plus a finger's clearance.
+      // This was a pure percentage of screen height, which happened to land
+      // above a 48dp three-button bar on a typical phone and had no reason to:
+      // nothing in it knew the bar existed. It could not go wrong while the app
+      // hid that bar, because there was nothing under the pill to lose it
+      // behind.
+      dragBottomMargin: Math.max(
+        Math.min(110, Math.max(64, Math.round(screenH * 0.05))),
+        insetBottom + Math.round(16 * scale)
+      ),
       dragStripHeight: Math.min(260, Math.max(130, Math.round(screenH * 0.16))),
     };
-  }, [scale, screenH, theme.spacing.md, theme.spacing.xl_20, theme.spacing.sm]);
+  }, [scale, screenH, insetBottom, theme.spacing.md, theme.spacing.xl_20, theme.spacing.sm]);
   // The PanResponder below is created ONCE (useRef) and must never close over
   // `metrics` directly — that would freeze the first render's values forever
   // (e.g. across an orientation change). Route through a ref, same pattern as
   // dimsRef/textWidthRef further down.
   const metricsRef = useRef(metrics);
   metricsRef.current = metrics;
+  // How far this player's wrapper will drop once the Reader's bars hide, or 0
+  // when they are already down. Through a ref for the same reason as `metrics`:
+  // the PanResponder is built once and must not freeze the first value.
+  const dropReserveRef = useRef(0);
+  dropReserveRef.current = isNavBarVisible ? barsDrop : 0;
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
   const tapTick = useSelector((state) => state.readerTapTick);
@@ -113,6 +132,10 @@ const MinimizePlayer = ({
     if (collapseTimer.current) clearTimeout(collapseTimer.current);
     collapseTimer.current = setTimeout(() => setForm(false, "idle"), COLLAPSE_DELAY_MS);
   }, [setForm]);
+  // The PanResponder is created once and must not close over `armCollapse`
+  // directly — same reason as metricsRef above.
+  const armCollapseRef = useRef(armCollapse);
+  armCollapseRef.current = armCollapse;
 
   // No expand/collapse animation — the pill snaps instantly between mini
   // (circle + text) and micro (circle only). This effect only (re)arms the
@@ -256,6 +279,19 @@ const MinimizePlayer = ({
         pan.setOffset(lastOffset.current);
         pan.setValue({ x: 0, y: 0 });
         dispatch(setPlayerDragging(true));
+        // Hold the pill open for the drag, and start the idle countdown again
+        // from the moment it is let go (below).
+        //
+        // The countdown used to be armed once, when the pill expanded, and
+        // nothing restarted it — so it measured time since EXPANSION, not time
+        // since the last touch, which is what the constant's own name says. A
+        // drag begun four seconds in had the pill collapse under the finger: it
+        // is right-anchored, so it shrank from the LEFT and jumped most of a
+        // text panel's width away from where the finger was holding it. The
+        // circle has no timer running, so a drag of the circle could never do
+        // this — which is the whole of why the two forms felt different to
+        // drag.
+        if (isExpandedRef.current) armCollapseRef.current();
       },
       onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
         useNativeDriver: false,
@@ -263,9 +299,11 @@ const MinimizePlayer = ({
       onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => {
         dispatch(setPlayerDragging(false));
+        if (isExpandedRef.current) armCollapseRef.current();
       },
       onPanResponderRelease: (_, g) => {
         dispatch(setPlayerDragging(false));
+        if (isExpandedRef.current) armCollapseRef.current();
         lastOffset.current = {
           x: lastOffset.current.x + g.dx,
           y: lastOffset.current.y + g.dy,
@@ -274,11 +312,22 @@ const MinimizePlayer = ({
 
         viewRef.current?.measureInWindow((x, y, w, h) => {
           const { w: sw, h: sh } = dimsRef.current;
-          const {
-            dragSideMargin: SIDE,
-            dragBottomMargin: BOTTOM,
-            dragStripHeight,
-          } = metricsRef.current;
+          const { dragSideMargin: SIDE, dragBottomMargin, dragStripHeight } = metricsRef.current;
+          // Reserve the drop that is COMING, not just the bar that is there.
+          //
+          // This player sits inside a wrapper the Reader lifts by
+          // `navChromeHeight` while the bars are up and lets fall back to
+          // `insetBottom` when they hide — and touching the player restarts the
+          // idle countdown that hides them. So parking the pill on the floor
+          // with the bars visible put it exactly `barsDrop` below that floor
+          // four seconds later: under the system navigation bar, off the bottom
+          // of the screen, and not coming back until the bars did. The clamp was
+          // right for the instant it ran and nothing re-ran it.
+          //
+          // Same principle as `expandedW` below, which clamps by the pill the
+          // circle will become rather than the circle it is: reserve for the
+          // state this thing is about to be in.
+          const BOTTOM = dragBottomMargin + dropReserveRef.current;
           // Confine the release position to a strip near the bottom of the
           // screen: the pill can be slid left/right but never dragged up over
           // the reading area — the whole point of a floating control is to
@@ -292,8 +341,16 @@ const MinimizePlayer = ({
           // is currently collapsed. The text adds `delta` px on the growth side:
           // right-anchored pills grow LEFT, left-anchored pills grow RIGHT, so
           // the resting box [minEdge, maxEdge] must fit within [SIDE, sw-SIDE].
+          //
+          // Derived from the metrics rather than branched on the CURRENT form,
+          // so both forms are clamped by the same number. It used to be
+          // `w + delta` while collapsed and a bare `w` while expanded: the
+          // circle was therefore pulled well inside the edge, with the width of
+          // a whole text panel to spare, while the pill was held to its own
+          // exact width with no slack at all. Same drag, two different
+          // margins — the circle always came back and the pill did not.
           const delta = textWidthRef.current ?? 140;
-          const expandedW = isExpandedRef.current ? w : w + delta;
+          const expandedW = Math.max(w, metricsRef.current.pillChrome + delta);
           const minEdge = newIsOnLeft ? x : x + w - expandedW;
           const maxEdge = newIsOnLeft ? x + expandedW : x + w;
 
@@ -504,6 +561,8 @@ MinimizePlayer.propTypes = {
   opacityStyle: PropTypes.shape(),
   pointerEvents: PropTypes.string,
   isNavBarVisible: PropTypes.bool,
+  /** Distance the Reader's audio wrapper falls when the bars hide. */
+  barsDrop: PropTypes.number,
   /** Keeps the Reader's chrome down when pausing opens the full player. */
   onHideBars: PropTypes.func,
 };
@@ -516,7 +575,8 @@ const arePropsEqual = (prevProps, nextProps) => {
     prevProps.isDragging !== nextProps.isDragging ||
     prevProps.pointerEvents !== nextProps.pointerEvents ||
     prevProps.opacityStyle?.opacity !== nextProps.opacityStyle?.opacity ||
-    prevProps.isNavBarVisible !== nextProps.isNavBarVisible
+    prevProps.isNavBarVisible !== nextProps.isNavBarVisible ||
+    prevProps.barsDrop !== nextProps.barsDrop
   ) {
     return false;
   }

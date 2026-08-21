@@ -61,6 +61,7 @@ const AudioControlBar = ({
   isPlayerActionLoading = false,
   skipNextLoadRef = undefined,
   isNavBarVisible = false,
+  barsDrop = 0,
   onHideBars = () => {},
   onPlayerTouch = () => {},
 }) => {
@@ -638,6 +639,7 @@ const AudioControlBar = ({
           displayName={currentPlaying?.displayName || ""}
           isDragging={isPlayerDragging}
           isNavBarVisible={isNavBarVisible}
+          barsDrop={barsDrop}
           onHideBars={onHideBars}
         />
       )}
@@ -852,6 +854,7 @@ AudioControlBar.propTypes = {
   isPlayerActionLoading: PropTypes.bool,
   skipNextLoadRef: PropTypes.shape({ current: PropTypes.bool }),
   isNavBarVisible: PropTypes.bool,
+  barsDrop: PropTypes.number,
   onHideBars: PropTypes.func,
   /** Any touch on the player, so the page cannot report it as a tap on the bani. */
   onPlayerTouch: PropTypes.func,

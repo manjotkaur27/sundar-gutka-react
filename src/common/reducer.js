@@ -59,13 +59,17 @@ const readerThemeSeeded = createReducer(
 );
 
 // `true` means HIDDEN — it is the value of the "Hide Status Bar" switch, not of
-// the bar. It ships OFF, so a fresh install shows the clock, battery and signal
-// like any other app and the user opts into full screen rather than out of it.
+// the bar. It ships ON: a first launch is full screen, which is what a reading
+// app wants, and the clock and battery are one tap away for anyone who wants
+// them back.
 //
-// It used to default to `true`, which put a switch labelled "Hide Status Bar"
-// in the ON position on first launch, and left no way to tell a deliberate
-// choice from the default.
-const isStatusBar = createReducer(false, {
+// From then on the switch is the only thing that decides it. The value is
+// persisted (it is not in the `store.js` blacklist) and nothing overwrites it —
+// no migration, and, since MainActivity stopped hiding `Type.systemBars()`, no
+// native re-apply either. That native override is why the setting used to look
+// like it was not remembered: it was saved correctly and then overruled a
+// moment after every launch.
+const isStatusBar = createReducer(true, {
   [actionTypes.TOGGLE_STATUS_BAR]: (state, action) => action.value,
 });
 

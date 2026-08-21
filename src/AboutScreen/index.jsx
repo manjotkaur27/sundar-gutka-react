@@ -30,7 +30,7 @@ const AboutScreen = ({ navigation }) => {
   const openBaniDB = () => Linking.openURL(constant.BANI_DB_URL);
 
   return (
-    <SafeArea backgroundColor={c.background}>
+    <SafeArea backgroundColor={c.background} edges={["bottom"]}>
       <StatusBarComponent backgroundColor={c.background} />
       <ScreenHeader
         title={STRINGS.about}

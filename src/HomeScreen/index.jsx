@@ -146,10 +146,16 @@ const HomeScreen = React.memo(({ navigation }) => {
   // strip of the semantic background shows above or behind the header.
   const baniGround = paletteFor("baniList", theme).surface;
 
+  // No "bottom" edge below: this screen is a TAB, and the tab bar the navigator
+  // draws under it is a `BottomNavigation`, which reserves and paints the bottom
+  // inset itself. Reserving it here as well banded the foot of the list with a
+  // second strip of `baniGround` for the rows to disappear behind. It went
+  // unnoticed for as long as the app hid the system navigation bar and the inset
+  // was always zero.
   return baniLengthSelector ? (
     <BaniLengthSelector />
   ) : (
-    <SafeArea backgroundColor={baniGround} edges={["bottom", "left", "right"]}>
+    <SafeArea backgroundColor={baniGround} edges={["left", "right"]}>
       <StatusBarComponent backgroundColor={baniGround} />
       <View style={[{ backgroundColor: baniGround }, styles.container]}>
         <BaniHeader navigate={navigate} />

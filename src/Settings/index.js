@@ -1,5 +1,5 @@
 import React from "react";
-import { StatusBar, Animated, View } from "react-native";
+import { Animated, View } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
@@ -103,7 +103,6 @@ const Settings = ({ navigation, route = undefined }) => {
             <TransliterationComponent />
             <TranslationComponent />
             <ThemeComponent />
-            <StatusBar />
             <HideStatusBar />
             <AutoScroll />
             <KeepAwake />

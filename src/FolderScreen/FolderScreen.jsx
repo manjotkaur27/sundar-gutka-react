@@ -235,7 +235,7 @@ const FolderScreen = ({ navigation, route }) => {
     // the other pushed utility screens: this is a destination reached from a
     // list, not one of the four tabs, so a tab bar here offers a way "back" that
     // is not the one the user took to get in.
-    <SafeArea backgroundColor={c.backgroundAlt} edges={["left", "right"]}>
+    <SafeArea backgroundColor={c.backgroundAlt} edges={["bottom", "left", "right"]}>
       <StatusBarComponent backgroundColor={c.backgroundAlt} />
       <View style={{ flex: 1, backgroundColor: c.backgroundAlt }}>
         <ScreenHeader

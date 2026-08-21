@@ -47,7 +47,7 @@ const DatabaseUpdateScreen = ({ navigation }) => {
   }, []);
 
   return (
-    <SafeArea backgroundColor={c.background}>
+    <SafeArea backgroundColor={c.background} edges={["bottom"]}>
       <StatusBarComponent backgroundColor={c.background} />
       <ScreenHeader
         title={STRINGS.databaseUpdate}

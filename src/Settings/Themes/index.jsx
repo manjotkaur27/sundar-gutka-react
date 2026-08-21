@@ -50,7 +50,7 @@ const Themes = ({ navigation }) => {
   const apply = useCallback((value) => dispatch(applyTheme(value)), [dispatch]);
 
   return (
-    <SafeArea backgroundColor={c.backgroundAlt} edges={["left", "right"]}>
+    <SafeArea backgroundColor={c.backgroundAlt} edges={["bottom", "left", "right"]}>
       <StatusBarComponent backgroundColor={c.backgroundAlt} />
       <ScreenHeader
         title={STRINGS.theme}

@@ -324,7 +324,7 @@ const ManageDownloads = ({ navigation }) => {
   const isEmpty = sections.length === 0 && validated;
 
   return (
-    <SafeArea backgroundColor={c.backgroundAlt} edges={['left', 'right']}>
+    <SafeArea backgroundColor={c.backgroundAlt} edges={["bottom", "left", "right"]}>
       <StatusBarComponent backgroundColor={c.backgroundAlt} />
 
       <ScreenHeader

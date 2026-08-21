@@ -27,7 +27,7 @@ const MyPothisScreen = ({ navigation }) => {
   }, [navigation]);
 
   return (
-    <SafeArea backgroundColor={c.backgroundAlt} edges={["left", "right"]}>
+    <SafeArea backgroundColor={c.backgroundAlt} edges={["bottom", "left", "right"]}>
       <StatusBarComponent backgroundColor={c.backgroundAlt} />
       <View style={{ flex: 1, backgroundColor: c.backgroundAlt }}>
         <ScreenHeader
