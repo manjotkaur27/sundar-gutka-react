@@ -6,23 +6,49 @@ import { readFreshCache, writeCache } from "./dailyCache";
 // Keyed by the IST date (see istParts) — the official Sri Darbar Sahib Hukamnama
 // rolls over at Amritsar (IST) midnight, so the vaak must follow IST, not the
 // device timezone. v3: IST-dated fetch + IST cache key + dateLabel.
-const CACHE_KEY = "@daily_vaak_cache_v3";
+//
+// v4 evicts rather than changes shape. Entries written before the staleness
+// check existed hold YESTERDAY's shabad relabelled as today's, and nothing can
+// dislodge one: the read below short-circuits ahead of every network call, and
+// an app update keeps AsyncStorage, so shipping the fix alone left an affected
+// user on the same wrong hukamnama until IST midnight — reinstalling to clear
+// app data was the only cure, which is what they were reduced to. A new key is
+// read as a miss, so the first launch on this build refetches once and the
+// poisoned entry is never read again.
+const CACHE_KEY = "@daily_vaak_cache_v4";
 
 // How long a vaak taken from the secondary backend stays cached. Long enough to
 // spare a refetch on every Dashboard mount, short enough that BaniDB publishing
 // mid-morning is picked up the same day.
 const FALLBACK_CACHE_MS = 30 * 60 * 1000;
 
-// Current wall-clock date in IST (UTC+5:30, no DST), regardless of device tz.
+// Current wall-clock date in IST (UTC+5:30, no DST).
+//
+// Derived from the device's absolute clock, NOT its timezone: the hukamnama
+// rolls over at Amritsar, so a reader in Vancouver and one in Delhi are looking
+// at the same shabad on the same day. The user's own date never decides which
+// vaak is fetched — only which date string is printed alongside it.
 const istParts = () => {
   const now = new Date();
   const utcMs = now.getTime() + now.getTimezoneOffset() * 60000; // local → UTC
   const ist = new Date(utcMs + 5.5 * 3600000); // UTC → IST
   return { y: ist.getFullYear(), m: ist.getMonth() + 1, d: ist.getDate(), wd: ist.getDay() };
 };
-const istDateKey = () => {
+// Exported so the card can tell whether what it is showing is today's or a
+// stand-in, without re-implementing the IST shift and drifting from it.
+export const istDateKey = () => {
   const { y, m, d } = istParts();
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+};
+
+// Shifts a YYYY-MM-DD by whole days. Local-time constructor, so month, year and
+// leap-day rollover are handled for us.
+const shiftDay = (dateKey, deltaDays) => {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const day = new Date(y, m - 1, d + deltaDays);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(
+    day.getDate()
+  ).padStart(2, "0")}`;
 };
 
 // Today's Vaak — the official daily Hukamnama from Sri Darbar Sahib, shown exactly
@@ -34,8 +60,10 @@ const istDateKey = () => {
 //
 // Only when both sources fail (or offline) does this throw, and the card shows an
 // offline notice rather than presenting placeholder lines as the official vaak.
-const baniDbUrl = () => {
-  const { y, m, d } = istParts();
+// Built from the vaak day, not the calendar day, so before the cutover it asks
+// for the hukamnama that exists rather than the one that does not yet.
+const baniDbUrl = (dateKey) => {
+  const [y, m, d] = dateKey.split("-").map(Number);
   return `https://api.banidb.com/v2/hukamnamas/${y}/${m}/${d}`;
 };
 const backendUrl = () => constant.DAILY_VAAK_API_URL || "";
@@ -45,7 +73,13 @@ const fetchJson = async (url) => {
   const timeoutId = setTimeout(() => controller.abort(), 6000);
   try {
     const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // Status carried on the error: a 404 for a day is an ANSWER ("no
+      // hukamnama for that date"), not a fault, and must not be reported as one.
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
     return await res.json();
   } finally {
     clearTimeout(timeoutId);
@@ -156,34 +190,77 @@ const parseVaak = (data, dateKey = istDateKey()) => {
   return fromBaniDb(data, dateKey);
 };
 
-export const getDailyVaak = async ({ requireOnline = false } = {}) => {
-  const dateKey = istDateKey();
+// BaniDB for one named day. Returns null when that day has no hukamnama yet,
+// which is an answer rather than a failure and is not reported as one.
+const baniDbForDay = async (dateKey) => {
+  try {
+    return fromBaniDb(await fetchJson(baniDbUrl(dateKey)), dateKey);
+  } catch (err) {
+    if (err?.status !== 404) {
+      logError(new Error(`daily vaak BaniDB failed: ${err?.message || err}`));
+    }
+    return null;
+  }
+};
 
-  // 1. Cached vaak for the current IST day → serve it, even offline. The daily
-  //    hukamnama is the same all day, so this avoids a refetch and keeps the card
-  //    populated when connectivity drops after the first successful load.
-  const cached = await readFreshCache(CACHE_KEY, dateKey);
-  if (cached) return cached;
+/**
+ * The most recent hukamnama there is.
+ *
+ * Deliberately NOT decided from a clock. The darbar reads the day's first
+ * hukamnama around 05:00–05:30 IST, but that time moves with the Punjabi
+ * months, publication lags it by an unknown amount, and any fixed cutover we
+ * picked would be wrong on one side of it — too early and we ask for a day that
+ * does not exist, too late and we sit on yesterday's for hours after the new
+ * one is out. So we simply ask for the newest day first and fall back: whatever
+ * exists is what the user gets, the moment it exists.
+ *
+ * The user's own timezone never enters into it. The hukamnama rolls over at
+ * Amritsar, so Vancouver and Delhi see the same shabad; IST decides the day,
+ * and the card prints that day's date next to it.
+ */
+export const getDailyVaak = async ({ requireOnline = false, force = false } = {}) => {
+  const today = istDateKey();
+  const previous = shiftDay(today, -1);
 
-  // 2. No fresh cache. If offline, surface it — we never present a previous day's
-  //    vaak as today's official hukamnama.
+  // 1. Cache. An entry for today is final — nothing newer can exist — while an
+  //    entry for the previous day is only the best we had, and is written with
+  //    a short life so the next read looks again for today's.
+  //
+  //    `force` is the manual refresh button, and it must skip this: the point
+  //    of asking is that the user believes what is on screen is not the latest,
+  //    and a control that re-reads the cache would agree with itself every time
+  //    and look broken.
+  if (!force) {
+    const cached =
+      (await readFreshCache(CACHE_KEY, today)) ?? (await readFreshCache(CACHE_KEY, previous));
+    if (cached) return cached;
+  }
+
+  // 2. No fresh cache. If offline, surface it — we never present a previous
+  //    day's vaak as today's official hukamnama.
   if (requireOnline && !(await isOnline())) {
     throw new OfflineError();
   }
 
-  // 3. BaniDB first, for the explicit IST date (the exact source the STTM
-  //    hukamnama page uses).
-  let mapped = null;
-  try {
-    mapped = fromBaniDb(await fetchJson(baniDbUrl()), dateKey);
-  } catch (err) {
-    logError(new Error(`daily vaak BaniDB failed: ${err?.message || err}`));
-  }
+  // 3. Newest first, then the day before. BaniDB is the source of truth — the
+  //    exact one the STTM hukamnama page reads.
+  let mapped = await baniDbForDay(today);
+  if (!mapped) mapped = await baniDbForDay(previous);
 
-  // 4. Secondary fallback: the configured backend, only if BaniDB was unreachable.
+  // 4. Secondary fallback: the configured backend, only if BaniDB was
+  //    unreachable for both. It takes no date (see parseVaak), so it is judged
+  //    by the day it names — either of the two is acceptable, anything else is
+  //    a stale answer and is refused.
   if (!mapped && backendUrl()) {
     try {
-      mapped = parseVaak(await fetchJson(backendUrl()), dateKey);
+      const data = await fetchJson(backendUrl());
+      const named = payloadDateKey(data);
+      // An UNDATED payload is accepted but makes no claim about which day it is
+      // for — with two acceptable days there is nothing to check it against, so
+      // it is carried with a null date and the card simply prints no date line.
+      // Silence is better than a guess: asserting the wrong day is the bug this
+      // whole path exists to prevent.
+      if (!named || named === today || named === previous) mapped = parseVaak(data, named);
     } catch (err) {
       logError(new Error(`daily vaak backend fallback failed: ${err?.message || err}`));
     }
@@ -191,17 +268,17 @@ export const getDailyVaak = async ({ requireOnline = false } = {}) => {
 
   if (!mapped) throw new Error("daily vaak unavailable");
 
-  // Only cache what is actually for today, and give the SECONDARY source a
-  // short life rather than the whole day. BaniDB is the source of truth and
-  // publishes some time after IST midnight; a full-day cache of the backend's
-  // answer would pin the card to the fallback until tomorrow even once BaniDB
-  // had the real hukamnama. A short TTL keeps the card populated (including
-  // offline) while letting the next load upgrade it.
-  if (mapped.istDate === dateKey) {
-    // eslint-disable-next-line no-underscore-dangle -- the mappers' own marker
-    const ttlMs = mapped._source === "banidb" ? undefined : FALLBACK_CACHE_MS;
-    writeCache(CACHE_KEY, mapped, dateKey, { ttlMs }); // best-effort
-  }
+  // Today's from BaniDB is final and keeps for the day. Anything else — the
+  // previous day, or the secondary source — gets a short life, so the card
+  // upgrades to the real thing as soon as it is published instead of being
+  // pinned to a stand-in until tomorrow.
+  // eslint-disable-next-line no-underscore-dangle -- the mappers' own marker
+  const isFinal = mapped.istDate === today && mapped._source === "banidb";
+  // An undated answer is filed under today so it is not re-fetched on every
+  // mount, but only for the short life every stand-in gets.
+  writeCache(CACHE_KEY, mapped, mapped.istDate ?? today, {
+    ttlMs: isFinal ? undefined : FALLBACK_CACHE_MS,
+  }); // best-effort
   return mapped;
 };
 

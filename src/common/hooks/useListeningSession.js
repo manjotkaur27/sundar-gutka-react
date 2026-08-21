@@ -7,6 +7,7 @@ import {
   enqueueAnalyticsWrite,
 } from "../../database/analytics";
 import { requestPush } from "../../services/dashboard/syncSignal";
+import { secondsPerDay, splitSpanByLocalDay } from "../../services/streakDays";
 
 const useListeningSession = ({
   baniId,
@@ -18,9 +19,24 @@ const useListeningSession = ({
 }) => {
   const navigation = useNavigation();
 
-  const accumulatedRef = useRef(0);
+  // Play time accumulated per LOCAL day, in milliseconds. Keyed by day so a
+  // listen that runs past midnight is credited to both days rather than to
+  // whichever one it was flushed on; milliseconds rather than seconds so
+  // repeated pause/resume rounds once, at save, instead of on every segment.
+  const bucketsRef = useRef({});
   const playStartRef = useRef(null);
   const hasTrackedStartRef = useRef(false);
+
+  // Closes the segment currently playing and files it under the day(s) it
+  // covered. Safe to call when nothing is playing.
+  const closeSegment = useCallback(() => {
+    if (!playStartRef.current) return;
+    const spans = splitSpanByLocalDay(playStartRef.current, Date.now());
+    Object.keys(spans).forEach((date) => {
+      bucketsRef.current[date] = (bucketsRef.current[date] ?? 0) + spans[date];
+    });
+    playStartRef.current = null;
+  }, []);
 
   // Keep mutable refs so saveSession never needs to be recreated on track switch
   const currentPlayingIdRef = useRef(currentPlayingId);
@@ -53,28 +69,19 @@ const useListeningSession = ({
         ).catch(() => {});
       }
       playStartRef.current = Date.now();
-    } else if (playStartRef.current) {
-      accumulatedRef.current += (Date.now() - playStartRef.current) / 1000;
-      playStartRef.current = null;
+    } else {
+      closeSegment();
     }
-  }, [isPlaying]);
+  }, [isPlaying, closeSegment]);
 
   // Synchronous — flushes accumulated time and queues DB work; returns instantly.
   const saveSession = useCallback(() => {
-    if (playStartRef.current) {
-      accumulatedRef.current += (Date.now() - playStartRef.current) / 1000;
-      playStartRef.current = null;
-    }
-    const durationSeconds = Math.round(accumulatedRef.current);
-    accumulatedRef.current = 0;
+    closeSegment();
+    const daySlices = secondsPerDay(bucketsRef.current);
+    bucketsRef.current = {};
 
+    const durationSeconds = daySlices.reduce((sum, slice) => sum + slice.seconds, 0);
     if (durationSeconds <= 0) return;
-
-    // Local YYYY-MM-DD (not UTC) — see useReadingSession for the rationale.
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-      now.getDate()
-    ).padStart(2, "0")}`;
     enqueueAnalyticsWrite(async () => {
       try {
         await Promise.all([
@@ -87,11 +94,13 @@ const useListeningSession = ({
             duration_played: durationSeconds,
             completed: false,
           }),
-          upsertDailyActivity({
-            date: today,
-            reading_seconds_delta: 0,
-            listening_seconds_delta: durationSeconds,
-          }),
+          ...daySlices.map((slice) =>
+            upsertDailyActivity({
+              date: slice.date,
+              reading_seconds_delta: 0,
+              listening_seconds_delta: slice.seconds,
+            })
+          ),
         ]);
         trackAudioCompleted(durationSeconds, artistIdRef.current ?? null).catch(() => {});
         // Local totals just moved, so the cloud copy is stale. Fire-and-forget:
@@ -102,7 +111,7 @@ const useListeningSession = ({
         logError(new Error(`useListeningSession save failed: ${err?.message || err}`));
       }
     });
-  }, [baniId, baniTitle]);
+  }, [baniId, baniTitle, closeSegment]);
 
   // Audio plays through app background — only save when leaving the screen
   useEffect(() => {

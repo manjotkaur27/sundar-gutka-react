@@ -35,7 +35,7 @@ jest.mock("./connectivity", () => {
   return { isOnline: jest.fn(), OfflineError };
 });
 
-const CACHE_KEY = "@daily_vaak_cache_v3";
+const CACHE_KEY = "@daily_vaak_cache_v4";
 
 // The same IST arithmetic dailyVaak uses, so the tests do not drift at 18:30 UTC.
 const istKey = (offsetDays = 0) => {
@@ -48,7 +48,10 @@ const istKey = (offsetDays = 0) => {
 };
 
 const TODAY = istKey(0);
-const YESTERDAY = istKey(-1);
+// Today and the day before are BOTH acceptable — the newest that exists wins,
+// and before the darbar has read the new one that is yesterday's. Anything
+// older than the pair is stale and must be refused.
+const TOO_OLD = istKey(-2);
 
 /** Our backend's clean shape, for whichever day it says. */
 const backendVaak = (date) => ({
@@ -94,27 +97,27 @@ beforeEach(async () => {
 });
 
 describe("a source still serving yesterday", () => {
-  it("REGRESSION: refuses the backend's stale shabad instead of relabelling it", async () => {
-    routeFetch(null, backendVaak(YESTERDAY));
+  it("REGRESSION: refuses a stale shabad instead of relabelling it as today's", async () => {
+    routeFetch(null, backendVaak(TOO_OLD));
     await expect(getDailyVaak({ requireOnline: true })).rejects.toThrow("daily vaak unavailable");
   });
 
-  it("REGRESSION: does not cache a stale answer, so the next try is not poisoned", async () => {
-    routeFetch(null, backendVaak(YESTERDAY));
+  it("REGRESSION: does not cache a refused answer, so the next try is not poisoned", async () => {
+    routeFetch(null, backendVaak(TOO_OLD));
     await expect(getDailyVaak({ requireOnline: true })).rejects.toThrow();
     // The bug: a stale payload written under TODAY's key short-circuited every
     // later call until IST midnight.
     expect(await AsyncStorage.getItem(CACHE_KEY)).toBeNull();
 
     // BaniDB publishes; the very next load is correct rather than a day behind.
-    routeFetch(baniDbVaak(TODAY), backendVaak(YESTERDAY));
+    routeFetch(baniDbVaak(TODAY), backendVaak(TOO_OLD));
     const fresh = await getDailyVaak({ requireOnline: true });
     expect(fresh._source).toBe("banidb");
     expect(fresh.istDate).toBe(TODAY);
   });
 
   it("refuses a stale BaniDB payload too — the primary source is not exempt", async () => {
-    routeFetch(baniDbVaak(YESTERDAY), null);
+    routeFetch(baniDbVaak(TOO_OLD), null);
     await expect(getDailyVaak({ requireOnline: true })).rejects.toThrow();
   });
 

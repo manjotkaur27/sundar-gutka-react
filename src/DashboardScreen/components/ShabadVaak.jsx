@@ -32,6 +32,12 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
   // stop accepting taps — otherwise it looks inert and each extra tap queues
   // another swap that lands seconds later.
   const [shabadLoading, setShabadLoading] = useState(false);
+  // The Hukamnama gets the same treatment. It refreshes itself — the vaak day
+  // rolls over at the cutover and the next read refetches — but "the darbar has
+  // read today's by now" is a thing a user can know before the app does, and
+  // asking should not mean waiting for a screen focus.
+  const [vaakNonce, setVaakNonce] = useState(0);
+  const [vaakLoading, setVaakLoading] = useState(false);
 
   const inactiveBg = palette.vaakTabBg;
   const goldTint = palette.vaakTabActiveBg;
@@ -39,6 +45,21 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
     { id: "vaak", label: STRINGS.TODAYS_VAAK },
     { id: "shabad", label: STRINGS.RANDOM_SHABAD },
   ];
+
+  // One control, whose meaning follows the active tab — the markup is identical
+  // and only the handler, the busy flag and the label differ.
+  const reload =
+    tab === "vaak"
+      ? {
+          busy: vaakLoading,
+          label: STRINGS.REFRESH_HUKAMNAMA,
+          onPress: () => setVaakNonce((n) => n + 1),
+        }
+      : {
+          busy: shabadLoading,
+          label: STRINGS.SHUFFLE,
+          onPress: () => setShabadNonce((n) => n + 1),
+        };
 
   return (
     <View style={styles.wrap}>
@@ -60,7 +81,7 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
           </View>
         ) : null}
 
-        {/* Tabs (+ shuffle for the shabad tab) live INSIDE the card header. */}
+        {/* Tabs (+ the active tab's reload control) live INSIDE the card header. */}
         <View style={[styles.header, stackedTabs && styles.headerStacked]}>
           <View style={[styles.tabsGroup, stackedTabs && styles.tabsGroupStacked]}>
             {tabs.map((t) => {
@@ -84,29 +105,32 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
             })}
           </View>
 
-          {tab === "shabad" ? (
-            <Pressable
-              onPress={() => setShabadNonce((n) => n + 1)}
-              disabled={shabadLoading}
-              hitSlop={10}
-              style={({ pressed }) => [
-                styles.shuffleBtn,
-                { backgroundColor: inactiveBg },
-                pressed && styles.shuffleBtnPressed,
-                shabadLoading && styles.shuffleBtnBusy,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={STRINGS.SHUFFLE}
-              accessibilityState={{ disabled: shabadLoading, busy: shabadLoading }}
-            >
-              <RefreshSpinner color={gold} size={14} spinning={shabadLoading} />
-            </Pressable>
-          ) : null}
+          <Pressable
+            onPress={reload.onPress}
+            disabled={reload.busy}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.shuffleBtn,
+              { backgroundColor: inactiveBg },
+              pressed && styles.shuffleBtnPressed,
+              reload.busy && styles.shuffleBtnBusy,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={reload.label}
+            accessibilityState={{ disabled: reload.busy, busy: reload.busy }}
+          >
+            <RefreshSpinner color={gold} size={14} spinning={reload.busy} />
+          </Pressable>
         </View>
 
         {/* Both mounted; only the active one is shown (display) so each pre-fetches. */}
         <View style={tab === "vaak" ? styles.shown : styles.hidden}>
-          <TodaysVaak embedded refreshKey={refreshKey} />
+          <TodaysVaak
+            embedded
+            refreshKey={refreshKey}
+            reloadNonce={vaakNonce}
+            onLoadingChange={setVaakLoading}
+          />
         </View>
         <View style={tab === "shabad" ? styles.shown : styles.hidden}>
           <RandomShabad

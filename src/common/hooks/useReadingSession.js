@@ -8,6 +8,7 @@ import {
   enqueueAnalyticsWrite,
 } from "../../database/analytics";
 import { requestPush } from "../../services/dashboard/syncSignal";
+import { secondsPerDay, splitSpanByLocalDay } from "../../services/streakDays";
 
 // Completion is based on how far the user scrolled through the bani, not time
 // spent — a bani is "read" once the scroll bar crosses this percentage.
@@ -30,13 +31,12 @@ const useReadingSession = ({ baniId, baniTitle, navigation, scrollPercentRef }) 
     // the user actually scrolled to during this specific session.
     const completed = (scrollPercentRef?.current ?? 0) >= COMPLETION_SCROLL_PERCENT;
 
-    // Local YYYY-MM-DD (not toISOString, which is UTC) so the day — and the
-    // year boundary the "In Nitnem this year" total resets on — is the user's
-    // local day, matching how the dashboard reads dates back.
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-      now.getDate()
-    ).padStart(2, "0")}`;
+    // Credited to the local day(s) the reading actually happened on, not the
+    // one it was flushed on: a sitting that runs past midnight is split at the
+    // boundary. Local rather than UTC so the day — and the year boundary the
+    // "In Nitnem this year" total resets on — is the user's own, matching how
+    // the dashboard reads dates back.
+    const daySlices = secondsPerDay(splitSpanByLocalDay(start, endTime));
     enqueueAnalyticsWrite(async () => {
       try {
         await Promise.all([
@@ -48,11 +48,13 @@ const useReadingSession = ({ baniId, baniTitle, navigation, scrollPercentRef }) 
             duration_seconds: durationSeconds,
             completed,
           }),
-          upsertDailyActivity({
-            date: today,
-            reading_seconds_delta: durationSeconds,
-            listening_seconds_delta: 0,
-          }),
+          ...daySlices.map((slice) =>
+            upsertDailyActivity({
+              date: slice.date,
+              reading_seconds_delta: slice.seconds,
+              listening_seconds_delta: 0,
+            })
+          ),
           incrementBaniReadCount(baniId, baniTitle ?? null),
         ]);
         trackBaniCompleted(baniId, baniTitle, durationSeconds).catch(() => {});

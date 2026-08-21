@@ -21,10 +21,14 @@ import { getLiveRate } from "./exchangeRates";
  * so conversion always works fully offline. getLiveRate() overrides them the
  * moment real rates are cached; see effectiveRate() below.
  *
- * Region prefers the backend's IP-resolved countryCode (SevaScreen passes
- * `config?.countryCode` in) — more accurate than locale for "what jurisdiction
- * is this donor actually in right now". Falls back to the device locale
- * whenever that's unavailable. Defaults to USD for anywhere not in the table.
+ * Region is resolved ON-DEVICE by resolveDeviceCountry(): timezone first, then
+ * UTC offset, then the device locale — see that function for why the locale is
+ * last rather than first. The backend's `countryCode` is still accepted as an
+ * override when SevaScreen passes one, but it is not the primary signal and in
+ * practice never arrives: the backend reads it from a `cf-ipcountry` /
+ * `x-vercel-ip-country` CDN header and the API sits behind neither, so it
+ * answers `null` and the device ladder is what actually runs. Defaults to USD
+ * for anywhere not in the table.
  */
 
 // symbol = what the donor sees; rate = static fallback (local units per 1 USD),
