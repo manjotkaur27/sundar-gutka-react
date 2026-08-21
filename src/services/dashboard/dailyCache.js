@@ -21,7 +21,12 @@ export const readFreshCache = async (key, dateKey = localDateStr()) => {
     const raw = await AsyncStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.date === dateKey ? parsed.data : null;
+    if (parsed?.date !== dateKey) return null;
+    // An entry written with a TTL expires EARLY, before the day rolls over. Used
+    // for content we accepted from a fallback source and would rather replace
+    // with the primary one as soon as it is available — see dailyVaak.
+    if (parsed.expiresAt && Date.now() > parsed.expiresAt) return null;
+    return parsed.data;
   } catch (_) {
     return null;
   }
@@ -37,9 +42,16 @@ export const readAnyCache = async (key) => {
   }
 };
 
-export const writeCache = async (key, data, dateKey = localDateStr()) => {
+/**
+ * @param {number} [ttlMs] Expire the entry this long from now, instead of
+ *   letting it live until the date rolls over. For content that is usable now
+ *   but should be re-fetched from a better source shortly.
+ */
+export const writeCache = async (key, data, dateKey = localDateStr(), { ttlMs } = {}) => {
   try {
-    await AsyncStorage.setItem(key, JSON.stringify({ date: dateKey, data }));
+    const entry = { date: dateKey, data };
+    if (ttlMs > 0) entry.expiresAt = Date.now() + ttlMs;
+    await AsyncStorage.setItem(key, JSON.stringify(entry));
   } catch (_) {
     // Non-fatal — cache is best-effort.
   }
