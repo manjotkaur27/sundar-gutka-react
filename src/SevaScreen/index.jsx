@@ -5,14 +5,12 @@ import {
   TextInput,
   ActivityIndicator,
   Animated,
-  AppState,
   Linking,
-  Platform,
   Text,
   useWindowDimensions,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
@@ -166,7 +164,6 @@ const SevaScreen = () => {
     Math.min(52, Math.max(34, Math.min(screenWidth * 0.13, screenHeight * 0.062)))
   );
   const amountLineHeight = Math.round(amountFontSize * 1.12);
-  const dispatch = useDispatch();
   const navigation = useNavigation();
 
   const language = useSelector((state) => state.language);
@@ -215,12 +212,6 @@ const SevaScreen = () => {
   // Explicit focus for the "Other" amount input — see the effect below.
   const otherAmountInputRef = useRef(null);
 
-  // Tracks the URL currently open in InAppBrowser so we can re-open after app resume
-  const pendingBrowserUrlRef = useRef(null);
-  // True when the app went to background while the browser was open
-  const appInBackgroundRef = useRef(false);
-  // Always points to the latest openBrowserForUrl without needing it in useEffect deps
-  const openBrowserForUrlRef = useRef(null);
   // Prevents concurrent open() calls (guards iOS where open() may not resolve on background)
   const isBrowserOpenRef = useRef(false);
 
@@ -310,40 +301,65 @@ const SevaScreen = () => {
     }, [language])
   );
 
-  // Exposure on mount; abandonment on exit if the user never tapped donate.
+  // Exposure on arrival; abandonment on leaving if the user never tapped donate.
   // Also tracks whether this is the user's first time opening the Seva screen
-  // (persisted via AsyncStorage) and the initial donation type selection.
-  useEffect(() => {
-    const STORAGE_KEY = "@seva_screen_opened";
-    (async () => {
-      let isFirstOpen = false;
-      try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored === null) {
-          isFirstOpen = true;
-          await AsyncStorage.setItem(STORAGE_KEY, "1");
+  // (persisted via AsyncStorage) and the donation type in effect at each end.
+  //
+  // Keyed on FOCUS, not on mount. Seva is a tab, and React Navigation does not
+  // unmount a tab you navigate away from — so a mount-scoped funnel fired
+  // `opened` once for the whole app session and reached its cleanup, the only
+  // place `checkout_abandoned` came from, just about never. Every visit after
+  // the first went unrecorded.
+  useFocusEffect(
+    useCallback(() => {
+      // A visit is the unit of the funnel, so everything the previous visit
+      // accumulated is cleared here. Left standing, one donation would suppress
+      // `checkout_abandoned` for the rest of the session, and `last_step_reached`
+      // would report the furthest step of any earlier visit.
+      hasDonatedRef.current = false;
+      hasInteractedRef.current = false;
+      maxStepRef.current = SEVA_STEPS.landing_view;
+
+      let onScreen = true;
+      const STORAGE_KEY = "@seva_screen_opened";
+      (async () => {
+        let isFirstOpen = false;
+        try {
+          const stored = await AsyncStorage.getItem(STORAGE_KEY);
+          if (stored === null) {
+            isFirstOpen = true;
+            await AsyncStorage.setItem(STORAGE_KEY, "1");
+          }
+        } catch (_) {
+          // Non-critical — analytics fires without the flag if storage fails.
         }
-      } catch (_) {
-        // Non-critical — analytics fires without the flag if storage fails.
-      }
-      trackSevaEvent("opened", {
-        is_first_open: isFirstOpen,
-        donation_type: donationTypeOf(frequency),
-      });
-    })();
-    return () => {
-      // Abandoned only if the user left before the Qgiv handoff. last_step_reached
-      // and donation_type are always real, non-empty values.
-      if (!hasDonatedRef.current) {
-        trackSevaEvent("checkout_abandoned", {
-          last_step_reached: stepNameOf(maxStepRef.current),
-          interacted: hasInteractedRef.current,
+        // The read is async, so a user who left again first would otherwise have
+        // the visit reported after they had already gone.
+        if (!onScreen) return;
+        trackSevaEvent("opened", {
+          is_first_open: isFirstOpen,
           donation_type: donationTypeOf(lastFrequencyRef.current),
         });
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      })();
+
+      return () => {
+        onScreen = false;
+        // Abandoned only if the user left before the Qgiv handoff. last_step_reached
+        // and donation_type are always real, non-empty values.
+        if (!hasDonatedRef.current) {
+          trackSevaEvent("checkout_abandoned", {
+            last_step_reached: stepNameOf(maxStepRef.current),
+            interacted: hasInteractedRef.current,
+            donation_type: donationTypeOf(lastFrequencyRef.current),
+          });
+        }
+      };
+      // The frequency is read through `lastFrequencyRef`, which always holds the
+      // current value, so changing it cannot re-run this effect — that would
+      // close the visit and open a new one in the middle of it.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   const handleAmountSelect = (amount, isOther = false) => {
     setIsOtherSelected(isOther);
@@ -410,10 +426,16 @@ const SevaScreen = () => {
   };
 
   const handleFrequencyChange = (freq) => {
+    // Both options stay pressable, so the selected one can be tapped again. That
+    // is still an interaction with the donation type, but nothing CHANGED — and
+    // an event named frequency_changed reporting the value it already held makes
+    // the switch look busier than it is.
+    const changed = freq !== frequency;
     setFrequency(freq);
     lastFrequencyRef.current = freq;
     hasInteractedRef.current = true;
     markStep("donation_type_selected");
+    if (!changed) return;
     trackSevaEvent("frequency_changed", {
       frequency: freq,
       donation_type: donationTypeOf(freq),
@@ -451,51 +473,25 @@ const SevaScreen = () => {
       const controlColor = c.textPrimary;
 
       isBrowserOpenRef.current = true;
-      pendingBrowserUrlRef.current = url;
-      appInBackgroundRef.current = false;
-
       try {
         await openInAppBrowser(url, { barColor, controlColor });
       } finally {
         isBrowserOpenRef.current = false;
-        // Only clear the pending URL if the browser closed because the user dismissed it,
-        // not because the OS backgrounded the app (in which case we want to re-open on resume).
-        if (!appInBackgroundRef.current) {
-          pendingBrowserUrlRef.current = null;
-        }
       }
     },
     [isDarkMode, theme]
   );
 
-  // Keep ref current so the AppState listener always calls the latest closure
-  openBrowserForUrlRef.current = openBrowserForUrl;
-
-  // Re-open the browser if the app was backgrounded while it was showing
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "background") {
-        appInBackgroundRef.current = true;
-      } else if (nextState === "active" && appInBackgroundRef.current) {
-        appInBackgroundRef.current = false;
-        const url = pendingBrowserUrlRef.current;
-        if (url) {
-          // Brief delay to let the native bridge settle after the app resumes
-          setTimeout(() => {
-            if (pendingBrowserUrlRef.current) {
-              openBrowserForUrlRef.current?.(url);
-            }
-          }, 300);
-        }
-      }
-    });
-    return () => {
-      subscription.remove();
-      pendingBrowserUrlRef.current = null;
-      appInBackgroundRef.current = false;
-      isBrowserOpenRef.current = false;
-    };
-  }, []);
+  // There used to be an AppState listener here that re-opened the browser
+  // whenever the app came back to the foreground. It is what made the donation
+  // page "lose progress" on an app switch: the Custom Tab was still there,
+  // holding the half-filled Qgiv form, and this relaunched the URL over the top
+  // of it 300ms after the user returned.
+  //
+  // It was a workaround for the library adding FLAG_ACTIVITY_NO_HISTORY to the
+  // tab, which really did destroy it on backgrounding — but that is fixed at
+  // source now, by `showInRecents: true` in common/inAppBrowser. The workaround
+  // outlived the bug and became the bug.
 
   const handleDonate = useCallback(async () => {
     // Guarded twice on purpose — the button is disabled AND the handler refuses,
@@ -511,6 +507,18 @@ const SevaScreen = () => {
     // donor nothing, and the reason — Qgiv charges whole US dollars — is not
     // something they can be expected to infer from a rupee figure.
     if (belowMinimum) {
+      // A donor who tried to give and was turned away is not a donor who lost
+      // interest, but the visit ends the same way for both — at amount_selected
+      // — so without its own event this is invisible. `currency` is the
+      // dimension that matters: the floor is a per-currency consequence of Qgiv
+      // charging whole US dollars, so this is where a too-high floor shows up.
+      trackSevaEvent("below_minimum", {
+        // The CODE, not the currency object — Firebase stringifies whatever it
+        // is given, and an object arrives as a useless "[object Object]".
+        currency: currency.code,
+        amount_bucket: bucketAmount(donationUsd),
+        donation_type: effectiveDonationType,
+      });
       showInfoToast(
         STRINGS.formatString(STRINGS.SEVA_MIN_AMOUNT, {
           amount: formatCurrency(minLocal, currency),
@@ -518,6 +526,20 @@ const SevaScreen = () => {
       );
       return;
     }
+
+    // A tap that cannot reach Qgiv must not enter the funnel. `openBrowserForUrl`
+    // refuses while a tab is already open — it is shared with the content links
+    // on this screen — and it is reached without awaiting, so a refused tap used
+    // to emit payment_started AND payment_success for a browser that never
+    // opened. payment_success is the conversion proxy the whole funnel is read
+    // on, so every fast double-tap on Donate booked a second donation.
+    // A tap that cannot reach Qgiv must not enter the funnel. `openBrowserForUrl`
+    // refuses while a tab is already open — it is shared with the content links
+    // on this screen — and it is reached without awaiting, so a refused tap used
+    // to emit payment_started AND payment_success for a browser that never
+    // opened. payment_success is the conversion proxy the whole funnel is read
+    // on, so every fast double-tap on Donate booked a second donation.
+    if (isBrowserOpenRef.current) return;
 
     hasDonatedRef.current = true;
     markStep("payment_started");
@@ -540,19 +562,22 @@ const SevaScreen = () => {
       frequency,
     });
 
-    // Platform split for the PAYMENT surface (see DonationWebView.jsx):
-    // - Android: in-process WebView screen so the page survives backgrounding
-    //   (Android kills the RN process when a Chrome Custom Tab runs on top).
-    // - iOS: InAppBrowser/SFSafariViewController — no backgrounding kill there,
-    //   and it preserves the web-handoff surface Apple review expects.
-    // Both branches launch synchronously (no await) so payment_success fires at
-    // the same point — on browser-open — on both platforms. openBrowserForUrl
-    // manages its own async lifecycle (and the resume re-open) internally.
-    if (Platform.OS === "android") {
-      navigation.navigate("DonationWebView", { url });
-    } else {
-      openBrowserForUrl(url);
-    }
+    // One payment surface on both platforms: the in-app browser, exactly as
+    // every other outbound link in the app uses it.
+    //
+    // Android used to get an in-process WebView instead, on the theory that the
+    // OS killed the RN process whenever a Chrome Custom Tab ran on top of it and
+    // took the donation page with it. That is not what was happening. Six other
+    // call sites — the Hukamnama link, Ask Khalis, the Explore tiles, Random
+    // Shabad, the audio request form — open the same Custom Tab through the same
+    // helper, and every one of them survives an app switch and comes back where
+    // the user left it. What made Qgiv alone lose its place was this screen's
+    // own resume handler, which re-opened the URL each time the app returned to
+    // the foreground and so restarted the payment page from the top. It is gone.
+    //
+    // Launched without awaiting, so payment_success below still fires at the
+    // moment of hand-off rather than when the browser closes.
+    openBrowserForUrl(url);
 
     // Qgiv handoff opened — counted as a successful donation per product
     // decision (the app cannot observe Qgiv's real confirmation). Fired at the
@@ -571,8 +596,6 @@ const SevaScreen = () => {
     isOtherSelected,
     effectiveDonationType,
     frequency,
-    dispatch,
-    navigation,
     openBrowserForUrl,
     markStep,
   ]);

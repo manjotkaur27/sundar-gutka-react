@@ -30,7 +30,6 @@ import Settings from "../Settings";
 import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
 import Themes from "../Settings/Themes";
 import SevaScreen from "../SevaScreen";
-import DonationWebView from "../SevaScreen/DonationWebView";
 import SevaMeansScreen from "../SevaScreen/SevaMeansScreen";
 
 // Settings and every utility page reachable from it share one palette — the
@@ -212,11 +211,6 @@ const Navigation = () => {
         <Stack.Screen
           name="Bookmarks"
           component={BookmarksScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="DonationWebView"
-          component={DonationWebView}
           options={{ headerShown: false }}
         />
         <Stack.Screen

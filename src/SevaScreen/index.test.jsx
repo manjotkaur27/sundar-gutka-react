@@ -1,6 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 /* eslint-env jest */
 import React from "react";
+import { TextInput } from "react-native";
 
 import { render, waitFor, fireEvent } from "@testing-library/react-native";
 
@@ -22,6 +23,10 @@ jest.mock("react-redux", () => ({
 // singleton, matching real useNavigation(): returning a fresh object per render
 // would make any effect keyed on it re-run every render.
 const mockFocusListeners = [];
+// One entry per live focus effect, holding its cleanup. Leaving the tab runs
+// them; React Navigation runs a cleanup exactly once, so an entry is removed as
+// it fires and the unmount path skips whatever a manual blur already ran.
+const mockFocusCleanups = [];
 const mockNavigation = {
   navigate: jest.fn(),
   addListener: (event, cb) => {
@@ -42,10 +47,16 @@ jest.mock("@react-navigation/native", () => {
       ReactModule.useEffect(() => {
         const cleanup = cb();
         mockFocusListeners.push(cb);
+        const entry = typeof cleanup === "function" ? { run: cleanup } : null;
+        if (entry) mockFocusCleanups.push(entry);
         return () => {
           const i = mockFocusListeners.indexOf(cb);
           if (i >= 0) mockFocusListeners.splice(i, 1);
-          if (typeof cleanup === "function") cleanup();
+          const j = entry ? mockFocusCleanups.indexOf(entry) : -1;
+          if (j >= 0) {
+            mockFocusCleanups.splice(j, 1);
+            entry.run();
+          }
         };
       }, [cb]);
     },
@@ -70,6 +81,7 @@ jest.mock("react-native-svg", () => {
 });
 
 const mockOpenInAppBrowser = jest.fn();
+const mockShowInfoToast = jest.fn();
 const mockTrackSevaEvent = jest.fn();
 const mockLogError = jest.fn();
 // Switchable so the headline can be asserted in BOTH themes (see the
@@ -119,8 +131,15 @@ jest.mock("@common", () => {
       SEVA_FOR_CODERS: "Seva for coders",
       SEVA_BY_TESTING: "Seva by testing our work",
       SEVA_OTHER_OPPORTUNITIES: "Seva by other opportunities",
+      SEVA_MIN_AMOUNT: "Minimum acceptable donation is {amount}",
+      formatString: (template, values) =>
+        Object.entries(values).reduce(
+          (out, [key, value]) => out.split(`{${key}}`).join(value),
+          template
+        ),
     },
     openInAppBrowser: (...args) => mockOpenInAppBrowser(...args),
+    showInfoToast: (...args) => mockShowInfoToast(...args),
     // The themed scrollbar hook. These tests assert content, not the thumb.
     useCustomScrollbar: () => ({ scrollViewProps: {}, Indicator: null, ownedScrollProps: {} }),
     trackSevaEvent: (...args) => mockTrackSevaEvent(...args),
@@ -197,6 +216,21 @@ const contentBase = {
 
 const nativeFallbackConfig = { ...CONFIG_BASE, content: { ...contentBase, segments: [] } };
 
+// Leaving the Seva tab: React Navigation runs each focus effect's cleanup and
+// leaves the screen mounted. Returning runs the effects again. The funnel emits
+// on both edges, so both have to be simulable.
+const blurScreen = () => {
+  mockFocusCleanups.splice(0).forEach((entry) => entry.run());
+};
+const focusScreen = () => {
+  mockFocusListeners.forEach((cb) => {
+    const cleanup = cb();
+    if (typeof cleanup === "function") mockFocusCleanups.push({ run: cleanup });
+  });
+};
+
+const sevaEvents = (name) => mockTrackSevaEvent.mock.calls.filter(([event]) => event === name);
+
 const serverDrivenConfig = (segments, overrides = {}) => ({
   ...CONFIG_BASE,
   ...overrides,
@@ -209,6 +243,7 @@ describe("SevaScreen", () => {
     mockState = { language: "en" };
     mockThemeMode = "light";
     mockFocusListeners.length = 0;
+    mockFocusCleanups.length = 0;
   });
 
   it("renders the donate widget + tax note as a safety net when segments are empty", async () => {
@@ -415,5 +450,156 @@ describe("SevaScreen", () => {
     const { getByText } = render(<SevaScreen />);
     await waitFor(() => expect(getByText("₹1,000")).toBeTruthy());
     expect(getByText("₹5,000")).toBeTruthy();
+  });
+
+  it("reports the Qgiv hand-off once, with real values on every required param", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+
+    const { getByLabelText, getByTestId } = render(<SevaScreen />);
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    fireEvent.press(getByLabelText("Donate"));
+
+    const funnel = mockTrackSevaEvent.mock.calls.filter(([name]) =>
+      ["payment_started", "payment_success"].includes(name)
+    );
+    expect(funnel.map(([name]) => name)).toEqual(["payment_started", "payment_success"]);
+    // Firebase records a null or empty param as "(not set)", so each of these
+    // has to arrive populated or the funnel cannot be segmented at all.
+    funnel.forEach(([, params]) => {
+      expect(params.provider).toBe("qgiv");
+      expect(params.donation_type).toBe("recurring");
+      expect(params.amount_bucket).toBe("10_24");
+    });
+  });
+
+  it("books no second conversion when Donate is tapped again while the tab is open", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    // Never resolves — the in-app browser promise stays pending for as long as
+    // the donor is on the Qgiv page, which is what holds the busy guard.
+    mockOpenInAppBrowser.mockImplementationOnce(() => new Promise(() => {}));
+
+    const { getByLabelText, getByTestId } = render(<SevaScreen />);
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    const donate = getByLabelText("Donate");
+    fireEvent.press(donate);
+    fireEvent.press(donate);
+
+    expect(mockOpenInAppBrowser).toHaveBeenCalledTimes(1);
+    const names = mockTrackSevaEvent.mock.calls.map(([name]) => name);
+    expect(names.filter((name) => name === "payment_started")).toHaveLength(1);
+    expect(names.filter((name) => name === "payment_success")).toHaveLength(1);
+  });
+
+  it("reports a visit every time the tab is opened, not only on the first mount", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    render(<SevaScreen />);
+    await waitFor(() => expect(sevaEvents("opened")).toHaveLength(1));
+
+    // Seva is a tab: leaving does not unmount it, so a mount-scoped event would
+    // never fire again for the rest of the session.
+    blurScreen();
+    focusScreen();
+    await waitFor(() => expect(sevaEvents("opened")).toHaveLength(2));
+
+    // Only the very first open in the app's lifetime is the first open.
+    expect(sevaEvents("opened")[1][1].is_first_open).toBe(false);
+    expect(sevaEvents("opened")[1][1].donation_type).toBe("recurring");
+  });
+
+  it("reports abandonment when the user leaves the tab, not only on unmount", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const { getByTestId } = render(<SevaScreen />);
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    expect(sevaEvents("checkout_abandoned")).toHaveLength(0);
+    blurScreen();
+
+    const abandoned = sevaEvents("checkout_abandoned");
+    expect(abandoned).toHaveLength(1);
+    expect(abandoned[0][1]).toEqual({
+      last_step_reached: "landing_view",
+      interacted: false,
+      donation_type: "recurring",
+    });
+  });
+
+  it("starts each visit clean rather than carrying the last one's donation and step", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const { getByLabelText, getByTestId } = render(<SevaScreen />);
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    // Visit 1 hands off, so it is not an abandonment.
+    fireEvent.press(getByLabelText("Donate"));
+    blurScreen();
+    expect(sevaEvents("checkout_abandoned")).toHaveLength(0);
+
+    // Visit 2 does nothing. The donation flag from visit 1 must not suppress it,
+    // and its furthest step must not still be payment_started.
+    focusScreen();
+    blurScreen();
+
+    const abandoned = sevaEvents("checkout_abandoned");
+    expect(abandoned).toHaveLength(1);
+    expect(abandoned[0][1].last_step_reached).toBe("landing_view");
+    expect(abandoned[0][1].interacted).toBe(false);
+  });
+
+  it("does not report a frequency change when the already-selected option is tapped", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const { getByLabelText, getByTestId } = render(<SevaScreen />);
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    // "Monthly" is the default, and the control leaves it pressable.
+    fireEvent.press(getByLabelText("Monthly"));
+    expect(sevaEvents("frequency_changed")).toHaveLength(0);
+
+    fireEvent.press(getByLabelText("One Time"));
+    const changed = sevaEvents("frequency_changed");
+    expect(changed).toHaveLength(1);
+    expect(changed[0][1]).toEqual({ frequency: "One Time", donation_type: "one_time" });
+  });
+
+  it("records the refusal when the typed amount is under the currency's minimum", async () => {
+    // INR, so the floor is ₹100 — in USD the floor is $1 and the input strips
+    // non-digits, which leaves no way to type below it.
+    getSevaConfig.mockResolvedValue({ ...nativeFallbackConfig, countryCode: "IN" });
+    const screen = render(<SevaScreen />);
+    const { getByLabelText, getByTestId } = screen;
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    fireEvent.press(getByLabelText("Other"));
+    fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "50");
+    fireEvent.press(getByLabelText("Donate"));
+
+    const refused = sevaEvents("below_minimum");
+    expect(refused).toHaveLength(1);
+    expect(refused[0][1]).toEqual({
+      currency: "INR",
+      amount_bucket: "under_10",
+      donation_type: "recurring",
+    });
+    // Refused, so there is no hand-off to report.
+    expect(sevaEvents("payment_started")).toHaveLength(0);
+    expect(sevaEvents("payment_success")).toHaveLength(0);
+    expect(mockOpenInAppBrowser).not.toHaveBeenCalled();
+    // …and the donor is told why, rather than the tap going nowhere.
+    expect(mockShowInfoToast).toHaveBeenCalledWith("Minimum acceptable donation is ₹100");
+  });
+
+  it("reports the hand-off, not a refusal, once the amount reaches the minimum", async () => {
+    getSevaConfig.mockResolvedValue({ ...nativeFallbackConfig, countryCode: "IN" });
+    const screen = render(<SevaScreen />);
+    const { getByLabelText, getByTestId } = screen;
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    fireEvent.press(getByLabelText("Other"));
+    fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "100");
+    fireEvent.press(getByLabelText("Donate"));
+
+    expect(sevaEvents("below_minimum")).toHaveLength(0);
+    expect(sevaEvents("payment_started")).toHaveLength(1);
+    expect(sevaEvents("payment_success")).toHaveLength(1);
   });
 });

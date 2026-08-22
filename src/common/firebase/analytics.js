@@ -268,12 +268,18 @@ const trackNavBar = async (visible, trigger, mode) => {
 //   opened (landing) → frequency_changed (donation type) → amount_selected
 //   → payment_started (Donate tapped) → payment_success (Qgiv handoff opened).
 // On exit before the handoff we emit checkout_abandoned with the furthest step
-// reached.
-// NOTE on payment_success: real payment confirmation lives on Qgiv (external
-// WebView), which the app cannot observe. Per product decision, OPENING the Qgiv
-// handoff is counted as a successful donation, so payment_success fires on
-// browser-open — it is a conversion proxy, not a Qgiv-confirmed payment. Donor
-// details, payment failures and locality remain unobservable and are not emitted.
+// reached. A visit is a FOCUS of the Seva tab, not a mount — the tab stays
+// mounted once visited, so opened/checkout_abandoned are emitted per visit.
+// below_minimum sits off to the side of the funnel: the donor tapped Donate and
+// was refused because the amount was under what Qgiv can charge, so no
+// payment_started follows. Without it those donors are indistinguishable from
+// the ones who simply left, since both end the visit at amount_selected.
+// NOTE on payment_success: real payment confirmation lives on Qgiv, which the
+// app hands off to in the in-app browser and cannot observe. Per product
+// decision, OPENING the Qgiv handoff is counted as a successful donation, so
+// payment_success fires on browser-open — it is a conversion proxy, not a
+// Qgiv-confirmed payment. Donor details, payment failures and locality remain
+// unobservable and are not emitted.
 // Every param is sanitized so nothing reaches Firebase as null/empty/wrong-type
 // (which would surface as "(not set)"): booleans → "true"/"false", numbers →
 // safe ints, strings trimmed; null/undefined/empty values are dropped entirely.
@@ -283,6 +289,7 @@ const SEVA_EVENT_NAMES = {
   opened: "seva_opened",
   frequency_changed: "seva_frequency_changed",
   amount_selected: "seva_amount_selected",
+  below_minimum: "seva_amount_below_minimum",
   payment_started: "seva_payment_started",
   payment_success: "seva_payment_success",
   checkout_abandoned: "seva_checkout_abandoned",
