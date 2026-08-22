@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
+  AccessibilityInfo,
   View,
   Pressable,
   TextInput,
@@ -25,7 +26,6 @@ import {
   useThemedStyles,
   STRINGS,
   openInAppBrowser,
-  showInfoToast,
   trackSevaEvent,
   useCustomScrollbar,
 } from "@common";
@@ -463,6 +463,12 @@ const SevaScreen = () => {
   // explains itself rather than going dead with no reason given.
   const minLocal = minLocalAmount(currency);
   const belowMinimum = Number(localAmount) > 0 && Number(localAmount) < minLocal;
+  // One message, shown inline under the amount (see renderDonateWidget) and
+  // announced again on a refused tap for a screen reader that is not on the
+  // amount field.
+  const minAmountMessage = STRINGS.formatString(STRINGS.SEVA_MIN_AMOUNT, {
+    amount: formatCurrency(minLocal, currency),
+  });
 
   // ─── Shared browser helper ─────────────────────────────────────────────────
   const openBrowserForUrl = useCallback(
@@ -519,11 +525,10 @@ const SevaScreen = () => {
         amount_bucket: bucketAmount(donationUsd),
         donation_type: effectiveDonationType,
       });
-      showInfoToast(
-        STRINGS.formatString(STRINGS.SEVA_MIN_AMOUNT, {
-          amount: formatCurrency(minLocal, currency),
-        })
-      );
+      // The reason is already on screen under the amount — it went up the
+      // moment the figure fell below the floor — so the tap re-announces it to
+      // a screen reader instead of firing a toast the keyboard hides.
+      AccessibilityInfo.announceForAccessibility(minAmountMessage);
       return;
     }
 
@@ -590,7 +595,7 @@ const SevaScreen = () => {
   }, [
     canDonate,
     belowMinimum,
-    minLocal,
+    minAmountMessage,
     currency,
     donationUsd,
     isOtherSelected,
@@ -849,6 +854,17 @@ const SevaScreen = () => {
           </View>
         </View>
       </Pressable>
+
+      {/* The minimum is said HERE, under the figure the donor is typing, not in
+          a bottom toast: the keyboard is up for the whole of that typing and a
+          bottom toast renders behind it, so the donor only saw a Donate tap
+          that appeared to do nothing. Live rather than tap-triggered — it
+          clears itself the moment the amount reaches the floor. */}
+      {belowMinimum && (
+        <CustomText style={styles.minAmountNotice} accessibilityLiveRegion="polite">
+          {minAmountMessage}
+        </CustomText>
+      )}
 
       {/* Preset amounts */}
       <View style={styles.amountButtons}>

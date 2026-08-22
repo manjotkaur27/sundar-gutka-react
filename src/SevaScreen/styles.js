@@ -135,6 +135,18 @@ const createStyles = (theme) => {
     // "Other" onto its own line on narrower screens but not wider ones — the
     // most visible per-device inconsistency. Equal flex:1 columns divide
     // whatever width is available, so the row is identical everywhere.
+    // Sits directly under the amount card, where the donor is looking while
+    // typing — NOT in a bottom toast. The keyboard is up the whole time an
+    // amount is being typed, and a bottom toast fires behind it: the donor saw
+    // a Donate tap do nothing and never got the reason.
+    minAmountNotice: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: c.error,
+      textAlign: "center",
+      width: "100%",
+      fontFamily: theme.typography.fonts.balooPaaji,
+    },
     amountButtons: {
       flexDirection: "row",
       // Wraps onto a second line rather than dividing one line four ways

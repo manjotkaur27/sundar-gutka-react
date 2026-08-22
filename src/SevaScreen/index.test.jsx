@@ -584,8 +584,28 @@ describe("SevaScreen", () => {
     expect(sevaEvents("payment_started")).toHaveLength(0);
     expect(sevaEvents("payment_success")).toHaveLength(0);
     expect(mockOpenInAppBrowser).not.toHaveBeenCalled();
-    // …and the donor is told why, rather than the tap going nowhere.
-    expect(mockShowInfoToast).toHaveBeenCalledWith("Minimum acceptable donation is ₹100");
+    // …and the donor is told why, inline under the amount rather than in a
+    // bottom toast the open keyboard would have covered.
+    expect(screen.getByText("Minimum acceptable donation is ₹100")).toBeTruthy();
+  });
+
+  it("shows the minimum inline while the amount is being typed, and clears it once met", async () => {
+    // The keyboard is up for the whole of this typing, so the reason has to be
+    // on the screen itself — and it has to be there before the donor taps
+    // Donate, not only after a tap that looks like it did nothing.
+    getSevaConfig.mockResolvedValue({ ...nativeFallbackConfig, countryCode: "IN" });
+    const screen = render(<SevaScreen />);
+    const { getByLabelText, getByTestId, queryByText } = screen;
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    fireEvent.press(getByLabelText("Other"));
+    expect(queryByText("Minimum acceptable donation is ₹100")).toBeNull();
+
+    fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "50");
+    expect(queryByText("Minimum acceptable donation is ₹100")).toBeTruthy();
+
+    fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "500");
+    expect(queryByText("Minimum acceptable donation is ₹100")).toBeNull();
   });
 
   it("reports the hand-off, not a refusal, once the amount reaches the minimum", async () => {
