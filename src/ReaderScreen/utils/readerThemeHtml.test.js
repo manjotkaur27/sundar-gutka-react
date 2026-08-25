@@ -242,6 +242,35 @@ describe("fontColorForReader", () => {
     expect(fontColorForReader(0, light, "TRANSLITERATION")).toBe(light.text.transliteration.color);
     expect(fontColorForReader(0, light, "TRANSLATION")).toBe(light.text.translation.color);
   });
+
+  // This used to be an object literal built on every call and indexed by
+  // header, so a header arriving as a string keyed exactly the same as a
+  // number. The branch that replaced it has to keep that.
+  it("reads a header level the same whether it arrives as a number or a string", () => {
+    expect(fontColorForReader("1", light, "GURMUKHI")).toBe(light.text.gurbaniHeading.color);
+    expect(fontColorForReader("2", light, "GURMUKHI")).toBe(light.text.gurbani.color);
+  });
+
+  it("falls back to the body colour when a theme leaves a slot empty", () => {
+    // The map lookup ended in `|| defaultColor`; each branch has to keep it, or
+    // a theme that sets no transliteration colour emits `color: undefined`.
+    const bare = {
+      ...light,
+      text: {
+        ...light.text,
+        gurbaniHeading: { ...light.text.gurbaniHeading, color: "" },
+        transliteration: { ...light.text.transliteration, color: "" },
+        translation: { ...light.text.translation, color: "" },
+      },
+    };
+    expect(fontColorForReader(1, bare, "GURMUKHI")).toBe(bare.text.gurbani.color);
+    expect(fontColorForReader(0, bare, "TRANSLITERATION")).toBe(bare.text.gurbani.color);
+    expect(fontColorForReader(0, bare, "TRANSLATION")).toBe(bare.text.gurbani.color);
+  });
+
+  it("falls back to the body colour for a role it does not know", () => {
+    expect(fontColorForReader(0, light, "SOMETHING_ELSE")).toBe(light.text.gurbani.color);
+  });
 });
 
 describe("fontSizeForReader", () => {

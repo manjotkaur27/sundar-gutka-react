@@ -1,9 +1,12 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
+import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { paletteFor } from "@theme/screenPalettes";
 import { withScreenRoles } from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
+import useTheme from "@common/context";
 import { setReaderFocused } from "@common/readerFocus";
 import {
   navigationRef,
@@ -31,6 +34,7 @@ import ReminderOptions from "../Settings/components/reminders/ReminderOptions";
 import Themes from "../Settings/Themes";
 import SevaScreen from "../SevaScreen";
 import SevaMeansScreen from "../SevaScreen/SevaMeansScreen";
+import navigationThemeFor from "./navigationTheme";
 
 // Settings and every utility page reachable from it share one palette — the
 // navy hierarchy the bani list and Seva already use — in dark mode. Declared
@@ -116,6 +120,16 @@ const MainTabs = () => {
 };
 
 const Navigation = () => {
+  const { theme } = useTheme();
+  // What shows through behind a scene mid-transition. Home's own ground, since
+  // that is the screen nearly every push in the app starts from — so the gap
+  // at the trailing edge of a slide reads as more of the same page, not a
+  // strip of something else. See navigationTheme for why only this changes.
+  const sceneGround = paletteFor("baniList", theme).surface;
+  const navigationTheme = useMemo(
+    () => navigationThemeFor(sceneGround, theme.mode === "dark"),
+    [sceneGround, theme.mode]
+  );
   const routeNameRef = useRef();
   // Holds the in-flight Firebase Performance trace for the current screen.
   const trace = useRef(null);
@@ -166,81 +180,100 @@ const Navigation = () => {
   };
 
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      onReady={() => {
-        routeNameRef.current = navigationRef.current.getCurrentRoute().name;
-        setReaderFocused(routeNameRef.current === constant.READER);
-      }}
-      onStateChange={handleStateChange}
-    >
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: true,
-          headerTitleAlign: "center",
+    // The ground UNDER the navigator. The theme and contentStyle above paint
+    // each scene, but the stack container that holds the scenes paints nothing
+    // of its own — so during Android's push transition, where the outgoing
+    // screen drifts left while the incoming one is still arriving, the column
+    // between them showed whatever lay beneath: the Activity window, which the
+    // native theme leaves light. This View is what lies beneath now, in the
+    // same colour as the scenes, and it follows the app theme where a native
+    // windowBackground could not.
+    <View style={{ flex: 1, backgroundColor: sceneGround }}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navigationTheme}
+        onReady={() => {
+          routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+          setReaderFocused(routeNameRef.current === constant.READER);
         }}
+        onStateChange={handleStateChange}
       >
-        {/* Main tabs - no animation between tabs */}
-        <Stack.Screen
-          name="MainTabs"
-          component={MainTabs}
-          options={{
-            headerShown: false,
-            animation: "none",
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: true,
+            headerTitleAlign: "center",
+            // The native scene's own background — the container theme above
+            // covers the gap behind it; this covers the scene itself before its
+            // first frame has painted.
+            contentStyle: { backgroundColor: sceneGround },
           }}
-        />
-        {/* Stack screens - these push with animation */}
-        <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="About" component={About} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="FolderScreen"
-          component={FolderDetail}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="MyPothis" component={MyPothis} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="PothiReader"
-          component={PothiReaderScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          options={{ headerShown: false }}
-          name="EditBaniOrder"
-          component={EditBaniOrderScreen}
-        />
-        <Stack.Screen
-          name="Bookmarks"
-          component={BookmarksScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="SevaMeans"
-          component={SevaMeansScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="ReminderOptions"
-          component={ReminderOptionsScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="Themes" component={ThemesScreen} options={{ headerShown: false }} />
-        {/* Declared here rather than switched off at runtime: the stack
-            defaults to headerShown:true, so a screen that renders its own
-            header must opt out. Doing it in an effect lets the native bar paint
-            for a frame first, which is the stacked double header. */}
-        <Stack.Screen
-          name="DatabaseUpdate"
-          component={DatabaseUpdate}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="ManageDownloads"
-          component={ManageDownloadsScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+        >
+          {/* Main tabs - no animation between tabs */}
+          <Stack.Screen
+            name="MainTabs"
+            component={MainTabs}
+            options={{
+              headerShown: false,
+              animation: "none",
+            }}
+          />
+          {/* Stack screens - these push with animation */}
+          <Stack.Screen name="Reader" component={ReaderScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="About" component={About} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="FolderScreen"
+            component={FolderDetail}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="MyPothis" component={MyPothis} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="PothiReader"
+            component={PothiReaderScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            options={{ headerShown: false }}
+            name="EditBaniOrder"
+            component={EditBaniOrderScreen}
+          />
+          <Stack.Screen
+            name="Bookmarks"
+            component={BookmarksScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="SevaMeans"
+            component={SevaMeansScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ReminderOptions"
+            component={ReminderOptionsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="Themes" component={ThemesScreen} options={{ headerShown: false }} />
+          {/* Declared here rather than switched off at runtime: the stack
+              defaults to headerShown:true, so a screen that renders its own
+              header must opt out. Doing it in an effect lets the native bar paint
+              for a frame first, which is the stacked double header. */}
+          <Stack.Screen
+            name="DatabaseUpdate"
+            component={DatabaseUpdate}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ManageDownloads"
+            component={ManageDownloadsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </View>
   );
 };
 

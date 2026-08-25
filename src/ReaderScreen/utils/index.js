@@ -1,6 +1,31 @@
-import { constant, baseFontSize, logError, logMessage } from "@common";
+import constant from "@common/constant";
+import { baseFontSize, logError, logMessage } from "@common";
 import htmlTemplate from "./gutkahtml";
 import script from "./gutkaScript";
+
+// Everything below is fixed for the life of the module and used once per DIV —
+// a long bani emits thousands of them, and these were all being rebuilt inside
+// that loop. Nothing here changes what is emitted; it is the same values,
+// computed once instead of per line.
+//
+// `constant` is imported from its own module rather than the @common barrel for
+// exactly this reason: the barrel reaches back to this file, so at module-scope
+// time its `constant` is still undefined and reading it here would throw while
+// the app was still starting up — see moduleLoad.test.js.
+const GURMUKHI_LC = constant.GURMUKHI.toLowerCase();
+const TRANSLITERATION_LC = constant.TRANSLITERATION.toLowerCase();
+const TRANSLATION_LC = constant.TRANSLATION.toLowerCase();
+// The reverse of the `.toUpperCase()` each div used to do on its own type.
+const TYPE_TO_ROLE = {
+  [GURMUKHI_LC]: constant.GURMUKHI,
+  [TRANSLITERATION_LC]: constant.TRANSLITERATION,
+  [TRANSLATION_LC]: constant.TRANSLATION,
+};
+// Header 1 is the only Gurmukhi level with a colour of its own. Kept as a
+// lookup rather than `header === 1` so a header arriving as a string keys
+// exactly as it did when this was an object literal built per call.
+const GURMUKHI_HEADING_LEVELS = { 1: true };
+const TEXT_ALIGN_BY_HEADER = { 0: "left", 1: "center", 2: "center" };
 
 // `readerTheme` is a resolved READING-theme record (src/theme/reader), not the
 // app theme. The light and dark records are derived from the app's own palette,
@@ -10,33 +35,26 @@ import script from "./gutkaScript";
 export const fontColorForReader = (header, readerTheme, text) => {
   const { GURMUKHI, TRANSLATION, TRANSLITERATION } = constant;
 
-  // Header level 1 (and all transliteration) use the theme's heading colour.
-  // Everything else uses its body Gurbani colour; header 2/6 are deliberately
-  // regular (not the heading colour).
-  const getHeaderColor1 = () => readerTheme.text.gurbaniHeading.color;
-  const getHeaderColor2 = () => readerTheme.text.gurbani.color;
+  // Header level 1 uses the theme's heading colour. Everything else uses its
+  // body Gurbani colour; header 2/6 are deliberately regular (not the heading
+  // colour), and so is any other level.
+  //
+  // This used to build two objects and two closures on every call, for a value
+  // that is one of three colours. Branching instead allocates nothing, and each
+  // branch keeps the `|| defaultColor` the map lookup ended with — so a theme
+  // that leaves a slot empty still falls back exactly as it did.
+  const defaultColor = readerTheme.text.gurbani.color;
 
-  const defaultColor = getHeaderColor2();
-  const gurmukhiMapping = {
-    1: getHeaderColor1(),
-    2: defaultColor,
-    6: defaultColor,
-    default: defaultColor,
-  };
-
-  const colorMapping = {
-    [GURMUKHI]: gurmukhiMapping,
-    // Their own slots now, so a theme can separate translation from body
-    // Gurbani. The two bases point both at the same roles as before.
-    [TRANSLITERATION]: readerTheme.text.transliteration.color,
-    [TRANSLATION]: readerTheme.text.translation.color,
-  };
-
-  const color = colorMapping[text];
-  if (typeof color === "object") {
-    return color[header] || color.default;
+  if (text === GURMUKHI) {
+    if (GURMUKHI_HEADING_LEVELS[header]) {
+      return readerTheme.text.gurbaniHeading.color || defaultColor;
+    }
+    return defaultColor;
   }
-  return color || defaultColor;
+  // Their own slots, so a theme can separate translation from body Gurbani.
+  if (text === TRANSLITERATION) return readerTheme.text.transliteration.color || defaultColor;
+  if (text === TRANSLATION) return readerTheme.text.translation.color || defaultColor;
+  return defaultColor;
 };
 
 // `themeFontScale` is a MULTIPLIER on the user's font-size setting, never an
@@ -74,23 +92,20 @@ export const createDiv = (
   punjabiTranslation = "",
   fontFace = null
 ) => {
-  const fontClass =
-    type === constant.GURMUKHI.toLowerCase() || punjabiTranslation !== ""
-      ? constant.GURMUKHI.toLowerCase()
-      : type;
+  const fontClass = type === GURMUKHI_LC || punjabiTranslation !== "" ? GURMUKHI_LC : type;
   // Optional per-theme text treatment. Emitted ONLY when the theme sets it, so
   // the light/dark records — which set none of it — produce byte-identical
   // markup to the Reader's original. The shadow applies to Gurmukhi alone; on a
   // translation line it would just blur the reading.
   const { lineHeightRatio, letterSpacing } = readerTheme.typography;
-  const gurbaniSlot =
-    header === 1 ? readerTheme.text.gurbaniHeading : readerTheme.text.gurbani;
-  const shadow = type === constant.GURMUKHI.toLowerCase() ? gurbaniSlot.shadow : null;
-  const extraStyle = [
-    lineHeightRatio ? `line-height: ${lineHeightRatio};` : "",
-    letterSpacing ? `letter-spacing: ${letterSpacing}px;` : "",
-    shadow ? `text-shadow: ${shadow};` : "",
-  ].join("");
+  const gurbaniSlot = header === 1 ? readerTheme.text.gurbaniHeading : readerTheme.text.gurbani;
+  const shadow = type === GURMUKHI_LC ? gurbaniSlot.shadow : null;
+  // Concatenated rather than built as an array and joined: same string, one
+  // fewer array per div, and a long bani emits thousands of them.
+  let extraStyle = "";
+  if (lineHeightRatio) extraStyle += `line-height: ${lineHeightRatio};`;
+  if (letterSpacing) extraStyle += `letter-spacing: ${letterSpacing}px;`;
+  if (shadow) extraStyle += `text-shadow: ${shadow};`;
   // data-type carries the semantic role: the Punjabi translation div shares the
   // gurmukhi CSS CLASS (for its font), so class alone can't identify the main
   // Gurmukhi line — the sync-scroll enlargement targets [data-type="gurmukhi"].
@@ -101,12 +116,14 @@ export const createDiv = (
     <div class="content-item ${fontClass} ${textAlign}" data-type="${type}" style="--fs: ${fontSizeForReader(
     fontSize,
     header,
-    type === constant.TRANSLITERATION.toLowerCase() || type === constant.TRANSLATION.toLowerCase(),
+    type === TRANSLITERATION_LC || type === TRANSLATION_LC,
     readerTheme.typography.fontScale
   )}px; font-size: var(--fs); font-family: ${fontFace}; color: ${fontColorForReader(
     header,
     readerTheme,
-    type.toUpperCase()
+    // The role this type maps to. `type.toUpperCase()` built a throwaway string
+    // per div for one of three known constants.
+    TYPE_TO_ROLE[type] || type.toUpperCase()
   )};${extraStyle}">
       ${content}
     </div>
@@ -132,13 +149,7 @@ export const loadHTML = (
     const backColor = readerTheme.background.color;
     const content = shabad
       .map((item) => {
-        const textAlignMap = {
-          0: "left",
-          1: "center",
-          2: "center",
-        };
-
-        let textAlign = textAlignMap[item.header];
+        let textAlign = TEXT_ALIGN_BY_HEADER[item.header];
         if (textAlign === undefined) {
           textAlign = "right";
         }
@@ -152,7 +163,7 @@ export const loadHTML = (
         contentHtml += createDiv(
           fontFace === constant.BALOO_PAAJI ? item.gurmukhiUni : item.gurmukhi,
           item.header,
-          constant.GURMUKHI.toLowerCase(),
+          GURMUKHI_LC,
           textAlign,
           fontSize,
           readerTheme,
@@ -165,7 +176,7 @@ export const loadHTML = (
           contentHtml += createDiv(
             item.translit,
             item.header,
-            constant.TRANSLITERATION.toLowerCase(),
+            TRANSLITERATION_LC,
             textAlign,
             fontSize,
             readerTheme,
@@ -177,7 +188,7 @@ export const loadHTML = (
           contentHtml += createDiv(
             item.englishTranslations,
             item.header,
-            constant.TRANSLATION.toLowerCase(),
+            TRANSLATION_LC,
             textAlign,
             fontSize,
             readerTheme,
@@ -189,12 +200,12 @@ export const loadHTML = (
           contentHtml += createDiv(
             item.punjabiTranslations,
             item.header,
-            constant.TRANSLATION.toLowerCase(),
+            TRANSLATION_LC,
             textAlign,
             fontSize,
             readerTheme,
             isLarivaar,
-            constant.GURMUKHI.toLowerCase(),
+            GURMUKHI_LC,
             constant.GURBANI_AKHAR_TRUE
           );
         }
@@ -203,7 +214,7 @@ export const loadHTML = (
           contentHtml += createDiv(
             item.spanishTranslations,
             item.header,
-            constant.TRANSLATION.toLowerCase(),
+            TRANSLATION_LC,
             textAlign,
             fontSize,
             readerTheme,

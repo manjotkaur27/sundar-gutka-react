@@ -162,7 +162,9 @@ describe("dragging behaves the same in both forms", () => {
     // It was `isExpandedRef.current ? w : w + delta` — the circle was held a
     // whole text panel inside the edge while the pill got no slack at all, so
     // the same drag brought one back and not the other.
-    expect(release).toMatch(/const expandedW = Math\.max\(w, metricsRef\.current\.pillChrome \+ delta\)/);
+    expect(release).toMatch(
+      /const expandedW = Math\.max\(w, metricsRef\.current\.pillChrome \+ delta\)/
+    );
     expect(release).not.toMatch(/expandedW = isExpandedRef\.current/);
   });
 
@@ -247,14 +249,84 @@ describe("the drag floor reserves the drop that is coming", () => {
   });
 });
 
+// The player parks wherever it is dropped — the old bottom strip is gone.
+// Only the system chrome bounds it: status bar above, navigation bar and
+// progress track below.
+describe("free vertical placement", () => {
+  const release = source.slice(
+    source.indexOf("onPanResponderRelease"),
+    source.indexOf("// ── Progress arc")
+  );
+
+  it("clamps the ceiling at the status bar, not at a bottom strip", () => {
+    expect(source).not.toMatch(/dragStripHeight/);
+    expect(release).toMatch(/const TOP = dragTopMargin \+ liftReserveRef\.current/);
+  });
+
+  it("keeps the parked player clear of the status bar", () => {
+    expect(source).toMatch(/dragTopMargin: insetTop \+ Math\.round\(16 \* scale\)/);
+  });
+
+  it("reserves the wrapper's coming lift, mirroring the floor's drop reserve", () => {
+    // Parked at the ceiling with the bars down, the wrapper's lift when they
+    // return would carry the player under the status bar — same failure as the
+    // floor's, in the other direction.
+    expect(source).toMatch(/liftReserveRef\.current = isNavBarVisible \? 0 : barsDrop/);
+  });
+});
+
 // The Reader is the one that knows the distance.
 describe("the Reader hands down its own lift", () => {
-  const reader = fs.readFileSync(
-    path.join(__dirname, "..", "..", "..", "index.jsx"),
-    "utf8"
-  );
+  const reader = fs.readFileSync(path.join(__dirname, "..", "..", "..", "index.jsx"), "utf8");
 
   it("passes the gap between the lifted and resting positions", () => {
     expect(reader).toMatch(/barsDrop=\{navChromeHeight - insetBottom\}/);
+  });
+});
+
+// The reading-progress track is a thin bar pinned along the bottom of the
+// Reader, and the player's resting spot is already above it. Nothing enforced
+// that during the drag itself.
+describe("the drag cannot go below the resting spot", () => {
+  const move = source.slice(
+    source.indexOf("onPanResponderMove"),
+    source.indexOf("onPanResponderTerminationRequest")
+  );
+
+  it("clamps downward travel while the finger is still down", () => {
+    // A bare Animated.event tracks the finger anywhere and only springs back on
+    // release, so the player could be parked under the progress track for the
+    // length of the drag.
+    expect(move).not.toMatch(/Animated\.event/);
+    expect(move).toMatch(/Math\.min\(g\.dy, -lastOffset\.current\.y\)/);
+  });
+
+  it("leaves sideways and upward travel free", () => {
+    expect(move).toMatch(/pan\.x\.setValue\(g\.dx\)/);
+  });
+
+  it("books the clamped travel on release, not the finger's raw travel", () => {
+    // The move handler stops the pill at the floor while the finger keeps
+    // going. Release used to record the raw g.dy anyway, so the spring's
+    // target — built from lastOffset — animated the pill down to a position
+    // the drag itself had refused to draw, just under the progress track.
+    const release = source.slice(
+      source.indexOf("onPanResponderRelease"),
+      source.indexOf("viewRef.current?.measureInWindow")
+    );
+    expect(release).toMatch(/const clampedDy = Math\.min\(g\.dy, -lastOffset\.current\.y\)/);
+    expect(release).toMatch(/y: lastOffset\.current\.y \+ clampedDy/);
+    expect(release).not.toMatch(/y: lastOffset\.current\.y \+ g\.dy/);
+  });
+
+  it("measures from the offset the grant handler set", () => {
+    const grant = source.slice(
+      source.indexOf("onPanResponderGrant"),
+      source.indexOf("onPanResponderMove")
+    );
+    // The clamp reads the resting position as 0, which only holds because the
+    // offset is set and the value zeroed together here.
+    expect(grant).toMatch(/pan\.setOffset\(lastOffset\.current\)/);
+    expect(grant).toMatch(/pan\.setValue\(\{ x: 0, y: 0 \}\)/);
   });
 });

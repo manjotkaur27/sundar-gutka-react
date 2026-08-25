@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
+import { InteractionManager } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import DeviceInfo from "react-native-device-info";
 import { logError } from "@common";
 import constant from "../constant";
 import { useNetwork } from "../context";
-import { setAudioCatalogEntry, setAudioCatalogMeta } from "../actions";
+import { setAudioCatalogEntries, setAudioCatalogMeta } from "../actions";
 import { fetchRawBaniAudio } from "../../services/audioApi";
 import { ensureLyricsCached } from "../../ReaderScreen/components/AudioPlayer/utils/lyricsCache";
 
@@ -68,18 +69,21 @@ const runCatalogSync = async (dispatch, appVersion) => {
   const lyricsUrls = new Set();
 
   // 1. Manifest for every audio bani → persist raw groups for offline use.
+  //    Collected and dispatched as ONE action: every dispatch re-serializes the
+  //    whole persisted store, so a per-bani dispatch loop scales its cost with
+  //    the catalog. One write covers eight banis or eighty.
+  const entries = {};
   await runWithConcurrency(baniIds, concurrency, async (baniId) => {
     const raw = await fetchRawBaniAudio(baniId);
     if (!raw) return; // 404 (no audio) or offline — skip, leave uncached.
-    dispatch(
-      setAudioCatalogEntry(baniId, {
-        groups: raw.groups,
-        baniName: raw.baniName,
-        fetchedAt: Date.now(),
-      })
-    );
+    entries[baniId] = {
+      groups: raw.groups,
+      baniName: raw.baniName,
+      fetchedAt: Date.now(),
+    };
     collectLyricsUrls(raw.groups, lyricsUrls);
   });
+  if (Object.keys(entries).length) dispatch(setAudioCatalogEntries(entries));
 
   // 2. Pre-cache every reciter's lyrics JSON → offline sync-scroll parity, and
   //    revalidate ones already on disk so server-side lyrics corrections (e.g.
@@ -111,12 +115,26 @@ const useAudioCatalogSync = () => {
     const isPastTtl = Date.now() - lastSyncAt > constant.AUDIO_CATALOG_TTL_MS;
 
     // Fresh install (lastSyncAt === 0), app update, or aged-out cache.
-    if (lastSyncAt > 0 && !versionChanged && !isPastTtl) return;
+    if (lastSyncAt > 0 && !versionChanged && !isPastTtl) return undefined;
 
-    hasRunRef.current = true;
-    runCatalogSync(dispatch, appVersion).catch((error) =>
-      logError("Audio catalog sync failed:", error)
-    );
+    // Deferred: the sweep's result is only ever read on a LATER visit to a
+    // bani, so it has no deadline — but at launch it competes with everything
+    // that does (the fresh-install DB seed, the first Home mount). It waits
+    // out the launch window, then waits again for any running interaction.
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        if (cancelled || hasRunRef.current) return;
+        hasRunRef.current = true;
+        runCatalogSync(dispatch, appVersion).catch((error) =>
+          logError("Audio catalog sync failed:", error)
+        );
+      });
+    }, constant.AUDIO_CATALOG_SYNC_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRehydrated, isOnline]);
 };

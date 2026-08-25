@@ -11,10 +11,20 @@ const useBaniList = () => {
   const prevLanguageRef = useRef(transliterationLanguage);
   // Ref so fetchBaniList can read latest baniList without being in its deps (prevents re-trigger loop)
   const baniListRef = useRef(baniList);
+  // Key of the fetch currently in flight, or null. Rehydration renews the
+  // baniOrder reference (same content) right after mount, which re-created
+  // fetchBaniList and re-ran the effect — so a fresh install ran the whole
+  // DB query twice, back to back (measured on device). A fetch for the SAME
+  // language and order is skipped while one is running; a genuinely different
+  // one (language switch, reorder) still goes through.
+  const inFlightKeyRef = useRef(null);
   useEffect(() => { baniListRef.current = baniList; }, [baniList]);
   const dispatch = useDispatch();
 
   const fetchBaniList = useCallback(async () => {
+    const requestKey = `${transliterationLanguage}|${JSON.stringify(baniOrder)}`;
+    if (inFlightKeyRef.current === requestKey) return;
+    inFlightKeyRef.current = requestKey;
     logMessage("Fetching bani list");
     try {
       if (prevLanguageRef.current !== transliterationLanguage || baniListRef.current.length === 0) {
@@ -28,6 +38,8 @@ const useBaniList = () => {
     } catch (error) {
       logError(error);
       FallBack();
+    } finally {
+      inFlightKeyRef.current = null;
     }
   }, [transliterationLanguage, baniOrder]);
 

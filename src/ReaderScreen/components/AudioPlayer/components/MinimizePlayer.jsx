@@ -28,7 +28,6 @@ const MinimizePlayer = ({
   progress,
   duration,
   displayName,
-  isDragging = false,
   opacityStyle = null,
   pointerEvents = "auto",
   isNavBarVisible = false,
@@ -40,7 +39,7 @@ const MinimizePlayer = ({
   const { width: screenW, height: screenH } = useWindowDimensions();
   // `screenH` is the whole window in edge-to-edge, system bars included, so the
   // drag floor below has to subtract the bar itself — see dragBottomMargin.
-  const { bottom: insetBottom } = useSafeAreaInsets();
+  const { bottom: insetBottom, top: insetTop } = useSafeAreaInsets();
   const dispatch = useDispatch();
 
   // ── Responsive metrics ────────────────────────────────────────────────────
@@ -89,9 +88,19 @@ const MinimizePlayer = ({
         Math.min(110, Math.max(64, Math.round(screenH * 0.05))),
         insetBottom + Math.round(16 * scale)
       ),
-      dragStripHeight: Math.min(260, Math.max(130, Math.round(screenH * 0.16))),
+      // The ceiling for a parked player: just clear of the status bar, so it
+      // can rest anywhere on the screen but never under the system chrome.
+      dragTopMargin: insetTop + Math.round(16 * scale),
     };
-  }, [scale, screenH, insetBottom, theme.spacing.md, theme.spacing.xl_20, theme.spacing.sm]);
+  }, [
+    scale,
+    screenH,
+    insetBottom,
+    insetTop,
+    theme.spacing.md,
+    theme.spacing.xl_20,
+    theme.spacing.sm,
+  ]);
   // The PanResponder below is created ONCE (useRef) and must never close over
   // `metrics` directly — that would freeze the first render's values forever
   // (e.g. across an orientation change). Route through a ref, same pattern as
@@ -103,6 +112,11 @@ const MinimizePlayer = ({
   // the PanResponder is built once and must not freeze the first value.
   const dropReserveRef = useRef(0);
   dropReserveRef.current = isNavBarVisible ? barsDrop : 0;
+  // …and the mirror: how far it will LIFT once the bars come back, or 0 when
+  // they are already up. A player parked at the ceiling with the bars down
+  // would otherwise ride the wrapper's lift straight under the status bar.
+  const liftReserveRef = useRef(0);
+  liftReserveRef.current = isNavBarVisible ? 0 : barsDrop;
 
   // ── Expand / collapse ─────────────────────────────────────────────────────
   const tapTick = useSelector((state) => state.readerTapTick);
@@ -215,7 +229,6 @@ const MinimizePlayer = ({
       // it. Asserted rather than assumed: nothing here is supposed to raise the
       // chrome, so if anything ever does, this still holds the requirement.
       onHideBars();
-      return;
     }
     // Resuming: leave the pill exactly as it is. Re-arming the collapse timer
     // here is what made it flip back to the pill form on resume.
@@ -293,9 +306,25 @@ const MinimizePlayer = ({
         // drag.
         if (isExpandedRef.current) armCollapseRef.current();
       },
-      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
-        useNativeDriver: false,
-      }),
+      // Bounded WHILE the finger is down, not only once it is let go.
+      //
+      // This was a bare Animated.event, so the player tracked the finger
+      // anywhere and only sprang back on release — it could be held under the
+      // reading-progress track, and under the system navigation bar with it,
+      // for as long as the drag lasted.
+      //
+      // The offset is set on grant and the value zeroed with it, so the live
+      // position is `lastOffset + (dx, dy)` and the RESTING position is exactly
+      // 0. That resting spot already clears the progress track: the Reader
+      // lifts this player's whole wrapper to sit above it in both bar states
+      // (see audioLiftAnim / progressLiftAnim), and the container adds its own
+      // 10pt on top. So nothing below 0 is a place this may go — hence the
+      // ceiling on downward travel. Upward is left free, and the release clamp
+      // still holds it inside the strip.
+      onPanResponderMove: (_, g) => {
+        pan.x.setValue(g.dx);
+        pan.y.setValue(Math.min(g.dy, -lastOffset.current.y));
+      },
       onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => {
         dispatch(setPlayerDragging(false));
@@ -304,15 +333,24 @@ const MinimizePlayer = ({
       onPanResponderRelease: (_, g) => {
         dispatch(setPlayerDragging(false));
         if (isExpandedRef.current) armCollapseRef.current();
+        // Book the CLAMPED travel, not the finger's. The move handler above
+        // stops the pill at its resting spot while the finger keeps going, so
+        // `g.dy` can be far below anything that was ever drawn. Recording the
+        // raw value put the phantom position into `lastOffset`, and everything
+        // downstream trusted it: the spring's target is built from
+        // `lastOffset`, so letting go animated the pill down under the progress
+        // track to a place the drag itself had refused to show — and even with
+        // no spring, the next grant's `setOffset` snapped it there.
+        const clampedDy = Math.min(g.dy, -lastOffset.current.y);
         lastOffset.current = {
           x: lastOffset.current.x + g.dx,
-          y: lastOffset.current.y + g.dy,
+          y: lastOffset.current.y + clampedDy,
         };
         pan.flattenOffset();
 
         viewRef.current?.measureInWindow((x, y, w, h) => {
           const { w: sw, h: sh } = dimsRef.current;
-          const { dragSideMargin: SIDE, dragBottomMargin, dragStripHeight } = metricsRef.current;
+          const { dragSideMargin: SIDE, dragBottomMargin, dragTopMargin } = metricsRef.current;
           // Reserve the drop that is COMING, not just the bar that is there.
           //
           // This player sits inside a wrapper the Reader lifts by
@@ -328,11 +366,14 @@ const MinimizePlayer = ({
           // circle will become rather than the circle it is: reserve for the
           // state this thing is about to be in.
           const BOTTOM = dragBottomMargin + dropReserveRef.current;
-          // Confine the release position to a strip near the bottom of the
-          // screen: the pill can be slid left/right but never dragged up over
-          // the reading area — the whole point of a floating control is to
-          // stay out of the way of the text underneath it.
-          const TOP = sh - BOTTOM - dragStripHeight;
+          // The player parks wherever it is dropped, anywhere on the screen.
+          // It used to be confined to a strip above the progress track so it
+          // could never sit over the bani; that is now the user's choice to
+          // make. Only the system chrome stays out of bounds: the status bar
+          // above, the navigation bar and progress track below — and, like the
+          // floor, the ceiling reserves the wrapper's coming lift, not just the
+          // chrome that is there now.
+          const TOP = dragTopMargin + liftReserveRef.current;
 
           const newIsOnLeft = x + w / 2 < sw / 2;
 

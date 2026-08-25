@@ -212,6 +212,8 @@ const audioCatalog = (state = {}, action) => {
         ...state,
         [action.payload.baniId]: action.payload.entry,
       };
+    case actionTypes.SET_AUDIO_CATALOG_ENTRIES:
+      return { ...state, ...action.payload.entries };
     case actionTypes.CLEAR_AUDIO_CATALOG:
       return {};
     default:

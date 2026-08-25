@@ -34,6 +34,7 @@ import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
 import useReminderRearm from "./src/common/hooks/useReminderRearm";
 import useSsoSession from "./src/common/hooks/useSsoSession";
+import useAudioCatalogSync from "./src/common/services/useAudioCatalogSync";
 import useDashboardSync from "./src/services/dashboard/useDashboardSync";
 
 const { store, persistor } = createStore();
@@ -61,6 +62,13 @@ const GlobalServices = () => {
   useOfflineSyncToast();
   useReminderRearm();
   useSsoSession();
+  // Offline audio parity: warms the manifest + lyrics caches for every audio
+  // bani, so audio a user never opened online still plays offline. It went
+  // missing from this list in a July commit that never mentioned it, and with
+  // it every fresh install lost the eager cache entirely. It starts only after
+  // the launch window (see AUDIO_CATALOG_SYNC_DELAY_MS), so it cannot compete
+  // with the fresh-install DB seed it used to be blamed for.
+  useAudioCatalogSync();
   // Account dashboard sync. Mounted HERE and not in DashboardScreen: on that
   // screen both the push and the restore only existed while it was mounted, so
   // signing in anywhere else never got the account's data up or down.

@@ -258,6 +258,11 @@ export default {
   // Max parallel manifest fetches during the eager catalog prefetch, so a cold
   // sync never fans out ~30 simultaneous requests on a low-end device.
   AUDIO_CATALOG_SYNC_CONCURRENCY: 4,
+  // How long after launch the eager catalog sweep may begin. The sweep has no
+  // deadline at all — its cache is read on the NEXT visit to a bani — while
+  // everything it competes with at launch does: on a fresh install the bundled
+  // DB seed alone is multiple seconds of I/O. Measured on device.
+  AUDIO_CATALOG_SYNC_DELAY_MS: 12000,
   // Random Shabad stays on BaniDB directly (backend proxy was dropped).
   RANDOM_SHABAD_API_URL: "",
   // Backend serves the yearly Gurpurab/events feed here (CMS-style — updated

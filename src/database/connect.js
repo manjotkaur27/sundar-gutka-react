@@ -48,8 +48,6 @@ const databaseInstance = { value: null };
 let initializingPromise = null;
 
 const initDB = async () => {
-  await ensureDbExists();
-
   if (databaseInstance.value) {
     return databaseInstance.value;
   }
@@ -57,11 +55,20 @@ const initDB = async () => {
     return initializingPromise;
   }
 
-  initializingPromise = openDatabase({
-    name: Platform.OS === "android" ? LOCAL_DB_PATH : `${constant.DB}.db`,
-    location: "Documents",
-    createFromLocation: 1,
-  })
+  // The seed runs INSIDE the deduped promise. It used to run before the
+  // singleton checks, so every concurrent first caller ran its own
+  // ensureDbExists — on a fresh install that meant the multi-second bundled-DB
+  // copy ran twice, racing itself over the same file (measured on device: two
+  // full copies side by side). Once the handle exists there is nothing left to
+  // seed, so later callers skip the check entirely.
+  initializingPromise = ensureDbExists()
+    .then(() =>
+      openDatabase({
+        name: Platform.OS === "android" ? LOCAL_DB_PATH : `${constant.DB}.db`,
+        location: "Documents",
+        createFromLocation: 1,
+      })
+    )
     .then(async (db) => {
       databaseInstance.value = db;
       initializingPromise = null;

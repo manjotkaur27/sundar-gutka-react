@@ -224,6 +224,15 @@ export const setAudioManifest = (baniId, tracks) => {
 // entry: { groups, baniName, fetchedAt } — the raw length-grouped API response
 // for one bani plus the time it was fetched. Stored verbatim so length-group
 // selection can happen at read time (one cache entry serves every bani length).
+// The whole sweep's worth of entries in ONE action. Each dispatch has the
+// entire persisted store re-serialized behind it, so a per-bani dispatch loop
+// costs one full serialization per bani — this keeps it at one, however many
+// banis the catalog grows to.
+export const setAudioCatalogEntries = (entries) => ({
+  type: actionTypes.SET_AUDIO_CATALOG_ENTRIES,
+  payload: { entries },
+});
+
 export const setAudioCatalogEntry = (baniId, entry) => ({
   type: actionTypes.SET_AUDIO_CATALOG_ENTRY,
   payload: { baniId, entry },
