@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
-import { weekdayNarrow, formatDayMonth } from "@common/dateLocale";
+import { weekdayNarrow } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
 import { CustomText, STRINGS, constant } from "@common";
@@ -10,6 +10,7 @@ import SectionError from "./SectionError";
 import SectionLabel from "./SectionLabel";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
+import weekRangeLabel from "./weekRangeLabel";
 
 const ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
@@ -77,18 +78,12 @@ const WeekChart = ({ refreshKey = 0 }) => {
   const canGoPrev = daysForOffset(weekOffset + 1)[6] >= floorDate;
   const canGoNext = weekOffset > 0;
 
-  const rangeLabel = useMemo(() => {
-    if (weekOffset === 0) return STRINGS.THIS_WEEK;
-    const first = days[0];
-    const last = days[6];
-    const sameMonth = first.getMonth() === last.getMonth();
-    const firstLabel = formatDayMonth(first, true);
-    // Within one month, the closing label is just the day number ("Jan 5 – 11").
-    const lastLabel = sameMonth ? String(last.getDate()) : formatDayMonth(last, true);
-    return `${firstLabel} – ${lastLabel}`;
+  const rangeLabel = useMemo(
+    () => weekRangeLabel(days, weekOffset === 0),
     // STRINGS.getLanguage() in deps so the label (THIS_WEEK / month names)
     // recomputes when the user switches app language, not just on week change.
-  }, [weekOffset, days, STRINGS.getLanguage()]);
+    [weekOffset, days, STRINGS.getLanguage()]
+  );
 
   return (
     <View>

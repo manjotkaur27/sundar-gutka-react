@@ -215,3 +215,36 @@ describe("the audio player is ONE surface", () => {
     expect(lightTheme.elevation.raised.shadowOpacity).toBeGreaterThan(0);
   });
 });
+
+// The reciter's name and the clock share one row, and the name is sized from
+// whatever the clock leaves it. So the clock's width must be a constant, not a
+// function of the digits currently on screen — otherwise a borderline name
+// flips between one line and two AS THE TRACK PLAYS, which is exactly what was
+// reported: the name "fluctuating" with nothing on screen being touched.
+describe("the playing clock reserves a constant width", () => {
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ])("[%s] holds its width whatever the digits are", (_name, theme) => {
+    const { timestamp } = audioControlBarStyles(theme);
+
+    // Proportional digits made "0:11" narrower than "0:09" — a couple of px of
+    // the name's room, handed back and taken away every second.
+    expect(timestamp.fontVariant).toContain("tabular-nums");
+    // formatTime writes "9:59" then "10:00": four characters become five part
+    // way through a recitation. The widest clock is reserved up front so that
+    // jump costs the name nothing.
+    expect(timestamp.minWidth).toBeGreaterThanOrEqual(timestamp.fontSize * 2.5);
+    // Reserved space opens on the LEFT, so the seconds stay put.
+    expect(timestamp.textAlign).toBe("right");
+  });
+
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ])("[%s] gives that row the full width to share", (_name, theme) => {
+    // It took 90% and centred itself, and this is the row where a tenth of the
+    // width is the difference between the name fitting and wrapping.
+    expect(audioControlBarStyles(theme).trackInfo.width).toBe("100%");
+  });
+});

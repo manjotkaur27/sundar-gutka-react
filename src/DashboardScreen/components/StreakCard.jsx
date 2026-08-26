@@ -15,6 +15,7 @@ import DayDetailModal from "./DayDetailModal";
 import SectionError from "./SectionError";
 import SkeletonBlock from "./SkeletonBlock";
 import useAsyncSection from "./useAsyncSection";
+import weekRangeLabel from "./weekRangeLabel";
 
 // 13 lotus growth stages: flower_1 (base) → flower_14 (max bloom).
 // flower_6 (the old "21" stage) is intentionally dropped per design.
@@ -60,7 +61,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     opacity: 0.6,
   },
-  weekNavRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 18 },
+  // Heading for the week strip below. fontWeight (no fontFamily beside it) so
+  // CustomText resolves the real SemiBold face — see the numFont note in the
+  // component. Size and colour come from the caller, matching the chart's.
+  weekTitle: { paddingTop: 18, fontWeight: "600" },
+  // 6, not 18: the heading above it now carries the gap that used to sit here.
+  weekNavRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 6 },
   weekRow: { flex: 1, flexDirection: "row", justifyContent: "space-between" },
   navBtn: { padding: 4 },
   navBtnDisabled: { opacity: 0.3 },
@@ -206,6 +212,16 @@ const StreakCard = ({ refreshKey = 0 }) => {
   const canGoPrevWeek = weekDatesForOffset(weekOffset + 1)[6] >= floorDate;
   const canGoNextWeek = weekOffset > 0;
 
+  // Names the week the strip is showing, in the same words the minutes chart
+  // below uses for its own week — the two steppers sit on the same screen, and
+  // only one of them used to say which week you had stepped to.
+  const weekLabel = useMemo(
+    () => weekRangeLabel(weekDatesForOffset(weekOffset), weekOffset === 0),
+    // STRINGS.getLanguage() in deps so the label (THIS_WEEK / month names)
+    // recomputes when the user switches app language, not just on week change.
+    [weekOffset, STRINGS.getLanguage()]
+  );
+
   const openDay = useCallback((day) => {
     // Future day → nothing to show yet, and nothing to say either.
     if (day.isFuture) return;
@@ -232,10 +248,12 @@ const StreakCard = ({ refreshKey = 0 }) => {
             <SkeletonBlock style={styles.lineSkeletonSmall} />
           </View>
         </View>
-        {/* 24 (original gap) + 18 (weekNavRow's paddingTop, absent here since
-            there's no nav row in the loading state) — keeps skeleton spacing
-            identical to the loaded layout below. */}
-        <View style={[styles.weekRow, { marginTop: 42 }]}>
+        {/* 24 (original gap) + 18 (weekTitle's paddingTop, absent here since
+            there's no heading in the loading state) — keeps skeleton spacing
+            identical to the loaded layout below. The block below stands in for
+            the week heading, so the dots don't jump down when it arrives. */}
+        <SkeletonBlock style={[styles.lineSkeletonSmall, { marginTop: 42 }]} />
+        <View style={[styles.weekRow, { marginTop: 6 }]}>
           {Array.from({ length: 7 }).map((_, i) => (
             <SkeletonBlock key={i} style={styles.dotSkeleton} />
           ))}
@@ -327,6 +345,17 @@ const StreakCard = ({ refreshKey = 0 }) => {
           = faint ring. Tap a day for its detail / no-activity toast. ‹ ›
           steps a full Monday-first week at a time, floored at
           DASHBOARD_HISTORY_FLOOR and capped at the current week. */}
+      <CustomText
+        style={[
+          styles.weekTitle,
+          { color: palette.brandText, fontSize: theme.type.heading.fontSize },
+        ]}
+        // Wraps rather than clipping, exactly as the chart's heading does: a
+        // range losing its month reads as broken, a second line does not.
+        numberOfLines={2}
+      >
+        {weekLabel}
+      </CustomText>
       <View style={styles.weekNavRow}>
         <Pressable
           onPress={() => setWeekOffset((o) => o + 1)}

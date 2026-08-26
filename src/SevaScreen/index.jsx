@@ -808,16 +808,20 @@ const SevaScreen = () => {
               ]}
               numberOfLines={1}
             >
-              {/* letterSpacing adds a few px of trailing space → a small gap
-                  between the symbol and the amount. */}
+              {/* The gap after the symbol is a real space in the run, NOT
+                  `letterSpacing: 8` as it used to be. Trailing letter-spacing is
+                  not counted when the run is measured, so Android built the line
+                  8dp narrower than it then drew: on a tablet in landscape the
+                  figure came out as "₹10…", with the whole "/month" span eaten,
+                  and with the line cap lifted it wrapped instead of ellipsing.
+                  A space is a glyph, so it is measured like every other one. */}
               <Text
                 style={{
                   fontFamily: symbolFontFamily,
                   fontSize: symbolFontSize,
-                  letterSpacing: 8,
                 }}
               >
-                {currency.symbol}
+                {`${currency.symbol} `}
               </Text>
               {isOtherSelected && customAmount === "" ? (
                 <Text style={styles.amountPlaceholder}>0</Text>

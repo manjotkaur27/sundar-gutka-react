@@ -100,12 +100,22 @@ const createStyles = (theme) => {
       flexDirection: "row",
       alignItems: "flex-end",
       justifyContent: "center",
-      maxWidth: "100%",
+      // Full width, not maxWidth — see amountDisplay's `flex: 1` below.
+      width: "100%",
     },
     // The amount figure is one inline Text. Digits are ALWAYS Baloo; the symbol
     // span sets its own fontFamily inline. includeFontPadding:false keeps the
     // baseline tight so inline spans of different fonts line up.
+    //
+    // `flex: 1` (with width:100% on the row above) hands it the card's full
+    // width instead of letting it size to its own measurement. A run of mixed
+    // fonts and sizes measures a little short, and a content-sized box is
+    // exactly as wide as that short measurement — so the shortfall lands as an
+    // ellipsis on a figure with a whole card of empty space beside it. Given
+    // the real width, a few px of measuring error has nowhere to bite.
+    // textAlign (below) keeps the figure centred now the box is full-width.
     amountDisplay: {
+      flex: 1,
       fontFamily: theme.typography.fonts.balooPaaji,
       color: c.textPrimary,
       textAlign: "center",

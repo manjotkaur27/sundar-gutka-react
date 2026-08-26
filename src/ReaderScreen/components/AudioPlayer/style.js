@@ -177,13 +177,16 @@ export const audioControlBarStyles = (theme) => ({
     paddingHorizontal: theme.spacing.md_12,
     zIndex: 1,
   },
+  // Full width, matching the playback controls directly below it. It used to
+  // take 90% and centre itself, which threw away a tenth of the row for no
+  // stated reason — and this is the row where the reciter's name lives on
+  // whatever the timestamp leaves it, so that tenth was the difference between
+  // a name fitting on one line and wrapping.
   trackInfo: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    width: "90%",
-    marginLeft: "auto",
-    marginRight: "auto",
+    width: "100%",
   },
   trackInfoLeft: {
     flexDirection: "row",
@@ -232,10 +235,23 @@ export const audioControlBarStyles = (theme) => ({
     alignItems: "center",
     marginBottom: theme.spacing.xs,
   },
+  // The clock shares a row with the reciter's name, which is sized from
+  // whatever this leaves it. So this must not change width as it ticks:
+  //   • `tabular-nums` stops a "1" being narrower than a "9", which moved the
+  //     name's boundary by a px or two EVERY SECOND — enough to flip a
+  //     borderline name between one line and two while the track played.
+  //   • minWidth reserves the widest clock the player shows, so the 4→5
+  //     character jump at ten minutes (formatTime writes "9:59" then "10:00")
+  //     doesn't take a chunk out of the name mid-recitation. 2.75em covers
+  //     "00:00" in Baloo; right-aligned so the seconds stay put inside it.
+  // Together they make the name's width a function of the name alone.
   timestamp: {
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontWeight: theme.typography.weights.normal,
+    fontVariant: ["tabular-nums"],
+    minWidth: theme.typography.sizes.md * 2.75,
+    textAlign: "right",
   },
   seekLoadingOverlay: {
     position: "absolute",
