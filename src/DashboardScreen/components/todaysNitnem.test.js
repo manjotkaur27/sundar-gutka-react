@@ -48,12 +48,27 @@ describe("Today's Nitnem is the Morning Nitnem pothi", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("falls back to the defaults so the card can never render empty", () => {
+  it("falls back to the defaults only when there is NO pothi, never over an emptied one", () => {
     // The sign-out bug: the purge resets `pothis`, and the only re-seed is a
     // hook on the Home tab, so the Dashboard showed "No banis in this pothi".
+    // The defaults cover that — a pothi that does not exist. They must NOT
+    // cover a pothi that exists and is empty: "unselect all, save" showed five
+    // banis and looked unsaved, then dropped them the moment one was picked.
     const card = here("TodaysNitnem.jsx");
-    expect(card).toContain("DEFAULT_NITNEM_BANI_IDS");
-    expect(card).toContain("fromPothi.length ? fromPothi : DEFAULT_NITNEM_BANI_IDS");
+    expect(card).toContain("nitnemSelection(morning)");
+    expect(card).not.toContain("DEFAULT_NITNEM_BANI_IDS");
+    const selection = read(path.join(SRC, "common", "nitnem", "selection.js"));
+    expect(selection).toContain(
+      "if (!morning) return { ids: DEFAULT_NITNEM_BANI_IDS, emptied: false }"
+    );
+    expect(selection).toContain("emptied: ids.length === 0");
+  });
+
+  it("says 'no bani added' for an emptied pothi, in every language", () => {
+    const card = here("TodaysNitnem.jsx");
+    expect(card).toContain("if (emptied) doneSubtitle = STRINGS.NITNEM_NO_BANI_ADDED");
+    const strings = read(path.join(SRC, "common", "localization.js"));
+    expect(strings.match(/NITNEM_NO_BANI_ADDED:/g)).toHaveLength(6);
   });
 
   it("keeps the fallback READ-only — it never writes the pothi or the payload", () => {

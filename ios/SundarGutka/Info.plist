@@ -109,5 +109,45 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Schemes the app may ask canOpenURL about, to open a service's link in
+	     that service's own app when it is installed. The scheme to ask for is
+	     derived from the link's domain (see common/inAppBrowser), so this list
+	     is the one thing iOS needs shipped ahead of time: a service listed
+	     here works from the day the backend adds its link. Apps linked on
+	     iOS 15 or later may declare at most 50.
+	     Querying is all this permits; opening a URL never needs an entry. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>instagram</string>
+		<string>youtube</string>
+		<string>tiktok</string>
+		<string>snssdk1233</string>
+		<string>linkedin</string>
+		<string>twitter</string>
+		<string>fb</string>
+		<string>slack</string>
+		<string>notion</string>
+		<string>github</string>
+		<string>substack</string>
+		<string>barcelona</string>
+		<string>whatsapp</string>
+		<string>tg</string>
+		<string>snapchat</string>
+		<string>pinterest</string>
+		<string>reddit</string>
+		<string>discord</string>
+		<string>medium</string>
+		<string>spotify</string>
+		<string>twitch</string>
+		<string>vimeo</string>
+		<string>soundcloud</string>
+		<string>tumblr</string>
+		<string>quora</string>
+		<string>bluesky</string>
+		<string>mastodon</string>
+		<string>telegram</string>
+		<string>fb-messenger</string>
+		<string>sgnl</string>
+	</array>
 </dict>
 </plist>

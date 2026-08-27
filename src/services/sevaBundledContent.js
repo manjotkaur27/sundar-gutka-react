@@ -343,12 +343,12 @@ const MEANS = {
     es: "Únete a nuestro Slack",
   },
   coding_slack_sub: {
-    en: "Request access — the sign-up form is in the repository README.",
-    hi: "एक्सेस का अनुरोध करें — साइन-अप फ़ॉर्म रिपॉज़िटरी README में है।",
-    pa: "ਪਹੁੰਚ ਲਈ ਬੇਨਤੀ ਕਰੋ — ਸਾਈਨ-ਅੱਪ ਫਾਰਮ ਰਿਪੋਜ਼ਟਰੀ README ਵਿੱਚ ਹੈ।",
-    fr: "Demandez l'accès — le formulaire d'inscription est dans le README du dépôt.",
-    it: "Richiedi l'accesso — il modulo di iscrizione è nel README del repository.",
-    es: "Solicita acceso — el formulario de registro está en el README del repositorio.",
+    en: "Request access — fill in the sign-up form and we'll send you an invite.",
+    hi: "एक्सेस का अनुरोध करें — साइन-अप फ़ॉर्म भरें और हम आपको आमंत्रण भेजेंगे।",
+    pa: "ਪਹੁੰਚ ਲਈ ਬੇਨਤੀ ਕਰੋ — ਸਾਈਨ-ਅੱਪ ਫਾਰਮ ਭਰੋ ਅਤੇ ਅਸੀਂ ਤੁਹਾਨੂੰ ਸੱਦਾ ਭੇਜਾਂਗੇ।",
+    fr: "Demandez l'accès — remplissez le formulaire d'inscription et nous vous enverrons une invitation.",
+    it: "Richiedi l'accesso — compila il modulo di iscrizione e ti invieremo un invito.",
+    es: "Solicita acceso — rellena el formulario de registro y te enviaremos una invitación.",
   },
   qa_intro: {
     en: "Help us ship a flawless app. Test new features and report anything that looks off.",

@@ -7,7 +7,7 @@ import { neutral } from "@theme/palette";
 import PropTypes from "prop-types";
 import { Text as UIText } from "@common/components/ui";
 import useBaniLookup from "@common/hooks/useBaniLookup";
-import { DEFAULT_NITNEM_BANI_IDS } from "@common/nitnem/defaults";
+import nitnemSelection from "@common/nitnem/selection";
 import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError } from "@common";
 import { getDayDetail } from "../../database/analytics";
@@ -336,19 +336,14 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   // here, because there is only ever one list. It used to keep its own
   // `selectedBaniIds`, which meant the same user had two different Nitnems.
   const morning = useSelector((state) => defaultPothi(state.pothis, "morning"));
-  // The pothi when it has banis — that is where a signed-in account's own list
-  // arrives from — and the defaults when it does not.
-  //
-  // The fallback is what stops the card rendering empty. `pothis` is
-  // person-owned data, so the sign-out purge resets it, and the only re-seed
-  // lives in a hook mounted on the Home TAB; signing out on the Dashboard used
-  // to leave this reading "No banis in this pothi". A constant needs nothing
-  // mounted. It is READ-only: nothing here writes the pothi or the sync
-  // payload, so the account's list is never overwritten by a default.
-  const selectedBaniIds = useMemo(() => {
-    const fromPothi = (morning?.items ?? []).map((item) => item.baaniId);
-    return fromPothi.length ? fromPothi : DEFAULT_NITNEM_BANI_IDS;
-  }, [morning]);
+  // The pothi's own list when the pothi exists — that is where a signed-in
+  // account's list arrives from, and where this user's edits go — and the
+  // built-in defaults only when there is no pothi at all (fresh state, or the
+  // account boundary reset it before the Home-tab hook re-seeds). An EMPTIED
+  // pothi is shown as empty: substituting the defaults there made "unselect
+  // all, save" look like it had not saved. See nitnemSelection. READ-only:
+  // nothing here writes the pothi or the sync payload.
+  const { ids: selectedBaniIds, emptied } = useMemo(() => nitnemSelection(morning), [morning]);
   const { map: baniMap, nameOf } = useBaniLookup();
 
   const [editVisible, setEditVisible] = useState(false);
@@ -418,10 +413,12 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   // numeral since spelled-out numbers need per-language translation we don't have.
   const isEnglish = STRINGS.getLanguage() === "en-US";
   // An empty pothi is NOT "all done today" — that read as a finished Nitnem to
-  // someone who has none. It happens on a signed-in first launch before the
-  // folders pull lands, and if the pothi is emptied from another client.
-  const doneSubtitle =
-    selectedBaniIds.length === 0 ? STRINGS.POTHI_NO_BANIS : STRINGS.ALL_DONE_TODAY;
+  // someone who has none. Emptied on purpose (here, or from another device) it
+  // says so; the other empty — a signed-in first launch before the folders
+  // pull lands — keeps the generic line.
+  let doneSubtitle = STRINGS.ALL_DONE_TODAY;
+  if (emptied) doneSubtitle = STRINGS.NITNEM_NO_BANI_ADDED;
+  else if (selectedBaniIds.length === 0) doneSubtitle = STRINGS.POTHI_NO_BANIS;
   const rawSubtitle =
     remaining > 0
       ? STRINGS.formatString(STRINGS.NITNEM_LEFT, {

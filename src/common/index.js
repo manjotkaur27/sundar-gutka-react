@@ -62,6 +62,8 @@ import {
   checkPermissions,
   canScheduleExactAlarms,
   openExactAlarmSettings,
+  openNotificationSettings,
+  hasNotificationPermission,
   requestNotificationPermission,
   resetBadgeCount,
 } from "./notifications";
@@ -112,6 +114,8 @@ export {
   scheduleReminders,
   canScheduleExactAlarms,
   openExactAlarmSettings,
+  openNotificationSettings,
+  hasNotificationPermission,
   checkPermissions,
   requestNotificationPermission,
   cancelAllReminders,

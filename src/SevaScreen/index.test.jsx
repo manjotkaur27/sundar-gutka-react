@@ -561,7 +561,7 @@ describe("SevaScreen", () => {
     expect(changed[0][1]).toEqual({ frequency: "One Time", donation_type: "one_time" });
   });
 
-  it("records the refusal when the typed amount is under the currency's minimum", async () => {
+  it("disables Donate under the currency's minimum, with the reason live above it", async () => {
     // INR, so the floor is ₹100 — in USD the floor is $1 and the input strips
     // non-digits, which leaves no way to type below it.
     getSevaConfig.mockResolvedValue({ ...nativeFallbackConfig, countryCode: "IN" });
@@ -571,22 +571,27 @@ describe("SevaScreen", () => {
 
     fireEvent.press(getByLabelText("Other"));
     fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "50");
-    fireEvent.press(getByLabelText("Donate"));
 
-    const refused = sevaEvents("below_minimum");
-    expect(refused).toHaveLength(1);
-    expect(refused[0][1]).toEqual({
+    // The button goes dead the same way it does for an empty box — the reason
+    // is already on screen, so a live button that refused the tap just read
+    // as broken.
+    expect(getByLabelText("Donate").props.accessibilityState).toEqual({ disabled: true });
+    expect(screen.getByText("Minimum acceptable donation is ₹100")).toBeTruthy();
+
+    // Hitting the floor is recorded once, on the crossing, not per keystroke.
+    fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "5");
+    const hit = sevaEvents("below_minimum");
+    expect(hit).toHaveLength(1);
+    expect(hit[0][1]).toEqual({
       currency: "INR",
       amount_bucket: "under_10",
       donation_type: "recurring",
     });
-    // Refused, so there is no hand-off to report.
+
+    // A tap on a disabled button reaches nothing.
+    fireEvent.press(getByLabelText("Donate"));
     expect(sevaEvents("payment_started")).toHaveLength(0);
-    expect(sevaEvents("payment_success")).toHaveLength(0);
     expect(mockOpenInAppBrowser).not.toHaveBeenCalled();
-    // …and the donor is told why, inline under the amount rather than in a
-    // bottom toast the open keyboard would have covered.
-    expect(screen.getByText("Minimum acceptable donation is ₹100")).toBeTruthy();
   });
 
   it("shows the minimum inline while the amount is being typed, and clears it once met", async () => {
@@ -608,7 +613,7 @@ describe("SevaScreen", () => {
     expect(queryByText("Minimum acceptable donation is ₹100")).toBeNull();
   });
 
-  it("reports the hand-off, not a refusal, once the amount reaches the minimum", async () => {
+  it("re-enables Donate and hands off once the amount reaches the minimum", async () => {
     getSevaConfig.mockResolvedValue({ ...nativeFallbackConfig, countryCode: "IN" });
     const screen = render(<SevaScreen />);
     const { getByLabelText, getByTestId } = screen;
@@ -616,10 +621,23 @@ describe("SevaScreen", () => {
 
     fireEvent.press(getByLabelText("Other"));
     fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "100");
+    expect(getByLabelText("Donate").props.accessibilityState).toEqual({ disabled: false });
     fireEvent.press(getByLabelText("Donate"));
 
     expect(sevaEvents("below_minimum")).toHaveLength(0);
     expect(sevaEvents("payment_started")).toHaveLength(1);
     expect(sevaEvents("payment_success")).toHaveLength(1);
+  });
+
+  it("never lets the typed amount grow past fifteen digits", async () => {
+    getSevaConfig.mockResolvedValue(nativeFallbackConfig);
+    const screen = render(<SevaScreen />);
+    const { getByLabelText, getByTestId } = screen;
+    await waitFor(() => expect(getByTestId("donate-icon")).toBeTruthy());
+
+    fireEvent.press(getByLabelText("Other"));
+    fireEvent.changeText(screen.UNSAFE_getByType(TextInput), "1".repeat(40));
+    // Past this the figure stopped being a number on screen and became "1e+39".
+    expect(screen.UNSAFE_getByType(TextInput).props.value).toBe("1".repeat(15));
   });
 });

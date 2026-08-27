@@ -20,6 +20,7 @@ import { Row, Sheet } from "../../../../common/components/ui";
 import { Header, ReminderEditSheet, ReminderRow } from "./components";
 import useFetchBani from "./hooks/useFetchBani";
 import createStyles from "./styles";
+import { liveSection } from "./utils";
 
 const ReminderOptions = ({ navigation }) => {
   logMessage(constant.REMINDER_OPTIONS);
@@ -46,6 +47,13 @@ const ReminderOptions = ({ navigation }) => {
   const dispatch = useDispatch();
   const [isPickerOpen, setPickerOpen] = useState(false);
   useFetchBani(setBaniListData, setReminderBaniData, setStateData, parsedReminderBanis);
+  // `editing` only remembers WHICH reminder was tapped; what the sheet shows is
+  // re-read from the store on every change, so an edit made from the sheet is
+  // visible the moment it is saved. See liveSection.
+  const editingSection = useMemo(
+    () => liveSection(parsedReminderBanis, stateData, editing),
+    [parsedReminderBanis, stateData, editing]
+  );
 
   const Separator = useCallback(
     () => (
@@ -125,8 +133,8 @@ const ReminderOptions = ({ navigation }) => {
             time, rename the notification, delete it — instead of expanding the
             row in place. */}
         <ReminderEditSheet
-          section={editing}
-          visible={editing !== null}
+          section={editingSection}
+          visible={editingSection !== null}
           onClose={() => setEditing(null)}
         />
 

@@ -63,6 +63,22 @@ describe("sevaBundledContent — offline mirror of the backend layout", () => {
       expect(page.content).toContain('href="https://github.com/KhalisFoundation/sundar-gutka-react"');
     });
 
+    it("describes the Slack link as the request form it opens, in every language", () => {
+      // The link goes straight to the access-request form. The subtitle used to
+      // send people to the repository README to find that form — a hunt for
+      // something they had just tapped.
+      ["en", "hi", "pa", "fr", "it", "es"].forEach((lang) => {
+        const { content } = buildBundledMeansPage("seva-by-coding", lang);
+        const row = content.match(
+          /<p class="seva-link">[^<]*<a href="([^"]+)">[^<]*Slack[^<]*<\/a>([^<]*)<\/p>/
+        );
+        expect(row).not.toBeNull();
+        expect(row[1]).toBe("https://forms.gle/zc7JQiLHGxHKXP599");
+        expect(row[2]).not.toMatch(/README/);
+        expect(row[2].trim().length).toBeGreaterThan(0);
+      });
+    });
+
     it("returns null for an unknown page key", () => {
       expect(buildBundledMeansPage("seva-by-nope", "en")).toBeNull();
     });

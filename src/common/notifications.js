@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 import notifee, {
   TriggerType,
   RepeatFrequency,
@@ -38,6 +38,28 @@ export const canScheduleExactAlarms = async () => {
     // Assume we can, and let the scheduling attempt be the judge — better to
     // try and fail than to block reminders because a settings read broke.
     return true;
+  }
+};
+
+/**
+ * Opens the page where the notification permission actually lives.
+ *
+ * `Linking.openSettings()` lands on the app's info page, and from there the
+ * user still has to find "Notifications" — which is what "open settings does
+ * not even take me to the permission" was. notifee opens the app's own
+ * notification settings on Android (the app-info page below API 26). On iOS
+ * that call is a documented no-op, and the app settings page IS where the
+ * toggle is, so it opens that.
+ */
+export const openNotificationSettings = async () => {
+  try {
+    if (Platform.OS === "android") {
+      await notifee.openNotificationSettings();
+    } else {
+      await Linking.openSettings();
+    }
+  } catch (error) {
+    logError(error);
   }
 };
 
@@ -341,11 +363,59 @@ export const requestNotificationPermission = async () => {
  * line after this call never did, first stopping at (1) and then at (2).
  * Turning reminders OFF always worked because that path returns before here.
  */
+//
+// And a THIRD, found on device after the two above: once the user has DENIED,
+// `requestPermission()` hangs as well. Android 13+ shows the system prompt
+// once; after a denial there is no prompt to show, and the promise simply never
+// settles until the app next comes to the foreground — so the tap did nothing,
+// and the answer (still denied) arrived on the next focus, which is when the
+// "permission required" dialog appeared out of nowhere. Two guards:
+//
+//   - the prompt is requested at most once per app session; every later check
+//     is the plain read, which is all that is needed to see a grant made in
+//     system settings;
+//   - the one request is raced against a timeout, so even that first tap can
+//     never be swallowed. A timeout is treated as "not granted", which is what
+//     it means in practice.
+const PERMISSION_PROMPT_TIMEOUT_MS = 4000;
+let permissionPromptShown = false;
+
+const isAuthorized = (settings) => settings?.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
+
+/**
+ * The notification permission as it stands, with NO prompt. For every check
+ * that is not the user's own tap on the switch: coming back from settings, and
+ * noticing on foreground or on opening Settings that a permission was taken
+ * away — a system prompt popping up on any of those is not what the user did.
+ */
+export const hasNotificationPermission = async () => {
+  try {
+    return isAuthorized(await notifee.getNotificationSettings());
+  } catch (error) {
+    logError(error);
+    return false;
+  }
+};
+
 export const checkPermissions = async () => {
   const current = await notifee.getNotificationSettings();
-  if (current.authorizationStatus >= AuthorizationStatus.AUTHORIZED) return true;
-  const settings = await notifee.requestPermission();
-  return settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
+  if (isAuthorized(current)) return true;
+  if (permissionPromptShown) return false;
+  permissionPromptShown = true;
+
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(null), PERMISSION_PROMPT_TIMEOUT_MS);
+  });
+  try {
+    const settings = await Promise.race([notifee.requestPermission(), timeout]);
+    return isAuthorized(settings);
+  } catch (error) {
+    logError(error);
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 };
 
 // FEAT-04: Use ic_launcher_foreground (not background_splash) for the correct Android notification icon

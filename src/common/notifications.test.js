@@ -27,12 +27,14 @@ jest.mock("@notifee/react-native", () => ({
     cancelTriggerNotifications: jest.fn().mockResolvedValue(undefined),
     setBadgeCount: jest.fn().mockResolvedValue(undefined),
     getNotificationSettings: jest.fn(),
+    requestPermission: jest.fn(),
+    openNotificationSettings: jest.fn().mockResolvedValue(undefined),
   },
   TriggerType: { TIMESTAMP: 0 },
   RepeatFrequency: { DAILY: 1 },
   AndroidImportance: { HIGH: 4 },
   AndroidNotificationSetting: { ENABLED: 1, DISABLED: 0 },
-  AuthorizationStatus: { AUTHORIZED: 1 },
+  AuthorizationStatus: { DENIED: 0, AUTHORIZED: 1 },
 }));
 
 jest.mock("./components", () => ({ FallBack: jest.fn() }));
@@ -275,5 +277,88 @@ describe("channels are versioned, because Android will not let them change", () 
     // The one in use, and anything not ours, are left alone.
     expect(notifee.deleteChannel).not.toHaveBeenCalledWith(channelIdFor("wake_up_jap.mp3"));
     expect(notifee.deleteChannel).not.toHaveBeenCalledWith("some_other_channel");
+  });
+});
+
+// requestPermission() on Android 13+ hangs once the user has denied: there is
+// no prompt left to show and the promise settles only on the next foreground.
+// So the prompt goes out at most once per session, raced against a timeout,
+// and every later check is a plain read.
+describe("checkPermissions", () => {
+  const load = () => {
+    let mod;
+    jest.isolateModules(() => {
+      mod = require("./notifications");
+    });
+    return mod;
+  };
+  const denied = { authorizationStatus: 0 };
+  const granted = { authorizationStatus: 1 };
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    notifee.requestPermission.mockReset();
+    notifee.getNotificationSettings.mockReset();
+  });
+
+  it("is true from the plain read when already granted, without prompting", async () => {
+    notifee.getNotificationSettings.mockResolvedValue(granted);
+    expect(await load().checkPermissions()).toBe(true);
+    expect(notifee.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it("prompts once, and returns what the prompt decided", async () => {
+    notifee.getNotificationSettings.mockResolvedValue(denied);
+    notifee.requestPermission.mockResolvedValue(granted);
+    expect(await load().checkPermissions()).toBe(true);
+    expect(notifee.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("never prompts a second time in the session — a denied user gets the answer at once", async () => {
+    const { checkPermissions } = load();
+    notifee.getNotificationSettings.mockResolvedValue(denied);
+    notifee.requestPermission.mockResolvedValue(denied);
+    expect(await checkPermissions()).toBe(false);
+    expect(await checkPermissions()).toBe(false);
+    expect(notifee.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("still sees a grant made in system settings after the one prompt", async () => {
+    const { checkPermissions } = load();
+    notifee.getNotificationSettings.mockResolvedValue(denied);
+    notifee.requestPermission.mockResolvedValue(denied);
+    await checkPermissions();
+    notifee.getNotificationSettings.mockResolvedValue(granted);
+    expect(await checkPermissions()).toBe(true);
+    expect(notifee.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a prompt that never settles as not granted, instead of hanging the tap", async () => {
+    jest.useFakeTimers();
+    const { checkPermissions } = load();
+    notifee.getNotificationSettings.mockResolvedValue(denied);
+    notifee.requestPermission.mockReturnValue(new Promise(() => {}));
+    const result = checkPermissions();
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    expect(await result).toBe(false);
+  });
+});
+
+describe("openNotificationSettings", () => {
+  it("opens the app's notification settings on Android", async () => {
+    Platform.OS = "android";
+    await require("./notifications").openNotificationSettings();
+    expect(notifee.openNotificationSettings).toHaveBeenCalled();
+  });
+
+  it("opens the app settings page on iOS, where notifee's call is a no-op", async () => {
+    Platform.OS = "ios";
+    const { Linking } = require("react-native");
+    const spy = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+    await require("./notifications").openNotificationSettings();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

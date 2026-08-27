@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { constant, CustomText, ThemedSwitch } from "@common";
+import { isCustomTitle } from "../utils";
 
 // One reminder. Replaces the accordion.
 //
@@ -16,8 +17,13 @@ import { constant, CustomText, ThemedSwitch } from "@common";
 const ReminderRow = ({ section, onPress, onToggle }) => {
   const { c, space, layout, type } = useTokens();
   const isTransliteration = useSelector((state) => state.isTransliteration);
-  const { enabled, translit, gurmukhi, time } = section;
-  const name = isTransliteration ? translit : gurmukhi;
+  const { enabled, translit, gurmukhi, time, title } = section;
+  // A title the user wrote is what the notification will say, so the row says
+  // it too — a rename that only showed inside the edit sheet read as a rename
+  // that had not saved. Until then the bani's name is the better label.
+  const showsTitle = isCustomTitle(section);
+  let name = isTransliteration ? translit : gurmukhi;
+  if (showsTitle) name = title;
 
   return (
     <Pressable
@@ -43,7 +49,9 @@ const ReminderRow = ({ section, onPress, onToggle }) => {
         <CustomText
           style={[
             type.bodySmall,
-            !isTransliteration && { fontFamily: constant.GURBANI_AKHAR_TRUE },
+            // The Gurbani face only for a bani name in its legacy encoding — a
+            // typed title is plain text, and would render as gibberish in it.
+            !isTransliteration && !showsTitle && { fontFamily: constant.GURBANI_AKHAR_TRUE },
             { color: enabled ? c.textSecondary : c.textDisabled },
           ]}
         >
@@ -61,6 +69,8 @@ ReminderRow.propTypes = {
     translit: PropTypes.string.isRequired,
     gurmukhi: PropTypes.string.isRequired,
     time: PropTypes.string.isRequired,
+    title: PropTypes.string,
+    titleCustom: PropTypes.bool,
   }).isRequired,
   onPress: PropTypes.func.isRequired,
   onToggle: PropTypes.func.isRequired,

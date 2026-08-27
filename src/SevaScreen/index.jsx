@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  AccessibilityInfo,
   View,
   Pressable,
   TextInput,
@@ -382,8 +381,11 @@ const SevaScreen = () => {
   };
 
   const handleCustomAmountChange = (val) => {
-    // Only numeric input
-    const cleaned = val.replace(/[^0-9]/g, "");
+    // Only numeric input, at most fifteen digits. Past that the figure stops
+    // being exact in a JS number and the display fell into exponent form —
+    // "1e+39" where an amount should be. Fifteen digits is the last length
+    // that stays exact, and no real donation gets anywhere near it.
+    const cleaned = val.replace(/[^0-9]/g, "").slice(0, 15);
     setCustomAmount(cleaned);
   };
 
@@ -459,16 +461,42 @@ const SevaScreen = () => {
 
   // Below this, the hand-off would charge MORE than the donor typed. Qgiv takes
   // whole US dollars with a $1 minimum of its own, and localToUsd floors at $1,
-  // so ₹1 arrived at Qgiv as $1 — about ₹96. The button stays live and the tap
-  // explains itself rather than going dead with no reason given.
+  // so ₹1 arrived at Qgiv as $1 — about ₹96.
   const minLocal = minLocalAmount(currency);
   const belowMinimum = Number(localAmount) > 0 && Number(localAmount) < minLocal;
+  // "Not ready to donate" is one state whether the box is empty or the figure
+  // is under the floor, and the button shows it the same way for both. The
+  // button used to stay live under the floor and refuse the tap, which made
+  // sense while the reason only appeared AFTER the tap; the reason is live
+  // under the amount now, so a live button that did nothing just read as
+  // broken. Both the button's disabled state and the handler's guard read this
+  // one flag, so they cannot disagree.
+  const donateEnabled = canDonate && !belowMinimum;
   // One message, shown inline under the amount (see renderDonateWidget) and
   // announced again on a refused tap for a screen reader that is not on the
   // amount field.
   const minAmountMessage = STRINGS.formatString(STRINGS.SEVA_MIN_AMOUNT, {
     amount: formatCurrency(minLocal, currency),
   });
+  // A donor who typed an amount and hit the floor is not a donor who lost
+  // interest, but the visit ends the same way for both — at amount_selected —
+  // so without its own event this is invisible. Recorded when the floor is
+  // hit rather than on a tap, since the button no longer takes one: it fires
+  // once per crossing, not per keystroke. `currency` is the dimension that
+  // matters — the floor is a per-currency consequence of Qgiv charging whole
+  // US dollars, so this is where a too-high floor shows up.
+  useEffect(() => {
+    if (!belowMinimum) return;
+    trackSevaEvent("below_minimum", {
+      // The CODE, not the currency object — Firebase stringifies whatever it
+      // is given, and an object arrives as a useless "[object Object]".
+      currency: currency.code,
+      amount_bucket: bucketAmount(donationUsd),
+      donation_type: effectiveDonationType,
+    });
+    // Only the crossing matters; the other values are read as of that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [belowMinimum]);
 
   // ─── Shared browser helper ─────────────────────────────────────────────────
   const openBrowserForUrl = useCallback(
@@ -508,29 +536,7 @@ const SevaScreen = () => {
     // never chosen — and in a raw US dollar figure that a non-USD donor was
     // never shown. A donor must only ever be handed a figure they picked.
     // `donationUsd` is derived above and is what the button gates on.
-    if (!canDonate) return;
-    // Refused here rather than by disabling the button: a dead control tells the
-    // donor nothing, and the reason — Qgiv charges whole US dollars — is not
-    // something they can be expected to infer from a rupee figure.
-    if (belowMinimum) {
-      // A donor who tried to give and was turned away is not a donor who lost
-      // interest, but the visit ends the same way for both — at amount_selected
-      // — so without its own event this is invisible. `currency` is the
-      // dimension that matters: the floor is a per-currency consequence of Qgiv
-      // charging whole US dollars, so this is where a too-high floor shows up.
-      trackSevaEvent("below_minimum", {
-        // The CODE, not the currency object — Firebase stringifies whatever it
-        // is given, and an object arrives as a useless "[object Object]".
-        currency: currency.code,
-        amount_bucket: bucketAmount(donationUsd),
-        donation_type: effectiveDonationType,
-      });
-      // The reason is already on screen under the amount — it went up the
-      // moment the figure fell below the floor — so the tap re-announces it to
-      // a screen reader instead of firing a toast the keyboard hides.
-      AccessibilityInfo.announceForAccessibility(minAmountMessage);
-      return;
-    }
+    if (!donateEnabled) return;
 
     // A tap that cannot reach Qgiv must not enter the funnel. `openBrowserForUrl`
     // refuses while a tab is already open — it is shared with the content links
@@ -593,9 +599,7 @@ const SevaScreen = () => {
       donation_type: effectiveDonationType,
     });
   }, [
-    canDonate,
-    belowMinimum,
-    minAmountMessage,
+    donateEnabled,
     currency,
     donationUsd,
     isOtherSelected,
@@ -952,15 +956,16 @@ const SevaScreen = () => {
         })}
       </View>
 
-      {/* Donate button. Inert until there is an amount to donate — it used to
-          stay live on an empty box and open Qgiv at a substituted $10. */}
+      {/* Donate button. Inert until there is an amount worth handing over: an
+          empty box (it used to open Qgiv at a substituted $10) or a figure
+          under the floor, whose reason sits live above this. */}
       <Pressable
         style={styles.donateButton}
         onPress={handleDonate}
-        disabled={!canDonate}
+        disabled={!donateEnabled}
         accessibilityRole="button"
         accessibilityLabel={STRINGS.donate}
-        accessibilityState={{ disabled: !canDonate }}
+        accessibilityState={{ disabled: !donateEnabled }}
       >
         <LinearGradient
           // Disabled FLATTENS the fill rather than fading it under an opacity,
@@ -968,7 +973,7 @@ const SevaScreen = () => {
           // ui/Button gives a disabled primary. LinearGradient needs two stops,
           // hence the repeated colour.
           colors={
-            canDonate
+            donateEnabled
               ? [c.controlAccent, c.controlAccentPressed]
               : [c.surfaceSelected, c.surfaceSelected]
           }
