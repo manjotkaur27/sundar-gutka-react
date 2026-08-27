@@ -288,9 +288,10 @@ const setAutoScroll=()=> {
     }
 
     if (!isManuallyScrolling) {
-      // Compute from live autoScrollSpeed so speed changes take effect immediately
-      // Speed reduced by 50% per user request (was 1.1, now 0.55)
-      const pxPerSecond = autoScrollSpeed * 0.55 * scrollMultiplier;
+      // Compute from live autoScrollSpeed so speed changes take effect immediately.
+      // 0.825 px/s per slider step: every setting on the 1–100 slider scrolls
+      // 1.5× as fast as before, the top end being too slow for many readers.
+      const pxPerSecond = autoScrollSpeed * 0.825 * scrollMultiplier;
       const deltaMs = currentTime - lastFrameTime;
       // Cap delta to prevent huge jumps after tab switch
       const deltaSec = Math.min(deltaMs / 1000, 0.05);

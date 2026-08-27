@@ -192,3 +192,49 @@ describe("sync-scroll enlargement (paragraph mode)", () => {
     expect(enlargedNodes()).toHaveLength(0);
   });
 });
+
+// Auto-scroll rate. The slider runs 1–100; each step is worth a fixed number
+// of px/s (times the multiplier the app sends). This pins that number, so a
+// "make it faster" change is deliberate rather than a side effect.
+describe("auto-scroll rate", () => {
+  const PX_PER_SECOND_PER_STEP = 0.825;
+
+  // Stop the loop and give it a frame to notice, so each measurement starts
+  // from a dead loop whatever the previous one left behind.
+  const stop = () => {
+    send({ autoScroll: 0, scrollMultiplier: 1 });
+    jest.advanceTimersByTime(100);
+  };
+
+  const measure = (speed, multiplier) => {
+    stop();
+    // jsdom has no layout: give the page somewhere to scroll to.
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 100000,
+    });
+    window.innerHeight = 800;
+    window.scrollBy = jest.fn();
+
+    const started = window.performance.now();
+    send({ autoScroll: speed, scrollMultiplier: multiplier });
+    // Twenty animation frames.
+    for (let i = 0; i < 20; i += 1) jest.advanceTimersByTime(16);
+    const elapsedSec = (window.performance.now() - started) / 1000;
+    const scrolled = window.scrollBy.mock.calls.reduce((sum, [, px]) => sum + px, 0);
+    stop();
+    return scrolled / elapsedSec;
+  };
+
+  it("scrolls at 0.825 px/s per slider step, times the multiplier", () => {
+    const rate = measure(40, 1.5);
+    // Within 3%: the loop holds back any sub-half-pixel remainder each frame.
+    expect(Math.abs(rate / (40 * PX_PER_SECOND_PER_STEP * 1.5) - 1)).toBeLessThan(0.03);
+  });
+
+  it("is linear in the slider value", () => {
+    const slow = measure(20, 1);
+    const fast = measure(80, 1);
+    expect(Math.abs(fast / slow / 4 - 1)).toBeLessThan(0.03);
+  });
+});
