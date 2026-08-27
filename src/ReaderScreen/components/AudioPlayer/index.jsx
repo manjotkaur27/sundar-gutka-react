@@ -24,7 +24,7 @@ import { AudioTrackDialog, AudioControlBar, ErrorFallback, Loading } from "./com
 import { useTrackPlayer, useAudioSyncScroll, useAudioManifest } from "./hooks";
 import useListeningSession from "@common/hooks/useListeningSession";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
-import { prefetchPreviews } from "./utils/audioDownloader";
+import { getLocalTrackPath, prefetchPreviews } from "./utils/audioDownloader";
 
 const AudioPlayer = ({
   baniID,
@@ -79,8 +79,17 @@ const AudioPlayer = ({
     isTrackDownloaded,
     manifestError,
     refetchManifest,
+    refreshManifestSilently,
     isAudioUnavailableForCurrentLengthOnly,
   } = useAudioManifest(baniID);
+
+  // Every opening of the track list asks the backend again, behind the list
+  // that is already showing: a reciter added an hour ago appears now rather
+  // than after the daily TTL, and a downloaded track the backend has since
+  // changed is corrected (see audioReconcile) while the user is looking at it.
+  useEffect(() => {
+    if (showTrackModal) refreshManifestSilently();
+  }, [showTrackModal]);
 
   // Disable sync scroll while preview modal is open to prevent stale lyrics
   // from a previously selected track driving WebView scroll.
@@ -285,10 +294,16 @@ const AudioPlayer = ({
       tracks.length > 0 &&
       !currentArtistTrackInNewManifest;
 
+    // Compared as FILES, not URL strings: the same track reads as a remote URL
+    // before its download is merged in and as a local path after, and a
+    // refreshed list must not throw the listener out over that. A different
+    // file (the other length variant) still does.
     const currentTrackUrlChanged =
       currentArtistTrackInNewManifest != null &&
       currentPlaying?.audioUrl != null &&
-      currentArtistTrackInNewManifest.audioUrl !== currentPlaying.audioUrl;
+      getLocalTrackPath(
+        currentArtistTrackInNewManifest.remoteUrl || currentArtistTrackInNewManifest.audioUrl
+      ) !== getLocalTrackPath(currentPlaying.remoteUrl || currentPlaying.audioUrl);
 
     // If the component remounted (e.g. returning from Settings), currentPlaying 
     // initializes to null. If the modal is hidden (because the app expected 
@@ -546,6 +561,7 @@ const AudioPlayer = ({
       barsDrop={barsDrop}
       onHideBars={onHideBars}
       onPlayerTouch={onPlayerTouch}
+      onTrackListOpen={refreshManifestSilently}
     />
   );
 };

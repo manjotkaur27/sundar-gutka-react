@@ -354,6 +354,21 @@ describe("AudioControlBar", () => {
     });
   });
 
+  it("asks the owner to refetch the catalog each time the inline list opens", async () => {
+    const onTrackListOpen = jest.fn();
+    const props = createProps({ onTrackListOpen });
+    const { getByTestId } = await renderComponent(props);
+    expect(onTrackListOpen).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId("action-Audio"));
+    await waitFor(() => expect(onTrackListOpen).toHaveBeenCalledTimes(1));
+
+    // Closing does not refetch; reopening does.
+    fireEvent.press(getByTestId("action-Audio"));
+    fireEvent.press(getByTestId("action-Audio"));
+    await waitFor(() => expect(onTrackListOpen).toHaveBeenCalledTimes(2));
+  });
+
   it("shows PauseIcon when isPlaying is true", async () => {
     const props = createProps({ isPlaying: true });
     const { getByTestId, queryByTestId } = await renderComponent(props);

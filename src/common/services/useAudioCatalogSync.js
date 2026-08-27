@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import { InteractionManager } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import DeviceInfo from "react-native-device-info";
 import { logError } from "@common";
 import constant from "../constant";
 import { useNetwork } from "../context";
 import { setAudioCatalogEntries, setAudioCatalogMeta } from "../actions";
+import { reconcileDownloads } from "./audioReconcile";
 import { fetchRawBaniAudio } from "../../services/audioApi";
 import { ensureLyricsCached } from "../../ReaderScreen/components/AudioPlayer/utils/lyricsCache";
 
@@ -63,7 +64,7 @@ const collectLyricsUrls = (groups, sink) => {
   });
 };
 
-const runCatalogSync = async (dispatch, appVersion) => {
+const runCatalogSync = async (dispatch, getState, appVersion) => {
   const baniIds = constant.AUDIO_BANI_IDS || [];
   const concurrency = constant.AUDIO_CATALOG_SYNC_CONCURRENCY || 4;
   const lyricsUrls = new Set();
@@ -93,12 +94,24 @@ const runCatalogSync = async (dispatch, appVersion) => {
     await ensureLyricsCached(url, { revalidate: true }).catch(() => {});
   });
 
-  // 3. Record the sweep so it doesn't re-run until the next update / TTL.
+  // 3. Bring every DOWNLOADED track in line with the manifests that just
+  //    arrived: re-cut audio is replaced, corrected lyrics refetched, removed
+  //    tracks and orphaned files deleted, renamed artists corrected. Only the
+  //    banis that answered 200 are passed — a bani that did not is not known
+  //    to have changed, so nothing of its is touched.
+  const manifests = {};
+  Object.entries(entries).forEach(([baniId, entry]) => {
+    manifests[baniId] = entry.groups;
+  });
+  await reconcileDownloads({ manifests, getState, dispatch });
+
+  // 4. Record the sweep so it doesn't re-run until the next update / TTL.
   dispatch(setAudioCatalogMeta({ lastFullSyncAt: Date.now(), appVersion }));
 };
 
 const useAudioCatalogSync = () => {
   const dispatch = useDispatch();
+  const store = useStore();
   const isRehydrated = useSelector((state) => state._persist?.rehydrated);
   const meta = useSelector((state) => state.audioCatalogMeta) || {};
   const { isOnline } = useNetwork();
@@ -126,7 +139,7 @@ const useAudioCatalogSync = () => {
       InteractionManager.runAfterInteractions(() => {
         if (cancelled || hasRunRef.current) return;
         hasRunRef.current = true;
-        runCatalogSync(dispatch, appVersion).catch((error) =>
+        runCatalogSync(dispatch, () => store.getState(), appVersion).catch((error) =>
           logError("Audio catalog sync failed:", error)
         );
       });

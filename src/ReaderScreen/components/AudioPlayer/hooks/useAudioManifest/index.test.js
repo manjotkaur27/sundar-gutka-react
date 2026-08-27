@@ -38,6 +38,12 @@ jest.mock("@service", () => ({
   selectTracksForBani: jest.fn(),
 }));
 
+// The reconcile pass has its own suite; here it only needs to report "nothing
+// changed" so the merge is not re-run behind the assertions.
+jest.mock("@common/services/audioReconcile", () => ({
+  reconcileDownloads: jest.fn(() => Promise.resolve({ changed: false })),
+}));
+
 const { useNetwork } = require("@common");
 const { fetchRawBaniAudio, selectTracksForBani } = require("@service");
 
@@ -253,6 +259,60 @@ describe("useAudioManifest", () => {
 
     await getResult().refetchManifest();
     await waitFor(() => expect(fetchRawBaniAudio).toHaveBeenCalledWith(2));
+    unmount();
+  });
+});
+
+// A refetch while a reciter is playing must not disturb that reciter: the
+// list opening now refetches every time, so this is the common case.
+describe("refetch while playing", () => {
+  const start = async () => {
+    setMockState({
+      defaultAudio: { 2: { id: 1002, artistID: 4 } },
+      audioManifest: {},
+      audioCatalog: {},
+      baniLength: "LONG",
+      downloadRegistry: {},
+      _persist: { rehydrated: true },
+    });
+    fetchRawBaniAudio.mockResolvedValue({ groups: { long: {} }, baniName: "Japji Sahib" });
+    selectTracksForBani.mockReturnValue([intermediateTrack()]);
+    const hook = renderHook(2);
+    await waitFor(() => expect(hook.getResult()?.currentPlaying?.id).toBe(1002));
+    return hook;
+  };
+
+  it("keeps the very same playing object when nothing changed", async () => {
+    const { getResult, unmount } = await start();
+    const before = getResult().currentPlaying;
+    const fetchesSoFar = fetchRawBaniAudio.mock.calls.length;
+    await getResult().refreshManifestSilently();
+    await waitFor(() => expect(fetchRawBaniAudio).toHaveBeenCalledTimes(fetchesSoFar + 1));
+    expect(getResult().currentPlaying).toBe(before);
+    unmount();
+  });
+
+  it("takes a corrected reciter name without touching the audio", async () => {
+    const { getResult, unmount } = await start();
+    const before = getResult().currentPlaying;
+    selectTracksForBani.mockReturnValue([
+      intermediateTrack({ artist_name: "Bhai Jarnail Singh Ji" }),
+    ]);
+    await getResult().refreshManifestSilently();
+    await waitFor(() =>
+      expect(getResult().currentPlaying.displayName).toBe("Bhai Jarnail Singh Ji")
+    );
+    expect(getResult().currentPlaying.audioUrl).toBe(before.audioUrl);
+    expect(getResult().currentPlaying.id).toBe(before.id);
+    unmount();
+  });
+
+  it("still adopts a different file for the artist (the other length variant)", async () => {
+    const { getResult, unmount } = await start();
+    const other = "https://cdn.example.net/audios/BhaiJarnailSingh/JapjiSahib-trimmed.m4a";
+    selectTracksForBani.mockReturnValue([intermediateTrack({ track_url: other })]);
+    await getResult().refreshManifestSilently();
+    await waitFor(() => expect(getResult().currentPlaying.audioUrl).toBe(other));
     unmount();
   });
 });

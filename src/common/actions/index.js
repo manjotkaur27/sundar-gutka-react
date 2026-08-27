@@ -319,6 +319,14 @@ export const removeDownloadEntries = (keys) => ({
   payload: keys,
 });
 
+// patches: { [relativePath]: { ...fields to merge } } — one action for however
+// many entries the reconcile pass corrects, so the persisted store is
+// serialized once rather than once per track.
+export const updateDownloadEntries = (patches) => ({
+  type: actionTypes.UPDATE_DOWNLOAD_ENTRIES,
+  payload: patches,
+});
+
 export const setDownloadRegistry = (registry) => ({
   type: actionTypes.SET_DOWNLOAD_REGISTRY,
   payload: registry,

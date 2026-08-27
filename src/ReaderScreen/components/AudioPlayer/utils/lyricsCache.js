@@ -6,6 +6,12 @@ import {
   writeFile,
   unlink,
 } from "react-native-fs";
+import {
+  NO_CACHE_HEADERS,
+  readValidatorMeta,
+  validatorsFromResponse,
+  writeValidatorMeta,
+} from "./validatorMeta";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lyrics (LRC/JSON) disk cache — the offline home for STREAMED tracks' lyrics.
@@ -60,38 +66,6 @@ const ensureDirFor = async (fullPath) => {
   }
 };
 
-// Per-file validator metadata (ETag / Last-Modified) lives in a sidecar next to
-// the cached JSON. Sidecars (vs a shared index) keep concurrent revalidations
-// race-free — the eager sync warms many files in parallel.
-const metaPathFor = (fullPath) => `${fullPath}.meta`;
-
-const readMeta = async (fullPath) => {
-  try {
-    const metaPath = metaPathFor(fullPath);
-    if (!(await exists(metaPath))) return null;
-    return JSON.parse(await readFile(metaPath, "utf8"));
-  } catch (_) {
-    return null;
-  }
-};
-
-const writeMeta = async (fullPath, meta) => {
-  try {
-    await writeFile(metaPathFor(fullPath), JSON.stringify(meta), "utf8");
-  } catch (_) {
-    // Best-effort — a missing sidecar just means the next revalidation is a
-    // full (unconditional) GET instead of a cheap 304.
-  }
-};
-
-const headerValue = (response, name) => {
-  try {
-    return response?.headers?.get?.(name) || null;
-  } catch (_) {
-    return null;
-  }
-};
-
 // In-flight downloads keyed by destination path, so concurrent callers (a
 // sync-scroll open + the eager prefetch warming the same file) share one task
 // instead of racing to write — interleaved writes would truncate the JSON.
@@ -126,12 +100,16 @@ export const ensureLyricsCached = async (url, options = {}) => {
     const fileExisted = await exists(fullPath);
     if (fileExisted && !revalidate) return fullPath;
 
-    // Build conditional headers when revalidating an existing file.
+    // Build conditional headers when revalidating an existing file. The
+    // request must also bypass the device's own HTTP cache, or the year-long
+    // max-age the CDN sends lets it answer from disk without asking the edge.
     const headers = {};
+    let stored = null;
     if (fileExisted) {
-      const meta = await readMeta(fullPath);
-      if (meta?.etag) headers["If-None-Match"] = meta.etag;
-      else if (meta?.lastModified) headers["If-Modified-Since"] = meta.lastModified;
+      stored = await readValidatorMeta(fullPath);
+      Object.assign(headers, NO_CACHE_HEADERS);
+      if (stored?.etag) headers["If-None-Match"] = stored.etag;
+      else if (stored?.lastModified) headers["If-Modified-Since"] = stored.lastModified;
     }
 
     const controller = new AbortController();
@@ -141,12 +119,11 @@ export const ensureLyricsCached = async (url, options = {}) => {
 
       // Unchanged since last fetch — keep the cached copy, refresh the sidecar.
       if (fileExisted && response.status === 304) {
-        await writeMeta(fullPath, {
-          etag: headerValue(response, "etag") || (await readMeta(fullPath))?.etag || null,
-          lastModified:
-            headerValue(response, "last-modified") ||
-            (await readMeta(fullPath))?.lastModified ||
-            null,
+        const live = validatorsFromResponse(response);
+        await writeValidatorMeta(fullPath, {
+          etag: live.etag || stored?.etag || null,
+          lastModified: live.lastModified || stored?.lastModified || null,
+          contentMd5: live.contentMd5 || stored?.contentMd5 || null,
           revalidatedAt: Date.now(),
         });
         return fullPath;
@@ -167,9 +144,8 @@ export const ensureLyricsCached = async (url, options = {}) => {
 
       await ensureDirFor(fullPath);
       await writeFile(fullPath, text, "utf8");
-      await writeMeta(fullPath, {
-        etag: headerValue(response, "etag"),
-        lastModified: headerValue(response, "last-modified"),
+      await writeValidatorMeta(fullPath, {
+        ...validatorsFromResponse(response),
         revalidatedAt: Date.now(),
       });
       return fullPath;

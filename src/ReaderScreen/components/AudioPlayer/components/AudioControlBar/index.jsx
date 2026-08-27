@@ -64,6 +64,7 @@ const AudioControlBar = ({
   barsDrop = 0,
   onHideBars = () => {},
   onPlayerTouch = () => {},
+  onTrackListOpen = () => {},
 }) => {
   const dispatch = useDispatch();
   const { theme } = useAudioTheme();
@@ -416,6 +417,9 @@ const AudioControlBar = ({
   useEffect(() => {
     if (isMoreTracksModalOpen) {
       setIsSettingsModalOpen(false);
+      // The inline reciter list is a list opening like any other: the owner
+      // refetches the manifest behind it so it never shows a stale catalog.
+      onTrackListOpen();
     }
   }, [isMoreTracksModalOpen]);
 
@@ -858,6 +862,7 @@ AudioControlBar.propTypes = {
   onHideBars: PropTypes.func,
   /** Any touch on the player, so the page cannot report it as a tap on the bani. */
   onPlayerTouch: PropTypes.func,
+  onTrackListOpen: PropTypes.func,
 };
 
 export default AudioControlBar;

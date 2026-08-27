@@ -453,6 +453,13 @@ const downloadRegistry = (state = {}, action) => {
       action.payload.forEach((k) => delete next[k]);
       return next;
     }
+    case actionTypes.UPDATE_DOWNLOAD_ENTRIES: {
+      const next = { ...state };
+      Object.entries(action.payload || {}).forEach(([k, patch]) => {
+        if (next[k]) next[k] = { ...next[k], ...patch };
+      });
+      return next;
+    }
     case actionTypes.SET_DOWNLOAD_REGISTRY:
       return action.payload;
     case actionTypes.CLEAR_DOWNLOAD_REGISTRY:

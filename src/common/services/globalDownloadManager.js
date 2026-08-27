@@ -189,7 +189,9 @@ const useGlobalDownloadManager = () => {
     const t = setTimeout(() => {
       stallTimersRef.current.delete(trackKey);
       if (queueRef.current[trackKey]?.status !== 'downloading') return;
-      logError(`Stall detected for ${trackKey} — restarting`);
+      // A stalled transfer is the network's doing and heals itself here — a
+      // message, not a Crashlytics error.
+      logMessage(`Stall detected for ${trackKey} — restarting`);
       stopActiveTask(trackKey);
       dispatchRef.current(updateDownloadStatus(trackKey, 'queued'));
     }, STALL_TIMEOUT_MS);

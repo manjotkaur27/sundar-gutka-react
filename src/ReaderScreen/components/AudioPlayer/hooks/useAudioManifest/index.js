@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { exists, stat, unlink } from "react-native-fs";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector, useDispatch, useStore } from "react-redux";
 import { actions, logError, STRINGS, useNetwork } from "@common";
 import constant from "@common/constant";
+import { reconcileDownloads } from "@common/services/audioReconcile";
 import { fetchRawBaniAudio, selectTracksForBani } from "@service";
 import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownloader";
 
@@ -20,6 +21,9 @@ import { getLocalTrackPath, AUDIO_DIRECTORY_PATH } from "../../utils/audioDownlo
 //      (A stale-but-present cache is always used immediately; the refresh is a
 //      background upgrade, never a blocker.)
 //   3. Merge downloaded tracks so local files play offline and integrity-check.
+//   4. When the manifest came from the network, reconcile the downloads
+//      against it in the background (audioReconcile) and re-merge if anything
+//      on disk changed — the list that is already showing is never held up.
 //
 // There is NO hardcoded track data and no bundled fallback: a bani that has
 // never been cached and can't be fetched (offline first-run) surfaces a
@@ -35,6 +39,7 @@ const useAudioManifest = (baniID) => {
   const baniLength = useSelector((state) => state.baniLength);
 
   const dispatch = useDispatch();
+  const store = useStore();
   const audioManifest = useSelector((state) => state.audioManifest);
   // Persisted offline manifest cache (raw length-grouped API responses per bani).
   const audioCatalog = useSelector((state) => state.audioCatalog) || {};
@@ -50,6 +55,9 @@ const useAudioManifest = (baniID) => {
   // reconnect-refresh effect below only fires on a real offline→online
   // transition, never on first mount (which already fetches on its own).
   const wasOfflineRef = useRef(false);
+  // The fetch in progress, if any — a list opening while the mount fetch is
+  // still running joins it instead of starting a second one.
+  const inFlightRef = useRef(null);
 
   // Map intermediate manifest items (services/audioApi shape) to the player's
   // track shape. Artist display names come straight from the backend, which is
@@ -88,8 +96,10 @@ const useAudioManifest = (baniID) => {
   const tracksFromGroups = (groups) =>
     mapIntermediateToTracks(groups ? selectTracksForBani(groups, baniID, baniLength) : []);
 
-  // Merge downloaded tracks with remote (catalog) tracks.
-  const mergeDownloadedTracks = async (apiTracks, downloadedTracks) => {
+  // Merge downloaded tracks with remote (catalog) tracks. `registry` is passed
+  // in rather than read from the closure because the merge also runs after the
+  // reconcile pass has just changed it.
+  const mergeDownloadedTracks = async (apiTracks, downloadedTracks, registry = downloadRegistry) => {
     if (!apiTracks || apiTracks.length === 0) {
       // No remote data → surface valid downloaded tracks straight from disk.
       if (!downloadedTracks || downloadedTracks.length === 0) {
@@ -111,7 +121,7 @@ const useAudioManifest = (baniID) => {
               // Prefer an EXACT byte match against the recorded download size;
               // fall back to the 90%-of-manifest-MB heuristic for legacy
               // downloads that predate sizeBytes.
-              const exactBytes = Number(downloadRegistry[track.audioUrl]?.sizeBytes) || 0;
+              const exactBytes = Number(registry[track.audioUrl]?.sizeBytes) || 0;
               const expectedBytes = (track.trackSizeMB || 0) * 1024 * 1024;
               if (exactBytes > 0 || expectedBytes > 0) {
                 const size = Number((await stat(fullLocalPath)).size);
@@ -158,7 +168,7 @@ const useAudioManifest = (baniID) => {
         dispatch(
           actions.setAudioManifest(
             baniID,
-            (audioManifest[baniID] || []).filter((t) => !corruptIds1.has(String(t.id)))
+            downloadedTracks.filter((t) => !corruptIds1.has(String(t.id)))
           )
         );
         // Clear the registry entry too so the track shows as not-downloaded and
@@ -204,7 +214,7 @@ const useAudioManifest = (baniID) => {
           try {
             hasAudio = await exists(fullLocalPath);
             if (hasAudio) {
-              const exactBytes = Number(downloadRegistry[validDownloadedTrack.audioUrl]?.sizeBytes) || 0;
+              const exactBytes = Number(registry[validDownloadedTrack.audioUrl]?.sizeBytes) || 0;
               const expectedBytes =
                 (validDownloadedTrack.trackSizeMB || apiTrack.trackSizeMB || 0) * 1024 * 1024;
               if (exactBytes > 0 || expectedBytes > 0) {
@@ -256,7 +266,7 @@ const useAudioManifest = (baniID) => {
       dispatch(
         actions.setAudioManifest(
           baniID,
-          (audioManifest[baniID] || []).filter((t) => !corruptIds2.has(String(t.id)))
+          downloadedTracks.filter((t) => !corruptIds2.has(String(t.id)))
         )
       );
       if (corruptKeys2.size > 0) dispatch(actions.removeDownloadEntries([...corruptKeys2]));
@@ -292,78 +302,139 @@ const useAudioManifest = (baniID) => {
     }
   };
 
-  const fetchAudioManifest = async (forceRefresh = false) => {
-    try {
-      setIsLoading(true);
-      setManifestError(null);
+  const fileOf = (track) => getLocalTrackPath(track.remoteUrl || track.audioUrl || "");
 
-      // 1. Start from the persisted cache (raw length-grouped response).
-      const cacheEntry = audioCatalog[baniID];
-      let groups = cacheEntry?.groups || null;
-      const isStale =
-        forceRefresh ||
-        !cacheEntry ||
-        Date.now() - (cacheEntry.fetchedAt || 0) > constant.AUDIO_CATALOG_TTL_MS;
+  // A refreshed list while something is playing. The same file keeps the
+  // SAME currentPlaying object — replacing it re-fires every effect keyed on
+  // it, and the player would reload a track that did not change — and only
+  // takes a corrected reciter name. A different file for the artist (the
+  // other length variant) is adopted, as setDefaultTrack always did.
+  const syncCurrentPlaying = (trackList) => {
+    setCurrentPlaying((prev) => {
+      if (!prev?.artistID) return prev;
+      const next = trackList.find((t) => String(t.artistID) === String(prev.artistID));
+      if (!next || !next.audioUrl) return prev;
+      if (fileOf(next) !== fileOf(prev)) return next;
+      return next.displayName !== prev.displayName
+        ? { ...prev, displayName: next.displayName }
+        : prev;
+    });
+  };
 
-      // 2. Refresh from the network when online and the cache is missing/stale.
-      //    A failed fetch keeps whatever (possibly stale) cache we already have.
-      if (isOnline && isStale) {
-        const raw = await fetchRawBaniAudio(baniID);
-        if (raw) {
-          groups = raw.groups;
-          dispatch(
-            actions.setAudioCatalogEntry(baniID, {
-              groups: raw.groups,
-              baniName: raw.baniName,
-              fetchedAt: Date.now(),
-            })
-          );
-        }
-      }
-
-      // 3. Select tracks for the current length, then merge downloaded files.
-      let mappedData = tracksFromGroups(groups);
-      const downloadedTracks = audioManifest[baniID];
-      if (downloadedTracks && downloadedTracks.length > 0) {
-        mappedData = await mergeDownloadedTracks(mappedData || [], downloadedTracks);
-      }
-
-      if (mappedData && mappedData.length > 0) {
-        setTracks(mappedData);
-        setDefaultTrack(mappedData);
-        setManifestError(null);
-      } else {
-        setTracks([]);
-        // Empty because we're offline with nothing cached (not because the bani
-        // genuinely has no audio) → offer a retry rather than a dead "no audio"
-        // screen. When online-but-empty we let the reader show its normal
-        // "no audio for this bani / length" message.
-        if (!groups && !isOnline) {
-          setManifestError(STRINGS.NETWORK_ERROR || STRINGS.PLEASE_TRY_AGAIN);
-        }
-      }
-    } catch (error) {
-      logError("Error fetching manifest:", error);
-
-      // Best-effort offline reconstruction: play whatever is already on disk.
-      const offlineTracks = audioManifest?.[baniID];
-      if (offlineTracks && offlineTracks.length > 0) {
-        try {
-          const merged = await mergeDownloadedTracks([], offlineTracks);
-          if (merged.length > 0) {
-            setTracks(merged);
-            setDefaultTrack(merged);
-            return; // Loaded from local disk — don't surface a network error
-          }
-        } catch (mergeErr) {
-          logError("Offline merge failed:", mergeErr);
-        }
-      }
-
-      setManifestError(error?.message || STRINGS.NETWORK_ERROR || STRINGS.PLEASE_TRY_AGAIN);
-    } finally {
-      setIsLoading(false);
+  // Select tracks for the current length from `groups`, merge the files on
+  // disk, and show the result. `registry` / `downloadedTracks` default to the
+  // render's values; the post-reconcile re-run passes the store's current ones.
+  const applyGroups = async (groups, registry, downloadedTracks) => {
+    let mappedData = tracksFromGroups(groups);
+    if (downloadedTracks && downloadedTracks.length > 0) {
+      mappedData = await mergeDownloadedTracks(mappedData || [], downloadedTracks, registry);
     }
+
+    if (mappedData && mappedData.length > 0) {
+      setTracks(mappedData);
+      if (currentPlaying) syncCurrentPlaying(mappedData);
+      else setDefaultTrack(mappedData);
+      setManifestError(null);
+    } else {
+      setTracks([]);
+      // Empty because we're offline with nothing cached (not because the bani
+      // genuinely has no audio) → offer a retry rather than a dead "no audio"
+      // screen. When online-but-empty we let the reader show its normal
+      // "no audio for this bani / length" message.
+      if (!groups && !isOnline) {
+        setManifestError(STRINGS.NETWORK_ERROR || STRINGS.PLEASE_TRY_AGAIN);
+      }
+    }
+  };
+
+  // Once a manifest has come from the network, bring the downloads in line
+  // with it in the background; if anything on disk changed, merge again so the
+  // showing list reflects it. Never awaited by the caller.
+  const reconcileAgainst = (groups) => {
+    reconcileDownloads({
+      manifests: { [baniID]: groups },
+      getState: () => store.getState(),
+      dispatch,
+    })
+      .then((result) => {
+        if (!result?.changed) return null;
+        const state = store.getState();
+        return applyGroups(groups, state.downloadRegistry || {}, state.audioManifest?.[baniID]);
+      })
+      .catch(() => {});
+  };
+
+  /**
+   * @param {boolean} forceRefresh bypass the TTL and ask the network.
+   * @param {{ silent?: boolean }} [options] silent: keep the current list on
+   *   screen while refreshing (used when the user opens the track list) instead
+   *   of showing the loading state. A refresh already in flight is joined.
+   */
+  const fetchAudioManifest = async (forceRefresh = false, options = {}) => {
+    if (inFlightRef.current) return inFlightRef.current;
+    const { silent = false } = options;
+    const run = (async () => {
+      try {
+        if (!silent || tracks.length === 0) setIsLoading(true);
+        setManifestError(null);
+
+        // 1. Start from the persisted cache (raw length-grouped response).
+        const cacheEntry = audioCatalog[baniID];
+        let groups = cacheEntry?.groups || null;
+        let fetchedFresh = false;
+        const isStale =
+          forceRefresh ||
+          !cacheEntry ||
+          Date.now() - (cacheEntry.fetchedAt || 0) > constant.AUDIO_CATALOG_TTL_MS;
+
+        // 2. Refresh from the network when online and the cache is missing/stale.
+        //    A failed fetch keeps whatever (possibly stale) cache we already have.
+        if (isOnline && isStale) {
+          const raw = await fetchRawBaniAudio(baniID);
+          if (raw) {
+            groups = raw.groups;
+            fetchedFresh = true;
+            dispatch(
+              actions.setAudioCatalogEntry(baniID, {
+                groups: raw.groups,
+                baniName: raw.baniName,
+                fetchedAt: Date.now(),
+              })
+            );
+          }
+        }
+
+        // 3. Select tracks for the current length, then merge downloaded files.
+        await applyGroups(groups, downloadRegistry, audioManifest[baniID]);
+
+        // 4. A fresh 200 is the only thing the reconcile is allowed to act on.
+        if (fetchedFresh) reconcileAgainst(groups);
+      } catch (error) {
+        logError("Error fetching manifest:", error);
+
+        // Best-effort offline reconstruction: play whatever is already on disk.
+        const offlineTracks = audioManifest?.[baniID];
+        if (offlineTracks && offlineTracks.length > 0) {
+          try {
+            const merged = await mergeDownloadedTracks([], offlineTracks);
+            if (merged.length > 0) {
+              setTracks(merged);
+              setDefaultTrack(merged);
+              return; // Loaded from local disk — don't surface a network error
+            }
+          } catch (mergeErr) {
+            logError("Offline merge failed:", mergeErr);
+          }
+        }
+
+        setManifestError(error?.message || STRINGS.NETWORK_ERROR || STRINGS.PLEASE_TRY_AGAIN);
+      } finally {
+        setIsLoading(false);
+        inFlightRef.current = null;
+      }
+    })();
+    inFlightRef.current = run;
+    return run;
   };
 
   const addTrackToManifest = (track, localPath, jsonPath) => {
@@ -458,6 +529,10 @@ const useAudioManifest = (baniID) => {
     manifestError,
     isAudioUnavailableForCurrentLengthOnly,
     refetchManifest: () => fetchAudioManifest(true),
+    // The track list opening: the cached list is already showing, so the
+    // network answer and any corrections swap in behind it.
+    refreshManifestSilently: () =>
+      isRehydrated ? fetchAudioManifest(true, { silent: true }) : Promise.resolve(),
   };
 };
 

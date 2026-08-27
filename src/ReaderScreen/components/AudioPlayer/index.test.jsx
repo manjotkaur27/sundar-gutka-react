@@ -73,6 +73,7 @@ const mockUseAudioManifest = {
   isTrackDownloaded: jest.fn(() => false),
   manifestError: null,
   refetchManifest: jest.fn(),
+  refreshManifestSilently: jest.fn(),
 };
 
 const mockUseAudioSyncScroll = jest.fn();
@@ -742,5 +743,60 @@ describe("AudioPlayer", () => {
     });
 
     expect(mockUseTrackPlayer.stop).not.toHaveBeenCalled();
+  });
+
+  describe("safe-exit on a refreshed list", () => {
+    const remote = "https://example.com/artist1/track1.m4a";
+    const local = "/data/user/0/app/files/audio/artist1/track1.m4a";
+    const playing = (audioUrl, remoteUrl = remote) => ({
+      id: "track1",
+      artistID: "artist1",
+      audioUrl,
+      remoteUrl,
+      displayName: "Artist 1",
+      lyricsUrl: null,
+      trackLengthSec: 300,
+      trackSizeMB: 5,
+    });
+
+    const settle = async (props, { queryByTestId }) => {
+      await waitFor(() => expect(queryByTestId("audio-control-bar")).toBeTruthy());
+    };
+
+    it("stays in the player when the same file merely turns from remote into local", async () => {
+      const props = createProps();
+      mockState.defaultAudio = { [props.baniID]: { id: "track1", artistID: "artist1" } };
+      mockUseAudioManifest.currentPlaying = playing(remote);
+      mockUseAudioManifest.tracks = [playing(remote)];
+      const utils = render(<AudioPlayer {...props} />);
+      await settle(props, utils);
+
+      // The download got merged in: same file, now a local path.
+      mockUseAudioManifest.tracks = [{ ...playing(local), isLocallyDownloaded: true }];
+      utils.rerender(<AudioPlayer {...props} />);
+      await act(async () => {
+        await new Promise((r) => {
+          setTimeout(r, 50);
+        });
+      });
+      expect(utils.queryByTestId("audio-track-dialog")).toBeNull();
+      expect(mockUseAudioManifest.setCurrentPlaying).not.toHaveBeenCalledWith(null);
+    });
+
+    it("still exits to the list when the artist now points at a different file", async () => {
+      const props = createProps();
+      mockState.defaultAudio = { [props.baniID]: { id: "track1", artistID: "artist1" } };
+      mockUseAudioManifest.currentPlaying = playing(remote);
+      mockUseAudioManifest.tracks = [playing(remote)];
+      const utils = render(<AudioPlayer {...props} />);
+      await settle(props, utils);
+
+      const other = "https://example.com/artist1/track1-trimmed.m4a";
+      mockUseAudioManifest.tracks = [playing(other, other)];
+      utils.rerender(<AudioPlayer {...props} />);
+      await waitFor(() =>
+        expect(mockUseAudioManifest.setCurrentPlaying).toHaveBeenCalledWith(null)
+      );
+    });
   });
 });

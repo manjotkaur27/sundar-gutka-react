@@ -1,6 +1,6 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import darkTheme from "@theme/darkTheme";
 import lightTheme from "@theme/lightTheme";
 
@@ -11,6 +11,7 @@ import AboutScreen from ".";
 // unlabelled controls, and a footer that squeezed in the longer languages.
 
 let mockTheme = lightTheme;
+const mockOpenInAppBrowser = jest.fn(() => Promise.resolve());
 
 // The global @common mock in setupTests carries only a handful of strings, so
 // this supplies the ones this screen renders.
@@ -32,11 +33,15 @@ jest.mock("@common", () => {
       BANI_DB: "BaniDB",
       APP_VERSION: "App Version",
       KHALIS_FOUNDATION: "Khalis Foundation",
+      PRIVACY_POLICY: "Privacy Policy",
     },
     constant: {
       KHALIS_FOUNDATION_URL: "https://khalisfoundation.org",
       BANI_DB_URL: "https://www.banidb.com/",
+      KHALIS_PRIVACY_POLICY_URL: "https://khalisfoundation.org/about/privacy-policy/",
     },
+    // Called lazily: the factory is hoisted above the mock's declaration.
+    openInAppBrowser: (...args) => mockOpenInAppBrowser(...args),
   });
 });
 
@@ -152,6 +157,23 @@ describe("AboutScreen", () => {
     // The screen previously rendered a plain View: content past the fold was
     // simply unreachable.
     expect(screen.UNSAFE_getByType(require("react-native").ScrollView)).toBeTruthy();
+  });
+
+  it.each(themes)("[%s] offers the privacy policy as a themed, labelled link", (_name, theme) => {
+    renderWith(theme);
+    const link = screen.getByLabelText("Privacy Policy");
+    expect(link.props.accessibilityRole).toBe("link");
+    // Tall enough to tap on its own row, whatever the language's label length.
+    expect(flat(link.props.style).minHeight).toBeGreaterThanOrEqual(44);
+    expect(flat(screen.getByText("Privacy Policy").props.style).color).toBe(theme.c.link);
+  });
+
+  it("opens the policy in the in-app browser rather than leaving the app", () => {
+    renderWith(lightTheme);
+    fireEvent.press(screen.getByLabelText("Privacy Policy"));
+    expect(mockOpenInAppBrowser).toHaveBeenCalledWith(
+      "https://khalisfoundation.org/about/privacy-policy/"
+    );
   });
 
   it("uses the theme's own logo variant rather than a fixed file", () => {

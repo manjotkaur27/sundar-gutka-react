@@ -459,13 +459,15 @@ export const downloadLyricsOnly = async (url, trackTitle, options = {}) => {
 
   const jsonResult = await jsonDownloadTask.promise;
 
+  // A lyrics file that is not there is an expected state of the catalog, not a
+  // fault in the app — kept out of Crashlytics.
   if (jsonResult.statusCode !== 200) {
-    logError(`Lyrics download failed with status code: ${jsonResult.statusCode}`);
+    logMessage(`Lyrics download failed with status code: ${jsonResult.statusCode}`);
   }
 
   const finalJsonExists = await exists(fullJsonPath);
   if (!finalJsonExists) {
-    logError("Lyrics download completed but file was not created");
+    logMessage("Lyrics download completed but file was not created");
   }
 
   logMessage(`Lyrics download completed: ${jsonFileName}`);

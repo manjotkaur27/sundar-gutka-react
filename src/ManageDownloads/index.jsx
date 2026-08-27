@@ -18,7 +18,10 @@ import {
   convertToUnicode,
 } from '@common';
 import { ScreenHeader, Text } from '../common/components/ui';
-import { AUDIO_DIRECTORY_PATH } from '../ReaderScreen/components/AudioPlayer/utils/audioDownloader';
+import {
+  AUDIO_DIRECTORY_PATH,
+  getLocalTrackPath,
+} from '../ReaderScreen/components/AudioPlayer/utils/audioDownloader';
 import createStyles from './styles';
 
 const formatMB = (mb) => {
@@ -33,6 +36,23 @@ const ManageDownloads = ({ navigation }) => {
 
   const downloadRegistry = useSelector((s) => s.downloadRegistry);
   const downloadQueue    = useSelector((s) => s.downloadQueue);
+  const audioCatalog = useSelector((s) => s.audioCatalog);
+
+  // Reciter names come from the live catalog, keyed the way the registry is
+  // (the on-disk path), so a reciter renamed on the backend reads correctly
+  // here as soon as the catalog has it. The name stored at download time is
+  // the fallback for a track the catalog no longer lists.
+  const liveArtistName = useMemo(() => {
+    const byPath = {};
+    Object.values(audioCatalog || {}).forEach((entry) => {
+      Object.values(entry?.groups || {}).forEach((group) => {
+        (group?.artists || []).forEach((artist) => {
+          if (artist?.link && artist.name) byPath[getLocalTrackPath(artist.link)] = artist.name;
+        });
+      });
+    });
+    return byPath;
+  }, [audioCatalog]);
 
   // Settings that drive the bani name shown on the home list — read the same
   // ones here so download names stay in sync with it (transliteration on/off,
@@ -123,7 +143,12 @@ const ManageDownloads = ({ navigation }) => {
         baniId: entry.baniId,
         baniNameUni: entry.baniNameUni,
         baniTitle: entry.baniTitle,
-      }).data.push({ ...entry, relativePath, isQueued: false });
+      }).data.push({
+        ...entry,
+        artistDisplayName: liveArtistName[relativePath] || entry.artistDisplayName,
+        relativePath,
+        isQueued: false,
+      });
     });
     Object.entries(downloadQueue).forEach(([trackKey, task]) => {
       if (task.status === 'completed') return;
@@ -164,7 +189,7 @@ const ManageDownloads = ({ navigation }) => {
           (a, b) => (a.artistDisplayName ?? '').localeCompare(b.artistDisplayName ?? ''),
         ),
       }));
-  }, [downloadRegistry, downloadQueue]);
+  }, [downloadRegistry, downloadQueue, liveArtistName]);
 
   const totalTracks = Object.keys(downloadRegistry).length;
   const totalMB = Object.values(downloadRegistry).reduce((s, e) => s + (e.sizeMB ?? 0), 0);

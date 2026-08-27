@@ -3,7 +3,14 @@ import { Image, Linking, Pressable, ScrollView, View } from "react-native";
 import { getBuildNumber, getVersion } from "react-native-device-info";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
-import { constant, GradientDivider, SafeArea, StatusBarComponent, STRINGS } from "@common";
+import {
+  constant,
+  GradientDivider,
+  openInAppBrowser,
+  SafeArea,
+  StatusBarComponent,
+  STRINGS,
+} from "@common";
 import { ScreenHeader, Text } from "../common/components/ui";
 
 // Migrated onto the design system. What changed, and why:
@@ -28,6 +35,9 @@ const AboutScreen = ({ navigation }) => {
 
   const openKhalis = () => Linking.openURL(constant.KHALIS_FOUNDATION_URL);
   const openBaniDB = () => Linking.openURL(constant.BANI_DB_URL);
+  // In the in-app browser: a policy is read and dismissed, not a site to
+  // switch apps for.
+  const openPrivacyPolicy = () => openInAppBrowser(constant.KHALIS_PRIVACY_POLICY_URL);
 
   return (
     <SafeArea backgroundColor={c.background} edges={["bottom"]}>
@@ -118,6 +128,24 @@ const AboutScreen = ({ navigation }) => {
         </Pressable>
 
         <Text variant="body">{STRINGS.ABOUT_PARDON}</Text>
+
+        {/* A row of its own, not a footnote: the label runs long in the
+            non-English languages and the target must stay ≥ 44pt tall. */}
+        <Pressable
+          onPress={openPrivacyPolicy}
+          accessibilityRole="link"
+          accessibilityLabel={STRINGS.PRIVACY_POLICY}
+          hitSlop={layout.hitSlop}
+          style={{
+            alignSelf: "flex-start",
+            minHeight: layout.touchTarget,
+            justifyContent: "center",
+          }}
+        >
+          <Text variant="body" color="link" style={{ textDecorationLine: "underline" }}>
+            {STRINGS.PRIVACY_POLICY}
+          </Text>
+        </Pressable>
 
         {/* Wraps rather than squeezing: in `fr`/`es` the copyright and the
             version label together exceed one line on a narrow screen. */}

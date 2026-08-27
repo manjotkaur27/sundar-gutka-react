@@ -1,7 +1,7 @@
 // Khalis backend base URL (Seva + Dashboard APIs).
 //
 // ── PRODUCTION (Azure Container Apps) ───────────────────────────────────────
-const KHALIS_API_BASE = "https://khalis-user-api.salmonriver-80392db4.eastus.azurecontainerapps.io";
+const KHALIS_API_BASE = "https://users.khalis.net";
 //
 // ── LOCAL DEV ───────────────────────────────────────────────────────────────
 // To test against the backend running on THIS machine (khalis-users-api → PORT
@@ -79,6 +79,7 @@ export default {
   TRANSLATION: "TRANSLATION",
   REMINDER_OPTIONS: "Reminder Options",
   KHALIS_FOUNDATION_URL: "https://khalisfoundation.org",
+  KHALIS_PRIVACY_POLICY_URL: "https://khalisfoundation.org/about/privacy-policy/",
   BANI_DB_URL: "https://www.banidb.com/",
   sttm: "sttm",
   VISHRAAM_COLORED: "VISHRAAM_COLORED",
