@@ -18,6 +18,26 @@ const runQuery = (sql, params = []) =>
     }
   });
 
+// Insert-or-update without `ON CONFLICT … DO UPDATE`: that syntax needs SQLite
+// 3.24, and Android uses the OS's own SQLite — Android 9 ships 3.22, Android 7
+// (our floor) 3.9 — so on those phones an upsert was a syntax error on every
+// call and the row was never written. UPDATE first, INSERT only when nothing
+// was there. One serialized task, so no other writer can slip in between.
+const upsertRow = (update, insert) =>
+  runSerialized(async () => {
+    const db = await getAnalyticsDB();
+    try {
+      const [updated] = await db.executeSql(update.sql, update.params);
+      if ((updated?.rowsAffected ?? 0) > 0) return updated;
+      const [inserted] = await db.executeSql(insert.sql, insert.params);
+      return inserted;
+    } catch (err) {
+      logMessage(`analytics_db_write_failed: ${err?.message || err}`);
+      logError(new Error(`Analytics upsert error: ${err?.message || err} | SQL: ${update.sql}`));
+      throw err;
+    }
+  });
+
 const rowsToArray = (result) => {
   const rows = [];
   for (let i = 0; i < result.rows.length; i++) {
@@ -150,20 +170,24 @@ export const upsertDailyActivity = async ({
   reading_seconds_delta = 0,
   listening_seconds_delta = 0,
 }) => {
-  return runQuery(
-    `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
-     VALUES (?, ?, ?, ?, strftime('%s','now'))
-     ON CONFLICT(date) DO UPDATE SET
-       reading_seconds   = reading_seconds   + excluded.reading_seconds,
-       listening_seconds = listening_seconds + excluded.listening_seconds,
-       total_seconds     = total_seconds     + excluded.reading_seconds + excluded.listening_seconds,
-       updated_at        = strftime('%s','now')`,
-    [
-      date,
-      reading_seconds_delta,
-      listening_seconds_delta,
-      reading_seconds_delta + listening_seconds_delta,
-    ]
+  const reading = reading_seconds_delta;
+  const listening = listening_seconds_delta;
+  const total = reading + listening;
+  return upsertRow(
+    {
+      sql: `UPDATE daily_activity SET
+              reading_seconds   = reading_seconds   + ?,
+              listening_seconds = listening_seconds + ?,
+              total_seconds     = total_seconds     + ?,
+              updated_at        = strftime('%s','now')
+            WHERE date = ?`,
+      params: [reading, listening, total, date],
+    },
+    {
+      sql: `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
+            VALUES (?, ?, ?, ?, strftime('%s','now'))`,
+      params: [date, reading, listening, total],
+    }
   );
 };
 
@@ -172,15 +196,24 @@ export const upsertDailyActivity = async ({
 // Using the additive upsertDailyActivity here would double-count on a second
 // restore of the same day (e.g. a repeat reinstall before the next cloud push).
 export const setDailyActivity = async ({ date, reading_seconds = 0, listening_seconds = 0 }) => {
-  return runQuery(
-    `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
-     VALUES (?, ?, ?, ?, strftime('%s','now'))
-     ON CONFLICT(date) DO UPDATE SET
-       reading_seconds   = excluded.reading_seconds,
-       listening_seconds = excluded.listening_seconds,
-       total_seconds     = excluded.reading_seconds + excluded.listening_seconds,
-       updated_at        = strftime('%s','now')`,
-    [date, reading_seconds, listening_seconds, reading_seconds + listening_seconds]
+  const reading = reading_seconds;
+  const listening = listening_seconds;
+  const total = reading + listening;
+  return upsertRow(
+    {
+      sql: `UPDATE daily_activity SET
+              reading_seconds   = ?,
+              listening_seconds = ?,
+              total_seconds     = ?,
+              updated_at        = strftime('%s','now')
+            WHERE date = ?`,
+      params: [reading, listening, total, date],
+    },
+    {
+      sql: `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
+            VALUES (?, ?, ?, ?, strftime('%s','now'))`,
+      params: [date, reading, listening, total],
+    }
   );
 };
 
@@ -393,14 +426,20 @@ export const getDayDetail = async (dateStr) => {
 export const incrementBaniReadCount = async (baniId, baniTitle) => {
   if (!baniId) return;
   const today = new Date().toISOString().slice(0, 10);
-  return runQuery(
-    `INSERT INTO bani_read_counts (bani_id, bani_title, read_count, last_read)
-     VALUES (?, ?, 1, ?)
-     ON CONFLICT(bani_id) DO UPDATE SET
-       read_count = read_count + 1,
-       bani_title = excluded.bani_title,
-       last_read  = excluded.last_read`,
-    [baniId, baniTitle ?? null, today]
+  return upsertRow(
+    {
+      sql: `UPDATE bani_read_counts SET
+              read_count = read_count + 1,
+              bani_title = ?,
+              last_read  = ?
+            WHERE bani_id = ?`,
+      params: [baniTitle ?? null, today, baniId],
+    },
+    {
+      sql: `INSERT INTO bani_read_counts (bani_id, bani_title, read_count, last_read)
+            VALUES (?, ?, 1, ?)`,
+      params: [baniId, baniTitle ?? null, today],
+    }
   );
 };
 

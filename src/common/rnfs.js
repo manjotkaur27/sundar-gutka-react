@@ -142,7 +142,9 @@ export const fetchRemoteMD5Hash = async () => {
     const remoteHash = await response.text();
     return remoteHash.trim();
   } catch (error) {
-    logError(`Error fetching remote MD5 hash: ${error.message}`);
+    // A phone without a connection is the usual reason to land here; the
+    // caller decides what to show. Not a Crashlytics error.
+    logMessage(`Error fetching remote MD5 hash: ${error.message}`);
     throw error;
   }
 };

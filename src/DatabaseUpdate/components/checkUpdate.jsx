@@ -7,7 +7,7 @@ import useThemedStyles from "@common/hooks/useThemedStyles";
 import { STRINGS, ListItemTitle } from "@common";
 import { checkUpdateStyles } from "./styles";
 
-const CheckUpdatesAnimation = ({ isLoading, isUpdateAvailable }) => {
+const CheckUpdatesAnimation = ({ isLoading, isUpdateAvailable, isOffline = false }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(checkUpdateStyles);
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -69,9 +69,15 @@ const CheckUpdatesAnimation = ({ isLoading, isUpdateAvailable }) => {
           </ListItem.Content>
         </ListItem>
       )}
+      {/* Offline is its own answer: without a connection nothing was checked,
+          so "up to date" would be a guess. */}
       {!isUpdateAvailable && !isLoading && (
         <ListItem containerStyle={styles.mainWrapper}>
-          <ListItemTitle title={STRINGS.upToDate} style={styles.header} numberOfLines={2} />
+          <ListItemTitle
+            title={isOffline ? STRINGS.NO_INTERNET : STRINGS.upToDate}
+            style={styles.header}
+            numberOfLines={3}
+          />
         </ListItem>
       )}
     </View>
@@ -80,6 +86,7 @@ const CheckUpdatesAnimation = ({ isLoading, isUpdateAvailable }) => {
 CheckUpdatesAnimation.propTypes = {
   isLoading: PropTypes.bool.isRequired,
   isUpdateAvailable: PropTypes.bool.isRequired,
+  isOffline: PropTypes.bool,
 };
 
 export default CheckUpdatesAnimation;
