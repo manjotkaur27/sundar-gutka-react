@@ -19,6 +19,7 @@ export {
   clearDailyActivity,
   getDayDetail,
   getDailyActivity,
+  getLatestActivityDate,
   getQualifyingDates,
   getUnsyncedActivity,
   getActivityUpdatedSince,

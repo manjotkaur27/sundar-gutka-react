@@ -32,10 +32,13 @@ import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard"
 import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
 import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
+import usePothiSync from "./src/common/hooks/usePothiSync";
 import useReminderRearm from "./src/common/hooks/useReminderRearm";
 import useSsoSession from "./src/common/hooks/useSsoSession";
 import useAudioCatalogSync from "./src/common/services/useAudioCatalogSync";
 import useDashboardSync from "./src/services/dashboard/useDashboardSync";
+import useRemindersSync from "./src/services/reminders/useRemindersSync";
+import useSyncOutbox from "./src/services/sync/useSyncOutbox";
 
 const { store, persistor } = createStore();
 
@@ -73,6 +76,13 @@ const GlobalServices = () => {
   // screen both the push and the restore only existed while it was mounted, so
   // signing in anywhere else never got the account's data up or down.
   useDashboardSync();
+  // Account data that syncs per row — pothis and reminders — through the
+  // persisted outbox. Mounted here for the same reason as the dashboard: a
+  // change made on any screen goes up whether or not that screen stays open.
+  // The features register with the sync registry; the outbox drains them.
+  usePothiSync();
+  useRemindersSync();
+  useSyncOutbox();
   return null;
 };
 

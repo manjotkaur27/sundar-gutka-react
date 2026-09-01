@@ -163,8 +163,15 @@ const Navigation = () => {
     handlePerformanceTrace(state).catch(() => {});
 
     const previousRouteName = routeNameRef.current;
-    const currentRouteName = navigationRef.current.getCurrentRoute().name;
-    const currentRoute = navigationRef.current.getCurrentRoute();
+    // Through `isReady()`, never `navigationRef.current` directly. The ref is
+    // only attached between the container mounting and unmounting, and these
+    // callbacks run from the container's own layout effects — so one firing
+    // while the tree is being rebuilt (a rehydration settling, a theme swap)
+    // found `current` null, threw, and the error boundary above replaced the
+    // whole app with its fallback screen.
+    const currentRoute = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
+    if (!currentRoute) return;
+    const currentRouteName = currentRoute.name;
     routeNameRef.current = currentRouteName;
     // The root-level overlay hosts (confirm dialog, toast) live outside this
     // container, so this is the one place that can tell them the Reader is on
@@ -193,8 +200,9 @@ const Navigation = () => {
         ref={navigationRef}
         theme={navigationTheme}
         onReady={() => {
-          routeNameRef.current = navigationRef.current.getCurrentRoute().name;
-          setReaderFocused(routeNameRef.current === constant.READER);
+          const route = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
+          routeNameRef.current = route?.name;
+          setReaderFocused(route?.name === constant.READER);
         }}
         onStateChange={handleStateChange}
       >

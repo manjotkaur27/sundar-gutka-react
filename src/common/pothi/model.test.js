@@ -170,6 +170,19 @@ describe("ordering", () => {
     expect(ids(seed(["a", "b", "c"]))).toEqual(["c", "b", "a"]);
   });
 
+  it("stamps the pothis a drag moved, and only those", () => {
+    // The server takes positions from the PUT's order but only for rows newer
+    // than its own, so an unstamped reorder was refused and undone by the
+    // next pull.
+    // Seeded newest-first, so the list starts c, b, a; c stays put.
+    const s = setOrder(seed(["a", "b", "c"]), ["c", "a", "b"], 9999);
+    expect(s.folders.map((f) => [f.id, f.updatedAt])).toEqual([
+      ["c", 1002],
+      ["a", 9999],
+      ["b", 9999],
+    ]);
+  });
+
   it("applies a dragged order", () => {
     expect(ids(setOrder(seed(["a", "b", "c"]), ["a", "b", "c"]))).toEqual(["a", "b", "c"]);
   });
@@ -256,6 +269,21 @@ describe("toUpsertBody", () => {
     expect(body.source).toBe(SOURCE);
     expect(body.folders).toHaveLength(1);
     expect(body.folders[0].items[0].baaniId).toBe(2);
+  });
+
+  // The account seeds its own Morning/Evening Nitnem on first read, so an
+  // untouched local seed has nothing to add — and pushed, it became a second
+  // "Morning Nitnem" on every device signed into the account.
+  it("leaves an untouched seeded default out, but sends one that was edited or renamed", () => {
+    const stock = MORNING_NITNEM_IDS.map((id) => makeBaniItem({ baaniId: id, title: `B${id}` }));
+    const pristine = createPothi({ id: MORNING_ID, name: "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ", items: stock, now: 7 });
+    expect(toUpsertBody(addPothi(emptyPothis(), pristine)).folders).toEqual([]);
+
+    const edited = { ...pristine, items: stock.slice(1), updatedAt: 8 };
+    expect(toUpsertBody(addPothi(emptyPothis(), edited)).folders).toHaveLength(1);
+
+    const renamed = { ...pristine, name: "Mine", updatedAt: 8 };
+    expect(toUpsertBody(addPothi(emptyPothis(), renamed)).folders).toHaveLength(1);
   });
 
   it("omits the local-only bookkeeping the API does not accept", () => {
@@ -648,3 +676,73 @@ describe("reconcile", () => {
     expect(s.lastSyncedAt).toBe("2026-01-01T00:00:00Z");
   });
 });
+
+describe("a pushed seed sitting beside the account's own default", () => {
+  const stock = MORNING_NITNEM_IDS.map((id) => makeBaniItem({ baaniId: id, title: `B${id}` }));
+  const remote = (over) => ({
+    source: SOURCE,
+    createdAt: 1,
+    updatedAt: 1,
+    isPublic: false,
+    pinned: false,
+    ...over,
+  });
+  const pushedSeed = remote({ id: MORNING_ID, name: "Morning Nitnem", items: stock });
+  const theirs = remote({
+    id: "srv-morning-uuid",
+    name: "Morning Nitnem",
+    items: stock.slice(0, 2),
+    updatedAt: 2,
+  });
+
+  it("drops the stray seed and marks it for deletion from the account", () => {
+    const merged = mergeRemote(emptyPothis(), [theirs, pushedSeed]);
+    expect(merged.folders.map((f) => f.id)).toEqual(["srv-morning-uuid"]);
+    expect(merged.deletedIds).toEqual([MORNING_ID]);
+  });
+
+  it("keeps the seed when it is the only Morning Nitnem the account has", () => {
+    const merged = mergeRemote(emptyPothis(), [pushedSeed]);
+    expect(merged.folders.map((f) => f.id)).toEqual([MORNING_ID]);
+    expect(merged.deletedIds).toEqual([]);
+  });
+
+  it("keeps a seed-id pothi the user has since edited — it is theirs now", () => {
+    const edited = { ...pushedSeed, items: stock.slice(1), updatedAt: 9 };
+    const merged = mergeRemote(emptyPothis(), [theirs, edited]);
+    expect(merged.folders).toHaveLength(2);
+    expect(merged.deletedIds).toEqual([]);
+  });
+});
+
+describe("whose order stands after a pull", () => {
+  const remote = (id, updatedAt) => ({
+    id,
+    name: id,
+    source: SOURCE,
+    items: [],
+    createdAt: 1,
+    updatedAt,
+    isPublic: false,
+    pinned: false,
+  });
+
+  it("keeps a reorder made here that the server has not seen yet", () => {
+    const s = setOrder(seed(["a", "b", "c"]), ["c", "a", "b"], 9999);
+    const merged = mergeRemote(s, [remote("a", 1000), remote("b", 1001), remote("c", 1002)]);
+    expect(ids(merged)).toEqual(["c", "a", "b"]);
+  });
+
+  it("takes the other phone's newer order", () => {
+    const s = seed(["a", "b", "c"]);
+    const merged = mergeRemote(s, [remote("c", 5000), remote("a", 5000), remote("b", 1001)]);
+    expect(ids(merged)).toEqual(["c", "a", "b"]);
+  });
+
+  it("slots a pothi only the server knows without disturbing a newer local order", () => {
+    const s = setOrder(seed(["a", "b"]), ["a", "b"], 9999);
+    const merged = mergeRemote(s, [remote("b", 1001), remote("a", 1000), remote("new", 1002)]);
+    expect(ids(merged).slice(0, 2)).toEqual(["a", "b"]);
+    expect(ids(merged)).toContain("new");
+  });
+});

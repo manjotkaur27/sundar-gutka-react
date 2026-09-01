@@ -84,6 +84,6 @@ describe("the arithmetic", () => {
 
     await setDailyActivity({ date: "d", reading_seconds: 300, listening_seconds: 100 });
     expect(mockExecuteSql.mock.calls[1][0]).not.toMatch(/reading_seconds\s*\+/);
-    expect(mockExecuteSql.mock.calls[1][1]).toEqual([300, 100, 400, "d"]);
+    expect(mockExecuteSql.mock.calls[1][1]).toEqual([300, 100, 400, null, "d"]);
   });
 });

@@ -145,6 +145,9 @@ describe("seedAnalyticsFromSnapshot in merge mode", () => {
       date: "2026-08-18",
       reading_seconds: 200,
       listening_seconds: 50,
+      // The account's numbers, not this device's work — so the activity push
+      // never files them under this device and the account cannot double.
+      updatedAt: 0,
     });
   });
 
@@ -154,6 +157,7 @@ describe("seedAnalyticsFromSnapshot in merge mode", () => {
     analytics.getDayActivity.mockResolvedValue({
       reading_seconds: 300,
       listening_seconds: 10,
+      updated_at: 1755600000,
     });
     analytics.setDailyActivity.mockResolvedValue(undefined);
     analytics.getOrCreateSummary.mockResolvedValue(null);
@@ -165,6 +169,9 @@ describe("seedAnalyticsFromSnapshot in merge mode", () => {
       date: "2026-08-18",
       reading_seconds: 300, // local wins
       listening_seconds: 50, // remote wins
+      // The row keeps the stamp it had: those 300 seconds are this device's
+      // own and still have to reach the account.
+      updatedAt: 1755600000,
     });
   });
 
@@ -180,6 +187,8 @@ describe("seedAnalyticsFromSnapshot in merge mode", () => {
       date: "2026-08-18",
       reading_seconds: 200,
       listening_seconds: 50,
+      // Never recorded here, so it is the account's day and starts unpushable.
+      updatedAt: 0,
     });
   });
 
@@ -198,7 +207,9 @@ describe("seedAnalyticsFromSnapshot in merge mode", () => {
     await seedAnalyticsFromSnapshot(payload, { merge: true });
 
     const fields = update.mock.calls[0][0];
-    expect(fields.current_streak).toBe(9); // local higher
+    // The streak is NOT among them: it is derived from the day rows by
+    // computeStreaks, and flooring it here is what kept a lapsed streak alive.
+    expect(fields).not.toHaveProperty("current_streak");
     expect(fields.longest_streak).toBe(4); // remote higher
     expect(fields.total_days_active).toBe(30);
   });
@@ -312,9 +323,9 @@ describe("applyDashboardRestore in merge mode", () => {
     expect(mockUpdateReminders).not.toHaveBeenCalled();
   });
 
-  it("still applies everything on a bootstrap", async () => {
+  it("still applies everything on a bootstrap (reminders sync on their own)", async () => {
     const applied = await applyDashboardRestore(full, jest.fn(), {});
-    expect(applied).toEqual(["profile", "layout", "nitnem", "reminders"]);
+    expect(applied).toEqual(["profile", "layout", "nitnem"]);
   });
 });
 
@@ -339,7 +350,45 @@ describe("applyDashboardRestore with preferences", () => {
     });
     expect(applied).toContain("layout");
     const layout = dispatch.mock.calls.find(([a]) => a.type === "SET_DASHBOARD_LAYOUT");
-    expect(layout[0].value).toEqual({ order: ["streak", "nitnem"], hidden: ["vaak"] });
+    expect(layout[0].value).toEqual({
+      order: ["streak", "nitnem"],
+      hidden: ["vaak"],
+      modifiedAt: expect.any(Number),
+    });
+  });
+
+  // Per-block clocks: a snapshot that says WHEN each block was edited is
+  // judged block by block against this device's own edits, not by the
+  // whole-snapshot guess — so a phone that only rearranged its layout cannot
+  // also overwrite this phone's newer display name.
+  it("takes only the blocks whose clock is newer than this device's", async () => {
+    const dispatch = jest.fn();
+    const stamped = {
+      ...full,
+      profile: { name: "Someone", modifiedAt: 100 },
+      layout: { order: ["streak", "nitnem"], hidden: ["vaak"], modifiedAt: 900 },
+    };
+    const applied = await applyDashboardRestore(stamped, dispatch, {
+      merge: true,
+      preferences: false,
+      local: { profileModifiedAt: 500, layoutModifiedAt: 500 },
+    });
+    expect(applied).toContain("layout");
+    expect(applied).not.toContain("profile");
+    const layout = dispatch.mock.calls.find(([a]) => a.type === "SET_DASHBOARD_LAYOUT");
+    expect(layout[0].value.modifiedAt).toBe(900);
+  });
+
+  it("an older stamped block is refused even when the caller would take preferences", async () => {
+    const dispatch = jest.fn();
+    const stamped = { ...full, layout: { order: ["a"], hidden: [], modifiedAt: 100 } };
+    const applied = await applyDashboardRestore(stamped, dispatch, {
+      merge: true,
+      preferences: true,
+      local: { layoutModifiedAt: 500 },
+    });
+    expect(applied).not.toContain("layout");
+    expect(applied).toContain("profile"); // unstamped block: the caller's call
   });
 
   it("brings the display name down too", async () => {
@@ -368,16 +417,15 @@ describe("applyDashboardRestore with preferences", () => {
     expect(applied).toEqual(["nitnem"]);
   });
 
-  it("re-arms reminders only when asked to", async () => {
-    await applyDashboardRestore(full, jest.fn(), { merge: true, preferences: true });
-    expect(mockUpdateReminders).not.toHaveBeenCalled();
-
-    await applyDashboardRestore(full, jest.fn(), {
+  it("never touches reminders or the OS schedule — they sync on their own", async () => {
+    const dispatch = jest.fn();
+    await applyDashboardRestore(full, dispatch, {
       merge: true,
       preferences: true,
       reschedule: true,
     });
-    expect(mockUpdateReminders).toHaveBeenCalled();
+    expect(mockUpdateReminders).not.toHaveBeenCalled();
+    expect(dispatch.mock.calls.map(([a]) => a.type)).not.toContain("SET_REMINDER_BANIS");
   });
 });
 

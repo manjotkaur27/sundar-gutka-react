@@ -125,6 +125,15 @@ describe("themeOptions", () => {
 });
 
 describe("ThemePreview", () => {
+  it("draws the Ik Onkar with the same ligature as the home screen's invocation", () => {
+    // "<>" in the Gurbani face is the one rendering with the full elongated
+    // stroke over the onkar — the glyph BaniHeader draws. The Unicode ੴ
+    // decomposes in that face and flattens in Baloo, so the tile would show a
+    // different symbol from the screen it is two taps away from.
+    const { SAMPLE } = require("./ThemePreview");
+    expect(SAMPLE.heading).toBe("<>");
+  });
+
   it("renders a tile for every theme without touching the app theme", () => {
     // The thumbnails are generated from the theme record alone, so a new theme
     // brings its own preview and the two can never fall out of sync.

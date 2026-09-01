@@ -4,9 +4,12 @@ import DeviceInfo from "react-native-device-info";
 import { useStore, useDispatch, useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logError, useNetwork } from "@common";
+import { syncAll } from "../sync/syncRegistry";
 import {
   getDashboardSnapshot,
+  getDashboardState,
   applyDashboardRestore,
+  applyServerActivity,
   seedAnalyticsFromSnapshot,
   buildCachePayload,
   pushDashboardCache,
@@ -52,6 +55,51 @@ const ACTIVITY_DEBOUNCE_MS = 20 * 1000;
 
 // After a pull that failed for reasons we cannot judge (offline, timeout, 5xx).
 // Short, because until the FIRST one succeeds pushing is gated too.
+/**
+ * Send this device's day rows written since the last successful push
+ * (POST /dashboard/activity). Per-device rows the server SUMS across devices,
+ * so a phone and a tablet used on the same day add up instead of overwriting
+ * each other. The watermark advances only on success, so a failure re-sends
+ * the same days rather than leaving a hole. Resolves true when the server now
+ * holds everything this device has recorded.
+ */
+const pushPendingActivity = async (deviceId) => {
+  try {
+    const sinceRaw = await AsyncStorage.getItem(ACTIVITY_PUSHED_AT_KEY);
+    const startedAt = Math.floor(Date.now() / 1000);
+    const activity = await buildActivityPayload({
+      deviceId,
+      since: sinceRaw ? Number(sinceRaw) : 0,
+    });
+    const res = await pushDailyActivity(activity);
+    if (!res?.ok) return false;
+    if (activity.days.length) {
+      await AsyncStorage.setItem(ACTIVITY_PUSHED_AT_KEY, String(startedAt));
+    }
+    return true;
+  } catch (err) {
+    logError(err);
+    return false;
+  }
+};
+
+/**
+ * The account's activity from the rows every device has pushed, or null when
+ * it cannot be had right now. Pushes this device's pending rows FIRST, so the
+ * sum that comes back already contains them and overwriting local days with
+ * it loses nothing.
+ */
+const pullServerActivity = async (deviceId, monthKey) => {
+  if (!(await pushPendingActivity(deviceId))) return null;
+  const res = await getDashboardState(monthKey);
+  return res.status === "ok" && res.state ? res.state : null;
+};
+
+const currentMonthKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
 const RETRY_BASE_MS = 30 * 1000;
 const RETRY_MAX_MS = 5 * 60 * 1000;
 
@@ -196,6 +244,13 @@ const useDashboardSync = () => {
           return;
         }
 
+        // History comes from the server's summed rows when they can be read.
+        // The snapshot is applied first either way and the sums are laid over
+        // it, so the days the server knows are exact and the days only the
+        // snapshot remembers survive. Neither is ever pushed back up.
+        const monthKey = currentMonthKey();
+        const activity = await pullServerActivity(await DeviceInfo.getUniqueId(), monthKey);
+
         if (!bootstrapped) {
           // ── PULL → MERGE → PUSH ──────────────────────────────────────────
           //
@@ -244,6 +299,7 @@ const useDashboardSync = () => {
             // carried in, or an earlier session on this device that was never
             // pushed — survives the restore instead of being overwritten by it.
             await seedAnalyticsFromSnapshot(payload, { merge: true });
+            if (activity) await applyServerActivity(activity, monthKey);
           } finally {
             restoringRef.current = false;
           }
@@ -300,15 +356,20 @@ const useDashboardSync = () => {
           // the device now appears to hold an unpushed edit it never made.
           restoringRef.current = true;
           try {
+            const current = store.getState();
             await applyDashboardRestore(payload, dispatch, {
               merge: true,
               preferences,
-              // Only re-arm OS notifications when genuinely taking another
-              // device's reminder settings; a routine poll must not touch them.
-              reschedule: preferences,
-              transliterationLanguage: store.getState().transliterationLanguage,
+              // Per-block clocks, so a snapshot from a device that edited only
+              // its layout does not also overwrite this device's newer name.
+              local: {
+                profileModifiedAt: current.userProfile?.modifiedAt ?? 0,
+                layoutModifiedAt: current.dashboardLayout?.modifiedAt ?? 0,
+              },
+              transliterationLanguage: current.transliterationLanguage,
             });
             await seedAnalyticsFromSnapshot(payload, { merge: true });
+            if (activity) await applyServerActivity(activity, monthKey);
           } finally {
             restoringRef.current = false;
           }
@@ -320,6 +381,12 @@ const useDashboardSync = () => {
       } catch (err) {
         logError(err);
       } finally {
+        // Reminders and pothis reconcile at the same moments the dashboard
+        // does — sign-in, foreground, connectivity returning, pull-to-refresh.
+        // Whatever the snapshot said: a brand-new account still has this
+        // device's reminders to send up, and each feature checks the session
+        // for itself.
+        await syncAll();
         inFlightRef.current = false;
         // Tells the Dashboard's sections to look again — they fetch on mount and
         // would otherwise keep rendering whatever was there before these writes.
@@ -375,32 +442,10 @@ const useDashboardSync = () => {
         const deviceId = await DeviceInfo.getUniqueId();
 
         // ── The additive half ────────────────────────────────────────────
-        // Per-day rows the server SUMS across devices, so a phone and a tablet
-        // used on the same day add up instead of overwriting each other. Sent
-        // ALONGSIDE the snapshot, not instead of it: the snapshot still drives
-        // restore for app versions that know nothing about this endpoint, and
-        // dual-writing is what lets the two coexist during the changeover.
-        //
-        // Wrapped so it can never fail the snapshot push — this is the newer,
-        // less-proven path of the two.
-        try {
-          const sinceRaw = await AsyncStorage.getItem(ACTIVITY_PUSHED_AT_KEY);
-          const activity = await buildActivityPayload({
-            deviceId,
-            since: sinceRaw ? Number(sinceRaw) : 0,
-          });
-          const activityRes = await pushDailyActivity(activity);
-          // Advance the watermark only on success, so a failure re-sends the
-          // same days rather than leaving a permanent hole in the history.
-          if (activityRes?.ok && activity.days.length) {
-            await AsyncStorage.setItem(
-              ACTIVITY_PUSHED_AT_KEY,
-              String(Math.floor(Date.now() / 1000))
-            );
-          }
-        } catch (err) {
-          logError(err);
-        }
+        // Sent ALONGSIDE the snapshot, not instead of it: the snapshot still
+        // drives restore for app versions that know nothing about this
+        // endpoint. It can never fail the snapshot push.
+        await pushPendingActivity(deviceId);
 
         const body = await buildCachePayload({
           state: store.getState(),

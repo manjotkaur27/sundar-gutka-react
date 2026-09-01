@@ -2,6 +2,8 @@ import { combineReducers } from "@reduxjs/toolkit";
 import * as actionTypes from "./actions/actionTypes";
 import constant from "./constant";
 import * as pothiModel from "./pothi/model";
+import { emptyRemindersSync } from "./reminders/syncModel";
+import * as outbox from "./sync/outboxModel";
 
 const createReducer =
   (initialState, handlers) =>
@@ -174,6 +176,46 @@ const reminderBanis = createReducer(JSON.stringify([]), {
 
 const reminderSound = createReducer(constant.Default.toLowerCase(), {
   [actionTypes.SET_REMINDER_SOUND]: (state, action) => action.value,
+});
+
+// Per-reminder sync clocks, tombstones and server bases — see
+// reminders/syncModel. Persisted, and reset with the reminders themselves on
+// an account switch (USER_DATA_SLICES).
+const remindersSync = createReducer(emptyRemindersSync(), {
+  [actionTypes.MERGE_REMINDER_SYNC_META]: (state, action) => {
+    const p = action.payload || {};
+    if (p.replace) return { ...emptyRemindersSync(), ...p.replace };
+    const clocks = { ...state.clocks, ...(p.clocks || {}) };
+    const tombstones = { ...state.tombstones, ...(p.tombstones || {}) };
+    const base = { ...state.base, ...(p.base || {}) };
+    (p.removeTombstones || []).forEach((id) => delete tombstones[id]);
+    (p.removeClocks || []).forEach((id) => {
+      delete clocks[id];
+      delete base[id];
+    });
+    return {
+      clocks,
+      tombstones,
+      base,
+      settingsUpdatedAt: p.settingsUpdatedAt ?? state.settingsUpdatedAt,
+      settingsBase: p.settingsBase ?? state.settingsBase,
+      lastSyncedAt: p.lastSyncedAt ?? state.lastSyncedAt,
+    };
+  },
+});
+
+// Changes to account data not yet at the server — see sync/outboxModel. On
+// rehydrate nothing is in flight any more, so "sending" goes back to the queue.
+const syncOutbox = createReducer(outbox.emptyOutbox(), {
+  "persist/REHYDRATE": (state, action) =>
+    action.payload?.syncOutbox ? outbox.heal(action.payload.syncOutbox) : state,
+  [actionTypes.ENQUEUE_SYNC_OP]: (state, action) => outbox.enqueue(state, action.payload),
+  [actionTypes.SYNC_OP_SENDING]: (state, action) => outbox.markSending(state, action.payload.id),
+  [actionTypes.SYNC_OP_DONE]: (state, action) => outbox.markDone(state, action.payload.id),
+  [actionTypes.SYNC_OP_FAILED]: (state, action) =>
+    outbox.markFailed(state, action.payload.id, { error: action.payload.error }),
+  [actionTypes.CLEAR_SYNC_FEATURE]: (state, action) =>
+    outbox.clearFeature(state, action.payload.feature),
 });
 
 const isHeaderFooter = createReducer(false, {
@@ -569,10 +611,17 @@ const withMissingAtDefaultPos = (order) => {
   return result;
 };
 
+// `modifiedAt` is the device clock of the last edit, carried in the account
+// snapshot so two devices can tell whose profile is newer per block rather
+// than guessing from push times. A restore passes the server's value through.
 const userProfile = createReducer(
-  { name: "" },
+  { name: "", modifiedAt: 0 },
   {
-    [actionTypes.SET_USER_PROFILE]: (state, action) => ({ ...state, ...action.value }),
+    [actionTypes.SET_USER_PROFILE]: (state, action) => ({
+      ...state,
+      ...action.value,
+      modifiedAt: action.value?.modifiedAt ?? Date.now(),
+    }),
   },
 );
 
@@ -599,7 +648,7 @@ const auth = createReducer(
   },
 );
 
-const defaultLayout = () => ({ order: [...DEFAULT_DASHBOARD_ORDER], hidden: [] });
+const defaultLayout = () => ({ order: [...DEFAULT_DASHBOARD_ORDER], hidden: [], modifiedAt: 0 });
 
 const dashboardLayout = createReducer(defaultLayout(), {
   // On rehydrate: drop any deprecated section keys (e.g. the old standalone
@@ -614,12 +663,18 @@ const dashboardLayout = createReducer(defaultLayout(), {
         ? [...DEFAULT_DASHBOARD_ORDER]
         : withMissingAtDefaultPos(cleaned),
       hidden: (persisted.hidden ?? []).filter((k) => VALID_DASHBOARD_SECTIONS.has(k)),
+      modifiedAt: persisted.modifiedAt ?? 0,
     };
   },
   [actionTypes.SET_DASHBOARD_LAYOUT]: (state, action) => {
     const next = { ...state, ...action.value };
     // Self-heal: ensure any newly added sections land in their default slot.
-    return { order: withMissingAtDefaultPos(next.order), hidden: next.hidden ?? [] };
+    return {
+      order: withMissingAtDefaultPos(next.order),
+      hidden: next.hidden ?? [],
+      // See userProfile: the clock another device compares its copy against.
+      modifiedAt: action.value?.modifiedAt ?? Date.now(),
+    };
   },
   [actionTypes.RESET_DASHBOARD_LAYOUT]: () => defaultLayout(),
 });
@@ -770,7 +825,11 @@ const pothis = createReducer(pothiModel.emptyPothis(), {
   [actionTypes.SEED_DEFAULT_POTHIS]: (state, action) =>
     pothiModel.seedDefaults(state, action.value ?? []),
   [actionTypes.MERGE_REMOTE_POTHIS]: (state, action) =>
-    pothiModel.mergeRemote(state, action.value ?? []),
+    pothiModel.mergeRemote(state, action.value ?? [], Date.now(), action.deletedFolderIds ?? []),
+  [actionTypes.SET_POTHI_SYNC_WATERMARK]: (state, action) => ({
+    ...state,
+    syncWatermark: Number(action.value) || 0,
+  }),
   [actionTypes.POTHI_DELETE_SYNCED]: (state, action) =>
     pothiModel.clearTombstone(state, action.value),
   // This slice deliberately does NOT handle CLEAR_AUTH_SESSION or
@@ -824,6 +883,8 @@ const appReducer = combineReducers({
   isReminders,
   reminderBanis,
   reminderSound,
+  remindersSync,
+  syncOutbox,
   autoScrollSpeedObj,
   baniOrder,
   baniList,
@@ -870,6 +931,10 @@ const USER_DATA_SLICES = [
   "isReminders",
   "reminderBanis",
   "reminderSound",
+  // The clocks that go with the reminders, and every change of the outgoing
+  // account still waiting to be sent — neither may reach the next account.
+  "remindersSync",
+  "syncOutbox",
 ];
 
 // Wrapping combineReducers rather than adding a handler to each slice: this

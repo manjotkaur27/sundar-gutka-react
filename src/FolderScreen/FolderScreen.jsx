@@ -45,7 +45,12 @@ const FolderScreen = ({ navigation, route }) => {
   // is ASCII-encoded Gurmukhi and wrong for a pothi the user typed. The caller
   // has already resolved the string, so it says which face it wants rather than
   // this screen guessing from the text.
-  const { data, title, titleVariant = "baniTitle", pothiId = null } = route.params.params;
+  const {
+    data,
+    title: routeTitle,
+    titleVariant = "baniTitle",
+    pothiId = null,
+  } = route.params.params;
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -71,6 +76,11 @@ const FolderScreen = ({ navigation, route }) => {
     pothiId ? (state.pothis?.folders ?? []).find((f) => f.id === pothiId) : null
   );
   const isDefault = useSelector((state) => isDefaultPothi(state.pothis, pothiId));
+  // The NAME comes from the store for the same reason the contents do: renaming
+  // from the menu below writes to the store, while the route holds the string
+  // this screen was pushed with — so the header, and the menu sheet under it,
+  // went on showing the old name until the user backed out and came in again.
+  const title = pothi ? pothi.name : routeTitle;
   const rows = useMemo(
     () =>
       pothi

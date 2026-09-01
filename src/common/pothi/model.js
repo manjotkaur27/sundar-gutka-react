@@ -88,6 +88,22 @@ const DEFAULT_SIGNATURES = {
  *
  * Null when the pothi genuinely is not there — deleted from another client.
  */
+const LOCAL_DEFAULT_ID = { morning: MORNING_ID, evening: EVENING_ID };
+
+/**
+ * A seeded default exactly as the app seeded it: our fixed id, the stock
+ * banis, and never touched since — an edit or a rename moves `updatedAt`.
+ *
+ * Such a pothi is a stand-in for the account's own, which the API seeds on
+ * the account's first read. It is shown while signed out, or while the
+ * account has nothing playing that role, and never sent up: pushed, it became
+ * a second "Morning Nitnem" on every device signed into the account.
+ */
+const isPristineSeed = (folder, kind) =>
+  folder?.id === LOCAL_DEFAULT_ID[kind] &&
+  baniSignature(folder) === DEFAULT_SIGNATURES[kind] &&
+  folder.updatedAt === folder.createdAt;
+
 const resolveDefaultId = (kind, folders, recorded) => {
   if (recorded && folders.some((folder) => folder.id === recorded)) return recorded;
   const bySignature = folders.find((folder) => baniSignature(folder) === DEFAULT_SIGNATURES[kind]);
@@ -237,15 +253,25 @@ export const removeBani = (state, id, baaniId, now = Date.now()) => {
   return patch(state, id, { items: folder.items.filter((i) => i.baaniId !== baaniId) }, now);
 };
 
-/** Reorder. Ids the caller invented, or folders that vanished, are dropped. */
-export const setOrder = (state, nextOrder) => {
+/**
+ * Reorder. Ids the caller invented, or folders that vanished, are dropped.
+ *
+ * Every pothi whose place changed is stamped: its position travels with it
+ * (the server takes positions from the order of the PUT, and only for rows
+ * newer than its own), so an unstamped reorder was refused up there and
+ * undone by the next pull.
+ */
+export const setOrder = (state, nextOrder, now = Date.now()) => {
   const byId = new Map(state.folders.map((folder) => [folder.id, folder]));
   const moved = nextOrder.map((id) => byId.get(id)).filter(Boolean);
   const movedIds = new Set(moved.map((folder) => folder.id));
   // Anything the caller left out stays, in its existing order, so a partial
   // list (one lane of a two-lane screen) can never delete a pothi.
   const rest = state.folders.filter((folder) => !movedIds.has(folder.id));
-  return { ...state, folders: [...moved, ...rest] };
+  const folders = [...moved, ...rest].map((folder, index) =>
+    state.folders[index] === folder ? folder : { ...folder, updatedAt: now }
+  );
+  return { ...state, folders };
 };
 
 export const countPinned = (state) => state.folders.filter((folder) => folder.pinned).length;
@@ -391,10 +417,16 @@ export const clearTombstone = (state, id) => ({
   deletedIds: (state.deletedIds ?? []).filter((buried) => buried !== id),
 });
 
-/** The payload for `PUT /folders` — the local-only fields stripped. */
+/**
+ * The payload for `PUT /folders` — the local-only fields stripped, and a
+ * pristine seed left out (see isPristineSeed): the account seeds its own.
+ */
 export const toUpsertBody = (state) => ({
   source: SOURCE,
-  folders: listPothis(state).filter((folder) => folder.source === SOURCE),
+  folders: listPothis(state).filter(
+    (folder) =>
+      folder.source === SOURCE && !DEFAULT_KINDS.some((kind) => isPristineSeed(folder, kind))
+  ),
 });
 
 /**
@@ -405,10 +437,28 @@ export const toUpsertBody = (state) => ({
  * comparison would not. A folder only local (never synced) is kept; a folder
  * only remote is adopted.
  */
-export const mergeRemote = (state, remoteFolders = [], now = Date.now()) => {
+export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deletedFolderIds = []) => {
+  // A pristine seed that an earlier build pushed up, sitting beside the
+  // account's own Morning or Evening Nitnem. It is not the account's — it is
+  // the duplicate people saw — so it is dropped here and deleted from the
+  // account (via `deletedIds`, which the outbox sends), and every device
+  // converges on the one. A seed with no counterpart is left alone: then it
+  // IS the account's copy.
+  const strays = DEFAULT_KINDS.map((kind) => {
+    const seed = remoteFolders.find((folder) => folder.id === LOCAL_DEFAULT_ID[kind]);
+    if (!seed || !isPristineSeed(seed, kind)) return null;
+    const others = remoteFolders.filter((folder) => folder.id !== seed.id);
+    return resolveDefaultId(kind, others, null) ? seed.id : null;
+  }).filter(Boolean);
+
   const local = new Map(state.folders.map((folder) => [folder.id, folder]));
+  // A folder the server reports as deleted since this device last read — by
+  // another device — goes, whatever this device holds for it: a local edit
+  // newer than that deletion would have gone up as a PUT and revived it on
+  // the server, so absence there is the account's decision.
+  deletedFolderIds.forEach((id) => local.delete(id));
   // A folder this device deleted is NOT a new one from the server.
-  const buried = new Set(state.deletedIds ?? []);
+  const buried = new Set([...(state.deletedIds ?? []), ...strays]);
   const remoteIds = new Set(remoteFolders.map((folder) => folder.id));
   const merged = [];
   remoteFolders.forEach((remote) => {
@@ -441,14 +491,13 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now()) => {
   // folder leaves the pointer dangling, and `reconcile` below re-resolves it by
   // bani signature — which lands on the server's copy, the very folder that
   // superseded it.
-  const localDefaultId = { morning: MORNING_ID, evening: EVENING_ID };
   const adoptedItems = new Map();
   DEFAULT_KINDS.forEach((kind) => {
-    const mine = local.get(localDefaultId[kind]);
+    const mine = local.get(LOCAL_DEFAULT_ID[kind]);
     if (!mine) return;
     const theirId = resolveDefaultId(kind, remoteFolders, null);
     if (!theirId) return;
-    local.delete(localDefaultId[kind]);
+    local.delete(LOCAL_DEFAULT_ID[kind]);
     const theirs = merged.find((folder) => folder.id === theirId);
     const edited = baniSignature(mine) !== DEFAULT_SIGNATURES[kind];
     if (theirs && edited && mine.updatedAt > theirs.updatedAt) {
@@ -460,6 +509,30 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now()) => {
       ? { ...folder, items: adoptedItems.get(folder.id), updatedAt: now }
       : folder
   );
+
+  // Whose ORDER stands. Positions live on the folders, so the side that
+  // touched its list last owns the order: a reorder here that has not reached
+  // the server yet must survive the pull that follows it, and one made on
+  // another phone must land here once it has. The shared folders take the
+  // newer side's order; a folder only one side knows keeps its place.
+  const mineById = new Map(state.folders.map((folder) => [folder.id, folder]));
+  const newestLocal = Math.max(
+    0,
+    ...resolved.filter((f) => mineById.has(f.id)).map((f) => mineById.get(f.id).updatedAt ?? 0)
+  );
+  const newestRemote = Math.max(
+    0,
+    ...remoteFolders.filter((r) => mineById.has(r.id)).map((r) => r.updatedAt ?? 0)
+  );
+  const localIndex = (id) => state.folders.findIndex((folder) => folder.id === id);
+  const ordered =
+    newestLocal > newestRemote
+      ? [...resolved].sort((a, b) => {
+          const ia = localIndex(a.id);
+          const ib = localIndex(b.id);
+          return ia === -1 || ib === -1 ? 0 : ia - ib;
+        })
+      : resolved;
 
   // A tombstone retires ONLY when a pull proves the server no longer has that
   // id — not when DELETE returns 204.
@@ -476,7 +549,8 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now()) => {
   // Whatever is left is local-only — created offline, or before signing in.
   return reconcile({
     ...state,
-    folders: [...local.values(), ...resolved],
-    deletedIds: stillThere,
+    folders: [...local.values(), ...ordered],
+    deletedIds: [...new Set([...stillThere, ...strays])],
   });
 };
+

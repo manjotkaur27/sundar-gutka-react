@@ -55,3 +55,16 @@ export const DASHBOARD_ACTIVITY_PUSHED_AT_KEY = "@dashboard_activity_pushed_at_v
 // foreground pull would re-apply the same snapshot over the top of whatever the
 // user has done since.
 export const DASHBOARD_APPLIED_AT_KEY = "@dashboard_applied_at_v1";
+
+/**
+ * What the ACCOUNT has read and listened to TODAY, across every device:
+ * `{ date, seconds }`.
+ *
+ * Today's day row is the one the server never writes — it is still being
+ * recorded here and goes up as this device's own — so this is the only way the
+ * streak can learn that another phone read today. Held as raw seconds and
+ * weighed by the app's own rule (see streakEngine), rather than adopting the
+ * server's finished streak: one rule and one authority, so the number cannot
+ * flip between two of them.
+ */
+export const DASHBOARD_ACCOUNT_TODAY_KEY = "@dashboard_account_today_v1";

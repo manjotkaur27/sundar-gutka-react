@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { defaultPothi } from "@common/pothi/model";
-import { constant, actions, updateReminders, logError, STRINGS } from "@common";
-import { getBaniList } from "@database";
+import { to24h } from "@common/reminders/time";
+import { constant, actions, logError } from "@common";
 import { readToken } from "../../common/sso/tokenStore";
 import {
   getOrCreateSummary,
@@ -17,6 +17,7 @@ import {
   setDailyActivity,
   updateSummary,
 } from "../../database/analytics";
+import { DASHBOARD_ACCOUNT_TODAY_KEY } from "./syncKeys";
 
 // Account dashboard sync: push (POST /dashboard/cache) and restore
 // (GET /dashboard/latest). Restore applies the user-setup blocks (profile,
@@ -104,22 +105,6 @@ export const getDashboardSnapshot = async () => {
   }
 };
 
-// The contract stores reminder times as 24h "HH:mm"; the local scheduler
-// (notifications.js parseTimeString) expects "h:mm A". Convert so a restored
-// "18:00" schedules at 6 PM, not 6 AM.
-const to12h = (t) => {
-  if (!t) return t;
-  if (/[ap]m\s*$/i.test(t)) return t; // already "h:mm A"
-  const [hRaw, mRaw = "0"] = String(t).split(":");
-  let hr = Number(hRaw);
-  if (Number.isNaN(hr)) return t;
-  const min = String(Number(mRaw) || 0).padStart(2, "0");
-  const meridiem = hr >= 12 ? "PM" : "AM";
-  hr %= 12;
-  if (hr === 0) hr = 12;
-  return `${hr}:${min} ${meridiem}`;
-};
-
 // Applies the user-setup blocks of a restored payload into Redux.
 // reschedule=false by default: notifications are device-local and permission-gated,
 // so the caller should reschedule (after a permission check) when appropriate.
@@ -127,15 +112,23 @@ const to12h = (t) => {
 export const applyDashboardRestore = async (
   payload,
   dispatch,
-  {
-    reschedule = false,
-    transliterationLanguage = undefined,
-    merge = false,
-    preferences = false,
-  } = {}
+  // `reschedule` and `transliterationLanguage` are still passed by callers
+  // but no longer read: they belonged to the reminders block, which now
+  // syncs on its own (see below).
+  { merge = false, preferences = false, local = {} } = {}
 ) => {
   const applied = [];
   if (!payload || !dispatch) return applied;
+
+  // Per block, when the snapshot says when the block was last edited: take
+  // it only if that is later than this device's own edit. Snapshots from
+  // older app versions carry no clock, and fall back to the caller's
+  // whole-snapshot decision (`preferences`).
+  const takeBlock = (block, localModifiedAt) => {
+    if (!merge) return true;
+    if (block?.modifiedAt == null) return preferences;
+    return Number(block.modifiedAt) > Number(localModifiedAt ?? 0);
+  };
 
   // A refresh pull always brings completion history down. Whether it also
   // brings PREFERENCES — the section order, hidden sections, display name,
@@ -151,24 +144,35 @@ export const applyDashboardRestore = async (
   // it — or when the user has explicitly pulled to refresh. Skipping it
   // entirely, which is what this did before, meant a customised layout synced
   // once at sign-in and never again.
-  if (merge) {
-    if (payload.nitnem) {
-      dispatch(actions.restoreNitnem({ completed: payload.nitnem.completed }));
-      applied.push("nitnem");
-    }
-    if (!preferences) return applied;
+  if (merge && payload.nitnem) {
+    dispatch(actions.restoreNitnem({ completed: payload.nitnem.completed }));
+    applied.push("nitnem");
   }
 
-  if (payload.profile && typeof payload.profile.name === "string") {
-    dispatch(actions.setUserProfile({ name: payload.profile.name }));
+  if (
+    payload.profile &&
+    typeof payload.profile.name === "string" &&
+    takeBlock(payload.profile, local.profileModifiedAt)
+  ) {
+    dispatch(
+      actions.setUserProfile({
+        name: payload.profile.name,
+        modifiedAt: payload.profile.modifiedAt ?? Date.now(),
+      })
+    );
     applied.push("profile");
   }
 
-  if (payload.layout && Array.isArray(payload.layout.order)) {
+  if (
+    payload.layout &&
+    Array.isArray(payload.layout.order) &&
+    takeBlock(payload.layout, local.layoutModifiedAt)
+  ) {
     dispatch(
       actions.setDashboardLayout({
         order: payload.layout.order,
         hidden: Array.isArray(payload.layout.hidden) ? payload.layout.hidden : [],
+        modifiedAt: payload.layout.modifiedAt ?? Date.now(),
       })
     );
     applied.push("layout");
@@ -187,53 +191,11 @@ export const applyDashboardRestore = async (
     applied.push("nitnem");
   }
 
-  if (payload.reminders && Array.isArray(payload.reminders.items)) {
-    const enabled = !!payload.reminders.enabled;
-    const sound = payload.reminders.sound || "";
-
-    // The server stores a reminder as an ID and a time — the bani's NAMES live
-    // in the local database, not in the payload. These three fields were being
-    // filled with empty strings, which meant a restored reminder rendered with
-    // a blank name in Settings and fired a notification with no title.
-    //
-    // A failed lookup must not lose the reminder: the times are the part the
-    // user actually set, so on any database error the names stay empty and the
-    // Reminder Options screen backfills them on its next visit.
-    let byId = new Map();
-    try {
-      const list = await getBaniList(transliterationLanguage);
-      byId = new Map(list.map((b) => [b.id, b]));
-    } catch (err) {
-      logError(err);
-    }
-
-    const items = payload.reminders.items.map((it) => {
-      const bani = byId.get(it.baaniId);
-      const translit = bani?.translit || "";
-      return {
-        key: it.baaniId,
-        id: it.baaniId,
-        enabled: !!it.enabled,
-        time: to12h(it.time),
-        gurmukhi: bani?.gurmukhi || "",
-        translit,
-        title: translit ? `${STRINGS.time_for} ${translit}` : "",
-      };
-    });
-    const json = JSON.stringify(items);
-    dispatch(actions.setReminderBanis(json));
-    dispatch(actions.toggleReminders(enabled));
-    if (sound) dispatch(actions.setReminderSound(sound));
-    if (reschedule) {
-      try {
-        await updateReminders(enabled, sound, json);
-      } catch (err) {
-        logError(err);
-      }
-    }
-    applied.push("reminders");
-  }
-
+  // Reminders are NOT restored from the snapshot any more. They sync as rows
+  // of their own through /reminders (see services/reminders/useRemindersSync),
+  // where two devices merge per reminder instead of the later snapshot
+  // replacing the earlier one's whole list. The block is still SENT — older
+  // app versions read it — but this version never applies it.
   return applied;
 };
 
@@ -261,11 +223,123 @@ export const getRestoredTopBanis = async () => {
 };
 
 // ─── Restore: seed analytics SQLite from the snapshot ────────────────────────
+const stateUrl = () => `${constant.DASHBOARD_API_BASE_URL || ""}/dashboard/state`;
+
+/** `YYYY-MM-DD` in the device's own calendar, the key daily_activity uses. */
+const localDateKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
+    2,
+    "0"
+  )}`;
+
+/**
+ * The account's activity as the SERVER sums it across every device
+ * (GET /dashboard/state): totals, streaks and one entry per day of `monthKey`.
+ * Distinguishable outcomes, like getDashboardSnapshot — a failure must not be
+ * mistaken for "no activity".
+ */
+export const getDashboardState = async (monthKey) => {
+  const token = await readToken();
+  if (!token) return { status: "unauthorized" };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${stateUrl()}?month=${encodeURIComponent(monthKey)}`, {
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) return { status: "unauthorized" };
+    if (!res.ok) return { status: "failed", httpStatus: res.status };
+    return { status: "ok", state: await res.json() };
+  } catch (err) {
+    return { status: "failed", error: err?.message || String(err) };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+/**
+ * Write the account's summed activity into local analytics, where the
+ * Dashboard reads from.
+ *
+ * Day rows are OVERWRITTEN with the server's sum — the sum already includes
+ * this device, whose rows were pushed just before this ran — but only for days
+ * before today. Today's row is still being written by this device and is
+ * pushed as this device's own figure; holding the account's total in it would
+ * send every other device's minutes back up under this device's name.
+ *
+ * The rows written here carry `updated_at = 0`, which the activity push
+ * excludes outright, so they can never be mistaken for new local work and
+ * sent back up under this device's name.
+ *
+ * The account's total for TODAY is recorded (see DASHBOARD_ACCOUNT_TODAY_KEY)
+ * so the streak can count a day another device read. The server's own streak
+ * count is deliberately NOT adopted: it is a second opinion computed from a
+ * second rule, and with two writers the number flipped between them on every
+ * refresh. Days-active and the archived longest streak are set from the server
+ * — they are maxima over history this device may no longer hold.
+ */
+export const applyServerActivity = async (state, monthKey) => {
+  if (!state) return;
+  try {
+    const today = localDateKey();
+    const days = Object.entries(state.days || {}).filter(
+      ([date]) => date.startsWith(`${monthKey}-`) && date < today
+    );
+    await Promise.all(
+      days.map(([date, [r = 0, l = 0]]) =>
+        setDailyActivity({ date, reading_seconds: r, listening_seconds: l, updatedAt: 0 })
+      )
+    );
+    const [todayReading = 0, todayListening = 0] = state.days?.[today] ?? [];
+    await AsyncStorage.setItem(
+      DASHBOARD_ACCOUNT_TODAY_KEY,
+      JSON.stringify({ date: today, seconds: todayReading + todayListening })
+    );
+
+    const local = await getOrCreateSummary();
+    const fields = {};
+    // Floored, never assigned: these are lifetime figures, and the account's
+    // copy can be the smaller one — its day rows are archived after thirteen
+    // months, and a repair or a rule change can take rows away. A best streak
+    // or a days-active count that slides down reads as lost data, so the
+    // larger of the two stands. The same rule the snapshot restore follows.
+    if (state.streaks?.longest != null) {
+      fields.longest_streak = Math.max(state.streaks.longest, local?.longest_streak ?? 0);
+    }
+    if (state.totals?.daysActive != null) {
+      fields.total_days_active = Math.max(state.totals.daysActive, local?.total_days_active ?? 0);
+    }
+    const active = days
+      .filter(([, [r = 0, l = 0]]) => r > 0 || l > 0)
+      .map(([date]) => date)
+      .sort();
+    if (active.length) {
+      // Never backwards: this device may have been active today already.
+      const latest = active[active.length - 1];
+      const localLast = local?.last_active_date;
+      fields.last_active_date = localLast && localLast > latest ? localLast : latest;
+    }
+    if (Object.keys(fields).length) await updateSummary(fields);
+    if (state.totals) await raiseAllTimeBaseline(state.totals);
+  } catch (err) {
+    logError(new Error(`applyServerActivity failed: ${err?.message || err}`));
+  }
+};
+
 // Intended for a fresh install (empty analytics). Uses setDailyActivity
 // (overwrite, not additive) so a repeat restore before the next cloud push
 // (e.g. reinstalling twice) can't double-count a day — unlike upsertDailyActivity,
 // which real sessions use and which correctly accumulates multiple same-day
 // sessions.
+//
+// Every day row written here is stamped `updated_at = 0` — the mark for "this
+// came from the ACCOUNT, not from this device". The activity push skips those
+// rows, and that is load-bearing: the snapshot carries the account's totals,
+// already summed across devices, so a device that filed them as its own work
+// had them added to the other devices' rows on the server and the account's
+// figures doubled. Which they did, on every refresh where the push or the
+// state read failed and this path ran.
 export const seedAnalyticsFromSnapshot = async (payload, { merge = false } = {}) => {
   if (!payload) return;
   try {
@@ -282,7 +356,12 @@ export const seedAnalyticsFromSnapshot = async (payload, { merge = false } = {})
         month.days.map(async ([day, r = 0, l = 0]) => {
           const date = `${month.key}-${String(day).padStart(2, "0")}`;
           if (!merge) {
-            return setDailyActivity({ date, reading_seconds: r, listening_seconds: l });
+            return setDailyActivity({
+              date,
+              reading_seconds: r,
+              listening_seconds: l,
+              updatedAt: 0,
+            });
           }
           // MERGE (a refresh pull, not a bootstrap): take the larger of the two
           // rather than the incoming one.
@@ -305,6 +384,12 @@ export const seedAnalyticsFromSnapshot = async (payload, { merge = false } = {})
             date,
             reading_seconds: Math.max(r, local?.reading_seconds ?? 0),
             listening_seconds: Math.max(l, local?.listening_seconds ?? 0),
+            // The row keeps the stamp it had rather than being marked as work
+            // done now: reading this device did and has not pushed yet must
+            // still go up, and the account's own numbers must not go up AGAIN
+            // under this device's name. A day the device never recorded starts
+            // at 0 — the account's, not ours.
+            updatedAt: local?.updated_at ?? 0,
           });
         })
       );
@@ -324,8 +409,13 @@ export const seedAnalyticsFromSnapshot = async (payload, { merge = false } = {})
     const pick = (incoming, localValue) => (merge ? Math.max(incoming, localValue ?? 0) : incoming);
 
     const fields = {};
-    if (streaks?.current != null) {
-      fields.current_streak = pick(streaks.current, localSummary?.current_streak);
+    // On a BOOTSTRAP the snapshot is all there is, so its streak stands until
+    // the engine recomputes. On a refresh it is not written at all: it is a
+    // DERIVED number, computeStreaks rebuilds it from the day rows on every
+    // Dashboard visit, and flooring it at a snapshot's copy is what kept a
+    // lapsed streak alive — the number could go up and never come down.
+    if (!merge && streaks?.current != null) {
+      fields.current_streak = streaks.current;
     }
     if (streaks?.longest != null) {
       fields.longest_streak = pick(streaks.longest, localSummary?.longest_streak);
@@ -371,19 +461,6 @@ export const seedAnalyticsFromSnapshot = async (payload, { merge = false } = {})
 };
 
 // ─── Push: build + POST the snapshot ─────────────────────────────────────────
-// The app stores reminder times as "h:mm A"; the contract wants 24h "HH:mm".
-const to24h = (t) => {
-  const m = String(t || "")
-    .trim()
-    .match(/^(\d{1,2}):(\d{2})\s*([ap]m)?$/i);
-  if (!m) return t;
-  let hr = Number(m[1]);
-  const meridiem = m[3] ? m[3].toLowerCase() : "";
-  if (meridiem === "pm" && hr < 12) hr += 12;
-  if (meridiem === "am" && hr === 12) hr = 0;
-  return `${String(hr).padStart(2, "0")}:${m[2]}`;
-};
-
 // Builds the POST /dashboard/cache body from Redux state + analytics. version and
 // deviceId are passed in (gathered via react-native-device-info at the call site) so
 // this stays unit-testable without native modules.
@@ -479,7 +556,13 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
       completed: trimmedCompleted,
       completedCount: nitnemCompletedCount,
     },
-    profile: { name: state.userProfile?.name ?? "" },
+    // `modifiedAt` per preference block: the clock of this device's last
+    // edit, so another device can adopt only the block that is actually
+    // newer than its own instead of guessing from when snapshots were pushed.
+    profile: {
+      name: state.userProfile?.name ?? "",
+      modifiedAt: state.userProfile?.modifiedAt ?? 0,
+    },
     reminders: {
       enabled: !!state.isReminders,
       sound: state.reminderSound || "",
@@ -488,6 +571,7 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
     layout: {
       order: state.dashboardLayout?.order ?? [],
       hidden: state.dashboardLayout?.hidden ?? [],
+      modifiedAt: state.dashboardLayout?.modifiedAt ?? 0,
     },
   };
 

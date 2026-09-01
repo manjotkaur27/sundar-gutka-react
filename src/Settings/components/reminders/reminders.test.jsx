@@ -105,6 +105,21 @@ describe("enabling reminders", () => {
     expect(mockShowConfirm).not.toHaveBeenCalled();
   });
 
+  // With an account the list may have been built on another phone; switching
+  // on here must schedule it, not replace it with the defaults (which the
+  // sync layer would carry to every device as deletions).
+  it("keeps the reminders already there and only schedules them", async () => {
+    const list = JSON.stringify([{ key: 4, id: 4, time: "5:45 AM", enabled: true }]);
+    mockState = { ...mockState, reminderBanis: list };
+    mockCheckPermissions.mockResolvedValue(true);
+    mockCanScheduleExactAlarms.mockResolvedValue(true);
+    await tapToggle();
+    expect(enabledDispatches()).toHaveLength(1);
+    expect(mockSetDefaultReminders).not.toHaveBeenCalled();
+    const { scheduleReminders } = jest.requireMock("@common");
+    expect(scheduleReminders).toHaveBeenCalledWith(true, "default", list);
+  });
+
   it("explains a missing notification permission in the app's own dialog and stays off", async () => {
     mockCheckPermissions.mockResolvedValue(false);
     await tapToggle();

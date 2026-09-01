@@ -195,7 +195,18 @@ export const upsertDailyActivity = async ({
 // where the incoming numbers are already the day's true total, not a delta.
 // Using the additive upsertDailyActivity here would double-count on a second
 // restore of the same day (e.g. a repeat reinstall before the next cloud push).
-export const setDailyActivity = async ({ date, reading_seconds = 0, listening_seconds = 0 }) => {
+//
+// `updatedAt: 0` marks a row written from the ACCOUNT's summed activity rather
+// than by this device. getActivityUpdatedSince never returns such a row, so
+// the account's total can never be sent back up as this device's own work —
+// which would have every other device's minutes counted twice, and doubled
+// again on every pull after that.
+export const setDailyActivity = async ({
+  date,
+  reading_seconds = 0,
+  listening_seconds = 0,
+  updatedAt = null,
+}) => {
   const reading = reading_seconds;
   const listening = listening_seconds;
   const total = reading + listening;
@@ -205,14 +216,14 @@ export const setDailyActivity = async ({ date, reading_seconds = 0, listening_se
               reading_seconds   = ?,
               listening_seconds = ?,
               total_seconds     = ?,
-              updated_at        = strftime('%s','now')
+              updated_at        = COALESCE(?, strftime('%s','now'))
             WHERE date = ?`,
-      params: [reading, listening, total, date],
+      params: [reading, listening, total, updatedAt, date],
     },
     {
       sql: `INSERT INTO daily_activity (date, reading_seconds, listening_seconds, total_seconds, updated_at)
-            VALUES (?, ?, ?, ?, strftime('%s','now'))`,
-      params: [date, reading, listening, total],
+            VALUES (?, ?, ?, ?, COALESCE(?, strftime('%s','now')))`,
+      params: [date, reading, listening, total, updatedAt],
     }
   );
 };
@@ -242,6 +253,22 @@ export const getDayActivity = async (date) => {
 // this list instead of the stored counter, so one query replaces one-query-per-
 // day-walked-backwards; even a multi-year daily reader is a few hundred short
 // strings, and non-qualifying days never leave SQLite.
+/**
+ * The newest day with ANY activity recorded, or null when the table is empty.
+ *
+ * Distinct from `getQualifyingDates`, which answers a different question — the
+ * days long enough to count as practice. This one is "how far does the history
+ * reach", which is what tells a short day apart from a missing one.
+ */
+export const getLatestActivityDate = async () => {
+  const result = await runQuery(
+    `SELECT date FROM daily_activity
+       WHERE (reading_seconds + listening_seconds) > 0
+       ORDER BY date DESC LIMIT 1`
+  );
+  return rowsToArray(result)[0]?.date ?? null;
+};
+
 export const getQualifyingDates = async (minActiveSeconds) => {
   const result = await runQuery(
     // Sums the two columns rather than reading `total_seconds`, so the rule
@@ -279,9 +306,15 @@ export const getDailyActivity = async (year, month) => {
 // `date` with no `id`, so `markSynced` (which clears by id) cannot address it.
 // A timestamp watermark needs no write-back at all, and the endpoint replaces
 // rather than accumulates, so re-sending a day is free.
+//
+// `updated_at = 0` rows are the account's summed days written back by a pull
+// (see setDailyActivity) and are never this device's to send, whatever the
+// watermark says — a watermark of 0 must not sweep them up either.
 export const getActivityUpdatedSince = async (unixSeconds) => {
   const result = await runQuery(
-    `SELECT * FROM daily_activity WHERE updated_at >= ? ORDER BY date ASC LIMIT 400`,
+    `SELECT * FROM daily_activity
+       WHERE updated_at > 0 AND updated_at >= ?
+       ORDER BY date ASC LIMIT 400`,
     [Math.floor(unixSeconds)]
   );
   return rowsToArray(result);

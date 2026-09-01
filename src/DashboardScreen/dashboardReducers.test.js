@@ -36,7 +36,7 @@ const init = () => rootReducer(undefined, { type: "@@INIT" });
 describe("Dashboard redesign reducers", () => {
   it("userProfile defaults to empty name and updates via setUserProfile", () => {
     const state0 = init();
-    expect(state0.userProfile).toEqual({ name: "" });
+    expect(state0.userProfile).toEqual({ name: "", modifiedAt: 0 });
 
     const state1 = rootReducer(state0, actions.setUserProfile({ name: "Harpreet Kaur" }));
     expect(state1.userProfile.name).toBe("Harpreet Kaur");

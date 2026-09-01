@@ -146,3 +146,16 @@ export const MERGE_REMOTE_POTHIS = "MERGE_REMOTE_POTHIS";
 export const SET_POTHIS_SYNCED_AT = "SET_POTHIS_SYNCED_AT";
 // One tombstone retired, after DELETE /folders/:id came back 204.
 export const POTHI_DELETE_SYNCED = "POTHI_DELETE_SYNCED";
+// The server watermark from the last folders read, sent back as `since`.
+export const SET_POTHI_SYNC_WATERMARK = "SET_POTHI_SYNC_WATERMARK";
+// "Replace with cloud copy": local pothis give way to the account's.
+
+// Sync outbox — changes to account data waiting to reach the server.
+export const ENQUEUE_SYNC_OP = "ENQUEUE_SYNC_OP";
+export const SYNC_OP_SENDING = "SYNC_OP_SENDING";
+export const SYNC_OP_DONE = "SYNC_OP_DONE";
+export const SYNC_OP_FAILED = "SYNC_OP_FAILED";
+export const CLEAR_SYNC_FEATURE = "CLEAR_SYNC_FEATURE";
+
+// Reminder sync bookkeeping: per-reminder clocks, tombstones, server bases.
+export const MERGE_REMINDER_SYNC_META = "MERGE_REMINDER_SYNC_META";

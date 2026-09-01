@@ -56,15 +56,25 @@ const mockHash = jest.fn(() => {
   return `h${mockHashSeq}`;
 });
 
+const mockGetState = jest.fn(async () => ({ status: "failed" }));
+const mockApplyActivity = jest.fn(async () => {});
+const mockPushActivity = jest.fn(async () => ({ ok: true }));
 jest.mock("./dashboardSync", () => ({
   getDashboardSnapshot: (...a) => mockGetSnapshot(...a),
+  getDashboardState: (...a) => mockGetState(...a),
   applyDashboardRestore: (...a) => mockApplyRestore(...a),
+  applyServerActivity: (...a) => mockApplyActivity(...a),
   seedAnalyticsFromSnapshot: (...a) => mockSeed(...a),
   buildCachePayload: (...a) => mockBuildPayload(...a),
   pushDashboardCache: (...a) => mockPush(...a),
+  buildActivityPayload: async ({ deviceId }) => ({ deviceId, days: [] }),
+  pushDailyActivity: (...a) => mockPushActivity(...a),
   hashPayload: (...a) => mockHash(...a),
   isEmptySnapshot: (...a) => mockIsEmpty(...a),
 }));
+
+const mockSyncAll = jest.fn(async () => true);
+jest.mock("../sync/syncRegistry", () => ({ syncAll: (...a) => mockSyncAll(...a) }));
 
 let mockOnline = true;
 jest.mock("@common", () => ({
@@ -150,6 +160,8 @@ beforeEach(() => {
   mockReduxState.isReminders = false;
   mockReduxState.reminderSound = "default";
   mockGetSnapshot.mockResolvedValue({ status: "empty" });
+  mockGetState.mockResolvedValue({ status: "failed" });
+  mockPushActivity.mockResolvedValue({ ok: true });
 });
 
 afterEach(() => {
@@ -504,7 +516,10 @@ describe("adopting preferences on a refresh", () => {
     expect(mockApplyRestore).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ preferences: true, reschedule: true })
+      expect.objectContaining({
+        preferences: true,
+        local: expect.objectContaining({ layoutModifiedAt: expect.any(Number) }),
+      })
     );
   });
 
@@ -520,7 +535,7 @@ describe("adopting preferences on a refresh", () => {
     expect(mockApplyRestore).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ preferences: false, reschedule: false })
+      expect.objectContaining({ preferences: false })
     );
   });
 
@@ -846,5 +861,82 @@ describe("refusing to overwrite the account with nothing", () => {
 
     releaseRestore?.([]);
     mockApplyRestore.mockImplementation(async () => []);
+  });
+});
+
+describe("the other account features ride along with the dashboard's sync", () => {
+  it("reconciles reminders and pothis on the sign-in pull", async () => {
+    mount();
+    await flush();
+    expect(mockSyncAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles them on pull-to-refresh as well", async () => {
+    mockStorageMap.set(DASHBOARD_RESTORED_KEY, "1");
+    mount();
+    await flush();
+    mockSyncAll.mockClear();
+    await act(async () => {
+      await requestPull("pull-to-refresh");
+    });
+    expect(mockSyncAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("never runs them while signed out", async () => {
+    mockAuthState = { status: "signedOut", user: null };
+    mount();
+    await flush();
+    expect(mockSyncAll).not.toHaveBeenCalled();
+  });
+});
+
+describe("history from the server's summed activity rows", () => {
+  const snapshot = { status: "ok", payload: { streaks: {} }, syncedAt: "2026-08-18T09:00:00.000Z" };
+  const state = { totals: {}, streaks: { current: 1, longest: 1 }, days: {} };
+
+  it("pushes this device's pending rows first, then applies the sum instead of the snapshot's days", async () => {
+    const order = [];
+    mockPushActivity.mockImplementation(async () => {
+      order.push("push");
+      return { ok: true };
+    });
+    mockGetState.mockImplementation(async () => {
+      order.push("state");
+      return { status: "ok", state };
+    });
+    mockGetSnapshot.mockResolvedValue(snapshot);
+    mount();
+    await flush();
+    await flush();
+    // The bootstrap then pushes the merged snapshot, which carries its own
+    // activity push; the order that matters is the first two.
+    expect(order.slice(0, 2)).toEqual(["push", "state"]);
+    expect(mockApplyActivity).toHaveBeenCalledWith(state, expect.stringMatching(/^\d{4}-\d{2}$/));
+    // The snapshot is applied FIRST and the server's exact sums laid over it,
+    // so a day only the snapshot remembers survives and a day the server knows
+    // is exact.
+    expect(mockSeed).toHaveBeenCalledWith({ streaks: {} }, { merge: true });
+  });
+
+  it("still applies the snapshot when the rows cannot be read", async () => {
+    mockGetState.mockResolvedValue({ status: "failed" });
+    mockGetSnapshot.mockResolvedValue(snapshot);
+    mount();
+    await flush();
+    await flush();
+    expect(mockApplyActivity).not.toHaveBeenCalled();
+    expect(mockSeed).toHaveBeenCalledWith({ streaks: {} }, { merge: true });
+  });
+
+  it("does not overwrite local days with a sum that is missing this device's unpushed rows", async () => {
+    mockPushActivity.mockResolvedValue({ ok: false, status: 500 });
+    mockGetState.mockResolvedValue({ status: "ok", state });
+    mockGetSnapshot.mockResolvedValue(snapshot);
+    mount();
+    await flush();
+    await flush();
+    expect(mockGetState).not.toHaveBeenCalled();
+    expect(mockApplyActivity).not.toHaveBeenCalled();
+    expect(mockSeed).toHaveBeenCalledWith({ streaks: {} }, { merge: true });
   });
 });

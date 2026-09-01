@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
+import { isTransientStatus } from "@service/khalisRequest";
 import { deleteFolder, fetchFolders, putFolders } from "@service/pothiApi";
+import {
+  OUTCOME_DONE,
+  OUTCOME_FATAL,
+  OUTCOME_RETRY,
+  registerSyncFeature,
+} from "@service/sync/syncRegistry";
 import { buildDefaultPothis } from "@common/pothi/defaults";
 import { toUpsertBody } from "@common/pothi/model";
-import createPothiSyncQueue from "@common/pothi/syncQueue";
 import { actions, logMessage, STRINGS } from "@common";
 
-// Keeps My Pothi in step with the account, and seeds the two default pothis.
+// Keeps My Pothi in step with the account — and with every other device
+// signed into it — and seeds the two default pothis.
 //
 // ── Signed out is read-only ────────────────────────────────────────────────
 // Signed-out browsing shows exactly Morning and Evening Nitnem — see the
@@ -20,47 +27,49 @@ import { actions, logMessage, STRINGS } from "@common";
 // sso/accountScope. NOT on sign-out: the same account coming back, offline,
 // keeps the pothis it already had.
 //
-// ── Local-first ONCE signed in ─────────────────────────────────────────────
-// Every edit still lands in redux (and redux-persist) first and syncs
-// afterwards, so an edit made offline is not lost — it queues and pushes once
-// the connection returns. `mergeRemote` resolves per FOLDER by `updatedAt`, so
-// two devices editing different pothis both keep their edit.
+// ── Local-first, through the outbox ────────────────────────────────────────
+// Every edit lands in redux (and redux-persist) first. The change is then
+// queued in the persisted outbox (see common/sync/outboxModel) as one
+// `put` of the whole source — coalesced, so a burst of edits is one upload —
+// and one `delete` per removed pothi. The outbox drains them in order,
+// retries them with backoff when the network is away, and survives the app
+// being killed, which the old in-memory queue did not.
 //
-// ── Why a debounce ────────────────────────────────────────────────────────
-// The API replaces a whole source per PUT — there is no per-folder write — so
-// every keystroke-level change would otherwise re-upload every folder. Changes
-// are coalesced and pushed once things settle.
+// ── Two devices ────────────────────────────────────────────────────────────
+// The server merges per FOLDER, newest wins, and tells this device two
+// things it could not know before: `deletedFolderIds` — pothis another device
+// deleted since this one last read (so a deletion finally propagates) — and
+// `rejectedFolderIds` — pothis whose upload lost to a newer copy from another
+// device (so this device adopts that copy instead of believing its own).
+export const FEATURE = "pothis";
+const PUT_KEY = "mypothi";
+
+// The API replaces a whole source per PUT, so a rename typed one letter at a
+// time would otherwise re-upload every folder per keystroke. The outbox
+// coalesces, but the drain runs at once; this holds the enqueue until the
+// edit settles.
 const PUSH_DEBOUNCE_MS = 2500;
 
 const usePothiSync = () => {
+  const store = useStore();
   const dispatch = useDispatch();
   const pothis = useSelector((state) => state.pothis);
   const isSignedIn = useSelector((state) => state.auth?.status === "signedIn");
   const baniList = useSelector((state) => state.baniList);
 
-  const pulledFor = useRef(null);
-  // Lets the delete handler re-pull without `pull` having to be a dependency
-  // of the effect that queues deletes.
-  const pullRef = useRef(null);
   // The `pothis` object already dispatched a seed for — not a boolean, so it
   // guards the gap between dispatching and the next render reflecting
   // `seededDefaults` WITHOUT permanently blocking a later, legitimate reseed.
-  // A plain boolean latch trips on the hook instance's first seed and stays
-  // true for the process lifetime, so any later reset of the slice could never
-  // be reseeded and the Folders tab stayed empty until relaunch. Comparing by
-  // reference means a genuinely NEW `pothis` object is never equal to what was
-  // already seeded, so it reseeds correctly.
   const seededFor = useRef(null);
-  const queue = useRef(createPothiSyncQueue()).current;
+  // What was last handed to the outbox, so an unchanged state is not queued
+  // again on every render.
+  const lastEnqueued = useRef(null);
   const queuedDeletes = useRef(new Set());
-  // The last body actually accepted by the server, so an unchanged state does
-  // not re-upload on every render.
-  const lastPushed = useRef(null);
-  // Whether the first pull of this sign-in has landed.
-  //
-  // State, not a ref, because the push effect has to re-run the moment it flips
-  // — a ref would leave a pending change unpushed until the next edit.
+  // Whether the first pull of this sign-in has landed. State, not a ref: the
+  // enqueue effect must re-run the moment it flips.
   const [pullDone, setPullDone] = useState(false);
+  const signedInRef = useRef(isSignedIn);
+  signedInRef.current = isSignedIn;
 
   // ── Seed the two default pothis, once per signed-out period ─────────────
   //
@@ -76,11 +85,6 @@ const usePothiSync = () => {
   useEffect(() => {
     if (isSignedIn) return;
     if (!pothis || pothis.seededDefaults || seededFor.current === pothis) return;
-    // Nothing to seed onto a slice that already holds folders. After an
-    // account purge `seededDefaults` is false again — the purge resets the
-    // slice and `mergeRemote` carries the flag through unchanged — so without
-    // this the next SIGN-OUT seeded a second Morning/Evening pair on top of
-    // the account's own and repointed Today's Nitnem at the empty new one.
     if (pothis.folders?.length) return;
     const defaults = buildDefaultPothis(baniList, {
       morning: STRINGS.POTHI_DEFAULT_MORNING,
@@ -94,112 +98,123 @@ const usePothiSync = () => {
     dispatch(actions.seedDefaultPothis(defaults));
   }, [isSignedIn, pothis, baniList, dispatch]);
 
-  // ── Pull once per sign-in ───────────────────────────────────────────────
-  // Queued alongside the pushes and deletes. Unqueued, a pull could resolve in
-  // the middle of a push and merge a server list that predates it.
+  // ── Pull: the account's folders, and what it deleted since we last looked ─
+  const applyRead = useCallback(
+    (data) => {
+      dispatch(actions.mergeRemotePothis(data?.folders ?? [], data?.deletedFolderIds ?? []));
+      if (data?.syncedAt) dispatch(actions.setPothiSyncWatermark(data.syncedAt));
+    },
+    [dispatch]
+  );
+
   const pull = useCallback(async () => {
-    const result = await queue(() => fetchFolders());
+    if (!signedInRef.current) return false;
+    const since = store.getState().pothis?.syncWatermark ?? 0;
+    const result = await fetchFolders(since);
     if (!result.ok) {
-      // The API answers 404 — not an empty list — when a user has no folders
-      // (folders.service `get` throws NotFoundException on zero rows). That is
-      // an authoritative "nothing there", so it counts as a completed pull;
-      // treating it as an error would block pushing forever once the user
-      // deleted their last pothi.
-      if (result.status === 404) {
-        dispatch(actions.mergeRemotePothis([]));
-        setPullDone(true);
-        return;
-      }
       logMessage(`usePothiSync: pull failed (${result.error ?? result.status})`);
-      return;
+      return false;
     }
-    // NOT setPothisSyncedAt here: that clears the tombstones, and a pull has
-    // not yet told the server about them. Only a successful PUSH may do it.
-    dispatch(actions.mergeRemotePothis(result.data?.folders ?? []));
+    applyRead(result.data);
     setPullDone(true);
-  }, [dispatch, queue]);
+    return true;
+  }, [store, applyRead]);
 
-  pullRef.current = pull;
+  // ── Bulk reconcile: pull, then push what we hold, then take the answer ────
+  const reconcile = useCallback(async () => {
+    if (!(await pull())) return false;
+    const body = toUpsertBody(store.getState().pothis);
+    if (body.folders.length === 0) return true;
+    const result = await putFolders(body);
+    if (!result.ok) {
+      logMessage(`usePothiSync: reconcile push failed (${result.error ?? result.status})`);
+      return false;
+    }
+    lastEnqueued.current = JSON.stringify(body);
+    applyRead(result.data);
+    dispatch(actions.setPothisSyncedAt(new Date().toISOString()));
+    return true;
+  }, [pull, store, dispatch, applyRead]);
 
+  // ── One outbox op ─────────────────────────────────────────────────────────
+  const drain = useCallback(
+    async (op) => {
+      const outcomeFor = (res) => {
+        if (res.ok) return OUTCOME_DONE;
+        if (res.status === 401 || isTransientStatus(res.status)) return OUTCOME_RETRY;
+        return OUTCOME_FATAL;
+      };
+      if (op.kind === "put") {
+        // Built at send time, not enqueue time: the freshest state is what
+        // should go up, and a stale payload would only lose to itself.
+        const body = toUpsertBody(store.getState().pothis);
+        const result = await putFolders(body);
+        if (!result.ok) return outcomeFor(result);
+        lastEnqueued.current = JSON.stringify(body);
+        dispatch(actions.setPothisSyncedAt(new Date().toISOString()));
+        const rejected = result.data?.rejectedFolderIds ?? [];
+        if (rejected.length) {
+          // Another device wrote those pothis more recently. The response
+          // already carries the winning copies; adopting them here is the
+          // reconcile, so no separate round trip is needed.
+          logMessage(`usePothiSync: ${rejected.length} pothi(s) superseded by another device`);
+        }
+        applyRead(result.data);
+        return OUTCOME_DONE;
+      }
+      if (op.kind === "delete") {
+        const result = await deleteFolder(op.key);
+        // 204 says the row is gone right now; the tombstone is retired only
+        // when a later read confirms it (see mergeRemote), so a stale upload
+        // from elsewhere cannot bring the pothi back unnoticed.
+        if (result.ok || result.status === 404) return OUTCOME_DONE;
+        return outcomeFor(result);
+      }
+      return OUTCOME_FATAL;
+    },
+    [store, dispatch, applyRead]
+  );
+
+  useEffect(() => registerSyncFeature(FEATURE, { drain, reconcile }), [drain, reconcile]);
+
+  // ── Sign-out forgets the pull; the next reconcile (dashboard sync) redoes it ─
   useEffect(() => {
     if (!isSignedIn) {
-      // Signing out only forgets that we pulled — nothing is cleared and no
-      // native or storage work is done here, so the sign-out path itself is
-      // untouched by this feature. The pothis stay on the device exactly as
-      // they were before signing in.
-      pulledFor.current = null;
+      // Signing out only forgets that we pulled — nothing is cleared. The
+      // pothis stay on the device exactly as they were before signing in.
       setPullDone(false);
-      // Belongs to the account that just left. Kept, the next account's first
-      // identical body would be mistaken for already-uploaded and skipped.
-      lastPushed.current = null;
-      return;
+      lastEnqueued.current = null;
+      queuedDeletes.current.clear();
     }
-    if (pulledFor.current) return;
-    pulledFor.current = true;
-    pull();
-  }, [isSignedIn, pull]);
+  }, [isSignedIn]);
 
-  // ── Deletions go up immediately ─────────────────────────────────────────
-  //
-  // NOT left to the debounced whole-source PUT. That waits 2.5s and loses the
-  // race against a pull, which is how a deleted pothi came back — and if the
-  // app closed inside the window the server never heard about it at all.
-  // DELETE /folders/:id is idempotent, so a repeat is harmless.
+  // ── Deletions go to the outbox at once ────────────────────────────────────
   const buried = pothis?.deletedIds;
   useEffect(() => {
     if (!isSignedIn || !buried?.length) return;
     buried.forEach((id) => {
       if (queuedDeletes.current.has(id)) return;
       queuedDeletes.current.add(id);
-      queue(() => deleteFolder(id))
-        .then((result) => {
-          // The tombstone is NOT retired here. 204 only says the row is gone
-          // right now; another client can PUT its stale list a moment later and
-          // bring it back. `mergeRemote` retires it when a pull shows the
-          // server genuinely no longer has the id.
-          if (!result.ok && result.status !== 404) {
-            logMessage(`usePothiSync: delete ${id} failed (${result.error ?? result.status})`);
-            return;
-          }
-          // Confirm against the server rather than assume.
-          pullRef.current?.();
-        })
-        .finally(() => queuedDeletes.current.delete(id));
+      dispatch(actions.enqueueSyncOp({ feature: FEATURE, kind: "delete", key: id }));
     });
-  }, [isSignedIn, buried, dispatch, queue]);
+  }, [isSignedIn, buried, dispatch]);
 
-  // ── Push on change, debounced ───────────────────────────────────────────
+  // ── Edits go to the outbox once they settle ───────────────────────────────
   //
-  // Nothing may be pushed before the first pull of this sign-in has landed.
-  // `lastPushed` is empty on a cold start, so the persisted list was otherwise
-  // uploaded ~2.5s after launch — beating the pull on any slow network and
-  // re-creating every folder another client had deleted while the app was
-  // closed. Since `PUT /folders` is a whole-source replace with no revision
-  // check, that upload wins outright. This is the resurrection seen after a
-  // force-stop, and it is the app's own half of the bug.
+  // Nothing is queued before the first pull of this sign-in has landed: the
+  // persisted list would otherwise go up ~2.5s after launch, ahead of the
+  // pull on any slow network, and re-create every folder another device had
+  // deleted while the app was closed.
   useEffect(() => {
     if (!isSignedIn || !pothis || !pullDone) return undefined;
-    const body = toUpsertBody(pothis);
-    const serialised = JSON.stringify(body);
-    if (serialised === lastPushed.current) return undefined;
-
+    const serialised = JSON.stringify(toUpsertBody(pothis));
+    if (serialised === lastEnqueued.current) return undefined;
     const timer = setTimeout(() => {
-      queue(() => putFolders(body)).then((result) => {
-        if (!result.ok) {
-          // Left unrecorded on purpose: the next change retries, and a failed
-          // upload must not be mistaken for a successful one.
-          logMessage(`usePothiSync: push failed (${result.error ?? result.status})`);
-          return;
-        }
-        lastPushed.current = serialised;
-        dispatch(actions.setPothisSyncedAt(new Date().toISOString()));
-      });
+      lastEnqueued.current = serialised;
+      dispatch(actions.enqueueSyncOp({ feature: FEATURE, kind: "put", key: PUT_KEY }));
     }, PUSH_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [isSignedIn, pothis, pullDone, dispatch, queue]);
+    return () => clearTimeout(timer);
+  }, [isSignedIn, pothis, pullDone, dispatch]);
 
   return { pull };
 };

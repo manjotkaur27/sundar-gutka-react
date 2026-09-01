@@ -6,10 +6,13 @@
  *    reminder times to "h:mm A", and only reschedules when asked.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as analytics from "../../database/analytics";
 import {
   getDashboardLatest,
+  getDashboardState,
   applyDashboardRestore,
+  applyServerActivity,
   seedAnalyticsFromSnapshot,
   buildCachePayload,
 } from "./dashboardSync";
@@ -60,8 +63,10 @@ jest.mock("../../database/analytics", () => ({
   getRecentReadBanis: jest.fn(),
   getRecentListenedBanis: jest.fn(),
   getAllTimeTotals: jest.fn(),
+  getDayActivity: jest.fn(),
   setDailyActivity: jest.fn(),
   updateSummary: jest.fn(),
+  raiseAllTimeBaseline: jest.fn(),
 }));
 
 beforeEach(() => jest.clearAllMocks());
@@ -130,17 +135,11 @@ describe("applyDashboardRestore", () => {
     const dispatch = jest.fn();
     const applied = await applyDashboardRestore(samplePayload, dispatch);
 
-    expect(applied).toEqual(expect.arrayContaining(["profile", "layout", "nitnem", "reminders"]));
+    expect(applied).toEqual(expect.arrayContaining(["profile", "layout", "nitnem"]));
 
     const types = dispatch.mock.calls.map((c) => c[0].type);
     expect(types).toEqual(
-      expect.arrayContaining([
-        "SET_USER_PROFILE",
-        "SET_DASHBOARD_LAYOUT",
-        "RESTORE_NITNEM",
-        "SET_REMINDER_BANIS",
-        "TOGGLE_REMINDERS",
-      ])
+      expect.arrayContaining(["SET_USER_PROFILE", "SET_DASHBOARD_LAYOUT", "RESTORE_NITNEM"])
     );
 
     const nitnem = dispatch.mock.calls.find((c) => c[0].type === "RESTORE_NITNEM")[0].value;
@@ -151,49 +150,18 @@ describe("applyDashboardRestore", () => {
     expect(nitnem.selectedBaniIds).toBeUndefined();
   });
 
-  it("converts 24h reminder times to h:mm A", async () => {
+  // Reminders sync as rows of their own through /reminders now (see
+  // services/reminders). The snapshot still carries them for older app
+  // versions, but this version must never apply them — a later snapshot from
+  // one phone would otherwise replace the other phone's whole list.
+  it("leaves the snapshot's reminders block alone", async () => {
     const dispatch = jest.fn();
-    await applyDashboardRestore(samplePayload, dispatch);
-    const json = dispatch.mock.calls.find((c) => c[0].type === "SET_REMINDER_BANIS")[0].value;
-    const items = JSON.parse(json);
-    expect(items[0].time).toBe("3:30 AM");
-    expect(items[1].time).toBe("6:00 PM");
-  });
-
-  it("resolves each reminder's bani names from the database, not the payload", async () => {
-    // The payload carries only baaniId. These three fields used to be written
-    // as empty strings, so a restored reminder showed a blank name in Settings
-    // and fired a notification with no title.
-    const dispatch = jest.fn();
-    await applyDashboardRestore(samplePayload, dispatch);
-    const json = dispatch.mock.calls.find((c) => c[0].type === "SET_REMINDER_BANIS")[0].value;
-    const [first] = JSON.parse(json);
-
-    expect(first.translit).toBe("Jaap Sahib");
-    expect(first.gurmukhi).toBe("jwpu swihb");
-    expect(first.title).toBe("Time for Jaap Sahib");
-  });
-
-  it("keeps the reminder when its bani is not in the database", async () => {
-    // baaniId 21 is absent from the mocked list. The TIME is what the user set,
-    // so it must survive; the Reminder Options screen backfills the name later.
-    const dispatch = jest.fn();
-    await applyDashboardRestore(samplePayload, dispatch);
-    const json = dispatch.mock.calls.find((c) => c[0].type === "SET_REMINDER_BANIS")[0].value;
-    const items = JSON.parse(json);
-
-    expect(items).toHaveLength(2);
-    expect(items[1].time).toBe("6:00 PM");
-    expect(items[1].translit).toBe("");
-  });
-
-  it("does not reschedule by default, but does when asked", async () => {
-    const dispatch = jest.fn();
-    await applyDashboardRestore(samplePayload, dispatch);
+    const applied = await applyDashboardRestore(samplePayload, dispatch, { reschedule: true });
+    expect(applied).not.toContain("reminders");
+    const types = dispatch.mock.calls.map((c) => c[0].type);
+    expect(types).not.toContain("SET_REMINDER_BANIS");
+    expect(types).not.toContain("TOGGLE_REMINDERS");
     expect(mockUpdateReminders).not.toHaveBeenCalled();
-
-    await applyDashboardRestore(samplePayload, dispatch, { reschedule: true });
-    expect(mockUpdateReminders).toHaveBeenCalledTimes(1);
   });
 
   it("is a no-op for a null payload (fresh account)", async () => {
@@ -229,6 +197,9 @@ describe("seedAnalyticsFromSnapshot", () => {
       date: "2025-06-01",
       reading_seconds: 120,
       listening_seconds: 0,
+      // Restored from the ACCOUNT, so the activity push must never file these
+      // seconds under this device — that is what doubled everyone's figures.
+      updatedAt: 0,
     });
     const fields = analytics.updateSummary.mock.calls[0][0];
     expect(fields).toMatchObject({
@@ -318,7 +289,13 @@ describe("buildCachePayload", () => {
     expect(p.totals.banisCompleted).toBe(540);
     expect(p.nitnem.selectedBaaniIds).toEqual([2, 3, 4]);
     expect(p.profile.name).toBe("Harpreet Kaur");
-    expect(p.layout).toEqual({ order: ["streak", "nitnem"], hidden: ["weekChart"] });
+    // Each preference block carries the clock of this device's last edit.
+    expect(p.profile.modifiedAt).toEqual(expect.any(Number));
+    expect(p.layout).toEqual({
+      order: ["streak", "nitnem"],
+      hidden: ["weekChart"],
+      modifiedAt: expect.any(Number),
+    });
     // App "h:mm A" → contract "HH:mm".
     expect(p.reminders.items).toEqual([
       { baaniId: 2, time: "03:30", enabled: true },
@@ -326,3 +303,208 @@ describe("buildCachePayload", () => {
     ]);
   });
 });
+
+describe("getDashboardState", () => {
+  it("asks for the month and hands back the server's summed state", async () => {
+    const state = { totals: { readingSeconds: 10 }, streaks: { current: 1, longest: 2 }, days: {} };
+    global.fetch = jest.fn().mockResolvedValue({ status: 200, ok: true, json: async () => state });
+    expect(await getDashboardState("2026-08")).toEqual({ status: "ok", state });
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toBe("http://api.test/dashboard/state?month=2026-08");
+    expect(opts.headers.Authorization).toBe("Bearer test.jwt.token");
+  });
+
+  it("keeps a failure distinguishable from an empty account", async () => {
+    global.fetch = jest.fn().mockResolvedValue({ status: 500, ok: false });
+    expect(await getDashboardState("2026-08")).toMatchObject({ status: "failed" });
+    global.fetch = jest.fn().mockRejectedValue(new Error("Network request failed"));
+    expect(await getDashboardState("2026-08")).toMatchObject({ status: "failed" });
+    global.fetch = jest.fn().mockResolvedValue({ status: 401, ok: false });
+    expect(await getDashboardState("2026-08")).toEqual({ status: "unauthorized" });
+  });
+
+  it("does not call the server without a session", async () => {
+    mockReadToken.mockResolvedValueOnce(null);
+    global.fetch = jest.fn();
+    expect(await getDashboardState("2026-08")).toEqual({ status: "unauthorized" });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyServerActivity", () => {
+  const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const dayKey = (d) => `${monthKey(d)}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // The clock is pinned mid-month. `applyServerActivity` writes only the days
+  // of the month it was asked for, so a test that says "yesterday" on the 1st
+  // is asking about a day the call is not meant to touch — it fails for a
+  // reason that has nothing to do with what it is checking.
+  const TODAY = new Date(2026, 7, 20, 10, 0, 0);
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(TODAY);
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("overwrites past days with the account's sum, marked so they are never re-pushed", async () => {
+    const today = new Date(TODAY);
+    const yesterday = new Date(2026, 7, 19);
+    const state = {
+      totals: { readingSeconds: 900, listeningSeconds: 0, daysActive: 7 },
+      streaks: { current: 3, longest: 9 },
+      days: { [dayKey(yesterday)]: [600, 30], [dayKey(today)]: [120, 0] },
+    };
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
+    await applyServerActivity(state, monthKey(today));
+
+    // Yesterday is written from the sum; today is this device's own row and
+    // is left alone.
+    expect(analytics.setDailyActivity).toHaveBeenCalledTimes(1);
+    expect(analytics.setDailyActivity).toHaveBeenCalledWith({
+      date: dayKey(yesterday),
+      reading_seconds: 600,
+      listening_seconds: 30,
+      updatedAt: 0,
+    });
+    expect(analytics.updateSummary).toHaveBeenCalledWith({
+      longest_streak: 9,
+      total_days_active: 7,
+      last_active_date: dayKey(yesterday),
+    });
+    expect(analytics.raiseAllTimeBaseline).toHaveBeenCalledWith(state.totals);
+  });
+
+  it("never lowers a lifetime figure the account can no longer prove", async () => {
+    // The account's day rows are archived after thirteen months, and a repair
+    // can remove rows — so the server's count is not always the bigger one. A
+    // best streak or a days-active total sliding down reads as lost data.
+    analytics.getOrCreateSummary.mockResolvedValue({
+      longest_streak: 12,
+      total_days_active: 90,
+      last_active_date: null,
+    });
+
+    await applyServerActivity(
+      { totals: { daysActive: 84 }, streaks: { longest: 9 }, days: {} },
+      monthKey(new Date(TODAY))
+    );
+
+    expect(analytics.updateSummary).toHaveBeenCalledWith({
+      longest_streak: 12,
+      total_days_active: 90,
+    });
+  });
+
+  it("still takes the account's figure when it is the larger one", async () => {
+    analytics.getOrCreateSummary.mockResolvedValue({
+      longest_streak: 3,
+      total_days_active: 10,
+      last_active_date: null,
+    });
+
+    await applyServerActivity(
+      { totals: { daysActive: 84 }, streaks: { longest: 9 }, days: {} },
+      monthKey(new Date(TODAY))
+    );
+
+    expect(analytics.updateSummary).toHaveBeenCalledWith({
+      longest_streak: 9,
+      total_days_active: 84,
+    });
+  });
+
+  it("never moves last_active_date backwards", async () => {
+    const today = new Date(TODAY);
+    const earlier = new Date(2026, 7, 17);
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: dayKey(today) });
+    await applyServerActivity(
+      { totals: {}, streaks: {}, days: { [dayKey(earlier)]: [10, 0] } },
+      monthKey(today)
+    );
+    expect(analytics.updateSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ last_active_date: dayKey(today) })
+    );
+  });
+
+  it("is a no-op for a missing state", async () => {
+    await applyServerActivity(null, "2026-08");
+    expect(analytics.setDailyActivity).not.toHaveBeenCalled();
+    expect(analytics.updateSummary).not.toHaveBeenCalled();
+  });
+});
+
+describe("seedAnalyticsFromSnapshot — the streak is derived, not restored", () => {
+  it("does not write the snapshot's streak on a refresh", async () => {
+    // A refresh used to floor current_streak at the snapshot's copy, so the
+    // number could go up and never come down — a lapsed streak stayed alive
+    // for ever. computeStreaks rebuilds it from the day rows instead.
+    analytics.getOrCreateSummary.mockResolvedValue({ current_streak: 2 });
+    await seedAnalyticsFromSnapshot(
+      {
+        month: { key: "2025-06", days: [[1, 120, 0]] },
+        streaks: { current: 14, longest: 31 },
+        totals: { daysActive: 88 },
+      },
+      { merge: true }
+    );
+    expect(analytics.updateSummary.mock.calls[0][0]).not.toHaveProperty("current_streak");
+  });
+
+  it("still restores it on a bootstrap, where the snapshot is all there is", async () => {
+    await seedAnalyticsFromSnapshot({
+      month: { key: "2025-06", days: [[1, 120, 0]] },
+      streaks: { current: 14, longest: 31 },
+      totals: { daysActive: 88 },
+    });
+    expect(analytics.updateSummary.mock.calls[0][0].current_streak).toBe(14);
+  });
+});
+
+describe("applyServerActivity — who owns the streak", () => {
+  const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const dayKey = (d) => `${monthKey(d)}-${String(d.getDate()).padStart(2, "0")}`;
+  it("does NOT adopt the server's own streak count", async () => {
+    // The server counts with its own rule and the app recomputes with the
+    // app's; with both writing, the number flipped between them on every
+    // refresh. The app's rule wins, applied to the account's seconds.
+    const today = new Date();
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
+
+    await applyServerActivity(
+      { totals: {}, streaks: { current: 5, longest: 9 }, days: {} },
+      monthKey(today)
+    );
+
+    const fields = analytics.updateSummary.mock.calls[0][0];
+    expect(fields).not.toHaveProperty("current_streak");
+    expect(fields.longest_streak).toBe(9);
+  });
+
+  it("records what the account did TODAY, for the streak to weigh", async () => {
+    // Today's row is never written from the server — it is still being
+    // recorded here — so this is the only way the streak learns that another
+    // device read today.
+    const today = new Date();
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
+
+    await applyServerActivity(
+      { totals: {}, streaks: {}, days: { [dayKey(today)]: [300, 60] } },
+      monthKey(today)
+    );
+
+    const stored = JSON.parse(await AsyncStorage.getItem("@dashboard_account_today_v1"));
+    expect(stored).toEqual({ date: dayKey(today), seconds: 360 });
+  });
+
+  it("records a zero when the account has done nothing today", async () => {
+    // So yesterday's answer cannot keep today alive.
+    const today = new Date();
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
+
+    await applyServerActivity({ totals: {}, streaks: {}, days: {} }, monthKey(today));
+
+    const stored = JSON.parse(await AsyncStorage.getItem("@dashboard_account_today_v1"));
+    expect(stored).toEqual({ date: dayKey(today), seconds: 0 });
+  });
+});

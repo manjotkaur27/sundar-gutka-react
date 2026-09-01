@@ -516,9 +516,14 @@ export const seedDefaultPothis = (pothis) => {
   return { type: actionTypes.SEED_DEFAULT_POTHIS, value: pothis };
 };
 
-export const mergeRemotePothis = (folders) => {
-  // folders: FolderDto[] straight from GET /folders
-  return { type: actionTypes.MERGE_REMOTE_POTHIS, value: folders };
+export const mergeRemotePothis = (folders, deletedFolderIds = []) => {
+  // folders: FolderDto[] straight from GET /folders; deletedFolderIds: the ids
+  // the server reports as deleted since this device's last read.
+  return { type: actionTypes.MERGE_REMOTE_POTHIS, value: folders, deletedFolderIds };
+};
+
+export const setPothiSyncWatermark = (syncedAt) => {
+  return { type: actionTypes.SET_POTHI_SYNC_WATERMARK, value: syncedAt };
 };
 
 export const pothiDeleteSynced = (id) => {
@@ -528,3 +533,24 @@ export const pothiDeleteSynced = (id) => {
 export const setPothisSyncedAt = (isoTimestamp) => {
   return { type: actionTypes.SET_POTHIS_SYNCED_AT, value: isoTimestamp };
 };
+
+// ── Sync outbox ────────────────────────────────────────────────────────────
+// op: { feature, kind, key, payload } — see common/sync/outboxModel.
+export const enqueueSyncOp = (op) => ({ type: actionTypes.ENQUEUE_SYNC_OP, payload: op });
+export const syncOpSending = (id) => ({ type: actionTypes.SYNC_OP_SENDING, payload: { id } });
+export const syncOpDone = (id) => ({ type: actionTypes.SYNC_OP_DONE, payload: { id } });
+export const syncOpFailed = (id, error) => ({
+  type: actionTypes.SYNC_OP_FAILED,
+  payload: { id, error },
+});
+export const clearSyncFeature = (feature) => ({
+  type: actionTypes.CLEAR_SYNC_FEATURE,
+  payload: { feature },
+});
+
+// patch: { clocks?, tombstones?, base?, removeTombstones?, removeClocks?,
+//          settingsUpdatedAt?, settingsBase?, lastSyncedAt?, replace? }
+export const mergeReminderSyncMeta = (patch) => ({
+  type: actionTypes.MERGE_REMINDER_SYNC_META,
+  payload: patch,
+});

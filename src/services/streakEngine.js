@@ -1,5 +1,12 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logError, constant } from "@common";
-import { getQualifyingDates, getOrCreateSummary, updateSummary } from "../database/analytics";
+import {
+  getLatestActivityDate,
+  getQualifyingDates,
+  getOrCreateSummary,
+  updateSummary,
+} from "../database/analytics";
+import { DASHBOARD_ACCOUNT_TODAY_KEY } from "./dashboard/syncKeys";
 import { getLocalDate, shiftDate } from "./streakDays";
 
 // Derives the streak from the `daily_activity` history on every run, rather
@@ -17,26 +24,66 @@ import { getLocalDate, shiftDate } from "./streakDays";
 // (or whether) the user visits the screen. It also heals historical damage:
 // the day rows were always written correctly, so the first run after this
 // change restores everyone's true streak.
+/**
+ * What the account did today on ANY device, or null.
+ *
+ * Today's day row is this device's own and is never overwritten from the
+ * server, so without this a phone that did not read today would end the
+ * streak even though the account read on the tablet. Written by
+ * applyServerActivity on every pull; a value left over from a previous day is
+ * ignored rather than trusted.
+ */
+const accountSecondsToday = async (today) => {
+  try {
+    const raw = await AsyncStorage.getItem(DASHBOARD_ACCOUNT_TODAY_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.date === today && Number.isFinite(parsed.seconds) ? parsed.seconds : 0;
+  } catch (_) {
+    // A convenience, never a dependency: the local rows still decide.
+    return 0;
+  }
+};
+
 export const computeStreaks = async () => {
   try {
     const today = getLocalDate();
     const summary = await getOrCreateSummary();
     if (!summary) return;
 
-    const dates = await getQualifyingDates(constant.MIN_DAILY_ACTIVE_SECONDS);
+    const [rows, newestRow, accountToday] = await Promise.all([
+      getQualifyingDates(constant.MIN_DAILY_ACTIVE_SECONDS),
+      getLatestActivityDate(),
+      accountSecondsToday(today),
+    ]);
+
+    // The account read enough today, even if this device did not — the same
+    // rule applied to the account's own total, so a phone and a tablet are
+    // judged exactly as one device is.
+    const accountReadToday = accountToday >= constant.MIN_DAILY_ACTIVE_SECONDS;
+    const dates = accountReadToday && rows[0] !== today ? [today, ...rows] : rows;
+    const newestDay = accountReadToday ? today : newestRow;
 
     // Nothing to derive from. On a fresh install the restore's day rows may not
     // have landed yet, and writing zeros here would wipe the streak the restore
     // just wrote. Leave the summary alone — the next focus recomputes.
-    if (dates.length === 0) return;
+    if (!newestDay) return;
 
-    const latest = dates[0];
+    // Newest day the history REACHES, and newest day that counts as practice.
+    // They are different questions and the difference is load-bearing: a day
+    // of one minute is history we have and a day that does not qualify.
+    const latest = dates[0] ?? null;
 
     // The summary claims activity on a day with no row behind it. That means a
     // restored snapshot carried a summary whose day history was truncated, so
     // the streak cannot be verified from history we do not have — better to
     // keep the restored number than to overwrite it with a known-short one.
-    if (summary.last_active_date && summary.last_active_date > latest) return;
+    //
+    // Measured against the newest ROW, not the newest QUALIFYING one. Against
+    // the latter, any recent day under the bar read as missing history and the
+    // recompute bailed out — so a lapsed streak stood for ever, and a phone
+    // whose last real reading was on Thursday still showed two days on Sunday
+    // because of a one-minute Friday.
+    if (summary.last_active_date && summary.last_active_date > newestDay) return;
 
     const qualified = new Set(dates);
 
@@ -76,7 +123,7 @@ export const computeStreaks = async () => {
     // floors below are applied against the freshest row so a restore arriving
     // mid-computation is preserved rather than clobbered by stale values.
     const fresh = (await getOrCreateSummary()) ?? summary;
-    if (fresh.last_active_date && fresh.last_active_date > latest) return;
+    if (fresh.last_active_date && fresh.last_active_date > newestDay) return;
 
     await updateSummary({
       current_streak: historyExhausted ? Math.max(current, fresh.current_streak ?? 0) : current,
@@ -84,7 +131,10 @@ export const computeStreaks = async () => {
       // device with a shorter local history must not erase a real achievement.
       longest_streak: Math.max(longest, fresh.longest_streak ?? 0),
       total_days_active: Math.max(dates.length, fresh.total_days_active ?? 0),
-      last_active_date: latest > (fresh.last_active_date ?? "") ? latest : fresh.last_active_date,
+      // Only a qualifying day may move this: it is the anchor the walk starts
+      // from, so a short day must not become the streak's last day.
+      last_active_date:
+        latest && latest > (fresh.last_active_date ?? "") ? latest : fresh.last_active_date,
     });
   } catch (err) {
     logError(new Error(`computeStreaks failed: ${err?.message || err}`));

@@ -16,8 +16,14 @@ import { constant } from "@common";
 
 // Ik Onkar and the opening of the Mool Mantar — real Gurbani, so the tile shows
 // what the theme actually does to the text people read.
+//
+// The Ik Onkar is the "<>" ligature of the Gurbani face, the same glyph the
+// home screen's invocation line draws: it is the one rendering with the full
+// elongated stroke over the onkar. The Unicode ੴ decomposes in that face and
+// flattens in Baloo, so the tile would otherwise show a different symbol from
+// the screen it sits two taps away from.
 const SAMPLE = {
-  heading: "ੴ",
+  heading: "<>",
   gurbani: "ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ",
   transliteration: "sat naam kartaa purakh",
   translation: "One Universal Creator, Truth is the Name",

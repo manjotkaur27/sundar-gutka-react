@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { paletteFor } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
-import usePothiSync from "@common/hooks/usePothiSync";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   actions,
@@ -48,8 +47,6 @@ const HomeScreen = React.memo(({ navigation }) => {
   const { openPothi, onPinLimit, creating, openCreate, closeCreate, onCreated } =
     usePothiActions(navigate);
   useDatabaseUpdateCheck();
-  // Seeds the two default pothis and keeps My Pothi in step with the account.
-  usePothiSync();
 
   useKeepAwake();
   const { baniLengthSelector } = useBaniLength();

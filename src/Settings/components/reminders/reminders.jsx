@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
+import { parseReminders } from "@common/reminders/syncModel";
 import {
   STRINGS,
   cancelAllReminders,
@@ -63,9 +64,16 @@ const RemindersComponent = ({ navigation }) => {
   // silently not working.
   const awaitingRef = useRef(null);
 
+  // Switching on keeps the list that is already there and only schedules it:
+  // with an account, those reminders may have been set up on another phone, and
+  // a reset here would delete them everywhere. Defaults seed an empty list only.
   const enableReminders = async () => {
     dispatch(actions.toggleReminders(true));
-    await fetchBanis(true);
+    if (parseReminders(reminderBanis).length) {
+      await scheduleReminders(true, reminderSound, reminderBanis);
+    } else {
+      await fetchBanis(true);
+    }
   };
 
   // One dialog for either permission — the app's own, so it follows the theme

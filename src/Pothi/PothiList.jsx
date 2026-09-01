@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import DraggableFlatList, { ScaleDecorator } from "react-native-draggable-flatlist";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { GestureHandlerRootView, RefreshControl } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
+import { requestPull } from "@service/dashboard/syncSignal";
 import PropTypes from "prop-types";
 import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
@@ -45,6 +46,34 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
   useSignedOutPothiHint();
   // The pothi whose rename/delete sheet is open, or null.
   const [acting, setActing] = useState(null);
+
+  // Pull to refresh, for someone who has just changed a pothi on their other
+  // phone and wants it here now. It fires the same request the Dashboard's
+  // pull-down does, so one gesture runs the whole account sync — dashboard,
+  // reminders and pothis — and the spinner ends when that sync has actually
+  // finished. Only offered signed in: signed out there is no account to pull.
+  //
+  // The gesture-handler RefreshControl, not React Native's: the draggable list
+  // wraps its rows in a pan gesture that, on Android, cancels a plain
+  // RefreshControl's pull before it can fire. This one is a native gesture the
+  // pan may not interrupt, and the list is told to scroll simultaneously with
+  // it (`simultaneousHandlers`), the same wiring gesture-handler's own
+  // ScrollView uses for its refresh control.
+  const signedIn = useSelector((state) => state.auth?.status === "signedIn");
+  const refreshRef = useRef(null);
+  const [refreshing, setRefreshing] = useState(false);
+  // Off for the whole of a reorder. The two gestures are allowed to run at
+  // once (above), so a row dragged downwards near the top of the list would
+  // otherwise also count as a pull, and letting go of it started a sync.
+  const [dragging, setDragging] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await requestPull("pull-to-refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const rows = useMemo(() => folderTabRows(pothis, baniListData), [pothis, baniListData]);
   const bundled = useMemo(() => rows.filter((row) => row.system), [rows]);
@@ -211,7 +240,9 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         keyExtractor={(row) => row.id}
         // `data` is the unpinned lane only, so the result needs no filtering:
         // a pinned pothi is never in this list to be moved in the first place.
+        onDragBegin={() => setDragging(true)}
         onDragEnd={({ data }) => {
+          setDragging(false);
           if (!requireOnline()) return;
           const next = data.map((row) => row.id);
           trackPothiEvent("reordered", { count: next.length });
@@ -225,6 +256,18 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={footer}
+        refreshControl={
+          signedIn ? (
+            <RefreshControl
+              ref={refreshRef}
+              enabled={!dragging}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={c.textPrimary}
+            />
+          ) : undefined
+        }
+        simultaneousHandlers={signedIn ? refreshRef : undefined}
         // No `style` prop: DraggableFlatList forwards it to an inner animated
         // wrapper, and a flex there fights the gesture root above, collapsing
         // the list to zero height — which rendered a blank page. The root

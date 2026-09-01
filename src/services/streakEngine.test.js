@@ -9,7 +9,14 @@
  * whether — the user opens the Dashboard.
  */
 
-import { getQualifyingDates, getOrCreateSummary, updateSummary } from "../database/analytics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getLatestActivityDate,
+  getQualifyingDates,
+  getOrCreateSummary,
+  updateSummary,
+} from "../database/analytics";
+import { DASHBOARD_ACCOUNT_TODAY_KEY } from "./dashboard/syncKeys";
 import { dayQualifies, shiftDate, getLocalDate } from "./streakDays";
 import { computeStreaks } from "./streakEngine";
 
@@ -19,6 +26,7 @@ jest.mock("@common", () => ({
 }));
 
 jest.mock("../database/analytics", () => ({
+  getLatestActivityDate: jest.fn(),
   getQualifyingDates: jest.fn(),
   getOrCreateSummary: jest.fn(),
   updateSummary: jest.fn(),
@@ -56,11 +64,18 @@ const summaryRow = (over = {}) => ({
 
 const fieldsWritten = () => updateSummary.mock.calls[0][0];
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  await AsyncStorage.clear();
   jest.useFakeTimers().setSystemTime(clockAt(TODAY));
   getOrCreateSummary.mockResolvedValue(summaryRow());
   getQualifyingDates.mockResolvedValue([]);
+  // By default the history reaches exactly as far as the qualifying days do —
+  // each test that cares sets its own.
+  getLatestActivityDate.mockImplementation(async () => {
+    const dates = await getQualifyingDates.mock.results[0]?.value;
+    return dates?.[0] ?? null;
+  });
   updateSummary.mockResolvedValue(undefined);
 });
 
@@ -224,6 +239,8 @@ describe("computeStreaks — restore safety", () => {
     // history cannot verify the streak — keep the restored number rather than
     // overwrite it with a known-short one.
     getQualifyingDates.mockResolvedValue(runEndingAt(dayBefore(TODAY, 60), 4));
+    // No row for that day either — genuinely missing history.
+    getLatestActivityDate.mockResolvedValue(dayBefore(TODAY, 60));
     getOrCreateSummary.mockResolvedValue(
       summaryRow({ current_streak: 45, last_active_date: dayBefore(TODAY, 1) })
     );
@@ -353,5 +370,89 @@ describe("streakDays", () => {
 
   it("zero-pads single-digit months and days", () => {
     expect(getLocalDate(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("computeStreaks — a short day is history, not a hole", () => {
+  // What the user saw: last real reading on Thursday, a one-minute Friday,
+  // nothing since — and the card still read two days on Sunday. The engine
+  // compared last_active_date (written from any activity at all) against the
+  // newest QUALIFYING day, decided its own history was truncated, and never
+  // recomputed, so a stale number stood for ever.
+  it("recomputes when the newest row is a day too short to qualify", async () => {
+    getQualifyingDates.mockResolvedValue(runEndingAt(dayBefore(TODAY, 4), 2));
+    getLatestActivityDate.mockResolvedValue(dayBefore(TODAY, 2));
+    getOrCreateSummary.mockResolvedValue(
+      summaryRow({ current_streak: 2, last_active_date: dayBefore(TODAY, 2) })
+    );
+
+    await computeStreaks();
+
+    expect(fieldsWritten().current_streak).toBe(0);
+  });
+
+  it("resets to 0 when rows exist but none of them qualify", async () => {
+    getQualifyingDates.mockResolvedValue([]);
+    getLatestActivityDate.mockResolvedValue(dayBefore(TODAY, 1));
+    getOrCreateSummary.mockResolvedValue(summaryRow({ current_streak: 2, longest_streak: 9 }));
+
+    await computeStreaks();
+
+    expect(fieldsWritten().current_streak).toBe(0);
+    // Lifetime figures still never walk backwards.
+    expect(fieldsWritten().longest_streak).toBe(9);
+  });
+
+  it("does not let a short day become the streak's last day", async () => {
+    getQualifyingDates.mockResolvedValue(runEndingAt(TODAY, 2));
+    getLatestActivityDate.mockResolvedValue(TODAY);
+    getOrCreateSummary.mockResolvedValue(summaryRow());
+
+    await computeStreaks();
+
+    expect(fieldsWritten().last_active_date).toBe(TODAY);
+  });
+});
+
+describe("computeStreaks — the account's other devices", () => {
+  // Today's day row is this device's own and is never written from the server,
+  // so without the account's total for today a phone that had not been opened
+  // would end a streak the tablet was keeping alive. The rule applied is the
+  // app's, on the account's seconds — the server's finished streak is not
+  // adopted, because two writers with two rules made the number flip on every
+  // refresh.
+  const accountToday = (date, seconds) =>
+    AsyncStorage.setItem(DASHBOARD_ACCOUNT_TODAY_KEY, JSON.stringify({ date, seconds }));
+
+  it("counts today when another device on the account read it", async () => {
+    getQualifyingDates.mockResolvedValue(runEndingAt(dayBefore(TODAY, 1), 2));
+    getLatestActivityDate.mockResolvedValue(dayBefore(TODAY, 1));
+    await accountToday(TODAY, 600);
+
+    await computeStreaks();
+
+    // Yesterday and the day before are this device's; today is the account's.
+    expect(fieldsWritten().current_streak).toBe(3);
+    expect(fieldsWritten().last_active_date).toBe(TODAY);
+  });
+
+  it("holds the streak at yesterday when the account's day is too short", async () => {
+    getQualifyingDates.mockResolvedValue(runEndingAt(dayBefore(TODAY, 1), 2));
+    getLatestActivityDate.mockResolvedValue(dayBefore(TODAY, 1));
+    await accountToday(TODAY, 100);
+
+    await computeStreaks();
+
+    expect(fieldsWritten().current_streak).toBe(2);
+  });
+
+  it("ignores a total left over from a previous day", async () => {
+    getQualifyingDates.mockResolvedValue([]);
+    getLatestActivityDate.mockResolvedValue(dayBefore(TODAY, 3));
+    await accountToday(dayBefore(TODAY, 1), 6000);
+
+    await computeStreaks();
+
+    expect(fieldsWritten().current_streak).toBe(0);
   });
 });
