@@ -193,20 +193,24 @@ describe("sync-scroll enlargement (paragraph mode)", () => {
   });
 });
 
-// Auto-scroll rate. The slider runs 1–100; each step is worth a fixed number
-// of px/s (times the multiplier the app sends). This pins that number, so a
-// "make it faster" change is deliberate rather than a side effect.
+// Auto-scroll rate. The slider runs 1-100 and maps linearly onto a px/s range:
+// step 1 scrolls at 12 px/s, step 100 at 200 px/s. This pins both ends and the
+// straight line between them, so a "make it faster" change is deliberate rather
+// than a side effect.
 describe("auto-scroll rate", () => {
-  const PX_PER_SECOND_PER_STEP = 0.825;
+  const MIN_PX_PER_SECOND = 12;
+  const MAX_PX_PER_SECOND = 200;
+  const expectedRate = (speed) =>
+    MIN_PX_PER_SECOND + ((speed - 1) / 99) * (MAX_PX_PER_SECOND - MIN_PX_PER_SECOND);
 
   // Stop the loop and give it a frame to notice, so each measurement starts
   // from a dead loop whatever the previous one left behind.
   const stop = () => {
-    send({ autoScroll: 0, scrollMultiplier: 1 });
+    send({ autoScroll: 0 });
     jest.advanceTimersByTime(100);
   };
 
-  const measure = (speed, multiplier) => {
+  const measure = (speed) => {
     stop();
     // jsdom has no layout: give the page somewhere to scroll to.
     Object.defineProperty(document.documentElement, "scrollHeight", {
@@ -217,24 +221,25 @@ describe("auto-scroll rate", () => {
     window.scrollBy = jest.fn();
 
     const started = window.performance.now();
-    send({ autoScroll: speed, scrollMultiplier: multiplier });
-    // Twenty animation frames.
-    for (let i = 0; i < 20; i += 1) jest.advanceTimersByTime(16);
+    send({ autoScroll: speed });
+    // Long enough that the sub-half-pixel remainder the loop holds back each
+    // frame is negligible even at the slowest setting.
+    for (let i = 0; i < 200; i += 1) jest.advanceTimersByTime(16);
     const elapsedSec = (window.performance.now() - started) / 1000;
     const scrolled = window.scrollBy.mock.calls.reduce((sum, [, px]) => sum + px, 0);
     stop();
     return scrolled / elapsedSec;
   };
 
-  it("scrolls at 0.825 px/s per slider step, times the multiplier", () => {
-    const rate = measure(40, 1.5);
+  it.each([1, 50, 100])("scrolls slider step %i at its mapped px/s", (speed) => {
     // Within 3%: the loop holds back any sub-half-pixel remainder each frame.
-    expect(Math.abs(rate / (40 * PX_PER_SECOND_PER_STEP * 1.5) - 1)).toBeLessThan(0.03);
+    expect(Math.abs(measure(speed) / expectedRate(speed) - 1)).toBeLessThan(0.03);
   });
 
-  it("is linear in the slider value", () => {
-    const slow = measure(20, 1);
-    const fast = measure(80, 1);
-    expect(Math.abs(fast / slow / 4 - 1)).toBeLessThan(0.03);
+  it("is linear between the two ends", () => {
+    const quarter = measure(25);
+    const half = measure(50);
+    const threeQuarters = measure(75);
+    expect(Math.abs(half - quarter - (threeQuarters - half))).toBeLessThan(2);
   });
 });

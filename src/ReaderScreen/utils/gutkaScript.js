@@ -10,7 +10,13 @@ const script = (readerTheme) => {
 let autoScrollTimeout;
 let autoScrollRAF = null;
 let autoScrollSpeed = 0;
-let scrollMultiplier = 1.5;
+// Auto-scroll rate. The 1-100 slider maps linearly onto this px/s range rather
+// than scaling straight from the slider value: the slowest setting still has to
+// move at a readable pace, and the fastest has to keep up with a fast reader.
+const AUTO_SCROLL_MIN_SPEED = 1;
+const AUTO_SCROLL_MAX_SPEED = 100;
+const AUTO_SCROLL_MIN_PX_PER_SECOND = 12;
+const AUTO_SCROLL_MAX_PX_PER_SECOND = 200;
 let isScrolling;
 let isManuallyScrolling = false;
 let lastHighlightedElement = null;
@@ -289,9 +295,15 @@ const setAutoScroll=()=> {
 
     if (!isManuallyScrolling) {
       // Compute from live autoScrollSpeed so speed changes take effect immediately.
-      // 0.825 px/s per slider step: every setting on the 1–100 slider scrolls
-      // 1.5× as fast as before, the top end being too slow for many readers.
-      const pxPerSecond = autoScrollSpeed * 0.825 * scrollMultiplier;
+      const slider = Math.min(
+        Math.max(autoScrollSpeed, AUTO_SCROLL_MIN_SPEED),
+        AUTO_SCROLL_MAX_SPEED
+      );
+      const sliderFraction =
+        (slider - AUTO_SCROLL_MIN_SPEED) / (AUTO_SCROLL_MAX_SPEED - AUTO_SCROLL_MIN_SPEED);
+      const pxPerSecond =
+        AUTO_SCROLL_MIN_PX_PER_SECOND +
+        sliderFraction * (AUTO_SCROLL_MAX_PX_PER_SECOND - AUTO_SCROLL_MIN_PX_PER_SECOND);
       const deltaMs = currentTime - lastFrameTime;
       // Cap delta to prevent huge jumps after tab switch
       const deltaSec = Math.min(deltaMs / 1000, 0.05);
@@ -468,7 +480,6 @@ ${listener}.addEventListener(
     }
     if (message.hasOwnProperty("autoScroll")) {
       autoScrollSpeed = message.autoScroll;
-      scrollMultiplier = message.scrollMultiplier;
       if (autoScrollRAF == null) {
         setAutoScroll();
       }

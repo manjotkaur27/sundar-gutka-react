@@ -32,9 +32,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActi
   const sendStopSignal = useCallback(() => {
     if (webViewRef?.current?.postMessage) {
       try {
-        webViewRef.current.postMessage(
-          JSON.stringify({ autoScroll: 0, scrollMultiplier: 1.5 })
-        );
+        webViewRef.current.postMessage(JSON.stringify({ autoScroll: 0 }));
       } catch (error) {
         logError("Error sending auto-scroll stop:", error);
       }
@@ -49,10 +47,7 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActi
     // If screen not focused, manually paused, or auto-scroll disabled, send stop signal
     const shouldScroll = isFocused && !isPaused && isAutoScroll;
     const speed = shouldScroll ? sliderValue : 0;
-    const autoScrollObj = {
-      autoScroll: speed,
-      scrollMultiplier: 1.25,
-    };
+    const autoScrollObj = { autoScroll: speed };
 
     if (webViewRef?.current?.postMessage) {
       try {
