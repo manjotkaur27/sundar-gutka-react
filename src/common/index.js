@@ -43,7 +43,14 @@ import {
   trackAudioStarted,
   trackAudioCompleted,
 } from "./firebase/analytics";
-import { logError, initializeCrashlytics, setCustomKey, logMessage } from "./firebase/crashlytics";
+import {
+  isNetworkFailure,
+  logError,
+  logNetworkError,
+  initializeCrashlytics,
+  setCustomKey,
+  logMessage,
+} from "./firebase/crashlytics";
 import {
   initializePerformanceMonitoring,
   startPerformanceTrace,
@@ -96,8 +103,10 @@ export {
   constant,
   actions,
   STRINGS,
+  isNetworkFailure,
   logError,
   logMessage,
+  logNetworkError,
   initializeCrashlytics,
   initializePerformanceMonitoring,
   startPerformanceTrace,

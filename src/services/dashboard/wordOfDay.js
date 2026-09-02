@@ -1,4 +1,4 @@
-import { constant, logError } from "@common";
+import { constant, logNetworkError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
 import { readFreshCache, writeCache } from "./dailyCache";
 
@@ -566,7 +566,7 @@ export const getWordOfDay = async ({ requireOnline = false } = {}) => {
         return mapped;
       }
     } catch (err) {
-      logError(new Error(`getWordOfDay (api) failed: ${err?.message || err}`));
+      logNetworkError(`getWordOfDay (api) failed: ${err?.message || err}`, err);
     }
   }
 
@@ -580,7 +580,7 @@ export const getWordOfDay = async ({ requireOnline = false } = {}) => {
     }
   } catch (err) {
     if (err instanceof OfflineError) throw err;
-    logError(new Error(`getWordOfDay (hukamnama) failed: ${err?.message || err}`));
+    logNetworkError(`getWordOfDay (hukamnama) failed: ${err?.message || err}`, err);
   }
 
   // 3. Offline / no internet for more than a day → the bundled list, which

@@ -1,4 +1,4 @@
-import { logError } from "@common";
+import { logNetworkError } from "@common";
 import { getRandomTukk } from "@database";
 import { isOnline } from "./connectivity";
 import emergencyShabads from "./emergencyShabads.json";
@@ -94,7 +94,7 @@ const localShabad = async (language) => {
       };
     }
   } catch (err) {
-    logError(new Error(`getRandomTukk failed: ${err?.message || err}`));
+    logNetworkError(`getRandomTukk failed: ${err?.message || err}`, err);
   }
   return MOCK_SHABAD;
 };
@@ -110,7 +110,7 @@ export const getRandomShabad = async ({ language } = {}) => {
       if (mapped.lines.length) return mapped;
     }
   } catch (err) {
-    logError(new Error(`getRandomShabad online failed: ${err?.message || err}`));
+    logNetworkError(`getRandomShabad online failed: ${err?.message || err}`, err);
   }
   // Offline or API failure: a complete shabad from the bundled emergency list,
   // then a random tukk from the gutka DB, then a hardcoded mock.

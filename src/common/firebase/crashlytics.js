@@ -6,7 +6,12 @@ import {
   log,
   recordError,
 } from "@react-native-firebase/crashlytics";
+import { isNetworkFailure } from "../networkFailure";
 import { sanitizeName } from "./helper";
+
+// Re-exported so a caller reaching for one reaches for the other in the
+// same import; the rule itself lives outside this file (see there for why).
+export { isNetworkFailure };
 
 const crashlytics = getCrashlytics();
 
@@ -118,6 +123,33 @@ export const logError = (error, extra) => {
   } catch {
     // Avoid surfacing errors from logging itself
   }
+};
+
+/**
+ * Report a failure from something that talks to the network.
+ *
+ * A phone with no signal is not a bug, and every caller of this already has an
+ * answer for it — a cache, a bundled copy, a "check your connection" state. Yet
+ * each one still recorded a Crashlytics ERROR on the way past, so one launch in
+ * flight mode filed a dozen non-fatals that no one could ever act on and that
+ * buried the faults that mattered.
+ *
+ * A connection failure is therefore logged as a breadcrumb: still there in the
+ * report of a later crash, where it is genuinely useful context, but not an
+ * issue of its own. Anything else is recorded exactly as `logError` would.
+ *
+ * @param {string|Error} message What to record — pass the same text you would
+ *   have given `logError`, so a real fault keeps its existing Crashlytics
+ *   grouping.
+ * @param {*} error The RAW caught value. This is what decides which way it
+ *   goes, so it must be the original — not the message built from it.
+ */
+export const logNetworkError = (message, error) => {
+  if (isNetworkFailure(error)) {
+    logMessage(message instanceof Error ? message.message : String(message));
+    return;
+  }
+  logError(message instanceof Error ? message : new Error(String(message)));
 };
 
 // Test function to force a crash

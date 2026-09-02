@@ -1,9 +1,18 @@
 import { getNanakshahiDate, fetchNanakshahiDate } from "./nanakshahiDate";
 
-jest.mock("@common", () => ({
-  constant: { NANAKSHAHI_DATE_API_URL: "https://example.invalid/nanakshahi-date" },
-  logError: jest.fn(),
-}));
+jest.mock("@common", () => {
+  const { isNetworkFailure } = require("@common/networkFailure");
+  const logError = jest.fn();
+  const logMessage = jest.fn();
+  return {
+    isNetworkFailure,
+    logError,
+    logMessage,
+    logNetworkError: (message, error) =>
+      isNetworkFailure(error) ? logMessage(message) : logError(message),
+    constant: { NANAKSHAHI_DATE_API_URL: "https://example.invalid/nanakshahi-date" },
+  };
+});
 
 const mockReadFreshCache = jest.fn();
 const mockWriteCache = jest.fn();

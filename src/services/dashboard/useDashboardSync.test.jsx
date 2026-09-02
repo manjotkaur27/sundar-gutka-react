@@ -911,7 +911,13 @@ describe("history from the server's summed activity rows", () => {
     // The bootstrap then pushes the merged snapshot, which carries its own
     // activity push; the order that matters is the first two.
     expect(order.slice(0, 2)).toEqual(["push", "state"]);
-    expect(mockApplyActivity).toHaveBeenCalledWith(state, expect.stringMatching(/^\d{4}-\d{2}$/));
+    // No month, on either call. Naming one is what lost a reinstall its
+    // calendar: the server narrows its day map to the month asked for, so a
+    // phone set up on the 2nd was served that month alone and every earlier
+    // day it had read was filtered out before it was sent — and the calendar
+    // never re-fetches, so those months stayed blank for good.
+    expect(mockGetState).toHaveBeenCalledWith();
+    expect(mockApplyActivity).toHaveBeenCalledWith(state);
     // The snapshot is applied FIRST and the server's exact sums laid over it,
     // so a day only the snapshot remembers survives and a day the server knows
     // is exact.

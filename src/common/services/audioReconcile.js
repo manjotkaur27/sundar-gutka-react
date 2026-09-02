@@ -1,7 +1,7 @@
 import { exists, readDir, readFile, stat, unlink, writeFile } from "react-native-fs";
 import TrackPlayer from "react-native-track-player";
 import NetInfo from "@react-native-community/netinfo";
-import { logError, logMessage } from "@common";
+import { logMessage, logNetworkError } from "@common";
 import {
   AUDIO_DIRECTORY_PATH,
   getLocalTrackPath,
@@ -380,7 +380,7 @@ export const reconcileDownloads = (args) => {
   if (!args?.manifests || Object.keys(args.manifests).length === 0) return Promise.resolve(IDLE);
   const run = chain.then(() =>
     runReconcile(args).catch((error) => {
-      logError("Audio reconcile failed:", error);
+      logNetworkError(`Audio reconcile failed: ${error?.message || error}`, error);
       return IDLE;
     })
   );

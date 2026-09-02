@@ -6,6 +6,7 @@ const mockLogError = jest.fn();
 const mockLogMessage = jest.fn();
 jest.mock("@common", () => ({
   checkForBaniDBUpdate: (...a) => mockCheck(...a),
+  isNetworkFailure: require("@common/networkFailure").isNetworkFailure,
   logError: (...a) => mockLogError(...a),
   logMessage: (...a) => mockLogMessage(...a),
 }));

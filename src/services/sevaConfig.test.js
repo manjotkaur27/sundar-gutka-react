@@ -3,11 +3,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSevaConfig, markSevaSeen, subscribeSevaDot, buildQgivUrl } from "./sevaConfig";
 
 const mockLogError = jest.fn();
+const mockLogMessage = jest.fn();
 
-jest.mock("@common", () => ({
-  constant: { SEVA_CONFIG_API_URL: "https://api.test/seva/config" },
-  logError: (...args) => mockLogError(...args),
-}));
+jest.mock("@common", () => {
+  const { isNetworkFailure } = require("@common/networkFailure");
+  return {
+    constant: { SEVA_CONFIG_API_URL: "https://api.test/seva/config" },
+    isNetworkFailure,
+    logError: (...args) => mockLogError(...args),
+    logMessage: (...args) => mockLogMessage(...args),
+    logNetworkError: (message, error) =>
+      isNetworkFailure(error) ? mockLogMessage(message) : mockLogError(message),
+  };
+});
 
 // sevaConfig.js imports STRINGS directly from ../common/localization (not via
 // @common), which otherwise pulls in the real react-native-localization

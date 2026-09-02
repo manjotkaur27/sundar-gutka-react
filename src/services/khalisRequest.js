@@ -1,5 +1,5 @@
 import { readToken } from "@common/sso/tokenStore";
-import { logError, logMessage } from "@common";
+import { isNetworkFailure, logError, logMessage } from "@common";
 
 // One authenticated request to the Khalis users API, with a timeout and a
 // typed failure. Shared by every account-data client (folders, reminders) so
@@ -48,7 +48,7 @@ export const request = async (url, { method = "GET", body, token } = {}) => {
       logMessage(`khalisRequest: ${method} ${url} timed out`);
       return { ok: false, status: 0, error: "timeout" };
     }
-    if (/network request failed/i.test(String(error?.message))) {
+    if (isNetworkFailure(error)) {
       logMessage(`khalisRequest: ${method} ${url} offline`);
       return { ok: false, status: 0, error: "network" };
     }

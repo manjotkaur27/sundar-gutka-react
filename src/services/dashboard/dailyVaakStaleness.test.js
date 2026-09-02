@@ -20,10 +20,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isOnline } from "./connectivity";
 import { getDailyVaak } from "./dailyVaak";
 
-jest.mock("@common", () => ({
-  logError: jest.fn(),
-  constant: { DAILY_VAAK_API_URL: "http://backend.test/dashboard/daily-vaak" },
-}));
+jest.mock("@common", () => {
+  const { isNetworkFailure } = require("@common/networkFailure");
+  const logError = jest.fn();
+  const logMessage = jest.fn();
+  return {
+    isNetworkFailure,
+    logError,
+    logMessage,
+    logNetworkError: (message, error) =>
+      isNetworkFailure(error) ? logMessage(message) : logError(message),
+    constant: { DAILY_VAAK_API_URL: "http://backend.test/dashboard/daily-vaak" },
+  };
+});
 jest.mock("@database", () => ({ getRandomTukk: jest.fn().mockResolvedValue(null) }));
 jest.mock("./connectivity", () => {
   class OfflineError extends Error {

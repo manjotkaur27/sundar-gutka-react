@@ -234,9 +234,21 @@ const localDateKey = (d = new Date()) =>
 
 /**
  * The account's activity as the SERVER sums it across every device
- * (GET /dashboard/state): totals, streaks and one entry per day of `monthKey`.
+ * (GET /dashboard/state): totals, streaks and one entry per day.
  * Distinguishable outcomes, like getDashboardSnapshot — a failure must not be
  * mistaken for "no activity".
+ *
+ * `monthKey` NARROWS the day map to one month. Leave it out for everything the
+ * account still holds, which is what a restore wants: the endpoint's filter is
+ * `if (!month || day.startsWith(month))`, so omitting it returns the whole
+ * retention window (thirteen months) rather than nothing.
+ *
+ * Asking for one month was how a reinstall lost its calendar. The pull only
+ * ever named the CURRENT month, so a phone set up on the 2nd was served that
+ * month alone and every earlier day — including the ones it had read — was
+ * filtered out server-side before it was ever sent. The calendar reads local
+ * rows only, and never re-fetches when you page back, so there was no second
+ * chance: those months stayed blank on that install for good.
  */
 export const getDashboardState = async (monthKey) => {
   const token = await readToken();
@@ -244,7 +256,8 @@ export const getDashboardState = async (monthKey) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${stateUrl()}?month=${encodeURIComponent(monthKey)}`, {
+    const query = monthKey ? `?month=${encodeURIComponent(monthKey)}` : "";
+    const res = await fetch(`${stateUrl()}${query}`, {
       signal: controller.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     });
@@ -261,6 +274,11 @@ export const getDashboardState = async (monthKey) => {
 /**
  * Write the account's summed activity into local analytics, where the
  * Dashboard reads from.
+ *
+ * EVERY day the account sent is written, not just the current month's. The
+ * month filter that used to live here was the client half of the reinstall
+ * bug described on getDashboardState — with the pull now asking for the whole
+ * history, re-filtering it here would throw the same days away again.
  *
  * Day rows are OVERWRITTEN with the server's sum — the sum already includes
  * this device, whose rows were pushed just before this ran — but only for days
@@ -279,13 +297,13 @@ export const getDashboardState = async (monthKey) => {
  * refresh. Days-active and the archived longest streak are set from the server
  * — they are maxima over history this device may no longer hold.
  */
-export const applyServerActivity = async (state, monthKey) => {
+export const applyServerActivity = async (state) => {
   if (!state) return;
   try {
     const today = localDateKey();
-    const days = Object.entries(state.days || {}).filter(
-      ([date]) => date.startsWith(`${monthKey}-`) && date < today
-    );
+    // `date < today` still stands: today's row belongs to this device and is
+    // pushed as its own figure — see the note above.
+    const days = Object.entries(state.days || {}).filter(([date]) => date < today);
     await Promise.all(
       days.map(([date, [r = 0, l = 0]]) =>
         setDailyActivity({ date, reading_seconds: r, listening_seconds: l, updatedAt: 0 })

@@ -4,7 +4,12 @@ import { authedRequest, isTransientStatus, request } from "./khalisRequest";
 const mockReadToken = jest.fn();
 jest.mock("@common/sso/tokenStore", () => ({ readToken: (...a) => mockReadToken(...a) }));
 const mockLogError = jest.fn();
-jest.mock("@common", () => ({ logError: (...a) => mockLogError(...a), logMessage: jest.fn() }));
+const mockLogMessage = jest.fn();
+jest.mock("@common", () => ({
+  isNetworkFailure: require("@common/networkFailure").isNetworkFailure,
+  logError: (...a) => mockLogError(...a),
+  logMessage: (...a) => mockLogMessage(...a),
+}));
 
 describe("khalisRequest", () => {
   beforeEach(() => {

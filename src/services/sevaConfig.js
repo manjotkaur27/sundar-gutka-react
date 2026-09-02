@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { constant, logError } from "@common";
+import { constant, logNetworkError } from "@common";
 import STRINGS from "../common/localization";
 import { parseSevaContent } from "../SevaScreen/utils/sevaContentParser";
 import { buildBundledSevaLayout } from "./sevaBundledContent";
@@ -303,7 +303,7 @@ export const getSevaConfig = async (langInput) => {
     emitSevaDot(redDot);
     return buildConfig({ ...dyn, redDot }, "network", apiLang);
   } catch (err) {
-    logError(new Error(`getSevaConfig failed: ${err?.message || err}`));
+    logNetworkError(`getSevaConfig failed: ${err?.message || err}`, err);
     if (cached) {
       cachedPayment = cached.payment ?? null;
       latestVersion = Number(cached.version) || latestVersion;

@@ -1,4 +1,4 @@
-import { constant, logError } from "@common";
+import { constant, logNetworkError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
 import { readFreshCache, writeCache } from "./dailyCache";
 
@@ -197,7 +197,7 @@ const baniDbForDay = async (dateKey) => {
     return fromBaniDb(await fetchJson(baniDbUrl(dateKey)), dateKey);
   } catch (err) {
     if (err?.status !== 404) {
-      logError(new Error(`daily vaak BaniDB failed: ${err?.message || err}`));
+      logNetworkError(`daily vaak BaniDB failed: ${err?.message || err}`, err);
     }
     return null;
   }
@@ -262,7 +262,7 @@ export const getDailyVaak = async ({ requireOnline = false, force = false } = {}
       // whole path exists to prevent.
       if (!named || named === today || named === previous) mapped = parseVaak(data, named);
     } catch (err) {
-      logError(new Error(`daily vaak backend fallback failed: ${err?.message || err}`));
+      logNetworkError(`daily vaak backend fallback failed: ${err?.message || err}`, err);
     }
   }
 

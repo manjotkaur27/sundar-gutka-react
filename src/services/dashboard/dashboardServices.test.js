@@ -17,14 +17,23 @@ import emergency from "./emergencyShabads.json";
 import { getRandomShabad } from "./randomShabad";
 
 // jest.mock calls are hoisted above the imports above by babel-jest.
-jest.mock("@common", () => ({
-  logError: jest.fn(),
-  // A configured backend URL (≠ BaniDB) so we can exercise the backend→BaniDB fallback.
-  constant: {
-    DAILY_VAAK_API_URL: "http://backend.test/dashboard/daily-vaak",
-    WORD_OF_DAY_API_URL: "",
-  },
-}));
+jest.mock("@common", () => {
+  const { isNetworkFailure } = require("@common/networkFailure");
+  const logError = jest.fn();
+  const logMessage = jest.fn();
+  return {
+    isNetworkFailure,
+    logError,
+    logMessage,
+    logNetworkError: (message, error) =>
+      isNetworkFailure(error) ? logMessage(message) : logError(message),
+    // A configured backend URL (≠ BaniDB) so we can exercise the backend→BaniDB fallback.
+    constant: {
+      DAILY_VAAK_API_URL: "http://backend.test/dashboard/daily-vaak",
+      WORD_OF_DAY_API_URL: "",
+    },
+  };
+});
 jest.mock("@database", () => ({ getRandomTukk: jest.fn().mockResolvedValue(null) }));
 jest.mock("./connectivity", () => {
   class OfflineError extends Error {

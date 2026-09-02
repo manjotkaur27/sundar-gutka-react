@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { constant, logError } from "@common";
+import { constant, logNetworkError } from "@common";
 import { parseSevaContent } from "../SevaScreen/utils/sevaContentParser";
 import { buildBundledMeansPage } from "./sevaBundledContent";
 
@@ -110,7 +110,7 @@ export const getSevaMeansPage = async ({ page, lang }) => {
     }
     // Never fetched + offline: localized bundled default so the page is never
     // blank AND is shown in the user's language (full parity with the backend).
-    logError(new Error(`getSevaMeansPage(${page}) fell back to bundled: ${err?.message || err}`));
+    logNetworkError(`getSevaMeansPage(${page}) fell back to bundled: ${err?.message || err}`, err);
     const bundled = buildBundledMeansPage(path, apiLang);
     const content = bundled?.content || "";
     return {

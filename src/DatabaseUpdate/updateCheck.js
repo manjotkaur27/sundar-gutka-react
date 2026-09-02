@@ -1,4 +1,4 @@
-import { checkForBaniDBUpdate, logError, logMessage } from "@common";
+import { checkForBaniDBUpdate, isNetworkFailure, logError, logMessage } from "@common";
 
 export const UPDATE_CHECK = {
   OFFLINE: "offline",
@@ -6,13 +6,6 @@ export const UPDATE_CHECK = {
   UP_TO_DATE: "up-to-date",
   FAILED: "failed",
 };
-
-// Every reason the remote hash cannot be read that is the network's doing,
-// not ours. Anything else is a genuine error and stays one.
-const isNetworkFailure = (error) =>
-  /^(network request failed|failed to fetch)$|timed out|aborted/i.test(
-    String(error?.message || error).trim()
-  );
 
 /**
  * Decide what the Database Update screen shows. Offline is a state of its own:

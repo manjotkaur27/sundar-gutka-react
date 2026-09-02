@@ -305,7 +305,19 @@ describe("buildCachePayload", () => {
 });
 
 describe("getDashboardState", () => {
-  it("asks for the month and hands back the server's summed state", async () => {
+  // Omitting the month is what a restore does, and the endpoint reads it as
+  // "every day you still hold" — `if (!month || day.startsWith(month))`. Naming
+  // one narrows the day map server-side, which is how a reinstall on the 2nd
+  // was served that month alone and lost the calendar it had read.
+  it("asks for the WHOLE history when no month is named", async () => {
+    const state = { totals: {}, streaks: {}, days: { "2026-08-31": [293, 0] } };
+    global.fetch = jest.fn().mockResolvedValue({ status: 200, ok: true, json: async () => state });
+
+    expect(await getDashboardState()).toEqual({ status: "ok", state });
+    expect(global.fetch.mock.calls[0][0]).toBe("http://api.test/dashboard/state");
+  });
+
+  it("still narrows to one month when asked to", async () => {
     const state = { totals: { readingSeconds: 10 }, streaks: { current: 1, longest: 2 }, days: {} };
     global.fetch = jest.fn().mockResolvedValue({ status: 200, ok: true, json: async () => state });
     expect(await getDashboardState("2026-08")).toEqual({ status: "ok", state });
@@ -335,10 +347,8 @@ describe("applyServerActivity", () => {
   const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   const dayKey = (d) => `${monthKey(d)}-${String(d.getDate()).padStart(2, "0")}`;
 
-  // The clock is pinned mid-month. `applyServerActivity` writes only the days
-  // of the month it was asked for, so a test that says "yesterday" on the 1st
-  // is asking about a day the call is not meant to touch — it fails for a
-  // reason that has nothing to do with what it is checking.
+  // The clock is pinned so "yesterday" is a fixed, unambiguous date rather
+  // than whatever the machine says when the suite runs.
   const TODAY = new Date(2026, 7, 20, 10, 0, 0);
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(TODAY);
@@ -356,7 +366,7 @@ describe("applyServerActivity", () => {
       days: { [dayKey(yesterday)]: [600, 30], [dayKey(today)]: [120, 0] },
     };
     analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
-    await applyServerActivity(state, monthKey(today));
+    await applyServerActivity(state);
 
     // Yesterday is written from the sum; today is this device's own row and
     // is left alone.
@@ -373,6 +383,51 @@ describe("applyServerActivity", () => {
       last_active_date: dayKey(yesterday),
     });
     expect(analytics.raiseAllTimeBaseline).toHaveBeenCalledWith(state.totals);
+  });
+
+  // The reinstall bug, in one test.
+  //
+  // A phone set up on the 2nd used to pull `?month=<this month>`, and both the
+  // server and this function then discarded every earlier day — so the calendar
+  // came back blank for a user whose reading was all in the previous month, and
+  // stayed blank, because the calendar reads local rows only and never
+  // re-fetches when you page back.
+  it("restores days from EVERY month the account sent, not just the current one", async () => {
+    jest.setSystemTime(new Date(2026, 8, 2, 10, 0, 0)); // 2 Sep — two days in
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
+
+    await applyServerActivity({
+      totals: { readingSeconds: 293, listeningSeconds: 0, daysActive: 1 },
+      streaks: { current: 0, longest: 1 },
+      days: {
+        "2026-07-14": [400, 0],
+        "2026-08-31": [293, 0], // the day that went missing
+        "2026-09-01": [0, 0],
+      },
+    });
+
+    const written = analytics.setDailyActivity.mock.calls.map(([row]) => row.date);
+    expect(written).toEqual(["2026-07-14", "2026-08-31", "2026-09-01"]);
+    expect(analytics.setDailyActivity).toHaveBeenCalledWith({
+      date: "2026-08-31",
+      reading_seconds: 293,
+      listening_seconds: 0,
+      updatedAt: 0,
+    });
+  });
+
+  it("still leaves TODAY to this device, whatever month it falls in", async () => {
+    jest.setSystemTime(new Date(2026, 8, 2, 10, 0, 0));
+    analytics.getOrCreateSummary.mockResolvedValue({ last_active_date: null });
+
+    await applyServerActivity({
+      totals: {},
+      streaks: {},
+      days: { "2026-08-31": [293, 0], "2026-09-02": [120, 0] },
+    });
+
+    const written = analytics.setDailyActivity.mock.calls.map(([row]) => row.date);
+    expect(written).toEqual(["2026-08-31"]);
   });
 
   it("never lowers a lifetime figure the account can no longer prove", async () => {

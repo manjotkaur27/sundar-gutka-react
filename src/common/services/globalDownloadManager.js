@@ -9,7 +9,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import { exists, stat, unlink, readDir, getFSInfo } from 'react-native-fs';
 import {
-  logError,
+  logNetworkError,
   logMessage,
   trackTrackDownload,
   showSuccessToast,
@@ -287,7 +287,7 @@ const useGlobalDownloadManager = () => {
 
       setTimeout(() => dispatchRef.current(removeDownloadQueueEntry(trackKey)), COMPLETED_CLEANUP_MS);
     } catch (err) {
-      logError(`Finalize failed for ${displayName}: ${err?.message}`);
+      logNetworkError(`Finalize failed for ${displayName}: ${err?.message}`, err);
       handleFailure(trackKey, err?.message);
     } finally {
       activeTasksRef.current.delete(trackKey);
@@ -314,7 +314,7 @@ const useGlobalDownloadManager = () => {
         });
       })
       .error(({ error }) => {
-        logError(`Native download error for ${meta.displayName}: ${error}`);
+        logNetworkError(`Native download error for ${meta.displayName}: ${error}`, error);
         handleFailure(meta.trackKey, error);
       });
   };
@@ -415,7 +415,7 @@ const useGlobalDownloadManager = () => {
       attachHandlers(task, meta);
       task.start();
     } catch (err) {
-      logError(`Failed to start download for ${meta.displayName}: ${err?.message}`);
+      logNetworkError(`Failed to start download for ${meta.displayName}: ${err?.message}`, err);
       if (err?.message === 'NOT_ENOUGH_STORAGE') {
         activeTasksRef.current.delete(trackKey);
         dispatchRef.current(updateDownloadStatus(trackKey, 'failed', {
@@ -480,7 +480,7 @@ const useGlobalDownloadManager = () => {
 
     const reattach = async () => {
       const existing = await getExistingDownloadTasks().catch((err) => {
-        logError(`Reattach failed: ${err?.message}`);
+        logNetworkError(`Reattach failed: ${err?.message}`, err);
         return [];
       });
       if (cancelled) return;

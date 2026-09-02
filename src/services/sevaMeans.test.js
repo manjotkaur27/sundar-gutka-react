@@ -12,10 +12,18 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 const mockLogError = jest.fn();
-jest.mock("@common", () => ({
-  constant: { SEVA_MEANS_API_BASE: "https://api.test" },
-  logError: (...args) => mockLogError(...args),
-}));
+const mockLogMessage = jest.fn();
+jest.mock("@common", () => {
+  const { isNetworkFailure } = require("@common/networkFailure");
+  return {
+    constant: { SEVA_MEANS_API_BASE: "https://api.test" },
+    isNetworkFailure,
+    logError: (...args) => mockLogError(...args),
+    logMessage: (...args) => mockLogMessage(...args),
+    logNetworkError: (message, error) =>
+      isNetworkFailure(error) ? mockLogMessage(message) : mockLogError(message),
+  };
+});
 
 const okJson = (body) => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
 

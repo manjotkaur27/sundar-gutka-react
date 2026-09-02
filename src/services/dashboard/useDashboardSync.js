@@ -89,15 +89,13 @@ const pushPendingActivity = async (deviceId) => {
  * sum that comes back already contains them and overwriting local days with
  * it loses nothing.
  */
-const pullServerActivity = async (deviceId, monthKey) => {
+// No month: the whole retention window, so a reinstall gets its calendar back
+// rather than the slice of the month it happened to be installed in. See
+// getDashboardState for what asking for one month cost.
+const pullServerActivity = async (deviceId) => {
   if (!(await pushPendingActivity(deviceId))) return null;
-  const res = await getDashboardState(monthKey);
+  const res = await getDashboardState();
   return res.status === "ok" && res.state ? res.state : null;
-};
-
-const currentMonthKey = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 };
 
 const RETRY_BASE_MS = 30 * 1000;
@@ -248,8 +246,7 @@ const useDashboardSync = () => {
         // The snapshot is applied first either way and the sums are laid over
         // it, so the days the server knows are exact and the days only the
         // snapshot remembers survive. Neither is ever pushed back up.
-        const monthKey = currentMonthKey();
-        const activity = await pullServerActivity(await DeviceInfo.getUniqueId(), monthKey);
+        const activity = await pullServerActivity(await DeviceInfo.getUniqueId());
 
         if (!bootstrapped) {
           // ── PULL → MERGE → PUSH ──────────────────────────────────────────
@@ -299,7 +296,7 @@ const useDashboardSync = () => {
             // carried in, or an earlier session on this device that was never
             // pushed — survives the restore instead of being overwritten by it.
             await seedAnalyticsFromSnapshot(payload, { merge: true });
-            if (activity) await applyServerActivity(activity, monthKey);
+            if (activity) await applyServerActivity(activity);
           } finally {
             restoringRef.current = false;
           }
@@ -369,7 +366,7 @@ const useDashboardSync = () => {
               transliterationLanguage: current.transliterationLanguage,
             });
             await seedAnalyticsFromSnapshot(payload, { merge: true });
-            if (activity) await applyServerActivity(activity, monthKey);
+            if (activity) await applyServerActivity(activity);
           } finally {
             restoringRef.current = false;
           }

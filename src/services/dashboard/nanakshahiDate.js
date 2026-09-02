@@ -1,4 +1,4 @@
-import { constant, logError } from "@common";
+import { constant, logNetworkError } from "@common";
 import { readFreshCache, writeCache } from "./dailyCache";
 
 // The Nanakshahi date shown under the Fateh on the Dashboard.
@@ -106,7 +106,7 @@ export const fetchNanakshahiDate = async () => {
     writeCache(CACHE_KEY, value);
     return value;
   } catch (err) {
-    logError(new Error(`fetchNanakshahiDate failed, keeping bundled: ${err?.message || err}`));
+    logNetworkError(`fetchNanakshahiDate failed, keeping bundled: ${err?.message || err}`, err);
     return null;
   } finally {
     clearTimeout(timeoutId);

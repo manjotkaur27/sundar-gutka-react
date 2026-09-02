@@ -8,15 +8,24 @@
 import { getUpcomingEvents, isBundledEvent } from "./upcomingEvents";
 import { getWordOfDay, isBundledWord } from "./wordOfDay";
 
-jest.mock("@common", () => ({
-  constant: {
-    WORD_OF_DAY_API_URL: "https://example.invalid/word",
-    UPCOMING_EVENTS_API_URL: "https://example.invalid/events",
-    DAILY_VAAK_API_URL: "https://example.invalid/vaak",
-    INTERNET_CHECK_URL: "https://example.invalid/204",
-  },
-  logError: jest.fn(),
-}));
+jest.mock("@common", () => {
+  const { isNetworkFailure } = require("@common/networkFailure");
+  const logError = jest.fn();
+  const logMessage = jest.fn();
+  return {
+    isNetworkFailure,
+    logError,
+    logMessage,
+    logNetworkError: (message, error) =>
+      isNetworkFailure(error) ? logMessage(message) : logError(message),
+    constant: {
+      WORD_OF_DAY_API_URL: "https://example.invalid/word",
+      UPCOMING_EVENTS_API_URL: "https://example.invalid/events",
+      DAILY_VAAK_API_URL: "https://example.invalid/vaak",
+      INTERNET_CHECK_URL: "https://example.invalid/204",
+    },
+  };
+});
 
 const mockReadFreshCache = jest.fn();
 const mockWriteCache = jest.fn();

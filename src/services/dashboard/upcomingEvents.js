@@ -1,4 +1,4 @@
-import { constant, logError } from "@common";
+import { constant, logError, logNetworkError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
 import { readFreshCache, writeCache } from "./dailyCache";
 
@@ -378,7 +378,7 @@ export const getUpcomingEvents = async ({ requireOnline = false } = {}) => {
         return parsed;
       }
     } catch (err) {
-      logError(new Error(`upcoming events feed failed, using local: ${err?.message || err}`));
+      logNetworkError(`upcoming events feed failed, using local: ${err?.message || err}`, err);
     }
   }
 
