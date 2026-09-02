@@ -38,16 +38,21 @@ const SettingsRow = ({
   accessibilityHint = undefined,
   showChevron = true,
   disabled = false,
+  destructive = false,
   testID = undefined,
 }) => {
   const { c, layout } = useTokens();
+  // Destructive rows carry the error role on the title AND the icon. Colouring
+  // only one of them reads as a mistake rather than a warning — and the icon is
+  // the half the eye reaches first down a column of rows.
+  const iconColor = destructive ? c.error : c.textSecondary;
 
   const leading = (() => {
     // An SVG from `common/icons`, taking size and colour from the same tokens
     // the vector-name and PNG branches below do. Preferred over `iconImage`:
     // a PNG cannot follow the theme.
     if (IconComponent) {
-      return <IconComponent size={layout.row.iconSize} color={c.textSecondary} />;
+      return <IconComponent size={layout.row.iconSize} color={iconColor} />;
     }
     if (iconImage) {
       return (
@@ -66,7 +71,7 @@ const SettingsRow = ({
       );
     }
     if (icon) {
-      return <Icon name={icon} color={c.textSecondary} size={layout.row.iconSize} />;
+      return <Icon name={icon} color={iconColor} size={layout.row.iconSize} />;
     }
     return null;
   })();
@@ -79,6 +84,7 @@ const SettingsRow = ({
   return (
     <Row
       title={title}
+      titleStyle={destructive ? { color: c.error } : undefined}
       subtitle={subtitle}
       leading={leading}
       trailing={trailingNode}
@@ -95,6 +101,8 @@ const SettingsRow = ({
 SettingsRow.propTypes = {
   title: PropTypes.string.isRequired,
   subtitle: PropTypes.string,
+  /** Paints the title and icon with the error role — for rows that destroy. */
+  destructive: PropTypes.bool,
   /** The current selection, shown on the right. */
   value: PropTypes.string,
   /** A vector icon name (@rneui material set). */

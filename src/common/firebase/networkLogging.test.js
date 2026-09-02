@@ -33,6 +33,10 @@ const EXEMPT = {
   // The final `logError` is the non-network branch of its own guard.
   "services/khalisRequest.js": true,
   "DatabaseUpdate/updateCheck.js": true,
+  // Same shape: it checks `isNetworkFailure` first and logs a message for an
+  // unreachable IdP, so its `logError` only ever sees a genuine fault — an HTTP
+  // 500 from the delete endpoint, or an exception that is not the connection.
+  "common/sso/deleteAccount.js": true,
   // Anything reaching its catch is AsyncStorage, not the check itself.
   "HomeScreen/hooks/useDatabaseUpdateCheck.js": true,
   // Filesystem, not network — it only imports fetch-shaped helpers.

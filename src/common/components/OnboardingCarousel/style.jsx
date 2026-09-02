@@ -1,4 +1,5 @@
 import { withAlpha } from "@theme/colorUtils";
+import { androidLineHeight } from "@theme/lineHeight";
 
 // Themed styles for the onboarding carousel. Colors come from the theme; only
 // neutral spacing/sizes are hard-coded. Where a translucent fill is needed it
@@ -101,7 +102,7 @@ const createStyles = (theme) => ({
     opacity: 0.7,
     fontFamily: theme.typography.fonts.balooPaaji,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: androidLineHeight(24),
     textAlign: "center",
   },
   dotsRow: {

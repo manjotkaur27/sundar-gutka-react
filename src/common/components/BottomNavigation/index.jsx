@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Pressable, Platform, Animated, AppState } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Pressable, Animated, AppState } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import { useReaderScopedTheme, useReaderScopedStyles } from "@theme/reader";
@@ -48,9 +47,6 @@ const BottomNavigation = ({
   // 0 = no dot, 1 = plain dot, 2+ = numbered badge (see render below).
   const [sevaDotCount, setSevaDotCount] = useState(0);
   const translateY = useRef(new Animated.Value(0)).current;
-
-  const insets = useSafeAreaInsets();
-  const bottomPad = Platform.OS === "ios" ? Math.min(insets.bottom, 8) : 0;
 
   // Helper function to get current route name
   const getCurrentRouteName = useCallback(() => {
@@ -232,7 +228,19 @@ const BottomNavigation = ({
       }}
     >
       <SafeArea backgroundColor={theme.c.primary} edges={["bottom"]} flex={0}>
-        <View style={[styles.container, { paddingBottom: bottomPad }]}>
+        {/* No extra bottom padding. The SafeArea above already pads
+            `insets.bottom`, so the iOS-only `Math.min(insets.bottom, 8)` that
+            used to sit here was a SECOND helping of the same inset: the bar
+            stood 8pt taller than its own token on every iPhone with a home
+            indicator, and Android — where the pad was 0 — did not. That is the
+            band of nav colour below the icons on iOS.
+
+            It also desynchronised the Reader, which measures the bar it has to
+            clear as `bottomNavigation.height + insets.bottom` and knew nothing
+            about the extra 8. The reading-progress track is lifted by exactly
+            that sum, so it landed 8pt off the bar's real top edge. Dropping the
+            pad makes the measurement true again on both platforms. */}
+        <View style={styles.container}>
           <View style={styles.navigationBar}>
             {navigationItems.map((item) => {
               const IconComponent = item.icon;

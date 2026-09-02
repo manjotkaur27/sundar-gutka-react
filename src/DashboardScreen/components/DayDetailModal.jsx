@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { androidLineHeight } from "@theme/lineHeight";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import Overlay from "@common/components/ui/Overlay";
 import { formatDayMonth } from "@common/dateLocale";
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginVertical: 20,
-    lineHeight: 22,
+    lineHeight: androidLineHeight(22),
   },
 });
 

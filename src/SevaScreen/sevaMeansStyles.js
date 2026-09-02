@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { androidLineHeight } from "@theme/lineHeight";
 import { themeForScreen } from "@theme/screenPalettes";
 
 // Native styling for the server-driven "Seva by other means" pages. Colours
@@ -32,13 +33,13 @@ const createStyles = (theme) => {
     },
     intro: {
       fontSize: 16,
-      lineHeight: 24,
+      lineHeight: androidLineHeight(24),
       color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     description: {
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: androidLineHeight(22),
       color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
@@ -72,7 +73,7 @@ const createStyles = (theme) => {
     },
     linkRowText: {
       fontSize: 15,
-      lineHeight: 21,
+      lineHeight: androidLineHeight(21),
       color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
@@ -90,7 +91,7 @@ const createStyles = (theme) => {
     },
     heroSub: {
       fontSize: 16,
-      lineHeight: 24,
+      lineHeight: androidLineHeight(24),
       textAlign: "center",
       color: c.textSecondary,
       paddingHorizontal: 16,
@@ -98,7 +99,7 @@ const createStyles = (theme) => {
     },
     footer: {
       fontSize: 13,
-      lineHeight: 18,
+      lineHeight: androidLineHeight(18),
       textAlign: "center",
       color: c.textSecondary,
       fontFamily: theme.typography.fonts.balooPaaji,

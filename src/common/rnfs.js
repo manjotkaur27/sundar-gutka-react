@@ -9,6 +9,7 @@ import {
   exists,
   copyFile,
   copyFileAssets,
+  unlink,
 } from "react-native-fs";
 import { constant, logError, logMessage } from "@common";
 
@@ -67,13 +68,30 @@ const readHashFile = async (path) => {
 
 // Copy the bundled DB (and its checksum) onto the device, and record which
 // bundled build we seeded so we don't re-copy it on every launch.
+/**
+ * Copy over whatever is there, on both platforms.
+ *
+ * iOS `copyFile` is NSFileManager's `copyItemAtPath:`, which FAILS when the
+ * destination already exists; Android's `copyFileAssets` overwrites. So the
+ * SECOND seed — an app update shipping a newer bundled DB — threw on iOS
+ * only, and the throw took initDB down its fallback path, which opened a
+ * different, empty database. Every query then failed with "no such table",
+ * which is an empty bani list with nothing on it to tap. The marker is
+ * written last, so the copy simply retried and failed the same way on every
+ * later launch.
+ */
+const replace = async (destination, copy) => {
+  if (await exists(destination)) await unlink(destination);
+  await copy();
+};
+
 const copyBundledDb = async (bundledMd5) => {
   if (Platform.OS === "android") {
-    await copyFileAssets(ASSET_DB_PATH, LOCAL_DB_PATH);
-    await copyFileAssets(ASSET_MD5_PATH, LOCAL_MD5_PATH);
+    await replace(LOCAL_DB_PATH, () => copyFileAssets(ASSET_DB_PATH, LOCAL_DB_PATH));
+    await replace(LOCAL_MD5_PATH, () => copyFileAssets(ASSET_MD5_PATH, LOCAL_MD5_PATH));
   } else {
-    await copyFile(BUNDLED_DB_PATH, LOCAL_DB_PATH);
-    await copyFile(BUNDLED_MD5_PATH, LOCAL_MD5_PATH);
+    await replace(LOCAL_DB_PATH, () => copyFile(BUNDLED_DB_PATH, LOCAL_DB_PATH));
+    await replace(LOCAL_MD5_PATH, () => copyFile(BUNDLED_MD5_PATH, LOCAL_MD5_PATH));
   }
   if (bundledMd5) await writeFile(BUNDLED_MARKER_PATH, bundledMd5);
 };

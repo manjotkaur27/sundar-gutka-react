@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, ScrollView, Pressable, StyleSheet, Image, useWindowDimensions } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
+import { androidLineHeight } from "@theme/lineHeight";
 import PropTypes from "prop-types";
 import useBaniLookup from "@common/hooks/useBaniLookup";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
   tileLabel: {
     fontSize: 14,
     fontWeight: "500",
-    lineHeight: 20,
+    lineHeight: androidLineHeight(20),
   },
   tileMeta: {
     fontSize: 12,

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@rneui/themed";
 import { pickByMode } from "@theme/colorUtils";
 import { getLanguages } from "@settings/components/comon/strings";
+import { androidLineHeight } from "@theme/lineHeight";
 import CustomText from "../CustomText";
 import STRINGS from "../../localization";
 import useTheme from "../../context";
@@ -114,7 +115,7 @@ const OnboardingCarousel = () => {
       const scale = Math.min(Math.max(width / 375, 0.85), 1.25);
       const titleSize = Math.round(22 * scale);
       const bodySize = Math.round(15 * scale);
-      const bodyLineHeight = Math.round(22 * scale);
+      const bodyLineHeight = androidLineHeight(Math.round(22 * scale));
       const screenshot = pickByMode(theme, { dark: item.imageDark, light: item.imageLight }, item.image);
       return (
         <View style={{ width, height: listHeight }}>

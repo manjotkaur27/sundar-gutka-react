@@ -15,10 +15,11 @@
  *  • completed      — offline-pin icon; tap → remove confirm
  */
 import React, { useEffect, useRef, useCallback } from "react";
-import { View, Pressable, Animated, Vibration, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Pressable, Animated, Vibration, StyleSheet } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import NetInfo from "@react-native-community/netinfo";
 import { Icon } from "@rneui/themed";
+import { Spinner } from "@common/components/ui";
 import { DownloadIcon } from "@common/icons";
 import PropTypes from "prop-types";
 import { unlink } from "react-native-fs";
@@ -208,7 +209,7 @@ const DownloadButton = ({ track = null, baniTitle = "", baniNameUni = "", baniId
         accessibilityRole="button"
         accessibilityLabel="download-in-progress"
       >
-        <ActivityIndicator size="small" color={primary} />
+        <Spinner size="small" color={primary} />
         <View style={[s.stopSquare, { backgroundColor: primary }]} />
       </Pressable>
     );

@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo } from "react";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { Platform, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { useSelector } from "react-redux";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { GradientDivider, SafeArea, StatusBarComponent, STRINGS } from "@common";
-import { ScreenHeader, Text } from "../common/components/ui";
+import { ScreenHeader, Spinner, Text } from "../common/components/ui";
 import { loadHTML } from "../ReaderScreen/utils";
 import useFetchPothi from "./hooks/useFetchPothi";
 
@@ -75,7 +75,7 @@ const PothiReaderScreen = ({ navigation, route }) => {
     if (isLoading) {
       return (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={c.accent} />
+          <Spinner color={c.accent} />
         </View>
       );
     }

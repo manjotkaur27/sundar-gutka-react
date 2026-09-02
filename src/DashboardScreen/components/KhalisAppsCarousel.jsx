@@ -1,6 +1,7 @@
 import React from "react";
 import { View, ScrollView, Pressable, Linking, StyleSheet, Image, Platform } from "react-native";
 import { pickByMode } from "@theme/colorUtils";
+import { androidLineHeight } from "@theme/lineHeight";
 import { brandMarks } from "@theme/palette";
 import { paletteFor } from "@theme/screenPalettes";
 import { CustomText, useTheme, logError, trackKhalisAppClicked } from "@common";
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 13,
     fontWeight: "600",
-    lineHeight: 18,
+    lineHeight: androidLineHeight(18),
     textAlign: "center",
   },
 });

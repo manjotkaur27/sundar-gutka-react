@@ -371,12 +371,14 @@ describe("Reader", () => {
     mockUseFetchShabad.isLoading = true;
     // eslint-disable-next-line react/no-unsafe, camelcase
     const { UNSAFE_root } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
-    const { ActivityIndicator } = require("react-native");
+    // The app's own Spinner, not `ActivityIndicator` — see @common/components/ui.
+    // It still IS an ActivityIndicator on Android; this suite runs as iOS, where
+    // it is the drawn arc, so the component itself is what to look for.
+    const Spinner = require("@common/components/ui").default ?? require("@common/components/ui");
 
-    // Check if ActivityIndicator is rendered
     // eslint-disable-next-line react/no-unsafe, camelcase
-    const activityIndicators = UNSAFE_root.findAllByType(ActivityIndicator);
-    expect(activityIndicators.length).toBeGreaterThan(0);
+    const spinners = UNSAFE_root.findAllByType(Spinner.Spinner ?? Spinner);
+    expect(spinners.length).toBeGreaterThan(0);
   });
 
   it("displays header with correct title", () => {

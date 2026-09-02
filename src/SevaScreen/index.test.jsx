@@ -156,6 +156,7 @@ jest.mock("@common", () => {
 jest.mock("@common/components/ui", () => {
   const { View, Text } = require("react-native");
   return {
+    Spinner: () => <View testID="spinner" />,
     ScreenHeader: ({ title, actions }) => (
       <View>
         <Text>{title}</Text>

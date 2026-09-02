@@ -43,6 +43,22 @@ const runMigrations = async (db) => {
   logMessage(`Bani DB migrated to version ${LATEST_DB_VERSION}.`);
 };
 
+// Where the bani DB lives and how it is opened — ONE definition, used by the
+// first attempt and by the retry below. They used to differ: the retry opened
+// `constant.DB` with no extension and no location, which is neither the file
+// ensureDbExists seeds nor the one the first attempt opens. On iOS that meant
+// a seeding hiccup was answered with a brand-new, EMPTY database, cached for
+// the session — an app with no banis in it, and a blank list with nothing to
+// tap, on every launch afterwards.
+const openOptions = () => ({
+  name: Platform.OS === "android" ? LOCAL_DB_PATH : `${constant.DB}.db`,
+  location: "Documents",
+  // The plugin's own copy of `www/<name>` out of the app bundle. It is the
+  // safety net for exactly the case the retry handles: seeding failed, so let
+  // SQLite seed itself from the same bundled file.
+  createFromLocation: 1,
+});
+
 // Singletons
 const databaseInstance = { value: null };
 let initializingPromise = null;
@@ -62,13 +78,7 @@ const initDB = async () => {
   // full copies side by side). Once the handle exists there is nothing left to
   // seed, so later callers skip the check entirely.
   initializingPromise = ensureDbExists()
-    .then(() =>
-      openDatabase({
-        name: Platform.OS === "android" ? LOCAL_DB_PATH : `${constant.DB}.db`,
-        location: "Documents",
-        createFromLocation: 1,
-      })
-    )
+    .then(() => openDatabase(openOptions()))
     .then(async (db) => {
       databaseInstance.value = db;
       initializingPromise = null;
@@ -84,7 +94,7 @@ const initDB = async () => {
     .catch((err) => {
       logMessage("Opening database error");
       logError(err);
-      openDatabase({ name: constant.DB, createFromLocation: 1 })
+      openDatabase(openOptions())
         .then((db) => {
           databaseInstance.value = db;
         })

@@ -186,6 +186,15 @@ export default {
   // never speaks SAML. Point SSO_SERVICE_URL at a staging SP to test against a
   // non-production IdP. See docs/SSO.md.
   SSO_SERVICE_URL: "https://serviceprovider.khalis.net",
+  // The IdP itself, which owns the ACCOUNT rather than the session. Only
+  // account deletion talks to it: the SP issues and ends sessions, but only
+  // WordPress can schedule the account's removal. It verifies the SP's JWT by
+  // calling the SP's /user, so the app needs no second credential.
+  //
+  // A separate constant rather than a path off SSO_SERVICE_URL because they are
+  // different hosts, and a staging run has to be able to move one without the
+  // other (dev.sso.khalis.net against a production SP, and the reverse).
+  SSO_IDP_URL: "https://sso.khalis.net",
   // Return deep links, registered in AndroidManifest.xml (on MainActivity) and
   // ios/SundarGutka/Info.plist. These MUST stay free of any query string: the
   // SP's success page builds the return URL as `${redirect_url}?token=${token}`

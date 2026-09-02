@@ -369,6 +369,48 @@ export const switchAnalyticsAccount = async (email) => {
 };
 
 /**
+ * DESTROY the signed-in account's on-device data. Account deletion only.
+ *
+ * This is the one place that deletes history, and it is deliberately not what
+ * signing out does. Signing out DETACHES — the account's SQLite file stays on
+ * disk so signing back in finds everything, including work not yet pushed.
+ * There is nothing to come back to after a deletion, and a device still holding
+ * the reading history of an account that no longer exists is the bug users
+ * notice; so here the file is emptied rather than merely closed.
+ *
+ * Order is load-bearing. The wipe runs while the ACCOUNT's store is still the
+ * open one — detaching first would point the handle at the signed-out store and
+ * empty that instead, destroying activity that was never part of this account
+ * and leaving the account's own file untouched.
+ *
+ * The Keychain token is NOT cleared here. It belongs to the session rather than
+ * to on-device data, and the caller needs it right up until the delete has been
+ * accepted — see useSsoActions.deleteAccount.
+ */
+export const destroyLocalAccountData = async (dispatch) => {
+  try {
+    // 1. The account's own analytics file: day rows, both session histories,
+    //    the read counts and the derived summary.
+    await clearAllAnalyticsData();
+  } catch (err) {
+    // Reported, not rethrown. The account IS gone server-side by the time this
+    // runs, so the sign-out below has to happen either way — leaving the user
+    // signed in to a deleted account would be the worse failure.
+    logError(new Error(`SSO accountScope: wiping deleted account data failed: ${err?.message}`));
+  }
+
+  // 2. Back to the signed-out store, so nothing reads the emptied file.
+  await switchAnalyticsAccount(null);
+
+  // 3. Preferences, reminders and — via CLEAR_USER_DATA's slice list — the sync
+  //    outbox, whose queued ops would otherwise keep pushing to a dead account.
+  await purgeLocalUserData(dispatch);
+
+  // 4. No previous account to compare the next sign-in against.
+  await writeLastAccount(null);
+};
+
+/**
  * Called on every session change. Resets PREFERENCES only when the account
  * actually differs, always points the database at the right account, then
  * records the new owner.

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { androidLineHeight } from "@theme/lineHeight";
 import PropTypes from "prop-types";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import { CustomText, useTheme, STRINGS, logError } from "@common";
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: androidLineHeight(20),
   },
 });
 

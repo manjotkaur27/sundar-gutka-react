@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { androidLineHeight } from "@theme/lineHeight";
 import { themeForScreen } from "@theme/screenPalettes";
 
 const createStyles = (theme) => {
@@ -52,7 +53,7 @@ const createStyles = (theme) => {
     },
     description: {
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: androidLineHeight(22),
       color: c.textSecondary,
       textAlign: "left",
       width: "100%",
@@ -151,7 +152,7 @@ const createStyles = (theme) => {
     // a Donate tap do nothing and never got the reason.
     minAmountNotice: {
       fontSize: 13,
-      lineHeight: 18,
+      lineHeight: androidLineHeight(18),
       color: c.error,
       textAlign: "center",
       width: "100%",
@@ -339,13 +340,13 @@ const createStyles = (theme) => {
       fontSize: 13,
       color: c.textSecondary,
       textAlign: "center",
-      lineHeight: 18,
+      lineHeight: androidLineHeight(18),
       paddingHorizontal: 16,
       fontFamily: theme.typography.fonts.balooPaaji,
     },
     taxNote: {
       fontSize: 13,
-      lineHeight: 18,
+      lineHeight: androidLineHeight(18),
       color: c.textSecondary,
       textAlign: "center",
       width: "100%",
@@ -357,14 +358,14 @@ const createStyles = (theme) => {
       // Swapped with the AppBar "Seva" title: the hero line is now the smaller
       // of the two (the AppBar is 26).
       fontSize: 20,
-      lineHeight: 26,
+      lineHeight: androidLineHeight(26),
       color: c.textPrimary,
       fontFamily: theme.typography.fonts.balooPaajiSemiBold,
       includeFontPadding: false,
     },
     heroDesc: {
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: androidLineHeight(22),
       color: c.textSecondary,
       width: "100%",
       // Left, not justified. Justification stretches the word gaps on every
@@ -416,7 +417,7 @@ const createStyles = (theme) => {
     },
     cardSub: {
       fontSize: 13.5,
-      lineHeight: 18,
+      lineHeight: androidLineHeight(18),
       color: c.textSecondary,
       marginTop: 2,
       fontFamily: theme.typography.fonts.balooPaaji,
@@ -451,7 +452,7 @@ const createStyles = (theme) => {
     },
     meansSub: {
       fontSize: 13,
-      lineHeight: 17,
+      lineHeight: androidLineHeight(17),
       color: c.textSecondary,
       marginTop: 2,
       fontFamily: theme.typography.fonts.balooPaaji,

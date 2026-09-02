@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 import { useSelector } from "react-redux";
+import { androidLineHeight } from "@theme/lineHeight";
 import PropTypes from "prop-types";
 import { formatWeekdayLong, formatDayMonth } from "@common/dateLocale";
 import { CloseIcon, PersonIcon } from "@common/icons";
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   },
   salutation: {
     fontSize: 19,
-    lineHeight: 28,
+    lineHeight: androidLineHeight(28),
     flex: 1,
     paddingRight: 8,
   },
@@ -265,13 +266,13 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: androidLineHeight(18),
     fontWeight: 650,
     marginTop: 2,
   },
   syncLine: {
     fontSize: 11,
-    lineHeight: 15,
+    lineHeight: androidLineHeight(15),
     marginTop: 2,
     opacity: 0.7,
   },

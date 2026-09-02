@@ -3,9 +3,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { setAuthSession, clearAuthSession, setAuthBusy } from "../actions";
 import { showConfirm } from "../components/ConfirmDialog";
 import STRINGS from "../localization";
-import { purgeLocalUserData, switchAnalyticsAccount, writeLastAccount } from "../sso/accountScope";
+import {
+  destroyLocalAccountData,
+  purgeLocalUserData,
+  switchAnalyticsAccount,
+  writeLastAccount,
+} from "../sso/accountScope";
+import { requestAccountDeletion } from "../sso/deleteAccount";
 import { startLogin, startLogout } from "../sso/khalisSso";
-import { readToken } from "../sso/tokenStore";
+import { clearToken, readToken } from "../sso/tokenStore";
 import { showErrorToast, showInfoToast } from "../toast";
 
 /**
@@ -90,7 +96,72 @@ const useSsoActions = () => {
     });
   }, [busy, dispatch]);
 
-  return { status, user, busy, signIn, signOut };
+  /**
+   * Delete the Khalis account itself, not just this device's session.
+   *
+   * Confirmed once, in the app's own dialog, with copy that says what actually
+   * happens: every Khalis app signs out, the history goes, and there are 30
+   * days to change their mind. One dialog and not two — the second would be
+   * theatre, since the deletion is reversible for a month either way.
+   *
+   * Local data is destroyed ONLY when the server accepted (200, or 409 for a
+   * request already in flight). A refused or unreachable call leaves the device
+   * exactly as it was: wiping a phone for a request that never landed would
+   * take the history while the account carried on existing.
+   *
+   * A 401 is the exception that looks like a failure but is not — the session
+   * is unusable, so the user is signed out locally without the account being
+   * touched, and can sign in again to retry.
+   *
+   * `/logout/all` is deliberately NOT called on success. The IdP has already
+   * ended the session; asking it again only errors.
+   */
+  const deleteAccount = useCallback(() => {
+    if (busy) return;
+    showConfirm({
+      title: STRINGS.DELETE_ACCOUNT_CONFIRM_TITLE,
+      message: STRINGS.DELETE_ACCOUNT_CONFIRM_MESSAGE,
+      cancelText: STRINGS.CANCEL,
+      confirmText: STRINGS.DELETE_ACCOUNT_CONFIRM_ACTION,
+      destructive: true,
+      onConfirm: async () => {
+        dispatch(setAuthBusy(true));
+        try {
+          const result = await requestAccountDeletion();
+
+          if (result.ok) {
+            await destroyLocalAccountData(dispatch);
+            await clearToken();
+            dispatch(clearAuthSession());
+            showInfoToast(STRINGS.DELETE_ACCOUNT_DONE);
+            return;
+          }
+
+          if (result.reason === "session") {
+            // The token is no good, so the account was never asked. Sign out
+            // locally — the same shape as an expiry — and leave the data alone.
+            await switchAnalyticsAccount(null);
+            await purgeLocalUserData(dispatch);
+            await writeLastAccount(null);
+            await clearToken();
+            dispatch(clearAuthSession());
+            showErrorToast(STRINGS.SESSION_EXPIRED);
+            return;
+          }
+
+          showErrorToast(
+            result.reason === "offline"
+              ? STRINGS.DELETE_ACCOUNT_OFFLINE
+              : STRINGS.DELETE_ACCOUNT_FAILED
+          );
+        } finally {
+          dispatch(setAuthBusy(false));
+        }
+      },
+    });
+  }, [busy, dispatch]);
+
+  return { status, user, busy, signIn, signOut, deleteAccount };
 };
 
 export default useSsoActions;

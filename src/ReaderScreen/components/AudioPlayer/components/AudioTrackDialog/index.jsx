@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, Pressable, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
+import { View, Pressable, Platform, useWindowDimensions } from "react-native";
 import TrackPlayer, { State } from "react-native-track-player";
 import { useSelector } from "react-redux";
 import { BlurView } from "@react-native-community/blur";
 import PropTypes from "prop-types";
+import { Spinner } from "@common/components/ui";
 import { useNetwork } from "@common/context";
 import { ArrowRightIcon, CloseIcon } from "@common/icons";
 import { STRINGS, CustomText } from "@common";
@@ -554,11 +555,7 @@ const AudioTrackDialog = ({
               activeOpacity={0.8}
             >
               {isNextLoading && (
-                <ActivityIndicator
-                  size="small"
-                  color={theme.c.onPrimary}
-                  style={styles.nextLoadingSpinner}
-                />
+                <Spinner size="small" color={theme.c.onPrimary} style={styles.nextLoadingSpinner} />
               )}
               <CustomText style={styles.playButtonText}>
                 {isNextLoading ? STRINGS.OPENING_PLAYER : nextButtonLabel}

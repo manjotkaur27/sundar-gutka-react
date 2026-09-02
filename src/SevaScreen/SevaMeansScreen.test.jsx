@@ -53,9 +53,10 @@ jest.mock("@common", () => {
 // the same reason the AppBar was: these tests are about the server-driven body,
 // and rendering the real header would drag the whole token layer in behind it.
 jest.mock("@common/components/ui", () => {
-  const { Text } = require("react-native");
+  const { Text, View } = require("react-native");
   return {
     ScreenHeader: ({ title }) => <Text>{title}</Text>,
+    Spinner: () => <View testID="spinner" />,
   };
 });
 

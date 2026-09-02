@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { withAlpha } from "@theme/colorUtils";
+import { androidLineHeight } from "@theme/lineHeight";
 import { constant } from "@common";
 
 // Depth here is the SHARED elevation scale, the same one the Dashboard cards
@@ -152,7 +153,16 @@ export const audioControlBarStyles = (theme) => ({
     // With the padding gone the line box is only as tall as the metrics say, so
     // this puts the room back deliberately — Gurmukhi labels carry marks above
     // AND below the letter, and those are what a tight line box clips first.
-    lineHeight: Math.round(theme.typography.sizes.lg * 1.4),
+    //
+    // ANDROID only. `includeFontPadding` above does nothing on iOS, so the
+    // lineHeight was the only thing acting there — and 22 against Baloo's
+    // 28.3pt box pushed the baseline down to 12.2pt from the top, putting the
+    // letters ~4.6pt above the middle of the button while the icon beside them
+    // was centred exactly. That is the label sitting high in the pill, in
+    // English as much as in Gurmukhi. Unset, the face's own box centres to
+    // within 0.6pt. It still fits: 28.3pt inside a 40pt bar less 5pt of padding
+    // a side.
+    lineHeight: androidLineHeight(Math.round(theme.typography.sizes.lg * 1.4)),
     textAlignVertical: "center",
   },
   actionButtonContent: {
@@ -539,9 +549,11 @@ export const downloadBadgeStyles = (theme) => ({
 });
 
 // Vertical space the collapsed pill occupies: its own height plus the gap it
-// keeps from the bottom of the screen. It is absolutely positioned, so it
-// contributes nothing to its parent's layout and anything that needs to sit
-// clear of it (see setToastBottomReservation) has to be told the number.
+// keeps from the bottom of the screen. Collapsed, the pill holds only the
+// circle, so it rests on the container's minimum and this number stays exact
+// for the state it describes. It is absolutely positioned, so it contributes
+// nothing to its parent's layout, and anything that needs to sit clear of it
+// (see setToastBottomReservation) has to be told the number.
 export const MINIMIZED_PLAYER_FOOTPRINT = 54;
 
 export const minimizePlayerStyles = (theme) => ({
@@ -549,10 +561,19 @@ export const minimizePlayerStyles = (theme) => ({
     position: "absolute",
     bottom: 10,
     right: theme.spacing.xl_20,
-    // Fixed height prevents the pill from elongating if text wraps or font
-    // metrics vary across devices/locales. Circle (28px) + paddingVertical*2 (8px) = 36px;
-    // 44px gives a comfortable touch target with a small visual top/bottom margin.
-    height: 44,
+    // A FLOOR, not a fixed height. Circle (28px) + paddingVertical*2 (8px) =
+    // 36px; 44 gives a comfortable touch target with a small visual top/bottom
+    // margin, and the collapsed pill — holding only the circle — still settles
+    // at exactly 44 and stays round.
+    //
+    // It cannot stay a fixed height: the two lines below hand iOS no lineHeight
+    // (see @theme/lineHeight), so there they are drawn in Baloo's own 1.771em
+    // box and the pair measures ~44.5 instead of the 28.5 the pinned boxes
+    // gave. Against a fixed 44 that overflowed a pill whose text wrap carries
+    // `overflow: hidden` — the clipping this was meant to prevent. Sizing to
+    // content is also what carries the pill through the OS text-size setting
+    // rather than cutting the text off at large sizes.
+    minHeight: 44,
     // The pill sizes to its content, so a short artist name never leaves a gap
     // and a normal-length one ("Bibi Indermohan Kaur") still shows in FULL — no
     // truncation. It is not unbounded, though: MinimizePlayer caps the text panel
@@ -596,6 +617,16 @@ export const minimizePlayerStyles = (theme) => ({
     // gives the same ~12px gap, just without widening the collapsed pill.
     paddingRight: theme.spacing.sm,
   },
+  // The two lines of the collapsed pill.
+  //
+  // Their line heights are ANDROID's alone. At 14 on a 12pt face and 16 on a
+  // 14pt one they sit well under Baloo's 1.771em box, and iOS answers that by
+  // dropping the baseline to `lineHeight - descent` and taking every missing
+  // point off the ascent: the duration's digits started 2pt above the top of
+  // their own line and were sliced, and the reciter's capitals with them. On
+  // iOS both are now drawn in the face's own metrics — see @theme/lineHeight,
+  // and the container's minHeight, which is what gives the taller pair room.
+  //
   // includeFontPadding:false on BOTH lines is load-bearing, not cosmetic. Android
   // otherwise reserves extra ascent/descent padding inside each Text; with the
   // tight lineHeights below that padding is proportionally large and asymmetric,
@@ -610,7 +641,7 @@ export const minimizePlayerStyles = (theme) => ({
     fontSize: theme.typography.sizes.sm,
     // Tight line box (≈ font size) strips the font's bottom leading, which is the
     // main source of the gap down to the artist name below.
-    lineHeight: theme.typography.sizes.sm + 2,
+    lineHeight: androidLineHeight(theme.typography.sizes.sm + 2),
     color: theme.c.textPrimary,
     opacity: 0.7,
     includeFontPadding: false,
@@ -623,7 +654,7 @@ export const minimizePlayerStyles = (theme) => ({
     // margin was -3.5, which closed the gap entirely and made the timestamp and
     // the name look stuck together; -1.5 gives back ~2px of breathing room
     // without letting the pair drift apart. Do not push this below ~-2 again.
-    lineHeight: theme.typography.sizes.md + 2,
+    lineHeight: androidLineHeight(theme.typography.sizes.md + 2),
     color: theme.c.textPrimary,
     marginTop: -1.5,
     includeFontPadding: false,

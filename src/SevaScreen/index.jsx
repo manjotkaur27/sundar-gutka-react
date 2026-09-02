@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
+  Platform,
   Pressable,
   TextInput,
-  ActivityIndicator,
   Animated,
   Linking,
   Text,
@@ -13,9 +13,10 @@ import LinearGradient from "react-native-linear-gradient";
 import { useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { FONT_SCALE_MAX } from "@theme/scale";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
-import { ScreenHeader } from "@common/components/ui";
+import { ScreenHeader, Spinner } from "@common/components/ui";
 import {
   SafeArea,
   StatusBarComponent,
@@ -162,7 +163,21 @@ const SevaScreen = () => {
   const amountFontSize = Math.round(
     Math.min(52, Math.max(34, Math.min(screenWidth * 0.13, screenHeight * 0.062)))
   );
-  const amountLineHeight = Math.round(amountFontSize * 1.12);
+  // The line box the amount is drawn in, and it has to satisfy two things.
+  //
+  // 1.12 is tighter than the glyphs are tall. Android pads the box and draws
+  // the overflow; iOS clips to it exactly, and the rupee symbol — the system
+  // face, taller than the Baloo digits beside it — lost its top. iOS gets the
+  // room; Android keeps the height this screen was laid out against, where the
+  // amount box is deliberately short.
+  //
+  // And it SCALES with the text. React Native grows `fontSize` with the OS
+  // text setting but leaves an explicit `lineHeight` exactly as written, so a
+  // pinned box stops fitting the moment someone turns their text up — on
+  // either platform. Clamped where ui/Text clamps it, so the two agree.
+  const amountLineHeight = Math.round(
+    amountFontSize * (Platform.OS === "ios" ? 1.3 : 1.12) * Math.min(fontScale || 1, FONT_SCALE_MAX)
+  );
   const navigation = useNavigation();
 
   const language = useSelector((state) => state.language);
@@ -1150,7 +1165,7 @@ const SevaScreen = () => {
         {renderHeader()}
         <GradientDivider />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.c.accent} />
+          <Spinner size="large" color={theme.c.accent} />
         </View>
       </SafeArea>
     );

@@ -5,7 +5,7 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { isDefaultPothi, isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
-import { actions, STRINGS, trackPothiEvent } from "@common";
+import { actions, ConfirmDialogHost, STRINGS, trackPothiEvent } from "@common";
 import {
   Button,
   GurmukhiKeyboard,
@@ -172,6 +172,14 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
             )
           )}
         </View>
+
+        {/* Confirms raised from in here are presented BY this sheet.
+            `showConfirm`'s host is normally the one at the app root, which on
+            iOS is presented by the root controller — and that controller is
+            already presenting this sheet, so the dialog never appeared and the
+            screen sat frozen. A host mounted here registers as the innermost
+            and takes over for as long as the sheet is open. See ConfirmDialog. */}
+        <ConfirmDialogHost />
       </Sheet>
     </ScreenRolesProvider>
   );

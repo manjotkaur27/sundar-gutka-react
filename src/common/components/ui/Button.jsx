@@ -1,7 +1,8 @@
 import React from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import PropTypes from "prop-types";
 import useTokens from "../../hooks/useTokens";
+import Spinner from "./Spinner";
 import Text from "./Text";
 
 // The app's button. There was no shared one: 314 touchables were each styled
@@ -113,7 +114,7 @@ const Button = ({
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={foreground} testID="button-spinner" />
+        <Spinner size="small" color={foreground} testID="button-spinner" />
       ) : (
         <>
           {icon ? <View>{icon}</View> : null}

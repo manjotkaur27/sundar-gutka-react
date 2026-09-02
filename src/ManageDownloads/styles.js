@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+import { androidLineHeight } from "@theme/lineHeight";
 // ManageDownloads styles, on the design tokens.
 //
 // The previous version carried a comment admitting the header design gambled on
@@ -7,6 +9,33 @@
 //
 // Everything here now comes from resolved tokens, so paddings and row heights
 // scale with the device width and the user's text-size setting.
+
+// BalooPaaji2's own metrics, measured from the shipped file: 1000upem, hhea
+// ascent 1157, OS/2 sCapHeight 602. A digit has no ascender and no descender,
+// so its optical centre is half a cap height above the baseline.
+const BALOO_ASCENT_EM = 1.157;
+const BALOO_CAP_HEIGHT_EM = 0.602;
+
+/**
+ * How far to LIFT a digit so its cap-height box lands on the middle of a
+ * `boxHeight` circle — on iOS, the one platform that does not centre it.
+ *
+ * iOS gets no `lineHeight` (see @theme/lineHeight), so it measures the digit
+ * against the badge's own height and RCTTextShadowView clamps what it returns
+ * to that maximum. Baloo asks for a 1.771em box — 21.3pt at 12pt — so a 16pt
+ * badge hands back a frame 5.3pt shorter than the line inside it. The frame
+ * shrinks; the glyph does not move with it. TextKit still puts the baseline one
+ * ascent below the frame's top, which leaves the digit's centre 10.3pt down a
+ * 16pt circle instead of 8 — sitting on the bottom of the disc.
+ *
+ * Android is given 0. There `androidLineHeight` is honoured, so the line box IS
+ * the badge height and CustomLineHeightSpan centres the font's box in it.
+ */
+const badgeDigitOffset = (fontSize, boxHeight) =>
+  Platform.OS === "ios"
+    ? boxHeight / 2 - (BALOO_ASCENT_EM - BALOO_CAP_HEIGHT_EM / 2) * fontSize
+    : 0;
+
 const createStyles = ({ c, space, layout, radii, type }) => ({
   // ── Section headings ───────────────────────────────────────────────────
   // Same shape as a Settings group heading: quiet label OUTSIDE and above the
@@ -223,11 +252,25 @@ const createStyles = ({ c, space, layout, radii, type }) => ({
     ...type.caption,
     // Was fontSize 9 — below any readable minimum, and it did not scale with
     // the user's text-size setting either.
-    // Matched to the badge height so the glyph centres and cannot push the box
-    // out of round.
-    lineHeight: layout.icon.xs,
+    //
+    // Matching the line box to the badge height centres the digit on Android,
+    // which splits a too-small line box evenly. iOS may not be pinned the same
+    // way — it takes the whole shortfall off the ascent and clips — so it is
+    // handed `undefined` and draws the face's own 21.3pt box. See
+    // @theme/lineHeight. That box does not centre itself, which is what the
+    // offset below is for.
+    lineHeight: androidLineHeight(layout.icon.xs),
     color: c.onError,
     textAlign: "center",
+    // The flex centring on the badge cannot place this: iOS clamps the digit's
+    // frame to the badge height while leaving the glyph on a baseline measured
+    // for the taller box, so the "2" came to rest on the bottom of the circle.
+    // `badgeDigitOffset` is that gap, and a `transform` pays it at paint time
+    // rather than in layout — the circle keeps its 16pt box, and a two-digit
+    // count still widens it into a stadium. A constant is safe because the
+    // digit is one: `maxFontSizeMultiplier={1}` at the call site pins it at
+    // 12pt, so there is no scaled size for the offset to track.
+    transform: [{ translateY: badgeDigitOffset(type.caption.fontSize, layout.icon.xs) }],
   },
 });
 

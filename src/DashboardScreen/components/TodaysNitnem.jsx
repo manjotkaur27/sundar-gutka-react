@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { View, Pressable, ScrollView, StyleSheet } from "react-native";
+import { Platform, View, Pressable, ScrollView, StyleSheet } from "react-native";
 import Svg, { Circle, Polyline, Path, Line } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -34,8 +34,26 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   subtitle: { fontSize: 17 },
   ringCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
-  ringNum: { fontSize: 15, lineHeight: 17, textAlign: "center" },
-  ringLabel: { fontSize: 10, lineHeight: 11, marginTop: -1, textAlign: "center" },
+  // An explicit lineHeight means two different things on the two platforms.
+  // Android pads the glyph box and draws whatever overflows; iOS takes the
+  // number literally and CLIPS to it, so Baloo's tall digits lost their top
+  // inside the ring at 15/17. iOS gets a line box the glyphs actually fit in
+  // (and no negative margin pulling the label into the number above it);
+  // Android keeps the values its rhythm was tuned with.
+  //
+  // The two lines still clear the ring: 20 + 13 against an inner diameter of
+  // 46 (64 across, 9 of stroke each side).
+  ringNum: {
+    fontSize: 15,
+    lineHeight: Platform.OS === "ios" ? 20 : 17,
+    textAlign: "center",
+  },
+  ringLabel: {
+    fontSize: 10,
+    lineHeight: Platform.OS === "ios" ? 13 : 11,
+    marginTop: Platform.OS === "ios" ? 0 : -1,
+    textAlign: "center",
+  },
   listDivider: { height: 1, marginVertical: 16 },
   // ~8 rows visible (4 per column) then scrolls within the card.
   gridScroll: { maxHeight: 184 },

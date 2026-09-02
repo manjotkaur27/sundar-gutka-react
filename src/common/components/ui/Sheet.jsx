@@ -23,6 +23,7 @@ import useSheetPresentation from "./useSheetPresentation";
 const SheetContent = ({
   visible,
   onClose,
+  onDismiss = undefined,
   title = undefined,
   children = null,
   closeAccessibilityLabel = undefined,
@@ -103,6 +104,10 @@ const SheetContent = ({
       animationType={flush ? "fade" : "none"}
       onRequestClose={onClose}
       onShow={flush ? undefined : presentation.onShow}
+      // iOS only, and the only reliable "this window is gone" signal there —
+      // see Overlay. A caller that has to open something else once this sheet
+      // is out of the way hangs its follow-up here.
+      onDismiss={onDismiss}
       testID={testID}
     >
       {/* Tapping the scrim dismisses. Marked as a button so a screen reader
@@ -226,6 +231,14 @@ const SheetContent = ({
 const sheetPropTypes = {
   visible: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
+  /**
+   * Fires once the sheet's window is actually GONE — iOS only, see Overlay.
+   * Hang anything that must not race the closing sheet here: on iOS a Modal is
+   * presented by a controller that can only present one thing at a time, so a
+   * row that closes this sheet and opens another in the same breath opens
+   * nothing at all.
+   */
+  onDismiss: PropTypes.func,
   title: PropTypes.string,
   children: PropTypes.node,
   /** Localised label for the dismiss affordance. */

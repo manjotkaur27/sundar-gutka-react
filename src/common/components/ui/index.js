@@ -15,6 +15,7 @@ export { default as Row } from "./Row";
 export { default as ScreenHeader } from "./ScreenHeader";
 export { default as SegmentedTabs } from "./SegmentedTabs";
 export { default as Sheet } from "./Sheet";
+export { default as Spinner } from "./Spinner";
 export { default as Text } from "./Text";
 export { default as TimePickerSheet } from "./TimePickerSheet";
 export { default as Toast } from "./Toast";

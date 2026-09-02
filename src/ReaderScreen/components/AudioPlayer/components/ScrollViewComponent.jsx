@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
-import { View, Animated, Pressable, ActivityIndicator } from "react-native";
+import { View, Animated, Pressable } from "react-native";
 import { useSelector } from "react-redux";
 import { Icon } from "@rneui/themed";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import { useCustomScrollbar } from "@common/components/ScrollIndicator";
+import { Spinner } from "@common/components/ui";
 import { PlayIcon, StopIcon } from "@common/icons";
 import { CustomText, STRINGS } from "@common";
 import { audioTrackDialogStyles } from "../style";
@@ -120,7 +121,7 @@ const ScrollViewComponent = ({
             />
           )}
           {previewLoadingTrackId && previewLoadingTrackId === track.id ? (
-            <ActivityIndicator size="small" color={rightIconColor} />
+            <Spinner size="small" color={rightIconColor} />
           ) : playingTrack && playingTrack.id === track.id && isPlaying ? (
             <StopIcon size={30} color={rightIconColor} />
           ) : (

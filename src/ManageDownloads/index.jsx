@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useLayoutEffect } from 'react';
-import { View, SectionList, Pressable, ActivityIndicator } from 'react-native';
+import { View, SectionList, Pressable } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { Icon } from '@rneui/themed';
 import { exists, unlink } from 'react-native-fs';
@@ -17,7 +17,7 @@ import {
   showConfirm,
   convertToUnicode,
 } from '@common';
-import { ScreenHeader, Text } from '../common/components/ui';
+import { ScreenHeader, Spinner, Text } from '../common/components/ui';
 import {
   AUDIO_DIRECTORY_PATH,
   getLocalTrackPath,
@@ -319,7 +319,7 @@ const ManageDownloads = ({ navigation }) => {
             <Icon name="error-outline" type="material" size={layout.icon.sm} color={c.error} />
           ) : (
             // c.accent, not the brand navy: navy is invisible on a dark ground.
-            <ActivityIndicator size="small" color={c.accent} />
+            <Spinner size="small" color={c.accent} />
           )}
         </Pressable>
       );

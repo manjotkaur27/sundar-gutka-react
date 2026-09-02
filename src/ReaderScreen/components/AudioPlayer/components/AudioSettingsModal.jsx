@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
-import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, ScrollView, Pressable } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { toggleAudioAutoPlay, toggleAudioSyncScroll, setAudioPlaybackSpeed } from "@common/actions";
+import { Spinner } from "@common/components/ui";
 import { PlusIcon, MinusIcon, ChevronRight } from "@common/icons";
 import { STRINGS, CustomText, ThemedSwitch, navigate } from "@common";
 import { audioSettingModalStyles } from "../style";
@@ -61,7 +62,7 @@ const AudioSettingsModal = ({ isLyricsAvailable, isLyricsChecking = false, setRa
                     {STRINGS.SYNC_UNAVAILABLE}
                   </CustomText>
                 ) : setting.disabled && isLyricsChecking ? (
-                  <ActivityIndicator size="small" color={theme.c.textBrand} />
+                  <Spinner size="small" color={theme.c.textBrand} />
                 ) : (
                   <ThemedSwitch
                     value={setting.defaultValue}

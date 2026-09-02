@@ -17,8 +17,8 @@ import PropTypes from "prop-types";
 // display, so anything measured against the screen overflows its own window.
 // Six of the app's eight modals were missing the navigation flag.
 //
-// **`onShow` is forwarded** so an entrance animation can start when the window
-// actually exists. A Modal is a separate native window and its children are not
+// **`onShow` and `onDismiss` are forwarded.** `onShow` so an entrance animation
+// can start when the window actually exists. A Modal is a separate native window and its children are not
 // attached during the commit that renders it, so a native-driven animation
 // started in an effect targets a view that is not there yet and is silently
 // dropped — the sheet then never leaves its off-screen start position and all
@@ -30,6 +30,7 @@ const Overlay = ({
   visible = true,
   onRequestClose = undefined,
   onShow = undefined,
+  onDismiss = undefined,
   animationType = "none",
   children = null,
   testID = undefined,
@@ -40,6 +41,7 @@ const Overlay = ({
     animationType={animationType}
     onRequestClose={onRequestClose}
     onShow={onShow}
+    onDismiss={onDismiss}
     statusBarTranslucent
     navigationBarTranslucent
     testID={testID}
@@ -54,6 +56,18 @@ Overlay.propTypes = {
   onRequestClose: PropTypes.func,
   /** Fires once the window is on screen — start entrance animations here. */
   onShow: PropTypes.func,
+  /**
+   * Fires once the window is GONE. iOS only — React Native routes it from the
+   * dismissal completion (Modal.js, `modalDismissed`) and never calls it on
+   * Android, where it is not needed: a Dialog is not a presenting controller
+   * and nothing has to wait for it.
+   *
+   * On iOS something does. A Modal is presented BY a UIViewController, and one
+   * controller cannot present two things at once — so anything a closing sheet
+   * opens on its way out (another sheet, a confirm) has to be held until this
+   * fires, or it is refused and the screen looks frozen.
+   */
+  onDismiss: PropTypes.func,
   /** "none" when the content drives its own animation, "fade" otherwise. */
   animationType: PropTypes.oneOf(["none", "fade", "slide"]),
   children: PropTypes.node,

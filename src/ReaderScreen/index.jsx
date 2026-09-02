@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { ActivityIndicator, AppState, Platform, View, Animated, NativeModules } from "react-native";
+import { AppState, Platform, View, Animated, NativeModules } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
+import { Spinner } from "@common/components/ui";
 import useReadingSession from "@common/hooks/useReadingSession";
 import { pauseTrack } from "@common/TrackPlayerUtils";
 import {
@@ -33,6 +34,11 @@ import { loadHTML } from "./utils";
 // How long the bars linger with no interaction before auto-hiding during
 // auto-scroll or audio playback.
 const BARS_IDLE_HIDE_MS = 4000;
+
+// Window after a bookmark jump during which the iOS focus-restore below stands
+// down, so it cannot scroll the reader back to where it was before Bookmarks
+// was opened.
+const BOOKMARK_JUMP_GRACE_MS = 1500;
 
 // How long after a touch on the audio player the page report of that same
 // touch is not allowed to move the chrome.
@@ -299,6 +305,14 @@ const Reader = ({ navigation, route }) => {
   // events both while backgrounded AND during the return transition animation.
   const iPadScrollGuardRef = useRef(false);
 
+  // When the last bookmark jump was posted to the WebView. Tapping a bookmark
+  // dispatches the position and pops back in one go, so the focus listener
+  // below fires on the same commit as the jump — without this it restores the
+  // pre-Bookmarks position and undoes it. iOS only, which is why bookmarks
+  // looked broken there while working on Android: the whole listener is
+  // skipped on Android.
+  const bookmarkJumpAtRef = useRef(0);
+
   const pauseAudioPlayback = useCallback(async () => {
     try {
       await pauseTrack();
@@ -412,8 +426,12 @@ const Reader = ({ navigation, route }) => {
     const unsubscribeFocus = navigation.addListener("focus", () => {
       if (!iPadScrollGuardRef.current) return;
 
+      // A bookmark jump is in flight — it is the position the user just asked
+      // for, so leave it alone.
+      const isBookmarkJump = Date.now() - bookmarkJumpAtRef.current < BOOKMARK_JUMP_GRACE_MS;
+
       // Restore position — the WebView may have scrolled to 0 while backgrounded
-      if (webViewRef.current && currentElementIdRef.current) {
+      if (webViewRef.current && currentElementIdRef.current && !isBookmarkJump) {
         const scrollMessage = {
           action: "scrollToPosition",
           topInset: headerOverlayHeight,
@@ -469,7 +487,38 @@ const Reader = ({ navigation, route }) => {
     isLarivaar,
   ]);
 
-  useBookmarks(webViewRef, shabad, bookmarkPosition);
+  // Called by useBookmarks immediately before the jump is posted to the WebView.
+  //
+  // iOS ONLY, and deliberately so. Everything below exists to stop the focus
+  // listener above — which does not run on Android — from undoing the jump, so
+  // on Android there is nothing to protect against and nothing to change. The
+  // position it records would be written moments later anyway, by the WebView's
+  // own `scroll-elementId-` report; leaving Android on that path keeps this fix
+  // to the platform that has the bug.
+  const handleBookmarkJump = useCallback(
+    (shabadID) => {
+      if (Platform.OS !== "ios") return;
+
+      const elementId = String(shabadID);
+      // Paragraph mode merges several shabads into one row, so not every
+      // bookmark id has an element of its own. If the WebView cannot land on it
+      // there is no jump to protect and no new position to record.
+      if (!shabad.some((item) => String(item.id) === elementId)) return;
+
+      bookmarkJumpAtRef.current = Date.now();
+      // The bookmark IS the new read position. Element ids in the rendered HTML
+      // are these same item ids (see utils/index.js), so keep the saved
+      // position in step — otherwise the next restore (backgrounding, a WebView
+      // reload, the next focus) pulls the reader back to the paragraph they
+      // were on before opening Bookmarks.
+      currentElementIdRef.current = elementId;
+      currentSequenceRef.current = null;
+      dispatch(actions.setPosition(elementId, id, null));
+    },
+    [dispatch, id, shabad]
+  );
+
+  useBookmarks(webViewRef, shabad, bookmarkPosition, handleBookmarkJump);
   useReadingSession({ baniId: id, baniTitle: titleUni || title, navigation, scrollPercentRef });
 
   // Handle app state changes
@@ -728,7 +777,7 @@ const Reader = ({ navigation, route }) => {
           Pothi" row that creates a pothi and drops this bani straight into it,
           without leaving the bani being read. */}
       <AddToPothiSheet visible={filing} onClose={() => setFiling(false)} bani={filingBani} />
-      {isLoading && <ActivityIndicator size="small" color={theme.c.primary} />}
+      {isLoading && <Spinner size="small" color={theme.c.primary} />}
       {/* Don't mount the WebView until the shabad has loaded. Mounting on the
           initial empty shabad ([]) renders a placeholder page whose height equals
           the viewport, which the "not scrollable" check misreads as a completed

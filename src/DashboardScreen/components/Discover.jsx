@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { androidLineHeight } from "@theme/lineHeight";
 import PropTypes from "prop-types";
 import { gurmukhiToDevanagari } from "@common/gurmukhiToDevanagari";
 import { CustomText, STRINGS } from "@common";
@@ -211,11 +212,11 @@ const styles = StyleSheet.create({
   // instead of being clipped by a locked square height.
   card: { flex: 1, padding: 16 },
   cardTag: { fontSize: 10, fontWeight: "600", letterSpacing: 0.8, marginBottom: 6 },
-  word: { fontSize: 20, lineHeight: 26 },
-  bigNum: { fontSize: 20, lineHeight: 24 },
+  word: { fontSize: 20, lineHeight: androidLineHeight(26) },
+  bigNum: { fontSize: 20, lineHeight: androidLineHeight(24) },
   translit: { fontSize: 12, marginTop: 2 },
-  meaning: { fontSize: 12, marginTop: 6, lineHeight: 16 },
-  eventName: { fontSize: 12, fontWeight: "600", marginTop: 5, lineHeight: 15 },
+  meaning: { fontSize: 12, marginTop: 6, lineHeight: androidLineHeight(16) },
+  eventName: { fontSize: 12, fontWeight: "600", marginTop: 5, lineHeight: androidLineHeight(15) },
   skeletonInner: { gap: 8, marginTop: 4 },
   lineSkeletonWide: { width: "70%", height: 20 },
   lineSkeletonNarrow: { width: "50%", height: 14 },

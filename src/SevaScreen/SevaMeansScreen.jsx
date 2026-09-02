@@ -1,16 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  View,
-  Animated,
-  Pressable,
-  ActivityIndicator,
-  Text,
-  useWindowDimensions,
-} from "react-native";
+import { View, Animated, Pressable, Text, useWindowDimensions } from "react-native";
 import { useSelector } from "react-redux";
 import { themeForScreen } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
-import { ScreenHeader } from "@common/components/ui";
+import { ScreenHeader, Spinner } from "@common/components/ui";
 import {
   SafeArea,
   StatusBarComponent,
@@ -196,7 +189,7 @@ const SevaMeansScreen = ({ route, navigation }) => {
     if (loading) {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={c.accent} />
+          <Spinner size="large" color={c.accent} />
         </View>
       );
     }

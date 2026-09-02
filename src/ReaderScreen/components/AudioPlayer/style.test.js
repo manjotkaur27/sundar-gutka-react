@@ -66,7 +66,7 @@ describe("minimized audio player elevation", () => {
 
   it("publishes the collapsed pill's footprint for things that must sit clear of it", () => {
     const { container: pill } = minimizePlayerStyles(darkTheme);
-    expect(MINIMIZED_PLAYER_FOOTPRINT).toBe(pill.height + pill.bottom);
+    expect(MINIMIZED_PLAYER_FOOTPRINT).toBe(pill.minHeight + pill.bottom);
   });
 
   describe("light mode", () => {

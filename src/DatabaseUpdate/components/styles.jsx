@@ -1,3 +1,5 @@
+import { androidLineHeight } from "@theme/lineHeight";
+
 export const checkUpdateStyles = (theme) => ({
   container: {
     flex: 1,
@@ -38,14 +40,14 @@ export const baniDBAboutStyles = (theme) => ({
   },
   bulletPoint: {
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: androidLineHeight(24),
     marginRight: 10,
     color: theme.c.textPrimary,
   },
   listText: {
     flex: 1,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: androidLineHeight(24),
     color: theme.c.textPrimary,
   },
 });

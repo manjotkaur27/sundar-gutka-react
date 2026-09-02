@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
@@ -60,6 +60,39 @@ const FolderScreen = ({ navigation, route }) => {
   // The same confirm-then-delete the Folders tab's long-press raises. See
   // useDeletePothi — one implementation, so the two cannot word it differently.
   const confirmDeletePothi = useDeletePothi();
+
+  // What the overflow menu's chosen row still has to do once the menu is off
+  // the screen.
+  //
+  // Every row here closes the menu and then opens something else — another
+  // sheet, or a confirm. On Android both can be on screen at once and the pair
+  // runs in one breath. On iOS a Modal is a UIViewController presented by
+  // another controller, and a controller can only present one thing at a time:
+  // for the ~110ms the menu spends sliding out it is STILL presenting, so the
+  // sheet or dialog the row asked for is refused outright and the tap looks
+  // like it did nothing.
+  //
+  // `onDismiss` is the platform's own "that window is gone" callback, so the
+  // follow-up runs the moment it is safe and never a guessed delay later. It is
+  // iOS-only by design (React Native does not fire it on Android), which is why
+  // Android keeps running the action immediately.
+  const pendingMenuActionRef = useRef(null);
+
+  const deferUntilMenuGone = useCallback((run) => {
+    if (Platform.OS !== "ios") {
+      run();
+      return;
+    }
+    pendingMenuActionRef.current = run;
+  }, []);
+
+  const runPendingMenuAction = useCallback(() => {
+    const run = pendingMenuActionRef.current;
+    pendingMenuActionRef.current = null;
+    // Nothing pending when the menu was dismissed by the scrim or the back
+    // gesture, which is the common case.
+    if (run) run();
+  }, []);
   // Every action on this screen writes to the pothi, and a signed-out or
   // offline user has nowhere to write to. The Folders tab has gated its
   // long-press, pin and reorder since they were built; this screen — which is
@@ -346,7 +379,13 @@ const FolderScreen = ({ navigation, route }) => {
           list of Pressables, which is why this one had no separators while every
           other sheet in the app did. Each action hands off to the control that
           already owns that job. */}
-      <Sheet visible={menuOpen} onClose={() => setMenuOpen(false)} title={title} variant="flush">
+      <Sheet
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onDismiss={runPendingMenuAction}
+        title={title}
+        variant="flush"
+      >
         {[
           { label: STRINGS.POTHI_ADD_BANIS, run: () => setEditing(true) },
           { label: STRINGS.POTHI_RENAME, run: () => setRenaming(true) },
@@ -371,7 +410,9 @@ const FolderScreen = ({ navigation, route }) => {
                   // Last, and the heavier of the two deletes — it destroys the
                   // whole pothi rather than editing its contents. The confirm is
                   // raised at the app root, which is why leaving the screen
-                  // straight after does not take it down with us.
+                  // straight after does not take it down with us — and why it
+                  // has to wait for this menu to be gone on iOS, since the root
+                  // is the very controller holding the menu up.
                   destructive: true,
                   run: () =>
                     confirmDeletePothi({ id: pothiId, name: pothi?.name, count: rows.length }, () =>
@@ -393,7 +434,7 @@ const FolderScreen = ({ navigation, route }) => {
             onPress={() => {
               setMenuOpen(false);
               if (!requireOnline()) return;
-              action.run();
+              deferUntilMenuGone(action.run);
             }}
             accessibilityRole="button"
             showDivider

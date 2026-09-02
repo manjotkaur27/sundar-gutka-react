@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { View, Pressable, Animated, Platform, ActivityIndicator } from "react-native";
+import { View, Pressable, Animated, Platform } from "react-native";
 import TrackPlayer from "react-native-track-player";
 import { useDispatch, useSelector } from "react-redux";
 import { Slider } from "@miblanchard/react-native-slider";
@@ -7,6 +7,7 @@ import { BlurView } from "@react-native-community/blur";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import PropTypes from "prop-types";
 import { setAudioProgress } from "@common/actions";
+import { Spinner } from "@common/components/ui";
 // Used by the two bani-length guards below. It was referenced without being
 // imported, so those paths threw a ReferenceError instead of running.
 import constant from "@common/constant";
@@ -770,7 +771,7 @@ const AudioControlBar = ({
               disabled={!isAudioEnabled || isPlayerActionLoading || isBuffering}
             >
               {isPlayerActionLoading || isBuffering ? (
-                <ActivityIndicator
+                <Spinner
                   testID="player-action-loading-indicator"
                   size="small"
                   color={theme.c.textBrand}
@@ -787,7 +788,7 @@ const AudioControlBar = ({
               <View style={styles.progressBar}>
                 {isSeekLoading && (
                   <View style={styles.seekLoadingOverlay} testID="seek-loading-indicator">
-                    <ActivityIndicator size="small" color={theme.c.textBrand} />
+                    <Spinner size="small" color={theme.c.textBrand} />
                   </View>
                 )}
                 <Slider

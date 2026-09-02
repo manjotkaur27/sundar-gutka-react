@@ -20,10 +20,33 @@ import CustomText from "../CustomText";
  * Mount <ConfirmDialogHost /> exactly once near the app root (inside ThemeProvider).
  */
 
-let hostListener = null;
+// Mounted hosts, outermost first. Normally there is exactly one, at the app
+// root — but a host inside a Modal has to be able to take over while that Modal
+// is up, and that is not a nicety on iOS, it is the only way the dialog can
+// appear at all.
+//
+// A React Native Modal is a UIViewController there, presented by whichever
+// controller React resolves for the view hosting it:
+//
+//   [[modalHostView reactViewController] presentViewController:...]
+//                                     (RCTModalHostViewManager.m)
+//
+// The root host resolves to the ROOT controller. Ask it to confirm something
+// while a sheet is open and UIKit refuses — that controller is already
+// presenting the sheet — so the tap does nothing and the screen reads as
+// frozen. Android stacks Dialogs and never shows it.
+//
+// A host rendered INSIDE the sheet resolves to the sheet's own controller, so
+// the sheet presents the dialog and it appears over itself, which is what it
+// looks like on Android. Hosts register in mount order, so the innermost one is
+// last and wins; when the sheet closes it deregisters and the root host takes
+// over again. Nothing else changes: `showConfirm` is called the same way from
+// everywhere and callers never learn which host answered.
+const hostListeners = [];
 
 export const showConfirm = (options) => {
-  if (hostListener) hostListener(options);
+  const innermost = hostListeners[hostListeners.length - 1];
+  if (innermost) innermost(options);
 };
 
 const ConfirmDialogHost = () => {
@@ -35,9 +58,11 @@ const ConfirmDialogHost = () => {
   const [options, setOptions] = useState(null);
 
   useEffect(() => {
-    hostListener = setOptions;
+    // `setOptions` is stable, so it is its own registration token.
+    hostListeners.push(setOptions);
     return () => {
-      hostListener = null;
+      const at = hostListeners.indexOf(setOptions);
+      if (at !== -1) hostListeners.splice(at, 1);
     };
   }, []);
 
