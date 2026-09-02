@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState, Linking } from "react-native";
 import { useDispatch } from "react-redux";
 import { setAuthSession, clearAuthSession } from "../actions";
-import { applyAccountScope } from "../sso/accountScope";
+import { applyAccountScope, switchAnalyticsAccount } from "../sso/accountScope";
 import STRINGS from "../localization";
 import { decodeJwtPayload, isTokenValid, toSessionUser } from "../sso/jwt";
 import { consumeLoginRedirect } from "../sso/khalisSso";
@@ -34,10 +34,41 @@ const useSsoSession = () => {
     }
   }, []);
 
+  /**
+   * Ends the session however it ended — an expiry, a token that will not decode,
+   * or a launch with nothing in the Keychain.
+   *
+   * The DATABASE detaches here; the PREFERENCES deliberately do not.
+   *
+   * Detaching is what makes "signed out" mean the same thing whichever way the
+   * session ended. Without it an expiry left the previous account's SQLite file
+   * open under signed-out chrome: the dashboard kept showing that account's
+   * streak and calendar next to a "Sign in" button — a stranger's history on a
+   * shared phone — and, worse, `switchAnalyticsAccount` reads whatever store is
+   * open as unclaimed activity to hand the next person who signs in. From that
+   * state a re-login doubled the account's own history and a different account
+   * inherited all of it. Detaching restores the precondition that function is
+   * written against; the guard inside it is the second line, not the first.
+   *
+   * Nothing is deleted. The account's file stays on disk and comes straight
+   * back on the next sign-in, including anything not yet pushed.
+   *
+   * What is NOT done here, and why:
+   *   purgeLocalUserData — resets the layout and cancels every reminder. An
+   *     expiry is not a decision the user made, and losing your nitnem
+   *     reminders because a token lapsed is a real cost for no benefit.
+   *   writeLastAccount   — the device still belongs to that account. Clearing
+   *     it would make a LATER sign-in by someone else look like a first
+   *     sign-in, which skips the preference purge and hands them the previous
+   *     user's layout and reminders.
+   */
   const endSession = useCallback(
     async ({ notify } = {}) => {
       clearExpiryTimer();
       await clearToken();
+      // Before the session is announced, so no frame renders a signed-out
+      // dashboard over the previous account's numbers.
+      await switchAnalyticsAccount(null);
       dispatch(clearAuthSession());
       if (notify) showInfoToast(STRINGS.SESSION_EXPIRED);
     },

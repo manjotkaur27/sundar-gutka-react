@@ -27,6 +27,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useAnalyticsAccount,
+  currentAccountKey,
+  ANONYMOUS_KEY,
   getAllDailyActivity,
   getAllReadSessions,
   getAllAudioSessions,
@@ -42,6 +44,9 @@ import {
   DASHBOARD_LAST_PUSH_KEY,
   DASHBOARD_APPLIED_AT_KEY,
   DASHBOARD_LOCAL_MUTATED_AT_KEY,
+  DASHBOARD_ACCOUNT_TODAY_KEY,
+  DASHBOARD_ACTIVITY_PUSHED_AT_KEY,
+  DASHBOARD_PAYLOAD_HASH_KEY,
   RESTORED_TOP_BANIS_KEY,
 } from "../../services/dashboard/syncKeys";
 import { clearUserData } from "../actions";
@@ -134,6 +139,34 @@ export const purgeLocalUserData = async (dispatch) => {
 };
 
 /**
+ * Zero the OPEN store's summary when no rows stand behind it.
+ *
+ * `user_stats_summary` is derived — computeStreaks rebuilds it from
+ * `daily_activity` — but it is stored, and the rebuild deliberately declines to
+ * write zeros over a summary it cannot verify. So a summary can outlive the
+ * rows it described and there is no path back to zero except this one.
+ *
+ * Only ever called against the signed-out store, and only when that store holds
+ * nothing: an unbacked summary is then unambiguously stale rather than the
+ * record of activity waiting to be claimed.
+ */
+const resetSummaryIfUnbacked = async () => {
+  try {
+    const held =
+      (await getAllDailyActivity()).length +
+      (await getAllReadSessions()).length +
+      (await getAllAudioSessions()).length +
+      (await getAllBaniReadCounts()).length;
+    // Deletes from four empty tables — the point of the call is the summary.
+    if (held === 0) await clearAllAnalyticsData();
+  } catch (err) {
+    logError(
+      new Error(`SSO accountScope: resetting the signed-out summary failed: ${err?.message}`)
+    );
+  }
+};
+
+/**
  * Point the analytics database at `email`'s own file, first carrying over any
  * activity recorded while signed out.
  *
@@ -146,18 +179,46 @@ export const purgeLocalUserData = async (dispatch) => {
  * Ordering is add-then-clear on purpose. Interrupted between the two, the worst
  * case is that a day is counted twice — recoverable, and visibly wrong. Clearing
  * first would lose the reading outright, which is not.
+ *
+ * PRECONDITION, now enforced rather than assumed: the carry only runs when the
+ * ANONYMOUS store is the open one. See the guard below for what it cost when
+ * that was left as a comment.
  */
 export const switchAnalyticsAccount = async (email) => {
+  // Which store the carry would be reading FROM.
+  //
+  // The rows it moves are unattributed by definition, and those only ever live
+  // in the anonymous file. So if anything else is open there is nothing here to
+  // claim, and reading it would move an ACCOUNT'S OWN history instead.
+  //
+  // This used to be an assumption, held up by the comment below and by every
+  // sign-out path remembering to detach first. `endSession` — a token expiry —
+  // did not: it cleared the Keychain and the auth slice and left the previous
+  // account's database open. A sign-in from that state read that file as though
+  // it were the scratch pad, so signing back in as the SAME person added every
+  // day row onto itself (history doubled, sessions re-inserted) and signing in
+  // as SOMEONE ELSE copied the whole of it into their account. Both then pushed
+  // upward, where `raiseAllTimeBaseline`'s max() makes an inflated lifetime
+  // total permanent — there is no path back down.
+  //
+  // The anonymity of the SOURCE is the property that matters, not whether the
+  // key is about to change. A guard that only asked "is this a different
+  // account?" would have stopped the doubling and waved the cross-account copy
+  // straight through.
+  const previousKey = currentAccountKey();
+  const canCarry = previousKey === ANONYMOUS_KEY;
+
   let carried = null;
   try {
-    // Read while the ANONYMOUS store is still the open one.
+    // Read while the ANONYMOUS store is still the open one — guaranteed by
+    // `canCarry`, not merely intended.
     //
     // ALL FIVE tables, not just the day rows. Carrying only `daily_activity`
     // left the streak summary, the session histories and the read counts behind
     // in the anonymous store — and because that store is the pre-accounts
     // database, signing out then showed the previous account's streak and
     // most-read lists on a dashboard that was supposed to be empty.
-    if (email) {
+    if (email && canCarry) {
       carried = {
         days: await getAllDailyActivity(),
         reads: await getAllReadSessions(),
@@ -170,14 +231,73 @@ export const switchAnalyticsAccount = async (email) => {
     carried = null;
   }
 
-  await useAnalyticsAccount(email);
+  const storeChanged = await useAnalyticsAccount(email);
+
+  // Three AsyncStorage keys describe the account whose store was just closed,
+  // and none of them mean anything once a different file is open. They are
+  // GLOBAL keys holding PER-ACCOUNT state, which is the whole problem — the
+  // history itself is scoped by filename, and these were left behind.
+  //
+  // DASHBOARD_ACCOUNT_TODAY_KEY is the one that shows. It holds what the
+  // ACCOUNT read today across all its devices, and the streak engine counts
+  // today as active on the strength of it (see streakEngine.accountSecondsToday)
+  // WITHOUT consulting a single local row. Left behind at sign-out it makes the
+  // signed-out dashboard read a 1-day streak, a best streak of 1 and one active
+  // day, off an empty store — and because computeStreaks floors the lifetime
+  // figures with Math.max, that fabricated 1 then never comes back down.
+  //
+  // DASHBOARD_ACTIVITY_PUSHED_AT_KEY is a watermark over the previous store's
+  // SQLite `updated_at` values. Against a different account's rows it is
+  // meaningless and reads too high, so `getActivityUpdatedSince` returns
+  // nothing and that account's local history never uploads at all.
+  //
+  // DASHBOARD_PAYLOAD_HASH_KEY is the fingerprint of the last snapshot pushed
+  // for the previous account; kept, it can skip the incoming account's first
+  // push as "unchanged".
+  //
+  // Only when LEAVING a real account, not on every attachment. A plain relaunch
+  // goes anonymous → account, which changes the key but succeeds nothing: the
+  // watermark there is this account's own and still correct, and dropping it
+  // every launch would re-push a year of day rows for no reason.
+  if (storeChanged && previousKey !== ANONYMOUS_KEY) {
+    await AsyncStorage.multiRemove([
+      DASHBOARD_ACCOUNT_TODAY_KEY,
+      DASHBOARD_ACTIVITY_PUSHED_AT_KEY,
+      DASHBOARD_PAYLOAD_HASH_KEY,
+    ]);
+  }
+
+  // DETACHING. The signed-out store is now the open one, and this is the last
+  // moment anything looks at it before the dashboard renders from it.
+  //
+  // Its four data tables were emptied when its rows were last claimed, so it
+  // should read blank — but `user_stats_summary` is zeroed by exactly one
+  // thing, `clearAllAnalyticsData`, and that sits below the `total === 0` return
+  // here. A summary left claiming activity its rows cannot support is therefore
+  // never repaired, and nothing else will do it: computeStreaks bails out
+  // rather than writing zeros when it finds no history, precisely so a restore
+  // in flight is not clobbered. So the signed-out dashboard kept reporting a
+  // streak and a days-active count with an empty store behind them.
+  //
+  // Guarded on the store being genuinely row-empty, which is the difference
+  // between a repair and data loss: rows still sitting here mean a previous
+  // carry FAILED and left them for the next sign-in to retry. Those are real,
+  // unclaimed reading, and the summary that goes with them is real too.
+  // Only when an ACCOUNT was just left. A launch that was never signed in also
+  // lands here, and there the signed-out store is not a leftover at all — it is
+  // that user's own history, the summary belongs to it, and walking four whole
+  // tables to prove so would be on the cold-start path of every such launch.
+  if (!email) {
+    if (previousKey !== ANONYMOUS_KEY) await resetSummaryIfUnbacked();
+    return 0;
+  }
 
   const total =
     (carried?.days?.length ?? 0) +
     (carried?.reads?.length ?? 0) +
     (carried?.audio?.length ?? 0) +
     (carried?.counts?.length ?? 0);
-  if (!email || total === 0) return 0;
+  if (total === 0) return 0;
 
   try {
     // Days are ADDED as deltas: signed-out reading is genuinely extra activity

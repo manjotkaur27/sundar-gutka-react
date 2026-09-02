@@ -62,15 +62,42 @@ describe("signing out resets the whole dashboard", () => {
     expect(source()).not.toContain("clearAllAnalyticsData");
   });
 
-  // Token EXPIRY is not a sign-out. Resetting there would cost a user their own
-  // dashboard for not opening the app for a week.
-  it("leaves expiry alone — only an explicit sign-out resets", () => {
-    const session = read("useSsoSession.js").replace(/\r\n/g, "\n");
-    const endSession = session.slice(
-      session.indexOf("const endSession = useCallback("),
-      session.indexOf("const beginSession = useCallback(")
-    );
-    expect(endSession).not.toContain("purgeLocalUserData");
-    expect(endSession).not.toContain("switchAnalyticsAccount");
+  // Token EXPIRY ends a session too, and the two halves are scoped differently:
+  // the DATABASE detaches, the PREFERENCES do not.
+  //
+  // This used to assert that expiry touched neither, on the grounds that
+  // resetting would cost a user their own dashboard for not opening the app for
+  // a week. That reasoning still holds for the preferences and does not hold for
+  // the database, because leaving the account's file open is not a way of
+  // keeping their data — it is what let the next sign-in claim it.
+  describe("a token expiry", () => {
+    const endSessionBody = () => {
+      const session = read("useSsoSession.js").replace(/\r\n/g, "\n");
+      return session.slice(
+        session.indexOf("const endSession = useCallback("),
+        session.indexOf("const beginSession = useCallback(")
+      );
+    };
+
+    it("detaches the database, so signed out means the same thing either way", () => {
+      // Load-bearing, not tidiness. `switchAnalyticsAccount` carries the OPEN
+      // store's rows into whoever signs in next, so a session that ends without
+      // detaching lets the next sign-in read the previous account's history as
+      // though it were unclaimed — doubling it on a re-login by the same person,
+      // copying it wholesale into anyone else's account.
+      expect(endSessionBody()).toContain("switchAnalyticsAccount(null)");
+    });
+
+    it("does NOT reset preferences — an expiry is not the user's decision", () => {
+      // purgeLocalUserData cancels every reminder and resets the layout.
+      expect(endSessionBody()).not.toContain("purgeLocalUserData");
+    });
+
+    it("does NOT forget which account the device belongs to", () => {
+      // Clearing it would make a later sign-in by SOMEONE ELSE look like a first
+      // sign-in, which skips the purge and hands them the previous user's
+      // layout and reminders.
+      expect(endSessionBody()).not.toContain("writeLastAccount");
+    });
   });
 });

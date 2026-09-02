@@ -39,6 +39,13 @@ const mockUpsertDailyActivity = jest.fn(() => Promise.resolve());
 const mockCancelAllReminders = jest.fn(() => Promise.resolve());
 
 jest.mock("../../database/analytics", () => ({
+  // Pinned to the anonymous store, which is the state every path here is about:
+  // a launch, and a sign-in after a real sign-out, both start there. What
+  // happens when it is NOT anonymous — the carry guard — needs the real
+  // `accountDb` key machine to mean anything, so it lives in
+  // accountCarryGuard.test.js rather than being faked here.
+  currentAccountKey: () => "anon",
+  ANONYMOUS_KEY: "anon",
   clearAllAnalyticsData: (...a) => mockClearAllAnalyticsData(...a),
   useAnalyticsAccount: (...a) => mockUseAnalyticsAccount(...a),
   getAllDailyActivity: (...a) => mockGetAllDailyActivity(...a),
