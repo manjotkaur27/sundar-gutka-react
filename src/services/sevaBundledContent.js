@@ -47,8 +47,10 @@ const LINKS = {
     "https://app.notion.com/p/Sundar-Gutka-Good-First-Issues-3a6fd247b78080f4abb9ea85462c1ebc",
   slack: "https://forms.gle/zc7JQiLHGxHKXP599",
   qaTestBuild: "https://forms.gle/bPfiYhKQS8h6z1Vm7",
-  qaFeedbackForm:
-    "https://docs.google.com/forms/d/e/1FAIpQLSfui4s1eAUXWovySguAqgfRtb8eF-fOvJBtdP7CpbwStOPZqA/viewform?usp=sharing&ouid=114493208173660506988",
+  // Not a Google Form: one carrying a file-upload question is refused to any
+  // signed-out browser, and the iOS in-app browser keeps its own cookie store
+  // with no Google session in it, so the report link could never open there.
+  qaFeedbackForm: "https://form.jotform.com/262451823123046",
   ideasForm: "https://forms.gle/EMUMZZiw8WXiFojCA",
   // Declared in the order the social page lists them. An empty string means
   // "no published account yet" — the renderer drops the row rather than

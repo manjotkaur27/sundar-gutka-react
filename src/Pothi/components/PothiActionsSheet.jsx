@@ -61,14 +61,15 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
     onClose();
   };
 
-  // The pothi is captured here because the sheet closes first: once it does,
-  // `pothi` is null and this component renders nothing, while the confirm is
-  // hosted at the app root and outlives it.
-  const askDelete = () => {
-    const target = pothi;
-    onClose();
-    confirmDelete(target);
-  };
+  // The sheet stays OPEN behind the confirm and closes only once the delete is
+  // through — the shape ReminderEditSheet already uses.
+  //
+  // Closing first is what broke it: `showConfirm` goes to the innermost mounted
+  // host, which is the one rendered at the bottom of this sheet, so a confirm
+  // raised in the same tick as `onClose` was handed to a host React unmounted in
+  // that very commit. The dialog never appeared and nothing was deleted, on both
+  // platforms. Cancelling now leaves the sheet up, which is where the user was.
+  const askDelete = () => confirmDelete(pothi, onClose);
 
   const actionRow = (children) => (
     <View
@@ -178,8 +179,16 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
             iOS is presented by the root controller — and that controller is
             already presenting this sheet, so the dialog never appeared and the
             screen sat frozen. A host mounted here registers as the innermost
-            and takes over for as long as the sheet is open. See ConfirmDialog. */}
-        <ConfirmDialogHost />
+            and takes over for as long as the sheet is open. See ConfirmDialog.
+
+            Outside the settings scope, though. That scope dresses this SHEET in
+            the Settings palette and is dark-mode only, so a dialog inheriting it
+            came up navy on the Folders tab while every other confirm in the app
+            stayed on the default elevated surface. The dialog is app-wide
+            furniture, not part of the sheet. */}
+        <ScreenRolesProvider screen={null}>
+          <ConfirmDialogHost />
+        </ScreenRolesProvider>
       </Sheet>
     </ScreenRolesProvider>
   );

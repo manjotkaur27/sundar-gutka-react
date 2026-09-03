@@ -25,7 +25,7 @@ const ScreenRolesContext = createContext(null);
  */
 export const useScreenRolesScope = () => useContext(ScreenRolesContext);
 
-const ScreenRolesProvider = ({ screen, children }) => (
+const ScreenRolesProvider = ({ screen = null, children }) => (
   <ScreenRolesContext.Provider value={screen}>{children}</ScreenRolesContext.Provider>
 );
 
@@ -50,8 +50,15 @@ export const withScreenRoles = (Component, screen) => {
 };
 
 ScreenRolesProvider.propTypes = {
-  /** A key in the screen role registry — see theme/screenPalettes. */
-  screen: PropTypes.string.isRequired,
+  /**
+   * A key in the screen role registry — see theme/screenPalettes.
+   *
+   * Null opts a subtree back OUT of an enclosing scope, for content that sits
+   * inside a scoped screen without belonging to it — an app-wide dialog raised
+   * from a scoped sheet, which should look like every other dialog rather than
+   * like the sheet it happened to be opened from.
+   */
+  screen: PropTypes.string,
   children: PropTypes.node.isRequired,
 };
 
