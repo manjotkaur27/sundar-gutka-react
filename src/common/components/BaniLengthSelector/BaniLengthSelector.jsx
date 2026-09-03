@@ -8,6 +8,7 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import { useCustomScrollbar } from "@common/components/ScrollIndicator";
 import Dialog from "@common/components/ui/Dialog";
 import constant from "@common/constant";
+import { useNavBarSurface } from "@common/systemBars";
 import { CustomText, STRINGS, useThemedStyles, useTheme } from "@common";
 import { setBaniLength } from "../../actions";
 import createStyles from "./style";
@@ -22,6 +23,9 @@ const LENGTH_CONSTANT_MAP = {
 };
 
 const BaniLengthSelector = () => {
+  // First run, before there is a tab bar: this screen owns the whole display,
+  // and its ground is the brand navy in both themes, so the glyphs stay light.
+  useNavBarSurface(false);
   const styles = useThemedStyles(createStyles);
   const { theme } = useTheme();
   const baniLengths = [STRINGS.short, STRINGS.medium, STRINGS.long, STRINGS.extra_long];

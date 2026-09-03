@@ -20,6 +20,7 @@ import AboutScreen from "../AboutScreen";
 import Bookmarks from "../Bookmarks";
 import BottomNavigation from "../common/components/BottomNavigation";
 import { trackScreenView } from "../common/firebase/analytics";
+import { useNavBarSurface } from "../common/systemBars";
 import DashboardScreen from "../DashboardScreen";
 import DatabaseUpdateScreen from "../DatabaseUpdate";
 import EditBaniOrder from "../EditBaniOrder";
@@ -68,6 +69,11 @@ const CustomTabBar = (props) => {
   const activeKey = currentRoute.name;
   const currentOptions = descriptors[currentRoute.key]?.options;
   const isHidden = currentOptions?.tabBarStyle?.display === "none";
+  // The bar is the brand navy, so its glyphs are light. Hidden, it claims
+  // NOTHING — it is still mounted under the Reader and the length screen, and a
+  // hidden bar must not speak for the screen in front of the user. Before the
+  // early return, because hooks cannot run conditionally.
+  useNavBarSurface(isHidden ? null : false);
 
   if (isHidden) return null;
 
@@ -90,11 +96,20 @@ CustomTabBar.propTypes = {
   }).isRequired,
 };
 
+// The tab bar is RENDERED as an element rather than handed over as the render
+// prop itself. React Navigation calls `tabBar` as a plain function, so a
+// component passed straight in executes inside BottomTabView's render with no
+// fiber of its own — and any hook it uses is an invalid hook call that takes
+// the app down at launch. Returning an element gives it a fiber. Declared at
+// module scope so it is one stable component type, not a new one per render.
+// eslint-disable-next-line react/jsx-props-no-spreading
+const renderTabBar = (barProps) => <CustomTabBar {...barProps} />;
+
 // Main tab navigator for Home, Dashboard, Seva, Settings
 const MainTabs = () => {
   return (
     <Tab.Navigator
-      tabBar={CustomTabBar}
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,

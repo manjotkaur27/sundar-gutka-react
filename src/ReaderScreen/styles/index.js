@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { withAlpha } from "@theme/colorUtils";
 import { brandMarks } from "@theme/palette";
 
@@ -220,11 +221,24 @@ const createStyles = (theme) => ({
     width: "100%",
     height: 5,
     overflow: "hidden",
-    // Has a background, so this one does cast on Android; the preset supplies
-    // the iOS half. `elevation` is restated at the stacking value it needs.
+    // `elevation` is restated at the stacking value it needs: the nav overlay
+    // below it sits at 10, and on Android elevation is what orders siblings.
     ...theme.elevation.card,
     zIndex: 11,
     elevation: 11,
+    // ...but ONLY for stacking. On Android elevation does two jobs, and an
+    // elevation-11 view WITH a background casts a real material shadow — which
+    // this one does. Resting just above the system bar with the app's own bars
+    // hidden, that shadow fell straight onto the navigation buttons as a dark
+    // gradient behind them.
+    //
+    // React Native maps `shadowColor` onto the outline ambient/spot shadow
+    // colours on Android 9+, so a transparent one stops the shadow drawing while
+    // leaving the elevation — and therefore the stacking — alone. This is
+    // already what the bar does in dark mode, where `elevation.card` IS the
+    // zeroed preset; it now does the same in light mode. iOS keeps the preset's
+    // shadow, which is the half elevation never drew for it.
+    ...(Platform.OS === "android" && { shadowColor: "transparent" }),
     // The unfilled remainder of the progress track.
     backgroundColor: withAlpha(theme.c.accent, 0.2),
   },

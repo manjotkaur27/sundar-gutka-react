@@ -8,6 +8,7 @@ import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import { Spinner } from "@common/components/ui";
 import useReadingSession from "@common/hooks/useReadingSession";
+import { useNavBarSurface } from "@common/systemBars";
 import { pauseTrack } from "@common/TrackPlayerUtils";
 import {
   constant,
@@ -134,6 +135,11 @@ const Reader = ({ navigation, route }) => {
   // so this is where the screen settles rather than somewhere it animates to —
   // the bars do not appear for a frame and slide away.
   const [isHeader, toggleHeader] = useState(false);
+  // Chrome up, the bar sits on the app's navy nav; chrome away, it sits on the
+  // bani page, whose lightness is the reading theme's, not the app's. The Reader
+  // slides the cluster off rather than unmounting it, so `isHeader` is what says
+  // which of the two is actually down there.
+  useNavBarSurface(isHeader ? false : !isReaderDark);
   const [viewLoaded, toggleViewLoaded] = useState(false);
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [dateKey, setDateKey] = useState(Date.now().toString());

@@ -60,6 +60,12 @@ class MainActivity : ReactActivity() {
       super.onCreate(null)
       // Lay out content edge-to-edge so the window draws behind system bars.
       WindowCompat.setDecorFitsSystemWindows(window, false)
+      // Off from the very first frame, so the splash does not open with the
+      // platform's black three-button strip that JS then has to remove. From
+      // here the screens decide — see systemBars.js and SystemBarsModule.
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          window.isNavigationBarContrastEnforced = false
+      }
       onBackPressedDispatcher.addCallback(this, backPressedCallback)
   }
 
