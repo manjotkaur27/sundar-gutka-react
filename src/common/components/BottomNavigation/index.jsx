@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Pressable, Animated, AppState } from "react-native";
+import { View, Pressable, Animated, AppState, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
+import components, { bottomNavInset } from "@theme/components";
 import { useReaderScopedTheme, useReaderScopedStyles } from "@theme/reader";
 import PropTypes from "prop-types";
 import {
@@ -37,6 +39,13 @@ const BottomNavigation = ({
   const wearsReadingTheme = themed ?? context === "reader";
   const { theme } = useReaderScopedTheme("nav", wearsReadingTheme);
   const styles = useReaderScopedStyles(createStyles, "nav", wearsReadingTheme);
+
+  // iOS pads the bottom inset ITSELF, capped — see below. Android is untouched:
+  // it keeps the bottom-edge SafeArea padding the whole navigation-bar inset,
+  // which is the behaviour already verified on device.
+  const capsOwnInset = Platform.OS === "ios";
+  const { bottom: insetBottom } = useSafeAreaInsets();
+  const iosInsetPad = capsOwnInset ? bottomNavInset(insetBottom) : 0;
 
   const isAudio = useSelector((state) => state.isAudio);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
@@ -227,20 +236,35 @@ const BottomNavigation = ({
         transform: [{ translateY }],
       }}
     >
-      <SafeArea backgroundColor={theme.c.primary} edges={["bottom"]} flex={0}>
-        {/* No extra bottom padding. The SafeArea above already pads
-            `insets.bottom`, so the iOS-only `Math.min(insets.bottom, 8)` that
-            used to sit here was a SECOND helping of the same inset: the bar
-            stood 8pt taller than its own token on every iPhone with a home
-            indicator, and Android — where the pad was 0 — did not. That is the
-            band of nav colour below the icons on iOS.
+      {/* WHO pads the bottom inset, and how much of it, is the platform
+          difference here.
 
-            It also desynchronised the Reader, which measures the bar it has to
-            clear as `bottomNavigation.height + insets.bottom` and knew nothing
-            about the extra 8. The reading-progress track is lifted by exactly
-            that sum, so it landed 8pt off the bar's real top edge. Dropping the
-            pad makes the measurement true again on both platforms. */}
-        <View style={styles.container}>
+          Android: unchanged. The SafeArea pads the whole inset, because there
+          that inset is the system navigation bar — real back/home/recents keys
+          on three-button devices — and the bar has to sit clear above it.
+
+          iOS: the SafeArea is given no edges and the container pads a CAPPED
+          inset instead (`bottomNavInset`). Letting it pad all 34pt of the home
+          indicator put a second gap under a 65pt box that already carries its
+          own room below the row, and the bar stood ~99pt tall — the band of nav
+          colour below the icons. The indicator is an overlay, not an
+          obstruction, so 20pt is clearance enough.
+
+          The pad is added to `minHeight` as well as `paddingBottom`: RN sizes
+          minHeight against the PADDING box, so padding alone would have eaten
+          the row's own 65pt rather than sitting below it. */}
+      <SafeArea backgroundColor={theme.c.primary} edges={capsOwnInset ? [] : ["bottom"]} flex={0}>
+        <View
+          style={[
+            styles.container,
+            iosInsetPad
+              ? {
+                  paddingBottom: iosInsetPad,
+                  minHeight: components.bottomNavigation.height + iosInsetPad,
+                }
+              : null,
+          ]}
+        >
           <View style={styles.navigationBar}>
             {navigationItems.map((item) => {
               const IconComponent = item.icon;

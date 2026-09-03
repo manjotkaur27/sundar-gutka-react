@@ -3,6 +3,7 @@ import { AppState, Platform, View, Animated, NativeModules } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useDispatch, useSelector } from "react-redux";
+import { bottomNavInset } from "@theme/components";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import { Spinner } from "@common/components/ui";
@@ -164,14 +165,19 @@ const Reader = ({ navigation, route }) => {
   // plus the bottom safe-area inset). The audio player is lifted by exactly
   // this much when the bars show so it clears the nav.
   //
-  // The inset is part of the footprint because `BottomNavigation` wraps itself
-  // in a bottom-edge `SafeArea`, so the bar on screen is that much taller than
-  // its own height token whenever the system navigation bar is drawn. Reading
-  // the token alone was correct only while the app hid that bar and the inset
-  // was always zero; with the bar left visible it under-measured the nav by the
-  // inset, which put the audio player over the top of it and left the last line
-  // of bani behind it.
-  const navChromeHeight = theme.components.bottomNavigation.height + 5 + insetBottom;
+  // The inset is part of the footprint because `BottomNavigation` pads it, so
+  // the bar on screen is that much taller than its own height token whenever the
+  // system navigation bar is drawn. Reading the token alone was correct only
+  // while the app hid that bar and the inset was always zero; with the bar left
+  // visible it under-measured the nav by the inset, which put the audio player
+  // over the top of it and left the last line of bani behind it.
+  //
+  // `bottomNavInset` rather than the raw inset: on iOS the bar pads only up to
+  // its cap, so adding all 34pt here would lift this chrome off the bar's top
+  // edge by the 14 the cap trimmed. On Android the helper returns the inset
+  // unchanged, so this is the same arithmetic it has always done.
+  const navChromeHeight =
+    theme.components.bottomNavigation.height + 5 + bottomNavInset(insetBottom);
 
   // Native-driver transforms (NOT a JS height animation) so toggling the bars
   // never resizes the flex WebView underneath — the reflow was the low-end-
@@ -184,15 +190,25 @@ const Reader = ({ navigation, route }) => {
   // edge-to-edge — so 0 puts them UNDER the system navigation bar. That was
   // invisible while the app hid that bar, and it is why the progress track and
   // the audio player disappeared behind the three buttons the moment the app's
-  // own bars auto-hid. Their resting place is −insetBottom, sitting on top of
-  // the system bar; the shown position stacks the app's nav on top of that,
-  // which is what `navChromeHeight` already includes.
+  // own bars auto-hid. They rest above it instead; the shown position stacks the
+  // app's nav on top of that, which is what `navChromeHeight` already includes.
   const navSlideAnim = useRef(new Animated.Value(300)).current; // starts hidden
   const navClusterHeightRef = useRef(0);
-  // Both rest at −insetBottom, not 0: see the effect below. Seeded with it so a
-  // freshly opened bani does not slide them up over the system bar on mount.
-  const audioLiftAnim = useRef(new Animated.Value(-insetBottom)).current;
-  const progressLiftAnim = useRef(new Animated.Value(-insetBottom)).current;
+  // How far the two rest above the window bottom once the app's own bars are
+  // hidden — the same clearance the bottom nav pads, and deliberately so: with
+  // the bars up the track sits on the nav bar, and dropping to the line where
+  // that bar's own bottom padding ends is what makes the two states look like
+  // one bar moving rather than two positions.
+  //
+  // Android is unchanged: the whole navigation-bar inset, so neither layer lands
+  // under the system buttons. iOS is capped, because there the inset is the home
+  // indicator — an overlay, not an obstruction — and resting the full 34pt up
+  // left a band of blank page below the progress track.
+  const chromeRestLift = bottomNavInset(insetBottom);
+  // Seeded at the resting lift, not 0, so a freshly opened bani does not slide
+  // them up over the system bar on mount.
+  const audioLiftAnim = useRef(new Animated.Value(-chromeRestLift)).current;
+  const progressLiftAnim = useRef(new Animated.Value(-chromeRestLift)).current;
 
   useEffect(() => {
     const distance = navClusterHeightRef.current || 300;
@@ -203,14 +219,14 @@ const Reader = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
       Animated.timing(audioLiftAnim, {
-        toValue: isHeader ? -navChromeHeight : -insetBottom,
+        toValue: isHeader ? -navChromeHeight : -chromeRestLift,
         duration: 300,
         useNativeDriver: true,
       }),
       Animated.timing(progressLiftAnim, {
         // Lift the progress bar onto the nav (nav height = navChromeHeight − 5px
         // track) when shown; drop it back to the bottom when they hide.
-        toValue: isHeader ? -(navChromeHeight - 5) : -insetBottom,
+        toValue: isHeader ? -(navChromeHeight - 5) : -chromeRestLift,
         duration: 300,
         useNativeDriver: true,
       }),
@@ -223,7 +239,7 @@ const Reader = ({ navigation, route }) => {
     // does not exist" (RN #12893 / #37267). Stopping first also prevents the old
     // and new animations overlapping on the same values across isHeader toggles.
     return () => anim.stop();
-  }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight, insetBottom]);
+  }, [isHeader, navSlideAnim, audioLiftAnim, progressLiftAnim, navChromeHeight, chromeRestLift]);
 
   // ── Bar-visibility funnel + idle auto-hide ──────────────────────────────
   // Live state mirrored into refs so the stable (empty-dep) scheduler never
@@ -861,11 +877,11 @@ const Reader = ({ navigation, route }) => {
             webViewRef={webViewRef}
             isNavBarVisible={isHeader}
             // How far this whole wrapper DROPS when the bars hide: the lift
-            // goes from -navChromeHeight to -insetBottom. The floating pill
+            // goes from -navChromeHeight to -chromeRestLift. The floating pill
             // rides inside it, so its drag floor has to reserve this or a pill
             // parked at the bottom while the bars are up leaves the screen with
             // them. See MinimizePlayer's release clamp.
-            barsDrop={navChromeHeight - insetBottom}
+            barsDrop={navChromeHeight - chromeRestLift}
             // Opening the full player from the circle must not bring the bars
             // back with it — the user asked for the controls, not the chrome.
             onHideBars={() => setBarsVisible(false, "player_expanded")}
@@ -880,7 +896,9 @@ const Reader = ({ navigation, route }) => {
           style={[
             styles.autoScrollFixedView,
             {
-              bottom: styles.autoScrollFixedView.bottom + insetBottom,
+              // Sits on top of the nav, so it clears exactly what the nav pads
+              // — capped on iOS, the whole inset on Android.
+              bottom: styles.autoScrollFixedView.bottom + bottomNavInset(insetBottom),
               display: isHeader ? "flex" : "none",
             },
           ]}
@@ -960,8 +978,17 @@ const Reader = ({ navigation, route }) => {
           A plain strip does the same job without touching the layout. It takes
           the reading theme's ground, so the bar reads as the bottom of the page
           rather than a gap in it, and it sits under the chrome (zIndex 10) so
-          the app's own nav still covers it when the bars are shown. */}
-      {insetBottom > 0 && (
+          the app's own nav still covers it when the bars are shown.
+
+          It is `chromeRestLift` tall, not `insetBottom`: the strip is OPAQUE and
+          covers the bottom of the WebView, so every point of it above where the
+          progress track rests is a band of flat ground hiding the last line of
+          bani. On Android the two are the same number and this is the strip it
+          has always drawn. On iOS the track now rests at the capped lift, and
+          the full-inset strip left 24pt of blank page above it — the gap between
+          the text and the bar. Ending at the track keeps the page running right
+          up to it, with ground below it exactly as before. */}
+      {chromeRestLift > 0 && (
         <View
           pointerEvents="none"
           style={{
@@ -969,7 +996,7 @@ const Reader = ({ navigation, route }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            height: insetBottom,
+            height: chromeRestLift,
             backgroundColor: readerBgColor,
             zIndex: 5,
           }}

@@ -72,22 +72,54 @@ describe("the collapsed audio pill", () => {
   });
 });
 
-// The bottom bar already sits inside a bottom-edge SafeArea, so anything it
-// adds on top of that is a second helping of the same inset — which is what
-// made the iOS bar stand taller than the Reader's arithmetic for it.
+// The bottom bar pads the bottom inset ONCE, and the platform decides who does
+// it. Android keeps the bottom-edge SafeArea padding the whole navigation-bar
+// inset — verified on device, and not to be trimmed, since that inset is real
+// back/home/recents keys. iOS pads a CAPPED inset itself, because there the
+// inset is the home indicator: an overlay, not an obstruction, and padding all
+// 34pt of it under a 65pt box that already carries its own room below the row
+// left the bar ~99pt tall — the band of nav colour below the icons.
+//
+// The cap only holds while everything that MEASURES the bar caps it too: the
+// Reader lifts its progress track, audio player and autoscroll pill by the bar's
+// footprint, and adding the raw inset there would drift them off its top edge by
+// whatever the cap trimmed. That pairing is what these guard. The platform split
+// itself is exercised in bottomNavInset.test.js.
 describe("the bottom navigation bar", () => {
-  // Comments stripped: the note explaining the removal names the very code it
-  // removed, and the assertions below are about what still RUNS.
-  const code = read("common/components/BottomNavigation/index.jsx")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
+  // Comments stripped: the notes explaining the change name the very code they
+  // replaced, and the assertions below are about what still RUNS.
+  const strip = (rel) =>
+    read(rel)
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
 
-  it("still lets the SafeArea pad the inset", () => {
-    expect(code).toMatch(/edges=\{\["bottom"\]\}/);
+  const code = strip("common/components/BottomNavigation/index.jsx");
+  const reader = strip("ReaderScreen/index.jsx");
+
+  it("still lets the SafeArea pad the whole inset off iOS", () => {
+    expect(code).toMatch(/edges=\{capsOwnInset \? \[\] : \["bottom"\]\}/);
   });
 
-  it("adds nothing on top of it", () => {
-    expect(code).not.toMatch(/paddingBottom/);
-    expect(code).not.toMatch(/insets\.bottom/);
+  it("adds its own pad only where the SafeArea has stopped padding", () => {
+    // Both halves come from the one `capsOwnInset` flag, so the bar can never
+    // pad the inset twice or leave it unpadded.
+    expect(code).toMatch(/const capsOwnInset = Platform\.OS === "ios"/);
+    expect(code).toMatch(/const iosInsetPad = capsOwnInset \? bottomNavInset\(insetBottom\) : 0/);
+    expect(code).toMatch(/paddingBottom: iosInsetPad/);
+  });
+
+  it("is measured with the same cap it pads", () => {
+    const rawInset = reader
+      .split(/\r?\n/)
+      .map((line, i) => [i + 1, line])
+      // The lifts that clear the BAR add the nav height; the ones that clear the
+      // SYSTEM bar (the resting `-insetBottom` positions, the ground strip) are
+      // about the raw inset and rightly keep it.
+      .filter(([, line]) => /bottomNavigation\.height|autoScrollFixedView\.bottom/.test(line))
+      .filter(([, line]) => /\binsetBottom\b/.test(line))
+      .filter(([, line]) => !/bottomNavInset\(insetBottom\)/.test(line))
+      .map(([n, line]) => `${n}: ${line.trim()}`);
+
+    expect(rawInset).toEqual([]);
   });
 });

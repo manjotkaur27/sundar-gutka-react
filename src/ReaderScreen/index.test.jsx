@@ -927,3 +927,21 @@ describe("Reader header title", () => {
     expect(header).not.toMatch(/fontFamily: fontFace/);
   });
 });
+
+// The strip that paints reader ground along the bottom edge is OPAQUE and sits
+// over the WebView, so every point of it above where the progress track rests is
+// a band of flat colour hiding the last line of bani — a blank gap between the
+// text and the bar. Sizing it to the raw inset is what put 24pt of that on
+// iPhone once the track stopped resting at the full inset.
+describe("the bottom ground strip", () => {
+  const source = require("fs").readFileSync(require("path").join(__dirname, "index.jsx"), "utf8");
+
+  it("ends where the chrome rests, not at the raw inset", () => {
+    expect(source).toMatch(/height: chromeRestLift,/);
+    expect(source).not.toMatch(/height: insetBottom,/);
+  });
+
+  it("is not drawn at all when nothing rests above the bottom edge", () => {
+    expect(source).toMatch(/\{chromeRestLift > 0 && \(/);
+  });
+});

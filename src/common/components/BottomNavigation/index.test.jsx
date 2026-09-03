@@ -1,7 +1,10 @@
 // BottomNavigation.test.jsx
 import React from "react";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import components from "@theme/components";
 
 import { getMockDispatch, setMockState } from "@common/test-utils/mocks/react-redux";
 
@@ -311,5 +314,73 @@ describe("BottomNavigation", () => {
 
     // Music should NOT be null
     expect(getByLabelText("bottomnav-Music")).toBeTruthy();
+  });
+});
+
+// Who pads the bottom safe-area inset, and how much of it.
+//
+// The bar stood ~99pt tall on iPhone — a 65pt box whose own room below the row
+// was followed by all 34pt of the home indicator — which is the band of nav
+// colour below the icons. iOS now pads a capped inset itself.
+//
+// ANDROID MUST NOT MOVE. Its inset is the system navigation bar, up to 48dp of
+// real back/home/recents keys, and its handling is verified on device; the
+// assertions below are here to prove the iOS cap did not leak into it.
+describe("the bottom inset", () => {
+  const findSafeArea = (node) => {
+    if (!node || typeof node !== "object") return null;
+    if (node.props?.edges) return node;
+    return (node.children || []).reduce((found, child) => found || findSafeArea(child), null);
+  };
+
+  const renderBar = ({ os, bottom }) => {
+    Platform.OS = os;
+    useSafeAreaInsets.mockReturnValue({ top: 0, bottom, left: 0, right: 0 });
+    const safeArea = findSafeArea(render(<BottomNavigation activeKey="Home" />).toJSON());
+    // The container is the SafeArea's only child; its style is the array the
+    // component composes.
+    return { safeArea, containerStyle: [].concat(safeArea.children[0].props.style) };
+  };
+
+  afterEach(() => {
+    Platform.OS = "ios";
+    useSafeAreaInsets.mockReturnValue({ top: 0, bottom: 0, left: 0, right: 0 });
+  });
+
+  test("iOS caps it, and pays for the pad with height rather than the row's own box", () => {
+    const { safeArea, containerStyle } = renderBar({ os: "ios", bottom: 34 });
+
+    // The SafeArea has stopped padding, so the capped pad is the only helping.
+    // Read from the token rather than restated: what the number IS belongs to
+    // bottomNavInset.test.js, what this test cares about is that it is applied,
+    // and that the pad is added to the height instead of taken out of the row.
+    const { height, maxInsetIOS } = components.bottomNavigation;
+    expect(safeArea.props.edges).toEqual([]);
+    expect(containerStyle).toContainEqual({
+      paddingBottom: maxInsetIOS,
+      minHeight: height + maxInsetIOS,
+    });
+  });
+
+  test("iOS adds nothing where there is no indicator to clear", () => {
+    const { safeArea, containerStyle } = renderBar({ os: "ios", bottom: 0 });
+
+    expect(safeArea.props.edges).toEqual([]);
+    expect(containerStyle.filter(Boolean)).not.toContainEqual(
+      expect.objectContaining({ paddingBottom: expect.anything() })
+    );
+  });
+
+  test("Android is left exactly as it was: SafeArea pads the whole navigation bar", () => {
+    const { safeArea, containerStyle } = renderBar({ os: "android", bottom: 48 });
+
+    expect(safeArea.props.edges).toEqual(["bottom"]);
+    // No second pad, and no height bumped out from under it.
+    expect(containerStyle.filter(Boolean)).not.toContainEqual(
+      expect.objectContaining({ paddingBottom: expect.anything() })
+    );
+    expect(containerStyle.filter(Boolean)).not.toContainEqual(
+      expect.objectContaining({ minHeight: expect.anything() })
+    );
   });
 });

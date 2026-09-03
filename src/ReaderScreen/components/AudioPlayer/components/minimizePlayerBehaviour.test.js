@@ -280,7 +280,18 @@ describe("the Reader hands down its own lift", () => {
   const reader = fs.readFileSync(path.join(__dirname, "..", "..", "..", "index.jsx"), "utf8");
 
   it("passes the gap between the lifted and resting positions", () => {
-    expect(reader).toMatch(/barsDrop=\{navChromeHeight - insetBottom\}/);
+    expect(reader).toMatch(/barsDrop=\{navChromeHeight - chromeRestLift\}/);
+  });
+
+  it("measures that gap against where the wrapper actually rests", () => {
+    // `chromeRestLift` is the resting end of the very animation this drop
+    // describes, and it is NOT the raw inset — iOS caps it so the progress
+    // track does not float a band of blank page above the screen bottom. Any
+    // drift between the two ends leaves the pill's drag floor reserving a drop
+    // the wrapper never makes, which is how a parked pill left the screen with
+    // the bars in the first place.
+    expect(reader).toMatch(/toValue: isHeader \? -navChromeHeight : -chromeRestLift/);
+    expect(reader).toMatch(/toValue: isHeader \? -\(navChromeHeight - 5\) : -chromeRestLift/);
   });
 });
 
