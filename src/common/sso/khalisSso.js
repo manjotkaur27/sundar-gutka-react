@@ -21,7 +21,7 @@ import { Linking } from "react-native";
 import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import { brandMarks } from "@theme/palette";
 import constant from "../constant";
-import { logError } from "../firebase/crashlytics";
+import { logError, logNetworkError } from "../firebase/crashlytics";
 import { decodeJwtPayload, isTokenValid, toSessionUser } from "./jwt";
 import { saveToken, clearToken } from "./tokenStore";
 
@@ -252,7 +252,7 @@ export const fetchSsoUser = async (token) => {
     if (!payload?.email) return { valid: false };
     return { valid: true, user: toSessionUser(payload) };
   } catch (err) {
-    logError(new Error(`SSO fetchSsoUser failed: ${err?.message || err}`));
+    logNetworkError(`SSO fetchSsoUser failed: ${err?.message || err}`, err);
     return { valid: false };
   }
 };

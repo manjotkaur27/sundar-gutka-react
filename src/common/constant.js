@@ -51,7 +51,7 @@ export default {
   // Today's Nitnem on the Dashboard IS the Morning Nitnem pothi (see
   // TodaysNitnem), so disabling those would empty that section — and for
   // signed-in users especially, whose copy comes from the server pull.
-  POTHI_ENABLED: false,
+  POTHI_ENABLED: true,
   EXTRA_SMALL: "EXTRA_SMALL",
   SMALL: "SMALL",
   MEDIUM: "MEDIUM",

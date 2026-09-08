@@ -1,6 +1,24 @@
 import React from "react";
-import { Modal } from "react-native";
+import { Modal, Platform } from "react-native";
 import PropTypes from "prop-types";
+
+/**
+ * Whether an overlay opened FROM a sheet has to be a CHILD of that sheet.
+ *
+ * iOS: yes. A Modal is a UIViewController, presented by whichever controller
+ * React resolves for its host view. A sibling resolves to the root, which is
+ * already presenting the sheet, and UIKit refuses to present twice from one
+ * controller — the picker, the label prompt and the confirm never appeared and
+ * the screen sat frozen.
+ *
+ * Android: no, and it must not. Every Modal is a Dialog with its own React
+ * root, so nesting means closing the sheet tears the inner roots down while
+ * their commits are still in flight; the shadow tree then fails with
+ * "Trying to add unknown view tag", which kills the app. Android stacks
+ * sibling Dialogs happily and always did — the nesting was added for the iOS
+ * fix alone, and this is what keeps it there.
+ */
+export const NEST_OVERLAYS_IN_SHEET = Platform.OS === "ios";
 
 // The ONE place the app configures a modal window.
 //

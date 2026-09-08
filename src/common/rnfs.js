@@ -11,7 +11,7 @@ import {
   copyFileAssets,
   unlink,
 } from "react-native-fs";
-import { constant, logError, logMessage } from "@common";
+import { constant, logError, logMessage, logNetworkError } from "@common";
 
 // Paths and URLs
 const BUNDLED_DB_PATH = `${MainBundlePath}/www/${constant.DB}.db`;
@@ -177,7 +177,7 @@ export const writeRemoteMD5Hash = async () => {
     await writeFile(LOCAL_MD5_PATH, remoteHash.trim());
     return remoteHash.trim();
   } catch (error) {
-    logError(`Error writing remote MD5 hash: ${error.message}`);
+    logNetworkError(`Error writing remote MD5 hash: ${error.message}`, error);
     throw error;
   }
 };

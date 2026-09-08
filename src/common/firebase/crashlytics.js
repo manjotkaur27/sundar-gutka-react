@@ -97,9 +97,18 @@ export const setCustomKey = (keyOrValues, value = undefined) => {
   }
 };
 
-// Log a message
+// Log a message.
+//
+// Swallows its own failures, exactly as `logError` does. It is reached from the
+// catch blocks of SSO, sync and every dashboard section (see logNetworkError),
+// and a logger that can throw there would turn a handled offline case into a
+// rejected promise in the feature that called it.
 export const logMessage = (message) => {
-  log(crashlytics, message);
+  try {
+    log(crashlytics, message);
+  } catch {
+    // Never let logging break the path that called it.
+  }
 };
 
 // Log a custom error. Accepts either a single error/message, or a

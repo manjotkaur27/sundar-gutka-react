@@ -10,10 +10,10 @@ import {
   setAudioProgress,
 } from "@common/actions";
 import { showErrorToast } from "@common/toast";
+import { handlePlayerError } from "@common/TrackPlayerUtils";
 import {
   STRINGS,
   constant,
-  logError,
   trackBaniOpen,
   trackBaniListenCompletion,
   trackAudioLinkRequest,
@@ -186,7 +186,7 @@ const AudioPlayer = ({
         );
       }
     } catch (error) {
-      logError("Error in handlePlayPause:", error);
+      handlePlayerError("in handlePlayPause", error);
       showErrorToast(`${STRINGS.UNABLE_TO_PLAY} ${STRINGS.PLEASE_TRY_AGAIN}`);
     } finally {
       setIsPlayerActionLoading(false);
@@ -225,7 +225,7 @@ const AudioPlayer = ({
         // handleTrackSelect internally calls addAndPlayTrack — do not call it again here
         await handleTrackSelect(firstPlayableTrack);
       } catch (error) {
-        logError("Error auto-starting first track:", error);
+        handlePlayerError("auto-starting first track", error);
       } finally {
         setIsPlayerActionLoading(false);
       }
@@ -348,7 +348,7 @@ const AudioPlayer = ({
       });
       await seekTo(value);
     } catch (error) {
-      logError("Error seeking:", error);
+      handlePlayerError("seeking", error);
       showErrorToast(`${STRINGS.UNABLE_TO_SEEK} ${STRINGS.PLEASE_TRY_AGAIN}`);
     }
   };
@@ -415,7 +415,7 @@ const AudioPlayer = ({
         }
 
       } catch (error) {
-        logError("Error switching track:", error);
+        handlePlayerError("switching track", error);
         showErrorToast(`${STRINGS.UNABLE_TO_SWITCH_TRACK} ${STRINGS.PLEASE_TRY_AGAIN}`);
         setIsPlayerActionLoading(false);
       } finally {

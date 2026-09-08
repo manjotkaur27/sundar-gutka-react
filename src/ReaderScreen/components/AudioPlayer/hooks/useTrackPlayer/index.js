@@ -11,6 +11,8 @@ import {
   resetPlayer,
   TrackPlayerSetup,
   getTrackPlayerState,
+  handlePlayerError,
+  subscribeTrackPlayerState,
 } from "@common/TrackPlayerUtils";
 import { logError, logMessage, useNetwork } from "@common";
 import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
@@ -97,6 +99,12 @@ const useTrackPlayer = () => {
       await configurePlayer();
     })();
   }, [configurePlayer]);
+
+  // The singleton forgets a player the native side has lost (task swiped away,
+  // OS reclaimed the service). Mirroring that here is what makes the guards
+  // below skip a player that is gone instead of calling into it, and lets the
+  // next play set it up again.
+  useEffect(() => subscribeTrackPlayerState(setIsInitialized), []);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -206,7 +214,7 @@ const useTrackPlayer = () => {
       logMessage("Playback recovered after connection error");
       cancelRecovery();
     } catch (error) {
-      logError("Playback recovery attempt failed:", error);
+      handlePlayerError("recovering playback", error, { reportMissing: true });
       scheduleRecoveryRetry();
     }
   }, [cancelRecovery, scheduleRecoveryRetry]);
@@ -323,9 +331,15 @@ const useTrackPlayer = () => {
   }, []);
 
   const play = useCallback(async () => {
-    if (!isInitialized || !isAudio || !isAudioFeatureOn) {
-      logMessage("Audio is not initialized or disabled in settings");
+    if (!isAudio || !isAudioFeatureOn) {
+      logMessage("Audio is disabled in settings");
       return;
+    }
+    // A player that was never set up, or was lost since, is set up again here
+    // rather than the tap being dropped. configurePlayer reports its own failure.
+    if (!isInitialized) {
+      await configurePlayer();
+      if (!getTrackPlayerState().isInitialized) return;
     }
     try {
       explicitPlayTriggeredAtRef.current = Date.now();
@@ -338,9 +352,9 @@ const useTrackPlayer = () => {
       // polling retry in TrackPlayerService.js (Event.PlaybackState listener).
       // No inline setRate() call needed here.
     } catch (error) {
-      logError("Error playing track:", error);
+      handlePlayerError("playing track", error, { reportMissing: true });
     }
-  }, [isInitialized, isAudio, isAudioFeatureOn]);
+  }, [isInitialized, isAudio, isAudioFeatureOn, configurePlayer]);
 
   const pause = useCallback(async () => {
     // Explicit user intent — don't let a pending reconnect retry fight it.
@@ -348,7 +362,7 @@ const useTrackPlayer = () => {
     try {
       await pauseTrack();
     } catch (error) {
-      logError("Error pausing track:", error);
+      handlePlayerError("pausing track", error);
     }
   }, []);
 
@@ -358,7 +372,7 @@ const useTrackPlayer = () => {
     try {
       await stopTrack();
     } catch (error) {
-      logError("Error stopping track:", error);
+      handlePlayerError("stopping track", error);
     }
   }, [isInitialized]);
 
@@ -368,7 +382,7 @@ const useTrackPlayer = () => {
     try {
       await resetPlayer();
     } catch (error) {
-      logError("Error resetting player:", error);
+      handlePlayerError("resetting player", error);
     }
   }, [isInitialized]);
 
@@ -519,7 +533,7 @@ const useTrackPlayer = () => {
         }
       }
     } catch (error) {
-      logError("Error seeking to position:", error);
+      handlePlayerError("seeking to position", error);
     } finally {
       seekInFlightRef.current = false;
     }
@@ -637,7 +651,7 @@ const useTrackPlayer = () => {
         });
       }
     } catch (error) {
-      logError("Error adding and playing track:", error);
+      handlePlayerError("adding and playing track", error, { reportMissing: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInitialized, isAudio, isAudioFeatureOn, reset, play, prefetchForSeek]);
@@ -650,7 +664,7 @@ const useTrackPlayer = () => {
     try {
       await TrackPlayer.setRate(rate);
     } catch (error) {
-      logError("Error setting playback rate:", error);
+      handlePlayerError("setting playback rate", error);
     }
   }, [isInitialized]);
 

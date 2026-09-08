@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { clearSyncFeature, syncOpDone, syncOpFailed, syncOpSending } from "@common/actions";
 import { nextAttemptAt, nextRunnable } from "@common/sync/outboxModel";
-import { logError, logMessage, useNetwork } from "@common";
+import { logError, logMessage, logNetworkError, useNetwork } from "@common";
 import {
   getSyncFeature,
   OUTCOME_CONFLICT,
@@ -59,7 +59,7 @@ const useSyncOutbox = () => {
             // eslint-disable-next-line no-await-in-loop
             outcome = await impl.drain(op);
           } catch (err) {
-            logError(err);
+            logNetworkError(err, err);
             outcome = OUTCOME_RETRY;
           }
           if (outcome === OUTCOME_DONE) {

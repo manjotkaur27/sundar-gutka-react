@@ -11,7 +11,7 @@
 // foreground, connectivity returning, pull-to-refresh) calls `syncAll`, so
 // every feature reconciles at the same moments the dashboard does and nothing
 // needs its own timers or triggers.
-import { logError } from "@common";
+import { logNetworkError } from "@common";
 
 // What `drain` answers for one op.
 export const OUTCOME_DONE = "done"; // sent; drop it
@@ -57,7 +57,7 @@ export const syncAll = () => {
       } catch (err) {
         // Keep going: one feature failing must not stop the others syncing.
         allOk = false;
-        logError(err);
+        logNetworkError(err, err);
       }
     }
     return allOk;

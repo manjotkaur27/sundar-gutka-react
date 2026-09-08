@@ -35,6 +35,31 @@ index 8e25f50..e219210 100644
      // Note: On Android 16+, we use ResumableDownloader with UIDT jobs instead of DownloadManager
      // for better background execution support. See the Android 16+ check below in download path.
  
+@@ -975,7 +988,23 @@ class RNBackgroundDownloaderModuleImpl(private val reactContext: ReactApplicatio
+     }
+   }
+ 
+-  fun getExistingDownloadTasks(promise: Promise) {
++  // Patched (sundar-gutka): DownloadManager.query is a binder round-trip to the
++  // downloads provider, which some OEM builds start slowly or have disabled.
++  // Run on the bridge's native-modules thread it stalled every other native
++  // call — AsyncStorage, the file system, the player — for as long as the
++  // provider took to answer. The work runs on the module's own pool instead;
++  // the promise already made the call asynchronous for JS.
++  fun getExistingDownloadTasks(promise: Promise) {
++    cachedExecutorPool.execute {
++      try {
++        collectExistingDownloadTasks(promise)
++      } catch (e: Exception) {
++        promise.reject("ERR_GET_EXISTING_TASKS", e.message, e)
++      }
++    }
++  }
++
++  private fun collectExistingDownloadTasks(promise: Promise) {
+     val foundTasks = Arguments.createArray()
+     val processedIds = mutableSetOf<String>()
+ 
 diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt b/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt
 index 0401372..b8fa8d5 100644
 --- a/node_modules/@kesha-antonov/react-native-background-downloader/android/src/main/java/com/eko/uidt/UIDTNotificationManager.kt

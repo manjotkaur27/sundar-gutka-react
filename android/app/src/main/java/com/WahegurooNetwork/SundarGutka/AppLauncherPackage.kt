@@ -7,7 +7,11 @@ import com.facebook.react.uimanager.ViewManager
 
 class AppLauncherPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-      listOf(AppLauncherModule(reactContext), SystemBarsModule(reactContext))
+      listOf(
+          AppLauncherModule(reactContext),
+          SystemBarsModule(reactContext),
+          WebViewAvailabilityModule(reactContext),
+      )
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
       emptyList()

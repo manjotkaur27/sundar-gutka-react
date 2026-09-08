@@ -21,7 +21,8 @@ import {
   ChevronDownIcon,
   ExpandCollapseIcon,
 } from "@common/icons";
-import { STRINGS, CustomText, logError, setToastBottomReservation, trackPlayerForm } from "@common";
+import { handlePlayerError } from "@common/TrackPlayerUtils";
+import { STRINGS, CustomText, setToastBottomReservation, trackPlayerForm } from "@common";
 import {
   useAnimation,
   useDownloadManager,
@@ -518,7 +519,7 @@ const AudioControlBar = ({
         setConfirmedCurrentTrackId(String(currentPlaying.id));
         setIsSeekLoading(false);
       } catch (error) {
-        logError("Error loading active track:", error);
+        handlePlayerError("loading active track", error);
         setIsSeekLoading(false);
       }
     };

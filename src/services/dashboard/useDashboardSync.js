@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import DeviceInfo from "react-native-device-info";
 import { useStore, useDispatch, useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { logError, useNetwork } from "@common";
+import { logNetworkError, useNetwork } from "@common";
 import { syncAll } from "../sync/syncRegistry";
 import {
   getDashboardSnapshot,
@@ -78,7 +78,7 @@ const pushPendingActivity = async (deviceId) => {
     }
     return true;
   } catch (err) {
-    logError(err);
+    logNetworkError(err, err);
     return false;
   }
 };
@@ -376,7 +376,7 @@ const useDashboardSync = () => {
         retryAttemptRef.current = 0;
         settled = true;
       } catch (err) {
-        logError(err);
+        logNetworkError(err, err);
       } finally {
         // Reminders and pothis reconcile at the same moments the dashboard
         // does — sign-in, foreground, connectivity returning, pull-to-refresh.
@@ -505,7 +505,7 @@ const useDashboardSync = () => {
         // A throw here is the network layer itself failing (abort, DNS, TLS) —
         // record it too, or the header still reads a bare "never".
         await recordPush({ ok: false, error: err?.message || String(err) });
-        logError(err);
+        logNetworkError(err, err);
       }
     },
     [store, schedulePush]

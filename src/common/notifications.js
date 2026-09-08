@@ -169,7 +169,14 @@ export const pruneStaleChannels = async (keepIds) => {
 export const createReminder = async (notification, sound) => {
   const androidChannel = {
     channelId: channelIdFor(sound),
-    smallIcon: "ic_launcher_foreground",
+    // NOT ic_launcher_foreground. That resource exists only as
+    // mipmap-anydpi-v26 (an adaptive icon), so on Android 7 — which the app
+    // still supports — it has no loadable configuration. System UI draws the
+    // notification from OUR resources, fails to create the icon, and kills the
+    // app with "Bad notification posted: Couldn't create icon". ic_notification
+    // is a white silhouette present at every density with no version
+    // qualifier, which is what a small icon is supposed to be.
+    smallIcon: "ic_notification",
     pressAction: {
       id: "default",
       launchActivity: "default", // This should match your configured activity
@@ -418,11 +425,12 @@ export const checkPermissions = async () => {
   }
 };
 
-// FEAT-04: Use ic_launcher_foreground (not background_splash) for the correct Android notification icon
+// Uses ic_notification — see createReminder for why the launcher icon cannot be a
+// notification small icon on Android 7.
 export const displayNotification = async () => {
   await notifee.displayNotification({
     title: "Test Notification",
     body: "This is a test notification.",
-    android: { channelId: constant.SOUND, smallIcon: "ic_launcher_foreground" },
+    android: { channelId: constant.SOUND, smallIcon: "ic_notification" },
   });
 };

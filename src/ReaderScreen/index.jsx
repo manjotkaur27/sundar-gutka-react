@@ -7,9 +7,11 @@ import { bottomNavInset } from "@theme/components";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import { Spinner } from "@common/components/ui";
+import WebViewUnavailable from "@common/components/WebViewUnavailable";
 import useReadingSession from "@common/hooks/useReadingSession";
 import { useNavBarSurface } from "@common/systemBars";
 import { pauseTrack } from "@common/TrackPlayerUtils";
+import { useWebViewAvailable } from "@common/webViewAvailability";
 import {
   constant,
   convertToUnicode,
@@ -334,6 +336,12 @@ const Reader = ({ navigation, route }) => {
   // looked broken there while working on Android: the whole listener is
   // skipped on Android.
   const bookmarkJumpAtRef = useRef(0);
+
+  // Android cannot always create a WebView (provider disabled, uninstalled or
+  // mid-update); mounting one then kills the process before any boundary sees
+  // it. So the page is mounted only once the probe has said yes, and the notice
+  // takes its place when the answer is no.
+  const { available: webViewAvailable, recheck: recheckWebView } = useWebViewAvailable();
 
   const pauseAudioPlayback = useCallback(async () => {
     try {
@@ -805,7 +813,8 @@ const Reader = ({ navigation, route }) => {
           the viewport, which the "not scrollable" check misreads as a completed
           read (false 100%) before the real content replaces it. Waiting also
           removes the wasteful empty→full WebView reload on every bani open. */}
-      {shabad.length > 0 && (
+      {webViewAvailable === false && <WebViewUnavailable onRetry={recheckWebView} />}
+      {shabad.length > 0 && webViewAvailable && (
         <WebView
           key={webViewKey}
           webviewDebuggingEnabled={isDevBuild}

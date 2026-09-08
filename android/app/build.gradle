@@ -11,6 +11,27 @@ apply plugin: "com.google.firebase.firebase-perf"
 
 
 /**
+ * Which CPU architectures are built and packaged.
+ *
+ * ARM only. No current consumer Android phone is x86, and shipping the two x86
+ * variants cost more than their audience: on a device that reports BOTH x86_64
+ * and arm64 (a Chromebook, a cloud phone, an emulator with ARM translation),
+ * SoLoader's fallback unpacker can extract the arm64 libraries into a process
+ * running as x86_64, and the linker refuses them —
+ *   UnsatisfiedLinkError: ... is for EM_AARCH64 (183) instead of EM_X86_64 (62)
+ * — which kills the app at launch, before any JS runs, so nothing in the app
+ * can catch it. Those devices now install the ARM build and translate it, which
+ * is self-consistent. It also drops roughly 40% of the universal APK.
+ *
+ * Read from the property rather than hardcoded, so the documented emulator
+ * override still works:  ./gradlew <task> -PreactNativeArchitectures=x86_64
+ */
+def reactNativeArchitectures() {
+    def value = project.getProperties().get("reactNativeArchitectures")
+    return value ? value.split(",").toList() : ["armeabi-v7a", "arm64-v8a"]
+}
+
+/**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
@@ -92,8 +113,8 @@ android {
         targetSdkVersion = rootProject.ext.targetSdkVersion
         versionCode = 180
         versionName = "6.0.0"
-         ndk {
-            abiFilters "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+        ndk {
+            abiFilters.addAll(reactNativeArchitectures())
         }
     }
     

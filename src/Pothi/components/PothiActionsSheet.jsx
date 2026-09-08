@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
+import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
 import { isDefaultPothi, isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
 import { actions, ConfirmDialogHost, STRINGS, trackPothiEvent } from "@common";
@@ -185,10 +186,17 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
             the Settings palette and is dark-mode only, so a dialog inheriting it
             came up navy on the Folders tab while every other confirm in the app
             stayed on the default elevated surface. The dialog is app-wide
-            furniture, not part of the sheet. */}
-        <ScreenRolesProvider screen={null}>
-          <ConfirmDialogHost />
-        </ScreenRolesProvider>
+            furniture, not part of the sheet.
+
+            iOS only — see NEST_OVERLAYS_IN_SHEET. On Android a Modal inside a
+            Modal is a second React root whose teardown races the sheet's, and
+            the app-root host has always been able to open a Dialog over this
+            sheet anyway. */}
+        {NEST_OVERLAYS_IN_SHEET && (
+          <ScreenRolesProvider screen={null}>
+            <ConfirmDialogHost />
+          </ScreenRolesProvider>
+        )}
       </Sheet>
     </ScreenRolesProvider>
   );

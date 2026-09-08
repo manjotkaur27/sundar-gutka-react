@@ -53,6 +53,8 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MAX_PARALLEL         = 3;
+// How long the app-start reconcile waits for the download engine's answer.
+const REATTACH_TIMEOUT_MS = 10000;
 const MIN_VALID_BYTES      = 100_000;   // a real bani m4a is always well over 100 KB
 const RETRY_DELAYS         = [5_000, 15_000, 45_000];
 const COMPLETED_CLEANUP_MS = 2_000;
@@ -479,11 +481,25 @@ const useGlobalDownloadManager = () => {
     let cancelled = false;
 
     const reattach = async () => {
-      const existing = await getExistingDownloadTasks().catch((err) => {
-        logNetworkError(`Reattach failed: ${err?.message}`, err);
-        return [];
-      });
+      // Bounded: the engine answers by asking the system downloads provider,
+      // which some OEM builds start slowly or have disabled. Waiting on it
+      // forever would leave every download in the queue un-adopted for the
+      // whole session; giving up leaves them where they were, and the next
+      // launch asks again.
+      const existing = await Promise.race([
+        getExistingDownloadTasks().catch((err) => {
+          logNetworkError(`Reattach failed: ${err?.message}`, err);
+          return [];
+        }),
+        new Promise((resolve) => {
+          setTimeout(() => resolve(null), REATTACH_TIMEOUT_MS);
+        }),
+      ]);
       if (cancelled) return;
+      if (existing === null) {
+        logMessage("Reattach skipped: download engine did not answer in time");
+        return;
+      }
 
       await Promise.all(existing.map(async (task) => {
         const meta = task.metadata && task.metadata.trackKey ? task.metadata : null;

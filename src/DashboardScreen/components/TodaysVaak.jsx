@@ -3,10 +3,18 @@ import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import PropTypes from "prop-types";
 import { formatFullDate } from "@common/dateLocale";
-import { CustomText, STRINGS, logError, openInAppBrowser, showInfoToast } from "@common";
+import {
+  CustomText,
+  STRINGS,
+  logError,
+  logMessage,
+  openInAppBrowser,
+  showInfoToast,
+} from "@common";
 import { getDailyVaak } from "../../services/dashboard";
 import { OfflineError } from "../../services/dashboard/connectivity";
 import { istDateKey } from "../../services/dashboard/dailyVaak";
+import { UnavailableError } from "../../services/dashboard/dataFailures";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import OfflineNotice from "./OfflineNotice";
@@ -135,7 +143,11 @@ const TodaysVaak = ({
         // published today's vaak yet is not, and telling someone with a working
         // connection to turn on the internet is simply false.
         const isOffline = err instanceof OfflineError;
-        if (!isOffline) logError(err);
+        // Neither is a fault of ours: whatever failed behind an "unavailable"
+        // was already logged where it happened, so recording it again here
+        // only filed the same outage twice.
+        if (err instanceof UnavailableError) logMessage(err.message);
+        else if (!isOffline) logError(err);
         setProblem(isOffline ? "offline" : "unavailable");
       })
       .finally(() => {

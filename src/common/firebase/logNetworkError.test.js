@@ -33,6 +33,18 @@ describe("isNetworkFailure", () => {
     "timeout of 5000ms exceeded",
     "Aborted",
     "Network Error",
+    // Android's download engine, mid-transfer, exactly as Crashlytics received it
+    "Read error: ssl=0xb40000798e494b08: Failure in SSL library, usually a protocol error\nerror:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT (external/boringssl/src/crypto/fipsmodule/cipher/e_aes.c:1065 0x7aa408ad53:0x00000000)\nerror:1000008b:SSL routines:OPENSSL_internal:DECRYPTION_FAILED_OR_BAD_RECORD_MAC (external/boringssl/src/ssl/tls_record.cc:274 0x7aa408ad53:0x00000000)",
+    "SSL handshake aborted: ssl=0x7a: I/O error during system call, Connection reset by peer",
+    "Software caused connection abort",
+    "unexpected end of stream",
+    'Unable to resolve host "cdn.khalis.net": No address associated with hostname',
+    "Connection reset",
+    "Socket closed",
+    // iOS
+    "The network connection was lost.",
+    "The Internet connection appears to be offline.",
+    "An SSL error has occurred and a secure connection to the server cannot be made.",
   ])("treats %p as the connection's doing", (message) => {
     expect(isNetworkFailure(new Error(message))).toBe(true);
   });
@@ -44,6 +56,13 @@ describe("isNetworkFailure", () => {
     "NOT_ENOUGH_STORAGE",
   ])("leaves %p a genuine error", (message) => {
     expect(isNetworkFailure(new Error(message))).toBe(false);
+  });
+
+  it("reads an errno-style code when the text says nothing useful", () => {
+    const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+    expect(isNetworkFailure(reset)).toBe(true);
+    const other = Object.assign(new Error("boom"), { code: "E_SOMETHING_ELSE" });
+    expect(isNetworkFailure(other)).toBe(false);
   });
 
   it("reads a bare string or a null as well as an Error", () => {

@@ -40,6 +40,7 @@ const mockUpdateReminders = jest.fn(() => Promise.resolve({ scheduled: 1, blocke
 let mockOnline = true;
 jest.mock("@common", () => ({
   logError: jest.fn(),
+  logNetworkError: jest.fn(),
   logMessage: jest.fn(),
   STRINGS: { time_for: "Time for" },
   updateReminders: (...a) => mockUpdateReminders(...a),

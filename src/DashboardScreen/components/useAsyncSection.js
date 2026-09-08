@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { logError } from "@common";
+import { logMessage, logNetworkError } from "@common";
+import { isExpectedDataFailure } from "../../services/dashboard/dataFailures";
 
 // Standardizes the loading/error lifecycle for a dashboard section's async
 // fetch. `task` is a useCallback-memoized function that fetches data and sets
@@ -34,7 +35,11 @@ const useAsyncSection = (task) => {
       })
       .catch((err) => {
         if (!active) return;
-        logError(err);
+        // Offline and "nothing to show" are states this hook renders, and a
+        // connection failure is the phone's, not ours; only a real fault is
+        // recorded as one.
+        if (isExpectedDataFailure(err)) logMessage(String(err?.message || err));
+        else logNetworkError(err, err);
         if (!loadedOnceRef.current) setError(true);
       })
       .finally(() => {

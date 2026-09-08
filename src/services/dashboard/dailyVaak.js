@@ -1,6 +1,7 @@
 import { constant, logNetworkError } from "@common";
 import { isOnline, OfflineError } from "./connectivity";
 import { readFreshCache, writeCache } from "./dailyCache";
+import { UnavailableError } from "./dataFailures";
 
 // Persist today's vaak so it stays available offline for the same IST day.
 // Keyed by the IST date (see istParts) — the official Sri Darbar Sahib Hukamnama
@@ -266,7 +267,7 @@ export const getDailyVaak = async ({ requireOnline = false, force = false } = {}
     }
   }
 
-  if (!mapped) throw new Error("daily vaak unavailable");
+  if (!mapped) throw new UnavailableError("daily vaak unavailable");
 
   // Today's from BaniDB is final and keeps for the day. Anything else — the
   // previous day, or the secondary source — gets a short life, so the card

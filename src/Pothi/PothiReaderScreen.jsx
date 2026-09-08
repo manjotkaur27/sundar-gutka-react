@@ -4,7 +4,9 @@ import { WebView } from "react-native-webview";
 import { useSelector } from "react-redux";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
+import WebViewUnavailable from "@common/components/WebViewUnavailable";
 import useTokens from "@common/hooks/useTokens";
+import { useWebViewAvailable } from "@common/webViewAvailability";
 import { GradientDivider, SafeArea, StatusBarComponent, STRINGS } from "@common";
 import { ScreenHeader, Spinner, Text } from "../common/components/ui";
 import { loadHTML } from "../ReaderScreen/utils";
@@ -36,6 +38,9 @@ const PothiReaderScreen = ({ navigation, route }) => {
   const isLarivaar = useSelector((state) => state.isLarivaar);
 
   const { shabad, isLoading } = useFetchPothi(baniIds);
+  // See ReaderScreen: a WebView is mounted only once Android has said it can
+  // create one, and the notice takes its place when it cannot.
+  const { available: webViewAvailable, recheck: recheckWebView } = useWebViewAvailable();
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -88,6 +93,8 @@ const PothiReaderScreen = ({ navigation, route }) => {
         </View>
       );
     }
+    if (webViewAvailable === false) return <WebViewUnavailable onRetry={recheckWebView} />;
+    if (webViewAvailable === null) return null;
     return (
       <WebView
         javaScriptEnabled

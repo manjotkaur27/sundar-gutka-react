@@ -16,7 +16,7 @@ import {
   sameSchedule,
   toWire,
 } from "@common/reminders/syncModel";
-import { logError, logMessage, STRINGS, updateReminders } from "@common";
+import { logError, logMessage, logNetworkError, STRINGS, updateReminders } from "@common";
 import { getBaniList } from "@database";
 import { isTransientStatus } from "../khalisRequest";
 import { deleteReminder, putReminder, putReminderSettings, syncReminders } from "../remindersApi";
@@ -117,7 +117,7 @@ const useRemindersSync = () => {
         try {
           await updateReminders(enabledNow, soundNow, JSON.stringify(applied.items));
         } catch (err) {
-          logError(err);
+          logNetworkError(err, err);
         }
       }
     },

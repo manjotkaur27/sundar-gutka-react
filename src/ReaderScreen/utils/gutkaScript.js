@@ -43,6 +43,15 @@ let syncScrollUntil = 0;
 // previously-saved position on load/refocus), whereas audio sync-scroll must.
 let restoreScrollUntil = 0;
 
+// Where the reader was before the last reflow: the line at the top of the
+// viewport, and how far down the viewport it sat. Captured by the scroll
+// handler while the layout is stable, and used by the resize handler to put
+// the page back after a rotation.
+let lastViewportWidth = window.innerWidth;
+let anchorElementId = null;
+let anchorViewportTop = 0;
+let reflowRestoreTimer = null;
+
 // The active (sync-scroll) line is rendered slightly larger than the rest of
 // the bani via the .sync-enlarged class — the scale itself lives in CSS
 // (gutkahtml.js), derived from each line's own base size, so the text still
@@ -151,21 +160,37 @@ const scrollFunc=(e)=> {
     hasReachedEnd = false;
   }
 
+  // A rotation resizes the WebView and Chromium reflows the text underneath
+  // the scroll offset, so every scroll event between the resize and the
+  // restore below describes a position the user never chose. Reporting those
+  // overwrote the saved reading position — and near the bottom saved "end",
+  // which reopens the bani at the top. Nothing is reported, and no anchor
+  // captured, until the new layout is final.
+  const reflowing = window.innerWidth !== lastViewportWidth;
+
   // Report topmost element on both manual and auto-scroll so read context
   // survives background/terminate mid-auto-scroll. The 300ms throttle above
   // keeps this off the 60fps RAF hot path during auto-scroll.
-  const elementId = getTopmostElementId();
-  if (elementId && !hasReachedEnd) {
-    const topEl = document.getElementById(String(elementId));
-    const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
-    window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
-  } else if (hasReachedEnd) {
-    window.ReactNativeWebView.postMessage("scroll-elementId-null");
+  const elementId = reflowing ? null : getTopmostElementId();
+  const topEl = elementId ? document.getElementById(String(elementId)) : null;
+  if (topEl) {
+    // WHERE on screen that line sits, so a rotation can put it back in the
+    // same place (see the resize handler).
+    anchorElementId = String(elementId);
+    anchorViewportTop = topEl.getBoundingClientRect().top;
+  }
+  if (!reflowing) {
+    if (elementId && !hasReachedEnd) {
+      const seq = topEl ? (topEl.getAttribute("data-sequence") || "") : "";
+      window.ReactNativeWebView.postMessage("scroll-elementId-" + elementId + "|seq-" + seq);
+    } else if (hasReachedEnd) {
+      window.ReactNativeWebView.postMessage("scroll-elementId-null");
+    }
   }
 
   // ── Scroll progress — bridge message on every scroll tick, except during a
   // position-restore jump (see restoreScrollUntil) which isn't genuine reading ──
-  if (Date.now() > restoreScrollUntil) {
+  if (!reflowing && Date.now() > restoreScrollUntil) {
     var sh = document.documentElement.scrollHeight;
     var ch = window.innerHeight;
     // Exclude the artificial bottom inset (body padding-bottom) from the reading
@@ -187,7 +212,11 @@ const scrollFunc=(e)=> {
   if (typeof scrollFunc.y == "undefined") {
     scrollFunc.y = window.pageYOffset;
   }
-  if (autoScrollSpeed == 0 && Date.now() > syncScrollUntil) {
+  // A reflow moves the page under the reader without them touching it, and the
+  // delta it produces reads as a deliberate scroll up — which brought the bars
+  // back every time the phone was rotated, and took the progress track up with
+  // them onto a nav bar the reader had hidden.
+  if (!reflowing && autoScrollSpeed == 0 && Date.now() > syncScrollUntil) {
     let diffY = scrollFunc.y - window.pageYOffset;
     // Scroll direction drives the bars: scrolling DOWN hides them, scrolling UP
     // restores them together. (A tap also toggles — see the touch handlers
@@ -326,22 +355,58 @@ const setAutoScroll=()=> {
   autoScrollRAF = requestAnimationFrame(scrollStep);
 }
 
+// Rotation: put the reader back where they were.
+//
+// Nothing reloads on rotation — the WebView is resized and Chromium reflows
+// the text, so the document's height changes (landscape lines are about twice
+// as wide, so the page is roughly half as tall) while the scroll offset in
+// pixels stays as it was. That offset means a different place in the new
+// layout, which is what threw the page down the bani.
+//
+// This used to run off "orientationchange" with a 50ms timeout, which fires
+// BEFORE the new geometry exists: it measured the top line against a viewport
+// mid-resize and smooth-scrolled to a target computed from the old layout. So
+// each rotation displaced the page by a different amount — sometimes none,
+// which is why it looked intermittent — and repeated rotations compounded it.
+//
+// The reflow is done when "resize" reports a new width. The anchor was
+// captured by the scroll handler BEFORE it, so it describes where the user
+// actually was. The restore is an instant scroll, not a smooth one: an
+// animation runs over a layout that is still settling and lands elsewhere
+// again.
+const restoreAfterReflow = () => {
+  reflowRestoreTimer = null;
+  lastViewportWidth = window.innerWidth;
+  const element = anchorElementId ? document.getElementById(anchorElementId) : null;
+  if (!element) return;
+  // The captured offset belongs to the old viewport; landscape is much
+  // shorter, so clamp it into the new one. A line that began above the
+  // viewport (offset < 0) is put at the top rather than scrolled past.
+  const limit = Math.max(window.innerHeight - 40, 0);
+  const offset = Math.min(Math.max(anchorViewportTop, 0), limit);
+  const documentTop =
+    element.getBoundingClientRect().top + (window.scrollY || window.pageYOffset);
+  // Same suppressions as the load-time restore: this jump is not the user
+  // reading, and must not toggle the nav bars.
+  syncScrollUntil = Date.now() + 700;
+  restoreScrollUntil = Date.now() + 700;
+  window.scrollTo(0, Math.max(documentTop - offset, 0));
+};
+
 window.addEventListener(
-  "orientationchange",
-   ()=> {
-    setTimeout(()=> {
-      const elementId = getTopmostElementId();
-      if (elementId) {
-        const element = document.getElementById(String(elementId));
-        if (element) {
-          element.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-            inline: "nearest"
-          });
-        }
-      }
-    }, 50);
+  "resize",
+  () => {
+    // Only a width change re-wraps the text. Height alone changes for reasons
+    // that reflow nothing.
+    if (window.innerWidth === lastViewportWidth) return;
+    if (reflowRestoreTimer) clearTimeout(reflowRestoreTimer);
+    // Debounced: a rotation fires several resize events. Two frames after the
+    // last one, the new layout is final.
+    reflowRestoreTimer = setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(restoreAfterReflow);
+      });
+    }, 120);
   },
   false
 );

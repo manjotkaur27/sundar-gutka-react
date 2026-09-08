@@ -35,6 +35,15 @@ const loadRNTP = () => {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// What the native module answers with, on both platforms, whenever its service
+// connection is gone: never set up, or set up and since lost (the task swiped
+// away under StopPlaybackAndRemoveNotification, the OS reclaiming the service).
+// Android rejects with this from verifyServiceBoundOrReject on every call; iOS
+// from RNTrackPlayer.swift. setupPlayer binds again in that state.
+const NOT_INITIALIZED_CODE = "player_not_initialized";
+const isNotInitialized = (error) =>
+  error?.code === NOT_INITIALIZED_CODE || /not initialized/i.test(String(error?.message ?? ""));
+
 // RNTP's own native foreground check (AppForegroundTracker) is a separate
 // Activity-lifecycle observer from RN's AppState module, so it can still lag
 // a beat behind — waitForForeground() can resolve a moment before the native
@@ -50,6 +59,18 @@ class TrackPlayerService {
     this.isInitialized = false;
     this.initPromise = null;
     this.activeListeners = new Set();
+    this.subscribers = new Set();
+  }
+
+  setInitialized(value) {
+    if (this.isInitialized === value) return;
+    this.isInitialized = value;
+    this.subscribers.forEach((listener) => listener(value));
+  }
+
+  subscribe(listener) {
+    this.subscribers.add(listener);
+    return () => this.subscribers.delete(listener);
   }
 
   async initialize() {
@@ -67,14 +88,14 @@ class TrackPlayerService {
     this.initPromise = (async () => {
       try {
         await this._setupWithRetry();
-        this.isInitialized = true;
+        this.setInitialized(true);
         logMessage("TrackPlayer service initialized successfully");
       } catch (error) {
         if (
           error?.message?.includes("already initialized") ||
           error?.code === "player_already_initialized"
         ) {
-          this.isInitialized = true;
+          this.setInitialized(true);
           logMessage("TrackPlayer already initialized");
         } else if (
           error?.code === "android_cannot_setup_player_in_background" ||
@@ -83,13 +104,13 @@ class TrackPlayerService {
           // Still backgrounded after every retry — genuinely defer; the next
           // manual retry (or app.js's own foreground-triggered setup) will
           // pick this back up.
-          this.isInitialized = false;
+          this.setInitialized(false);
           logMessage(
             `TrackPlayer setup deferred (foreground service not allowed): ${error?.message}`,
           );
         } else {
           logError(`TrackPlayer initialization failed: ${error?.message || "Unknown error"}`);
-          this.isInitialized = false;
+          this.setInitialized(false);
           throw error;
         }
       } finally {
@@ -168,6 +189,16 @@ class TrackPlayerService {
     });
   }
 
+  // The flag only says what THIS side did; the native service can go away
+  // underneath it (see NOT_INITIALIZED_CODE). Forgetting it here is what lets
+  // the next initialize() bind again instead of being skipped as already done.
+  markLost() {
+    if (this.isInitialized) {
+      logMessage("TrackPlayer service connection lost; will set up again on next use");
+    }
+    this.setInitialized(false);
+  }
+
   async cleanup() {
     try {
       logMessage("Cleaning up TrackPlayer service...");
@@ -176,9 +207,13 @@ class TrackPlayerService {
       await TrackPlayer.stop();
       await TrackPlayer.reset();
 
-      this.isInitialized = false;
+      this.setInitialized(false);
       logMessage("TrackPlayer service cleaned up successfully");
     } catch (error) {
+      if (isNotInitialized(error)) {
+        this.markLost();
+        return;
+      }
       logError(`TrackPlayer cleanup failed: ${error?.message || "Unknown error"}`);
     }
   }
@@ -205,6 +240,45 @@ export const getTrackPlayerState = () => {
   return trackPlayerService.getState();
 };
 
+/** Calls `listener(isInitialized)` whenever the player is set up or lost. */
+export const subscribeTrackPlayerState = (listener) => trackPlayerService.subscribe(listener);
+
+/**
+ * The one place a failed player call is judged. A player that is not there
+ * (never set up, or lost since — see NOT_INITIALIZED_CODE) is forgotten so the
+ * next setup binds again, and is reported only when the caller says a missing
+ * player is worth reporting; anything else is an error.
+ *
+ * @param {string} label what was being attempted, e.g. "pausing track"
+ * @param {unknown} error what the player threw
+ * @param {{ reportMissing?: boolean }} [options]
+ * @returns {boolean} true when the failure was a missing player
+ */
+export const handlePlayerError = (label, error, { reportMissing = false } = {}) => {
+  const missing = isNotInitialized(error);
+  if (missing) trackPlayerService.markLost();
+  if (!missing || reportMissing) logError(`Error ${label}: ${error}`);
+  return missing;
+};
+
+// Every player call goes through here, so "there is no player" is handled
+// once. A call that only makes sense WITH a player — pause, stop, reset — is
+// skipped while there is none: the focus-loss hook, the tab bar and the
+// offline guard all pause "whatever is playing", and in a session that never
+// touched audio nothing is. Those calls used to reach native anyway and log
+// player_not_initialized on every background transition, the most frequent
+// Crashlytics non-fatal of the 6.0.0 rollout. A player that was set up and has
+// since been lost answers the same way; that resets the flag so the next
+// setup binds again, and is not an error either. Anything else is.
+const withPlayer = async (label, action, { requiresPlayer = true } = {}) => {
+  if (requiresPlayer && !trackPlayerService.isInitialized) return;
+  try {
+    await action(loadRNTP().default);
+  } catch (error) {
+    handlePlayerError(label, error, { reportMissing: !requiresPlayer });
+  }
+};
+
 export const addTrack = async (track) => {
   try {
     // Validate track object
@@ -219,39 +293,20 @@ export const addTrack = async (track) => {
     const TrackPlayer = loadRNTP().default;
     await TrackPlayer.add(track);
   } catch (error) {
+    if (isNotInitialized(error)) trackPlayerService.markLost();
     logError(`❌ Error adding track to TrackPlayer: ${error}`);
     throw error; // Re-throw to handle upstream
   }
 };
 
-export const playTrack = async () => {
-  try {
-    await loadRNTP().default.play();
-  } catch (error) {
-    logError(error);
-  }
-};
+// Play is the one call the user is waiting on, so it is attempted regardless
+// and a missing player IS reported — after resetting the flag, so the retry
+// path sets the player up again rather than assuming it is there.
+export const playTrack = () =>
+  withPlayer("playing track", (player) => player.play(), { requiresPlayer: false });
 
-export const pauseTrack = async () => {
-  try {
-    await loadRNTP().default.pause();
-  } catch (error) {
-    logError(`Error pausing track: ${error}`);
-  }
-};
+export const pauseTrack = () => withPlayer("pausing track", (player) => player.pause());
 
-export const stopTrack = async () => {
-  try {
-    await loadRNTP().default.stop();
-  } catch (error) {
-    logError(`Error stopping track: ${error}`);
-  }
-};
+export const stopTrack = () => withPlayer("stopping track", (player) => player.stop());
 
-export const resetPlayer = async () => {
-  try {
-    await loadRNTP().default.reset();
-  } catch (error) {
-    logError(`Error resetting player: ${error}`);
-  }
-};
+export const resetPlayer = () => withPlayer("resetting player", (player) => player.reset());

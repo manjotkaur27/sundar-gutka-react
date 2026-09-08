@@ -7,7 +7,7 @@ import {
   syncFeatureNames,
 } from "./syncRegistry";
 
-jest.mock("@common", () => ({ logError: jest.fn() }));
+jest.mock("@common", () => ({ logError: jest.fn(), logNetworkError: jest.fn() }));
 
 describe("syncRegistry", () => {
   beforeEach(() => {

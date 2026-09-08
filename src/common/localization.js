@@ -74,6 +74,11 @@ const STRINGS = new LocalizedStrings({
     ALARM_PERM_BODY:
       "Android needs permission to alert you at an exact time. Without it your reminders will not go off.",
     OPEN_SETTINGS: "Open settings",
+    WEBVIEW_MISSING_TITLE: "Web content can't be shown",
+    WEBVIEW_MISSING_BODY:
+      "This phone's Android System WebView is missing, turned off or being updated, so the reading page cannot open. Update or enable it, then try again.",
+    WEBVIEW_UPDATE: "Update WebView",
+    TRY_AGAIN: "Try again",
     HOUR: "Hour",
     MINUTE: "Minute",
     TIME_ENTER_TEXT: "Enter time",
@@ -571,6 +576,11 @@ const STRINGS = new LocalizedStrings({
     ALARM_PERM_BODY:
       "सही समय पर सूचित करने के लिए Android को अनुमति चाहिए। इसके बिना आपके रिमाइंडर नहीं बजेंगे।",
     OPEN_SETTINGS: "सेटिंग्स खोलें",
+    WEBVIEW_MISSING_TITLE: "वेब सामग्री नहीं दिखाई जा सकती",
+    WEBVIEW_MISSING_BODY:
+      "इस फ़ोन का Android System WebView मौजूद नहीं है, बंद है या अपडेट हो रहा है, इसलिए पाठ पृष्ठ नहीं खुल सकता। इसे अपडेट या चालू करें, फिर पुनः प्रयास करें।",
+    WEBVIEW_UPDATE: "WebView अपडेट करें",
+    TRY_AGAIN: "पुनः प्रयास करें",
     HOUR: "घंटा",
     MINUTE: "मिनट",
     TIME_ENTER_TEXT: "समय दर्ज करें",
@@ -1071,6 +1081,11 @@ const STRINGS = new LocalizedStrings({
     ALARM_PERM_BODY:
       "ਸਹੀ ਸਮੇਂ ਤੇ ਸੂਚਿਤ ਕਰਨ ਲਈ Android ਨੂੰ ਇਜਾਜ਼ਤ ਚਾਹੀਦੀ ਹੈ। ਇਸ ਤੋਂ ਬਿਨਾਂ ਤੁਹਾਡੇ ਰਿਮਾਈਂਡਰ ਨਹੀਂ ਵੱਜਣਗੇ।",
     OPEN_SETTINGS: "ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੋ",
+    WEBVIEW_MISSING_TITLE: "ਵੈੱਬ ਸਮੱਗਰੀ ਨਹੀਂ ਦਿਖਾਈ ਜਾ ਸਕਦੀ",
+    WEBVIEW_MISSING_BODY:
+      "ਇਸ ਫ਼ੋਨ ਦਾ Android System WebView ਮੌਜੂਦ ਨਹੀਂ, ਬੰਦ ਹੈ ਜਾਂ ਅੱਪਡੇਟ ਹੋ ਰਿਹਾ ਹੈ, ਇਸ ਲਈ ਪਾਠ ਪੰਨਾ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕਦਾ। ਇਸਨੂੰ ਅੱਪਡੇਟ ਜਾਂ ਚਾਲੂ ਕਰੋ, ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    WEBVIEW_UPDATE: "WebView ਅੱਪਡੇਟ ਕਰੋ",
+    TRY_AGAIN: "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
     HOUR: "ਘੰਟਾ",
     MINUTE: "ਮਿੰਟ",
     TIME_ENTER_TEXT: "ਸਮਾਂ ਦਰਜ ਕਰੋ",
@@ -1572,6 +1587,11 @@ const STRINGS = new LocalizedStrings({
     ALARM_PERM_BODY:
       "Android a besoin d'une autorisation pour vous alerter à l'heure exacte. Sans elle, vos rappels ne se déclencheront pas.",
     OPEN_SETTINGS: "Ouvrir les réglages",
+    WEBVIEW_MISSING_TITLE: "Le contenu web ne peut pas s'afficher",
+    WEBVIEW_MISSING_BODY:
+      "Android System WebView est absent, désactivé ou en cours de mise à jour sur ce téléphone, la page de lecture ne peut donc pas s'ouvrir. Mettez-le à jour ou activez-le, puis réessayez.",
+    WEBVIEW_UPDATE: "Mettre à jour WebView",
+    TRY_AGAIN: "Réessayer",
     HOUR: "Heure",
     MINUTE: "Minute",
     TIME_ENTER_TEXT: "Saisir l'heure",
@@ -2086,6 +2106,11 @@ const STRINGS = new LocalizedStrings({
     ALARM_PERM_BODY:
       "Android richiede l'autorizzazione per avvisarti all'ora esatta. Senza, i tuoi promemoria non suoneranno.",
     OPEN_SETTINGS: "Apri impostazioni",
+    WEBVIEW_MISSING_TITLE: "Impossibile mostrare il contenuto web",
+    WEBVIEW_MISSING_BODY:
+      "Android System WebView su questo telefono è assente, disattivato o in aggiornamento, quindi la pagina di lettura non può aprirsi. Aggiornalo o attivalo, poi riprova.",
+    WEBVIEW_UPDATE: "Aggiorna WebView",
+    TRY_AGAIN: "Riprova",
     HOUR: "Ora",
     MINUTE: "Minuto",
     TIME_ENTER_TEXT: "Inserisci l'ora",
@@ -2595,6 +2620,11 @@ const STRINGS = new LocalizedStrings({
     ALARM_PERM_BODY:
       "Android necesita permiso para avisarte a la hora exacta. Sin él, tus recordatorios no sonarán.",
     OPEN_SETTINGS: "Abrir ajustes",
+    WEBVIEW_MISSING_TITLE: "No se puede mostrar el contenido web",
+    WEBVIEW_MISSING_BODY:
+      "Android System WebView falta, está desactivado o se está actualizando en este teléfono, así que la página de lectura no puede abrirse. Actualízalo o actívalo y vuelve a intentarlo.",
+    WEBVIEW_UPDATE: "Actualizar WebView",
+    TRY_AGAIN: "Volver a intentar",
     HOUR: "Hora",
     MINUTE: "Minuto",
     TIME_ENTER_TEXT: "Introducir hora",

@@ -2,7 +2,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react-native";
 import useAsyncSection from "./useAsyncSection";
 
-jest.mock("@common", () => ({ logError: jest.fn() }));
+jest.mock("@common", () => ({ logMessage: jest.fn(), logNetworkError: jest.fn() }));
 
 const deferred = () => {
   let resolve;
@@ -82,5 +82,29 @@ describe("useAsyncSection", () => {
     expect(result.current.refreshing).toBe(false);
     // A failed refetch keeps the last good data rather than showing an error.
     expect(result.current.error).toBe(false);
+  });
+
+  // Every section funnels its failure through here, so this is where "the
+  // phone is offline" and "the source had nothing" stop being Crashlytics
+  // non-fatals: they are states the section renders, and are left as
+  // breadcrumbs. A real fault still goes through the network-aware recorder.
+  it("leaves an expected failure as a breadcrumb and records a real one", async () => {
+    jest.clearAllMocks();
+    const { logMessage, logNetworkError } = jest.requireMock("@common");
+    const unavailable = Object.assign(new Error("daily vaak unavailable"), { unavailable: true });
+    const task = jest.fn(() => Promise.reject(unavailable));
+    const { result } = renderHook(() => useAsyncSection(task));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(logMessage).toHaveBeenCalledWith("daily vaak unavailable");
+    expect(logNetworkError).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(true);
+
+    const fault = new Error("no such table: dashboard_daily_activity");
+    const failing = jest.fn(() => Promise.reject(fault));
+    const second = renderHook(() => useAsyncSection(failing));
+    await waitFor(() => expect(second.result.current.loading).toBe(false));
+
+    expect(logNetworkError).toHaveBeenCalledWith(fault, fault);
   });
 });

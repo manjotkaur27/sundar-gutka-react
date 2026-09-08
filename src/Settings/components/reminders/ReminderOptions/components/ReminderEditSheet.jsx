@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
+import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
 import {
   ConfirmDialogHost,
@@ -94,39 +95,12 @@ const ReminderEditSheet = ({ section = null, visible, onClose }) => {
       },
     });
 
-  return (
-    <Sheet
-      visible={visible}
-      onClose={onClose}
-      title={title}
-      closeAccessibilityLabel={STRINGS.cancel}
-    >
-      <Row
-        title={STRINGS.REMINDER_TIME}
-        value={time}
-        onPress={() => toggleTimePicker(true)}
-        showDivider
-        leading={<Icon name="schedule" color={c.textSecondary} size={layout.icon.sm} />}
-      />
-      <Row
-        title={STRINGS.notification_text}
-        onPress={() => toggleLabelModal(true)}
-        showDivider
-        leading={<Icon name="turned-in-not" color={c.textSecondary} size={layout.icon.sm} />}
-      />
-      <Row
-        title={STRINGS.delete}
-        onPress={handleDelete}
-        titleStyle={{ color: c.error }}
-        leading={<Icon name="delete-outline" color={c.error} size={layout.icon.sm} />}
-      />
-
-      {/* INSIDE the sheet, not beside it, and that placement is the whole fix
-          for the iOS freeze — see the note above the component.
-
-          Neither adds anything to the layout: React Native's Modal renders its
-          inline view `position: "absolute"` (Modal.js, `styles.modal`), so it is
-          out of flow and does not even take a `gap` slot in the sheet's body. */}
+  // Written once and placed in one of two positions — see
+  // NEST_OVERLAYS_IN_SHEET. Neither adds anything to the layout wherever it
+  // lands: React Native renders a Modal's inline view `position: "absolute"`
+  // (Modal.js, `styles.modal`), so it is out of flow either way.
+  const overlays = (
+    <>
       <TimePickerSheet
         visible={isTimePicker}
         value={time}
@@ -142,14 +116,48 @@ const ReminderEditSheet = ({ section = null, visible, onClose }) => {
 
       {isLabelModal && <LabelModal section={section} onHide={() => toggleLabelModal(false)} />}
 
-      {/* Confirms raised from in here are presented BY this sheet.
-          `showConfirm`'s host is normally the one at the app root, which on iOS
-          is presented by the root controller — and that controller is already
-          presenting this sheet, so the dialog never appeared and the screen sat
-          frozen. A host mounted here registers as the innermost and takes over
-          for as long as the sheet is open. See ConfirmDialog. */}
-      <ConfirmDialogHost />
-    </Sheet>
+      {/* iOS only. `showConfirm`'s host is normally the one at the app root,
+          which there is presented by the root controller — already presenting
+          this sheet — so the dialog never appeared. A host mounted inside
+          registers as the innermost and takes over while the sheet is open.
+          Android needs none of it: the root host opens a Dialog that stacks
+          over the sheet, which is what it did before. */}
+      {NEST_OVERLAYS_IN_SHEET && <ConfirmDialogHost />}
+    </>
+  );
+
+  return (
+    <>
+      <Sheet
+        visible={visible}
+        onClose={onClose}
+        title={title}
+        closeAccessibilityLabel={STRINGS.cancel}
+      >
+        <Row
+          title={STRINGS.REMINDER_TIME}
+          value={time}
+          onPress={() => toggleTimePicker(true)}
+          showDivider
+          leading={<Icon name="schedule" color={c.textSecondary} size={layout.icon.sm} />}
+        />
+        <Row
+          title={STRINGS.notification_text}
+          onPress={() => toggleLabelModal(true)}
+          showDivider
+          leading={<Icon name="turned-in-not" color={c.textSecondary} size={layout.icon.sm} />}
+        />
+        <Row
+          title={STRINGS.delete}
+          onPress={handleDelete}
+          titleStyle={{ color: c.error }}
+          leading={<Icon name="delete-outline" color={c.error} size={layout.icon.sm} />}
+        />
+
+        {NEST_OVERLAYS_IN_SHEET && overlays}
+      </Sheet>
+      {!NEST_OVERLAYS_IN_SHEET && overlays}
+    </>
   );
 };
 
