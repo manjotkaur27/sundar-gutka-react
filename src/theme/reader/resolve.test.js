@@ -1,6 +1,6 @@
 import constant from "@common/constant";
+import { ALL_THEMES_BY_ID as READER_THEMES_BY_ID } from "./__fixtures__/allThemes";
 import resolveReaderTheme, { appearanceFor, isDesignedTheme } from "./resolve";
-import { READER_THEMES_BY_ID } from "./themes";
 
 // ONE setting — `state.theme` — decides two things: which appearance the app
 // wears, and which record the Bani is rendered with. These are the rules that
@@ -10,11 +10,16 @@ describe("appearanceFor", () => {
   it("pairs each designed theme with the appearance it is meant to be read in", () => {
     // Declared once, in the record's `base`. Choosing Blue puts the whole app in
     // dark; Puratan and Kesari put it in light. Nothing else encodes the pairing.
-    expect(appearanceFor("blue")).toBe("dark");
-    expect(appearanceFor("sanjh")).toBe("dark");
-    expect(appearanceFor("puratan")).toBe("light");
-    expect(appearanceFor("kesari")).toBe("light");
-    expect(appearanceFor("white")).toBe("light");
+    //
+    // The registry is passed explicitly because these five are SERVED, not
+    // bundled — which is what ThemeProvider and useReaderTheme do in production
+    // via useThemeRegistry. The default argument is the bundled map, and that
+    // now holds light and dark alone.
+    expect(appearanceFor("blue", READER_THEMES_BY_ID)).toBe("dark");
+    expect(appearanceFor("sanjh", READER_THEMES_BY_ID)).toBe("dark");
+    expect(appearanceFor("puratan", READER_THEMES_BY_ID)).toBe("light");
+    expect(appearanceFor("kesari", READER_THEMES_BY_ID)).toBe("light");
+    expect(appearanceFor("white", READER_THEMES_BY_ID)).toBe("light");
   });
 
   it("returns null for the plain appearance keywords", () => {
@@ -34,7 +39,7 @@ describe("appearanceFor", () => {
 
 describe("isDesignedTheme", () => {
   it("separates designed themes from appearance keywords", () => {
-    expect(isDesignedTheme("puratan")).toBe(true);
+    expect(isDesignedTheme("puratan", READER_THEMES_BY_ID)).toBe(true);
     expect(isDesignedTheme(constant.Dark)).toBe(false);
     expect(isDesignedTheme(constant.Default)).toBe(false);
     expect(isDesignedTheme("nonsense")).toBe(false);
@@ -49,10 +54,12 @@ describe("isDesignedTheme", () => {
 
 describe("resolveReaderTheme", () => {
   it("renders a designed theme with its own record", () => {
-    expect(resolveReaderTheme("puratan", false)).toBe(READER_THEMES_BY_ID.puratan);
+    expect(resolveReaderTheme("puratan", false, READER_THEMES_BY_ID)).toBe(
+      READER_THEMES_BY_ID.puratan
+    );
     // Blue pairs with dark, so appIsDark is true by the time this is read — but
     // the record wins either way, because the id is explicit.
-    expect(resolveReaderTheme("blue", true)).toBe(READER_THEMES_BY_ID.blue);
+    expect(resolveReaderTheme("blue", true, READER_THEMES_BY_ID)).toBe(READER_THEMES_BY_ID.blue);
   });
 
   it("follows the app for every plain appearance", () => {

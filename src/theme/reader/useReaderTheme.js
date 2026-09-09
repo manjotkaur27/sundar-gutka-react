@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import useTheme from "@common/context";
 import resolveReaderTheme, { isDesignedTheme } from "./resolve";
+import useThemeRegistry from "./useThemeRegistry";
 
 /**
  * The single entry point for reading-theme values.
@@ -21,14 +22,15 @@ const useReaderTheme = () => {
   const selectedId = useSelector((state) => state.theme);
   const { theme: appTheme } = useTheme();
   const appIsDark = appTheme.mode === "dark";
+  const { byId } = useThemeRegistry();
 
   return useMemo(
     () => ({
-      theme: resolveReaderTheme(selectedId, appIsDark),
+      theme: resolveReaderTheme(selectedId, appIsDark, byId),
       selectedId,
-      isDesigned: isDesignedTheme(selectedId),
+      isDesigned: isDesignedTheme(selectedId, byId),
     }),
-    [selectedId, appIsDark]
+    [selectedId, appIsDark, byId]
   );
 };
 

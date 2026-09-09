@@ -8,6 +8,11 @@ import Toast from "react-native-toast-message";
 import toastConfig from "./src/common/toastConfig";
 import { Provider } from "react-redux";
 import notifee, { EventType } from "@notifee/react-native";
+import {
+  getInitialNotification,
+  getMessaging,
+  onNotificationOpenedApp,
+} from "@react-native-firebase/messaging";
 import { PersistGate } from "redux-persist/integration/react";
 import {
   createStore,
@@ -37,8 +42,11 @@ import useReminderRearm from "./src/common/hooks/useReminderRearm";
 import useSsoSession from "./src/common/hooks/useSsoSession";
 import useAudioCatalogSync from "./src/common/services/useAudioCatalogSync";
 import useDashboardSync from "./src/services/dashboard/useDashboardSync";
+import usePushRegistration from "./src/services/push/usePushRegistration";
 import useRemindersSync from "./src/services/reminders/useRemindersSync";
+import useSettingsSync from "./src/services/settings/useSettingsSync";
 import useSyncOutbox from "./src/services/sync/useSyncOutbox";
+import useRemoteThemesSync from "./src/services/themes/useRemoteThemesSync";
 
 const { store, persistor } = createStore();
 
@@ -64,6 +72,13 @@ const GlobalServices = () => {
   useOnboardingTrigger();
   useOfflineSyncToast();
   useReminderRearm();
+  // Push: registers this device's FCM token with the account, keeps its
+  // topics current, and shows foreground messages. Mounted here so it runs
+  // on every screen and before the user has opened anything.
+  usePushRegistration();
+  // Reading themes from the backend, merged over the bundled set on every
+  // screen that resolves a theme.
+  useRemoteThemesSync();
   useSsoSession();
   // Offline audio parity: warms the manifest + lyrics caches for every audio
   // bani, so audio a user never opened online still plays offline. It went
@@ -82,6 +97,9 @@ const GlobalServices = () => {
   // The features register with the sync registry; the outbox drains them.
   usePothiSync();
   useRemindersSync();
+  // The person's preferences, per key, through the same outbox and the same
+  // sync moments as reminders.
+  useSettingsSync();
   useSyncOutbox();
   return null;
 };
@@ -152,6 +170,30 @@ const App = () => {
     });
 
     return unsubscribe;
+  }, []);
+
+  // Taps on a notification the SYSTEM drew, rather than the app.
+  //
+  // notifee only reports presses on notifications it posted itself. A campaign
+  // that carries a `notification` block is drawn by FCM while the app is away,
+  // so notifee never sees it and its route was simply lost — the app opened
+  // wherever it had been left. These two are the only handlers that hear about
+  // it: `getInitialNotification` for a tap that launched the app from cold, and
+  // `onNotificationOpenedApp` for one that brought it back from the background.
+  //
+  // The payload is reshaped into the notifee detail that navigateTo reads, so
+  // one router serves every source: reminders, app-drawn campaigns and these.
+  useEffect(() => {
+    const messaging = getMessaging();
+    const open = (remoteMessage) => {
+      if (remoteMessage) {
+        resetBadgeCount();
+        navigateTo({ notification: { data: remoteMessage.data } }).catch(logError);
+      }
+    };
+
+    getInitialNotification(messaging).then(open).catch(logError);
+    return onNotificationOpenedApp(messaging, open);
   }, []);
 
   return (

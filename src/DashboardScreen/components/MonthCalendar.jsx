@@ -5,7 +5,14 @@ import { hexToRgb } from "@theme/colorUtils";
 import PropTypes from "prop-types";
 import { weekdayNarrowRow, formatMonthYear } from "@common/dateLocale";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
-import { CustomText, STRINGS, constant, logError, showInfoToast } from "@common";
+import {
+  CustomText,
+  STRINGS,
+  constant,
+  logError,
+  showInfoToast,
+  trackDashboardEvent,
+} from "@common";
 import { getDailyActivity, getOrCreateSummary } from "../../database/analytics";
 import { dayQualifies } from "../../services/streakDays";
 import useDashboardTheme from "./dashboardTheme";
@@ -278,6 +285,14 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
   const handleDayPress = useCallback(
     (d) => {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      // Every tap, including the two that open nothing — see the same call on
+      // the streak strip, which shares this event and differs only by surface.
+      trackDashboardEvent("day_tapped", {
+        surface: "month_calendar",
+        outcome:
+          (dateStr > todayStr && "future") ||
+          (hasAnyActivity(activityMap[dateStr]) ? "opened" : "empty"),
+      });
       // Future day → nothing to show yet, and nothing to say either.
       if (dateStr > todayStr) return;
       // No activity on this (past/today) day → quick toast instead of an empty detail sheet.
@@ -339,7 +354,10 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
               <View style={styles.navBtnPlaceholder} />
             ) : (
               <Pressable
-                onPress={prevMonth}
+                onPress={() => {
+                  trackDashboardEvent("month_navigated", { direction: "back" });
+                  prevMonth();
+                }}
                 hitSlop={8}
                 style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
               >
@@ -357,7 +375,10 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
                 to tell you. Nothing in the header has a fixed height, so it
                 becomes "August" over "2026" and the row grows. */}
             <Pressable
-              onPress={() => setPickerVisible(true)}
+              onPress={() => {
+                trackDashboardEvent("month_navigated", { direction: "picker" });
+                setPickerVisible(true);
+              }}
               hitSlop={6}
               style={styles.monthLabelBtn}
             >
@@ -366,7 +387,10 @@ const MonthCalendar = ({ refreshKey = 0 }) => {
               </CustomText>
             </Pressable>
             <Pressable
-              onPress={nextMonth}
+              onPress={() => {
+                trackDashboardEvent("month_navigated", { direction: "forward" });
+                nextMonth();
+              }}
               hitSlop={8}
               style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
             >

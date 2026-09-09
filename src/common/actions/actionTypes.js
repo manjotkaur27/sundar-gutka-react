@@ -159,3 +159,9 @@ export const CLEAR_SYNC_FEATURE = "CLEAR_SYNC_FEATURE";
 
 // Reminder sync bookkeeping: per-reminder clocks, tombstones, server bases.
 export const MERGE_REMINDER_SYNC_META = "MERGE_REMINDER_SYNC_META";
+
+// Reading themes served by the backend, merged over the bundled set.
+export const SET_REMOTE_THEMES = "SET_REMOTE_THEMES";
+
+// Settings sync bookkeeping: per-key clocks and server bases.
+export const MERGE_SETTINGS_SYNC_META = "MERGE_SETTINGS_SYNC_META";

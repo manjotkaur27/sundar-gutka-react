@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { createPothi } from "../common/pothi/model";
 
-import PothiRow, { shabadCountLabel } from "./components/PothiRow";
+import PothiRow, { baniCountLabel } from "./components/PothiRow";
 import PothiShabadRow from "./components/PothiShabadRow";
 
 // The row is where the two sources meet: a user pothi is renameable, pinnable
@@ -52,8 +52,8 @@ jest.mock("@common/icons", () => ({
 jest.mock("@common", () => ({
   constant: jest.requireActual("../common/constant").default,
   STRINGS: {
-    POTHI_SHABAD_COUNT: "{count} shabads",
-    POTHI_SHABAD_COUNT_ONE: "1 shabad",
+    POTHI_BANI_COUNT: "{count} banis",
+    POTHI_BANI_COUNT_ONE: "1 bani",
     POTHI_DEFAULT_FOLDERS: "Default Folders",
     POTHI_OPEN: "Open Pothi",
     POTHI_PIN: "Pin",
@@ -86,11 +86,11 @@ const renderRow = (props = {}) =>
     />
   );
 
-describe("shabadCountLabel", () => {
+describe("baniCountLabel", () => {
   it("uses a dedicated singular rather than stripping an s", () => {
-    expect(shabadCountLabel(1)).toBe("1 shabad");
-    expect(shabadCountLabel(0)).toBe("0 shabads");
-    expect(shabadCountLabel(7)).toBe("7 shabads");
+    expect(baniCountLabel(1)).toBe("1 bani");
+    expect(baniCountLabel(0)).toBe("0 banis");
+    expect(baniCountLabel(7)).toBe("7 banis");
   });
 });
 
@@ -98,7 +98,7 @@ describe("PothiRow", () => {
   it("shows the title and the count", () => {
     renderRow();
     expect(screen.getByText("Morning")).toBeTruthy();
-    expect(screen.getByText("2 shabads")).toBeTruthy();
+    expect(screen.getByText("2 banis")).toBeTruthy();
   });
 
   it("never transliterates a USER pothi name", () => {
@@ -116,7 +116,7 @@ describe("PothiRow", () => {
 
   it("shows a bundled folder's count plainly — its section header names the source", () => {
     renderRow({ pothi: { system: true } });
-    expect(screen.getByText("2 shabads")).toBeTruthy();
+    expect(screen.getByText("2 banis")).toBeTruthy();
     expect(screen.queryByText(/Sundar Gutka/)).toBeNull();
   });
 
@@ -140,13 +140,13 @@ describe("PothiRow", () => {
   it("opens from the whole row, not just the chevron", () => {
     const onOpen = jest.fn();
     renderRow({ onOpen });
-    fireEvent.press(screen.getByLabelText(/^Morning, 2 shabads/));
+    fireEvent.press(screen.getByLabelText(/^Morning, 2 banis/));
     expect(onOpen).toHaveBeenCalled();
   });
 
   it("tells a screen reader the row opens the pothi", () => {
     renderRow();
-    expect(screen.getByLabelText("Morning, 2 shabads, Open Pothi")).toBeTruthy();
+    expect(screen.getByLabelText("Morning, 2 banis, Open Pothi")).toBeTruthy();
   });
 
   it("no longer renders its contents inline", () => {
@@ -154,7 +154,7 @@ describe("PothiRow", () => {
     // shows its count; what it holds is the next screen's business.
     renderRow({ pothi: { count: 0, baniIds: [] } });
     expect(screen.queryByText("This pothi is empty")).toBeNull();
-    expect(screen.getByText("0 shabads")).toBeTruthy();
+    expect(screen.getByText("0 banis")).toBeTruthy();
   });
 
   it("puts no fixed height on the row — a long name must wrap", () => {
@@ -197,6 +197,6 @@ describe("createPothi + row integration", () => {
     const fresh = createPothi({ name: "New" });
     renderRow({ pothi: { ...fresh, count: 0, system: false, pinned: false } });
     expect(screen.getByText("New")).toBeTruthy();
-    expect(screen.getByText("0 shabads")).toBeTruthy();
+    expect(screen.getByText("0 banis")).toBeTruthy();
   });
 });

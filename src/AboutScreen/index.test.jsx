@@ -13,6 +13,13 @@ import AboutScreen from ".";
 let mockTheme = lightTheme;
 const mockOpenInAppBrowser = jest.fn(() => Promise.resolve());
 
+// The push-token row reads the FCM token; no token here, so the row stays
+// hidden and the screen renders exactly as it did before the row existed.
+jest.mock("@react-native-firebase/messaging", () => ({
+  getMessaging: () => ({}),
+  getToken: () => Promise.resolve(null),
+}));
+
 // The global @common mock in setupTests carries only a handful of strings, so
 // this supplies the ones this screen renders.
 jest.mock("@common", () => {

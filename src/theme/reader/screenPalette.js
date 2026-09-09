@@ -85,6 +85,10 @@ const INK_MUTED = [
 // the muted ink because its ground is `bannerBg`, a solid accent.
 const ON_ACCENT = [
   "onAccent",
+  // The tick on a completed day. Stock Light and Dark set it explicitly,
+  // because green[600] and green[300] need opposite ticks; a designed theme
+  // has one accent and one partner for it, so it takes that.
+  "onStreakDone",
   "selectedText",
   "badgeText",
   "bannerText",
@@ -104,6 +108,10 @@ const ACCENT = [
   "chartBar",
   "flame",
   "gold",
+  // A completed day in the week strip. Green in Light and Dark; under a
+  // designed theme it follows that theme's accent, exactly as gold above it
+  // does — a fixed green would sit outside a palette chosen by someone else.
+  "streakDone",
   "switchOnTrack",
   "highlight",
   "radioRing",

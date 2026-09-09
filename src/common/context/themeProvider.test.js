@@ -1,6 +1,9 @@
+import {
+  ALL_THEMES as READER_THEMES,
+  ALL_THEMES_BY_ID as READER_THEMES_BY_ID,
+} from "@theme/reader/__fixtures__/allThemes";
 import { APP_ROLES_FIXED } from "@theme/reader/bases/appBase";
 import { appearanceFor } from "@theme/reader/resolve";
-import { READER_THEMES, READER_THEMES_BY_ID } from "@theme/reader/themes";
 import { rolesFor } from "@theme/screenPalettes";
 import { light as lightColors, dark as darkColors } from "@theme/semanticColors";
 import constant from "../constant";
@@ -12,14 +15,15 @@ import constant from "../constant";
 // worth asserting on its own.
 
 const resolveC = (themeMode, systemIsDark = false) => {
-  const paired = appearanceFor(themeMode);
+  const paired = appearanceFor(themeMode, READER_THEMES_BY_ID);
   if (paired) {
     const base = paired === "dark" ? darkColors : lightColors;
     return { ...base, ...READER_THEMES_BY_ID[themeMode].app };
   }
-  if (themeMode === constant.Default) return systemIsDark ? darkColors : lightColors;
+  if (themeMode === constant.Light) return lightColors;
   if (themeMode === constant.Dark) return darkColors;
-  return lightColors;
+  // Default, and anything the registry cannot resolve.
+  return systemIsDark ? darkColors : lightColors;
 };
 
 describe("what the app resolves to", () => {
@@ -30,6 +34,14 @@ describe("what the app resolves to", () => {
     expect(resolveC(constant.Default, true)).toEqual(darkColors);
     expect(resolveC(constant.Light)).toEqual(lightColors);
     expect(resolveC(constant.Dark)).toEqual(darkColors);
+  });
+
+  it("follows the system for a theme the registry no longer knows", () => {
+    // What a theme withdrawn by the backend leaves behind for the moment
+    // before the setting is healed. Falling through to light instead would put
+    // someone who was reading in a withdrawn dark theme into a white app.
+    expect(resolveC("withdrawn-theme", true)).toEqual(darkColors);
+    expect(resolveC("withdrawn-theme", false)).toEqual(lightColors);
   });
 
   it("recolours the app for a designed theme", () => {
@@ -53,8 +65,8 @@ describe("what the app resolves to", () => {
   });
 
   it("pairs each designed theme with the right appearance underneath", () => {
-    expect(appearanceFor("blue")).toBe("dark");
-    expect(appearanceFor("puratan")).toBe("light");
+    expect(appearanceFor("blue", READER_THEMES_BY_ID)).toBe("dark");
+    expect(appearanceFor("puratan", READER_THEMES_BY_ID)).toBe("light");
     // The fixed roles a Blue user sees are the DARK ones, not the light ones.
     expect(resolveC("blue").scrim).toBe(darkColors.scrim);
     expect(resolveC("puratan").scrim).toBe(lightColors.scrim);

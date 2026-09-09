@@ -356,19 +356,110 @@ const trackPothiEvent = async (action, params = {}) => {
   }
 };
 
-// Onboarding tour funnel — fires when the first-run spotlight tour starts,
-// is skipped (with the step the user bailed at), or is fully completed.
-const trackTourEvent = async (eventName, stepId) => {
-  try {
-    const params = {};
-    if (stepId != null) {
-      params.step_id = safeStr(stepId);
+// One namespaced tracker per feature, all on the same rule as Seva and Pothi:
+// a fixed map of event names, so a typo at a call site cannot invent an event,
+// and `sanitizeParams` on the way out, so nothing reaches Firebase as (not set).
+const namespacedTracker =
+  (names, prefix) =>
+  async (action, params = {}) => {
+    try {
+      const eventName = names[action] || sanitize(`${prefix}_${action}`, `${prefix}_event`);
+      await logEvent(analytics, eventName, sanitizeParams(params));
+    } catch (error) {
+      logError(
+        new Error(`${prefix} analytics failed for ${action} - ${error?.message || "Unknown error"}`)
+      );
     }
-    await logEvent(analytics, eventName, params);
-  } catch (error) {
-    logError(new Error(`${eventName} tracking failed - ${error?.message || "Unknown error"}`));
-  }
+  };
+
+// The Dashboard, and above all its Explore row. `explore_tile_tap` carries
+// `tile_id` (the backend's tile key), `tile_title`, `outcome` (app | store |
+// browser — which of the three deep-link levels took the tap), `position`,
+// `has_app` (whether the tile offered an app route on THIS platform, so a
+// browser outcome on a web-only tile is not read as a failed app open),
+// `badge`, `tile_count` and `source` (network | cache | bundled — where the
+// tile list came from), so a campaign can tell an installed-app open from a
+// store visit from a web fallback.
+//
+// `explore_impression` is the denominator those taps need: the same row, seen
+// and not tapped, is what makes a tile's tap count mean anything. Without it a
+// tile's total says as much about how often the row was on screen as about the
+// tile. Divide tile_tap by impression for a per-tile click-through rate.
+const DASHBOARD_EVENT_NAMES = {
+  explore_tile_tap: "dashboard_explore_tile_tap",
+  explore_impression: "dashboard_explore_impression",
+  continue_reading_tap: "dashboard_continue_reading_tap",
+  continue_listening_tap: "dashboard_continue_listening_tap",
+  vaak_open: "dashboard_vaak_open",
+  vaak_refreshed: "dashboard_vaak_refreshed",
+  shabad_open: "dashboard_shabad_open",
+  shabad_shuffle: "dashboard_shabad_shuffle",
+  shabad_vaak_tab: "dashboard_shabad_vaak_tab",
+  nitnem_bani_open: "dashboard_nitnem_bani_open",
+  nitnem_edit_opened: "dashboard_nitnem_edit_opened",
+  nitnem_banis_saved: "dashboard_nitnem_banis_saved",
+  // A day cell carries `outcome`, so the taps that open nothing are counted
+  // too: a run of `empty` on the calendar is a UI problem, not a quiet one.
+  day_tapped: "dashboard_day_tapped",
+  week_navigated: "dashboard_week_navigated",
+  month_navigated: "dashboard_month_navigated",
+  reminders_opened: "dashboard_reminders_opened",
+  sections_sheet_opened: "dashboard_sections_sheet_opened",
+  sections_changed: "dashboard_sections_changed",
+  sections_reset: "dashboard_sections_reset",
+  section_jump: "dashboard_section_jump",
+  refreshed: "dashboard_refreshed",
 };
+const trackDashboardEvent = namespacedTracker(DASHBOARD_EVENT_NAMES, "dashboard");
+
+// Reading themes. `selected` carries `theme_id`, `previous` and `source`
+// (bundled | remote), so a theme served from the backend is measurable
+// against the shipped ones. `picker_opened` is its denominator — how many
+// people opened the grid against how many changed anything — and carries the
+// theme in force plus how many of the offered options came from the backend.
+const THEME_EVENT_NAMES = {
+  selected: "theme_selected",
+  picker_opened: "theme_picker_opened",
+  remote_loaded: "theme_remote_loaded",
+};
+const trackThemeEvent = namespacedTracker(THEME_EVENT_NAMES, "theme");
+
+// Khalis SSO. One event per outcome rather than one event with a status
+// param, so each shows up as its own row in the funnel. Every sign-in event
+// carries `entry_point` (dashboard_header | settings) — the two places that
+// can start one convert very differently, and a single total hides that.
+//
+// session_restored and session_expired are the lifecycle either side of the
+// funnel: a session picked up from the Keychain at launch is NOT a sign-in and
+// must not inflate one, and an expiry is the silent way accounts are lost.
+const SSO_EVENT_NAMES = {
+  sign_in_started: "sso_sign_in_started",
+  sign_in_success: "sso_sign_in_success",
+  sign_in_cancelled: "sso_sign_in_cancelled",
+  sign_in_pending: "sso_sign_in_pending",
+  sign_in_failed: "sso_sign_in_failed",
+  sign_out: "sso_sign_out",
+  session_restored: "sso_session_restored",
+  session_expired: "sso_session_expired",
+  account_deleted: "sso_account_deleted",
+  account_delete_failed: "sso_account_delete_failed",
+};
+const trackSsoEvent = namespacedTracker(SSO_EVENT_NAMES, "sso");
+// The first-run onboarding carousel. `started` is the denominator; the other
+// three are the ways out of it, and which one it was is the whole question —
+// a tour people finish and a tour people skip on slide one are the same total.
+// `step_id` and `step_index` say where they left, so a slide that loses
+// everyone is visible rather than averaged away.
+//
+// A fixed map like every other family here, rather than the raw event name the
+// caller used to pass: that signature let a call site invent an event.
+const TOUR_EVENT_NAMES = {
+  started: "tour_started",
+  completed: "tour_completed",
+  skipped: "tour_skipped",
+  dismissed: "tour_dismissed",
+};
+const trackTourEvent = namespacedTracker(TOUR_EVENT_NAMES, "tour");
 
 // ─── Journey dashboard events ─────────────────────────────────────────────────
 
@@ -439,6 +530,9 @@ export {
   trackAudioEvent,
   trackSevaEvent,
   trackPothiEvent,
+  trackDashboardEvent,
+  trackThemeEvent,
+  trackSsoEvent,
   // Dedicated per-action events (replace the old single "audio" umbrella event)
   trackBaniOpen,
   trackBaniListen,

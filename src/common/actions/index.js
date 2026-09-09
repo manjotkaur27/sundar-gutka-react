@@ -1,4 +1,4 @@
-import { READER_THEMES_BY_ID } from "@theme/reader/themes";
+import { mergeThemeRegistry } from "@theme/reader/registry";
 import constant from "../constant";
 import { trackSettingEvent, trackBaniArtistDefault } from "../firebase/analytics";
 import STRINGS from "../localization";
@@ -195,6 +195,12 @@ export const setBaniOrder = (value) => {
 export const setBaniList = (value) => {
   return { type: actionTypes.SET_BANI_LIST, value };
 };
+
+// The backend's reading themes, already sanitised — see useRemoteThemesSync.
+export const setRemoteThemes = ({ version, themes, fetchedAt }) => ({
+  type: actionTypes.SET_REMOTE_THEMES,
+  payload: { version, themes, fetchedAt },
+});
 
 export const setPosition = (elementId, shabadID, sequence = null) => {
   const value = { [shabadID]: { elementId, sequence } };
@@ -454,9 +460,28 @@ export const applyTheme = (value) => (dispatch, getState) => {
   dispatch(setTheme(value));
 
   const state = getState();
+  // The MERGED registry: a theme served by the backend behaves exactly as a
+  // bundled one does.
+  const record = mergeThemeRegistry(state.remoteThemes).byId[value];
+
+  // The Bani font is re-applied on EVERY selection, and deliberately not
+  // through the once-only path below.
+  //
+  // A face is part of how a theme LOOKS — Puratan is a manuscript, and Anmol
+  // Lipi is what makes it one — so choosing the theme means choosing its face,
+  // the same way it means choosing its ground. A setting like transliteration
+  // is a reading preference that happens to have a sensible default, which is
+  // why that one is seeded once and never re-asserted.
+  //
+  // The user is not overruled: while the theme is selected their own choice
+  // stands, because nothing here runs again until a theme is selected. Leaving
+  // and coming back is a fresh choice of the theme, and brings its face back.
+  const face = record?.typography?.preferredFontFace;
+  if (face && state.baniFontFace !== face) dispatch(setBaniFontFace(face));
+
+  // Everything below is once per theme, for the life of the install.
   if (state.readerThemeSeeded?.[value]) return;
 
-  const record = READER_THEMES_BY_ID[value];
   const defaults = record?.defaults ?? {};
   const seedable = readerThemeSeedableToggles();
   Object.entries(defaults).forEach(([key, desired]) => {
@@ -465,11 +490,6 @@ export const applyTheme = (value) => (dispatch, getState) => {
     // desired value would emit a misleading analytics event.
     if (toggle && state[key] !== desired) dispatch(toggle(desired));
   });
-
-  // A theme may also suggest the Bani font. Seeded through the same once-only
-  // path, so the user's own Bani Font choice always wins afterwards.
-  const face = record?.typography?.preferredFontFace;
-  if (face && state.baniFontFace !== face) dispatch(setBaniFontFace(face));
 
   // Marked even when `defaults` is empty, so the check above short-circuits on
   // every subsequent selection of this theme.
@@ -546,6 +566,12 @@ export const syncOpFailed = (id, error) => ({
 export const clearSyncFeature = (feature) => ({
   type: actionTypes.CLEAR_SYNC_FEATURE,
   payload: { feature },
+});
+
+// Settings sync bookkeeping — see settings/syncModel and useSettingsSync.
+export const mergeSettingsSyncMeta = (payload) => ({
+  type: actionTypes.MERGE_SETTINGS_SYNC_META,
+  payload,
 });
 
 // patch: { clocks?, tombstones?, base?, removeTombstones?, removeClocks?,

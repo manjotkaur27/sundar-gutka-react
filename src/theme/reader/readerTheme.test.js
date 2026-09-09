@@ -1,27 +1,36 @@
 import { withAlpha } from "@theme/colorUtils";
 import { navy } from "@theme/palette";
 import { light as lightColors, dark as darkColors } from "@theme/semanticColors";
+import { remoteThemeRows } from "./__fixtures__/remoteThemes";
 import { AUDIO_ROLES } from "./bases/appBase";
 import darkBase from "./bases/darkBase";
 import lightBase from "./bases/lightBase";
 import { AA_CONTRAST, contrastRatio, flattenColor } from "./contrast";
+import { mergeThemeRegistry } from "./registry";
 import defineReaderTheme, { merge } from "./schema";
 import { READER_THEMES, READER_THEMES_BY_ID } from "./themes";
+
+// The designed themes are database rows now, not bundled files. They reach the
+// app through mergeThemeRegistry, so that is where this suite gets them — the
+// records are the same ones that used to be imported, and each was verified to
+// derive to exactly the theme it replaced.
+const DESIGNED_BY_ID = mergeThemeRegistry({ themes: remoteThemeRows }).byId;
 
 // The four text roles every theme paints on its own background.
 const TEXT_ROLES = ["gurbani", "gurbaniHeading", "translation", "transliteration"];
 
 describe("reading-theme registry", () => {
-  it("ships the six themes the ticket names, plus Sanjh", () => {
-    expect(READER_THEMES.map((t) => t.id)).toEqual([
-      "light",
-      "dark",
-      "blue",
-      "kesari",
-      "puratan",
-      "white",
-      "sanjh",
-    ]);
+  it("bundles ONLY light and dark — every other theme is served", () => {
+    // The five designed themes moved to `reader_themes` in the backend. These
+    // two stay because they are the offline fallback, and mergeThemeRegistry
+    // refuses to let a remote row remove either of them.
+    expect(READER_THEMES.map((t) => t.id)).toEqual(["light", "dark"]);
+  });
+
+  it("still offers all seven once the served themes are merged in", () => {
+    expect(Object.keys(DESIGNED_BY_ID).sort()).toEqual(
+      ["blue", "dark", "kesari", "light", "puratan", "sanjh", "white"].sort()
+    );
   });
 
   it("gives every theme a unique id and a localisation key", () => {
@@ -127,8 +136,8 @@ describe("defineReaderTheme", () => {
     // Blue states only `text.gurbani`-and-friends colours; the `shadow` key it
     // never mentions has to survive from the base, or every optional treatment
     // would silently vanish the moment a theme touched its parent object.
-    expect(READER_THEMES_BY_ID.blue.text.gurbani.shadow).toBeNull();
-    expect(READER_THEMES_BY_ID.blue.typography.fontScale).toBe(1);
+    expect(DESIGNED_BY_ID.blue.text.gurbani.shadow).toBeNull();
+    expect(DESIGNED_BY_ID.blue.typography.fontScale).toBe(1);
   });
 
   it("rejects an unregistered property", () => {
@@ -421,7 +430,7 @@ describe("deriveFromPalette", () => {
 });
 
 describe("designed themes", () => {
-  const designed = READER_THEMES.filter((t) => t.id !== "light" && t.id !== "dark");
+  const designed = Object.values(DESIGNED_BY_ID).filter((t) => t.id !== "light" && t.id !== "dark");
 
   it("declare a primitive palette, so no colour is spelled twice", () => {
     designed.forEach((theme) => {
@@ -508,20 +517,23 @@ describe("designed themes", () => {
   it("keeps Blue's nav bar identical to the app's own dark bar", () => {
     // Asked for explicitly: Blue reads at night, and a bar derived from its
     // ground comes out a lighter navy than every other screen's.
-    expect(READER_THEMES_BY_ID.blue.nav).toEqual(darkBase.nav);
-    expect(READER_THEMES_BY_ID.blue.nav.primary).toBe(darkColors.primary);
+    expect(DESIGNED_BY_ID.blue.nav).toEqual(darkBase.nav);
+    expect(DESIGNED_BY_ID.blue.nav.primary).toBe(darkColors.primary);
   });
 
-  it("only puratan seeds a setting, and only transliteration", () => {
+  it("seeds no settings at all — a theme suggests a look, not a preference", () => {
+    // Puratan used to turn transliteration on with it. Reading along with the
+    // Gurmukhi is the reader's decision, not the page's, so no theme makes it
+    // for them. A Bani font is different and IS suggested: see the typography
+    // block, and applyTheme, which re-applies a face on every selection.
     const seeding = designed.filter((t) => Object.keys(t.defaults).length > 0);
-    expect(seeding.map((t) => t.id)).toEqual(["puratan"]);
-    expect(seeding[0].defaults).toEqual({ isTransliteration: true });
+    expect(seeding.map((t) => t.id)).toEqual([]);
   });
 
   it("ships puratan's texture as an inline SVG data URI, not a bundled asset", () => {
     // A require()d image resolves differently in an Android release build than
     // in debug, and would need an @1x/@2x/@3x matrix. A data URI has neither
     // problem — see textures.js.
-    expect(READER_THEMES_BY_ID.puratan.background.image).toMatch(/^data:image\/svg\+xml,/);
+    expect(DESIGNED_BY_ID.puratan.background.image).toMatch(/^data:image\/svg\+xml,/);
   });
 });

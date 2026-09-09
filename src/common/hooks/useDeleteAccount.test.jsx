@@ -37,6 +37,12 @@ jest.mock("../components/ConfirmDialog", () => ({
   showConfirm: (...a) => mockShowConfirm(...a),
 }));
 
+// The hook reports each SSO outcome; the native analytics module cannot load
+// under jest, and what is emitted is pinned in analyticsFeatures.test.js.
+jest.mock("../firebase/analytics", () => ({
+  trackSsoEvent: jest.fn(),
+}));
+
 jest.mock("../localization", () => ({
   CANCEL: "Cancel",
   SESSION_EXPIRED: "Session expired",

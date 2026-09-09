@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { syncAll } from "../../services/sync/syncRegistry";
 import { setAuthSession, clearAuthSession, setAuthBusy } from "../actions";
 import { showConfirm } from "../components/ConfirmDialog";
+import { trackSsoEvent } from "../firebase/analytics";
 import STRINGS from "../localization";
 import {
   destroyLocalAccountData,
@@ -13,6 +15,12 @@ import { requestAccountDeletion } from "../sso/deleteAccount";
 import { startLogin, startLogout } from "../sso/khalisSso";
 import { clearToken, readToken } from "../sso/tokenStore";
 import { showErrorToast, showInfoToast } from "../toast";
+import withDeadline from "../withDeadline";
+
+// How long a sign-out waits for the last push before giving up on it. Long
+// enough for one round trip on a slow connection, short enough that nobody
+// watching a spinner thinks the app has hung.
+const SIGN_OUT_FLUSH_MS = 6000;
 
 /**
  * Sign-in / sign-out actions shared by the Settings account row and the
@@ -21,16 +29,25 @@ import { showErrorToast, showInfoToast } from "../toast";
  *
  * Session *restoration* and expiry are not here — those belong to
  * useSsoSession, which owns the lifecycle for the whole app.
+ *
+ * `entryPoint` names the surface the action was started from and rides along on
+ * every event: the dashboard avatar and the Settings row convert very
+ * differently, and one combined total hides which of them is doing the work.
  */
-const useSsoActions = () => {
+const useSsoActions = ({ entryPoint = "unknown" } = {}) => {
   const dispatch = useDispatch();
   const { status, user, busy } = useSelector((state) => state.auth);
 
   const signIn = useCallback(async () => {
     if (busy) return;
     dispatch(setAuthBusy(true));
+    trackSsoEvent("sign_in_started", { entry_point: entryPoint });
     try {
       const result = await startLogin();
+      // One event per outcome, so the funnel shows where sign-ins are lost.
+      trackSsoEvent(`sign_in_${result.status === "error" ? "failed" : result.status}`, {
+        entry_point: entryPoint,
+      });
       if (result.status === "success") {
         dispatch(setAuthSession({ user: result.user, expiresAt: result.expiresAt }));
       } else if (result.status === "error") {
@@ -42,7 +59,7 @@ const useSsoActions = () => {
     } finally {
       dispatch(setAuthBusy(false));
     }
-  }, [busy, dispatch]);
+  }, [busy, dispatch, entryPoint]);
 
   const signOut = useCallback(() => {
     if (busy) return;
@@ -55,10 +72,23 @@ const useSsoActions = () => {
       onConfirm: async () => {
         dispatch(setAuthBusy(true));
         try {
+          // Push before the session goes. Everything this device changed but
+          // has not sent yet — a setting, a reminder, a pothi — belongs to the
+          // account being left, and purgeLocalUserData below drops the outbox
+          // that was holding it. Sending afterwards is impossible: the token
+          // is gone and so is the queue.
+          //
+          // Deadlined, because signing out must work on a phone with no
+          // signal. A sync that cannot finish in time is abandoned and the
+          // sign-out carries on; the alternative is a dialog that hangs.
+          await withDeadline(syncAll(), SIGN_OUT_FLUSH_MS, false);
+
           // Read before clearing: /logout/all needs the token to end the IdP
           // session. startLogout clears local storage itself.
           const token = await readToken();
           const { remote } = await startLogout(token);
+          // `remote` says whether the IdP session ended too, or only this device's.
+          trackSsoEvent("sign_out", { remote, entry_point: entryPoint });
           dispatch(clearAuthSession());
 
           // Signing out is an explicit "I am done on this device", so the
@@ -94,7 +124,7 @@ const useSsoActions = () => {
         }
       },
     });
-  }, [busy, dispatch]);
+  }, [busy, dispatch, entryPoint]);
 
   /**
    * Delete the Khalis account itself, not just this device's session.
@@ -128,6 +158,9 @@ const useSsoActions = () => {
         dispatch(setAuthBusy(true));
         try {
           const result = await requestAccountDeletion();
+          trackSsoEvent(result.ok ? "account_deleted" : "account_delete_failed", {
+            reason: result.ok ? null : result.reason,
+          });
 
           if (result.ok) {
             await destroyLocalAccountData(dispatch);

@@ -3,16 +3,16 @@ import { Platform, View, Pressable, ScrollView, StyleSheet } from "react-native"
 import Svg, { Circle, Polyline, Path, Line } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
-import { neutral } from "@theme/palette";
 import PropTypes from "prop-types";
 import { Text as UIText } from "@common/components/ui";
 import useBaniLookup from "@common/hooks/useBaniLookup";
 import nitnemSelection from "@common/nitnem/selection";
 import { defaultPothi } from "@common/pothi/model";
-import { CustomText, STRINGS, constant, actions, logError } from "@common";
+import { CustomText, STRINGS, constant, actions, logError, trackDashboardEvent } from "@common";
 import { getDayDetail } from "../../database/analytics";
 import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
 import { requestPush } from "../../services/dashboard/syncSignal";
+import CheckCircle from "./CheckCircle";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import EditBanisModal from "./EditBanisModal";
@@ -220,34 +220,6 @@ ProgressRing.propTypes = {
   numFont: PropTypes.string.isRequired,
 };
 
-const Check = ({ filled, accent, muted }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Circle
-      cx="12"
-      cy="12"
-      r="10"
-      fill={filled ? accent : "none"}
-      stroke={filled ? accent : muted}
-      strokeWidth="2"
-    />
-    {filled ? (
-      <Polyline
-        points="17 9 10.5 15.5 7 12"
-        fill="none"
-        stroke={neutral[0]}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ) : null}
-  </Svg>
-);
-Check.propTypes = {
-  filled: PropTypes.bool.isRequired,
-  accent: PropTypes.string.isRequired,
-  muted: PropTypes.string.isRequired,
-};
-
 // Bare checkmark (no ring) for the "Mark done" button — distinct from the
 // filled-circle Check used per-bani in the grid above.
 const CheckIcon = ({ color }) => (
@@ -373,7 +345,11 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   // not tied to POTHI_ENABLED: this holds whether My Pothi ships or not.
   const requireOnline = useRequireOnline({ localEdit: true });
   const openEditor = useCallback(() => {
-    if (requireOnline()) setEditVisible(true);
+    // Reported only when it actually opens — offline it is refused, and a
+    // refusal is not someone choosing to edit their Nitnem.
+    if (!requireOnline()) return;
+    trackDashboardEvent("nitnem_edit_opened");
+    setEditVisible(true);
   }, [requireOnline]);
 
   const today = todayStr();
@@ -418,13 +394,16 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
     (id) => {
       const b = baniMap[id];
       if (!b) return;
+      // `done` separates re-reading a finished bani from working through the
+      // remaining ones, which are different intents on the same control.
+      trackDashboardEvent("nitnem_bani_open", { bani_id: id, done: doneSet.has(id) });
       dispatch(actions.toggleAudio(false));
       navigation.navigate(constant.READER, {
         key: `Reader-${b.id}`,
         params: { id: b.id, title: b.gurmukhi, titleUni: b.gurmukhiUni },
       });
     },
-    [baniMap, dispatch, navigation]
+    [baniMap, dispatch, navigation, doneSet]
   );
 
   // English spells the count out ("two banis left"); other languages keep the
@@ -594,7 +573,7 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
                       requestPush("nitnem-tick");
                     }}
                   >
-                    <Check filled={isDone} accent={accentBlue} muted={mutedText} />
+                    <CheckCircle filled={isDone} accent={accentBlue} muted={mutedText} />
                   </Pressable>
                   <Pressable style={styles.baniNamePress} onPress={() => openBani(cell.id)}>
                     <CustomText

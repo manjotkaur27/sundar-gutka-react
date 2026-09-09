@@ -29,6 +29,7 @@ import {
   downloadLyricsOnly,
   ensureArtistDirectory,
 } from '../../ReaderScreen/components/AudioPlayer/utils/audioDownloader';
+import withDeadline from '../withDeadline';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Native download engine — download / cancel / delete only (no pause/resume).
@@ -73,6 +74,25 @@ const ACTIVE_STATUSES = [
 // restart it from scratch. Generous enough to cover TCP/TLS setup on a slow
 // connection without false-positives; cheap to trigger since restart is from 0.
 const STALL_TIMEOUT_MS = 20_000;
+
+// How long the notification-permission prompt may hold a download up. The
+// prompt only decides whether the PROGRESS NOTIFICATION can be drawn — the
+// transfer does not need it — so a prompt that never answers must not be
+// allowed to hold the queue. notifee's requestPermission can sit unresolved
+// when the OS declines to show the dialog at all (backgrounded activity,
+// permanently denied), and it was awaited with no bound.
+const NOTIF_PERMISSION_TIMEOUT_MS = 5_000;
+
+// The first NetInfo read gates the whole queue processor. If it never settles
+// nothing downloads for the life of the process, so it is bounded too.
+const NETWORK_READY_TIMEOUT_MS = 5_000;
+
+// How long a track may sit in the "currently starting" guard before the guard
+// is treated as stale and dropped. Starting a task is a handful of filesystem
+// calls, so anything still holding the guard after this is wedged, not busy.
+// Comfortably longer than the two deadlines above so a slow-but-live start is
+// never interrupted.
+const STARTING_STALE_MS = 30_000;
 
 // trackKey is the artist-relative path ("artist/file.m4a"). Native task ids must
 // avoid path separators, so derive a flat id and keep the real key in metadata.
@@ -147,7 +167,10 @@ const useGlobalDownloadManager = () => {
   const activeTasksRef = useRef(new Map());
   // trackKeys whose startTask() is mid-flight (async gap before activeTasksRef
   // is populated) — closes the double-start race when the processor re-runs.
-  const startingRef = useRef(new Set());
+  // trackKey -> the time its start began. A Map rather than a Set so a guard
+  // that outlives STARTING_STALE_MS can be identified and dropped: without
+  // that, one wedged start left a track on "queued" for the whole session.
+  const startingRef = useRef(new Map());
   const configAppliedRef = useRef(false);
   // Caches the one-time notification-permission request (see
   // ensureNotificationPermission) so the whole first download batch awaits a
@@ -156,6 +179,12 @@ const useGlobalDownloadManager = () => {
   // trackKey -> stall-detection timer id. Re-armed on every progress event.
   const stallTimersRef = useRef(new Map());
   const [networkReady, setNetworkReady] = useState(false);
+  // Bumped on every NetInfo event so the queue processor re-evaluates whenever
+  // the connection changes. Without it the processor only woke when the QUEUE
+  // changed, so a network that came back without moving any entry's status left
+  // "queued" downloads sitting there until something else happened to touch the
+  // queue. Regaining a connection is exactly when they should start.
+  const [networkTick, setNetworkTick] = useState(0);
 
   useEffect(() => { queueRef.current = downloadQueue; }, [downloadQueue]);
   useEffect(() => { wifiOnlyRef.current = downloadWifiOnly; }, [downloadWifiOnly]);
@@ -337,42 +366,57 @@ const useGlobalDownloadManager = () => {
   // ── Start one queued entry as a native task ────────────────────────────────
   const startTask = async (entry) => {
     const { trackKey, audioUrl } = entry;
-    if (activeTasksRef.current.has(trackKey) || startingRef.current.has(trackKey)) return;
-    startingRef.current.add(trackKey);
+    if (activeTasksRef.current.has(trackKey)) return;
+    const startedAt = startingRef.current.get(trackKey);
+    if (startedAt != null) {
+      // Still within the window: a start is genuinely in flight, so leave it be.
+      if (Date.now() - startedAt < STARTING_STALE_MS) return;
+      logMessage(`Stale start guard cleared for ${trackKey} — retrying`);
+    }
+    startingRef.current.set(trackKey, Date.now());
 
-    // Gate the native task on the notification prompt so the first download's
-    // progress notification is allowed to appear. The dedup guard above is
-    // already set, so re-runs of the queue processor won't double-start while
-    // the prompt is open.
-    await ensureNotificationPermission();
-
-    const { artistName, fileName } = parseUrl(audioUrl);
-    const relativePath = `${artistName}/${fileName}`;
-    const finalPath = `${AUDIO_DIRECTORY_PATH}/${relativePath}`;
-    const meta = {
-      trackKey,
-      audioUrl,
-      displayName: entry.displayName,
-      baniTitle: entry.baniTitle,
-      baniNameUni: entry.baniNameUni,
-      baniId: entry.baniId,
-      sizeMB: entry.sizeMB ?? 0,
-      relativePath,
-      finalPath,
-      // Connection the download starts on — recorded so the completion analytics
-      // reports what the user actually used (always a concrete value, never null).
-      downloadNetwork: networkRef.current.isWifi
-        ? 'wifi'
-        : networkRef.current.isConnected
-        ? 'mobile_data'
-        : 'unknown',
-      // Bani name (Punjabi) + artist (English) — used as the notification title.
-      groupName: [entry.baniNameUni || entry.baniTitle, entry.displayName]
-        .filter(Boolean)
-        .join('  •  ') || 'Sundar Gutka',
-    };
-
+    // EVERYTHING below is inside the try, and the guard is released in the
+    // finally. It used to await the notification prompt and parse the URL
+    // outside both: either one hanging or throwing skipped the finally and left
+    // the key in `startingRef` for the life of the process. Every later run of
+    // the queue processor then returned at the guard above, so the entry sat on
+    // "queued" for ever — no error, no retry, nothing transferring. That is the
+    // stuck-in-queued bug; this shape is what makes it unreachable.
+    let meta = { trackKey, displayName: entry.displayName };
     try {
+      // The prompt only decides whether the progress NOTIFICATION can be drawn.
+      // The transfer does not depend on it, so it gets a deadline instead of the
+      // queue waiting on the OS indefinitely — and because the promise is
+      // memoised, one unanswered prompt used to block every later download too.
+      await withDeadline(ensureNotificationPermission(), NOTIF_PERMISSION_TIMEOUT_MS, false);
+
+      const { artistName, fileName } = parseUrl(audioUrl);
+      const relativePath = `${artistName}/${fileName}`;
+      const finalPath = `${AUDIO_DIRECTORY_PATH}/${relativePath}`;
+      meta = {
+        trackKey,
+        audioUrl,
+        displayName: entry.displayName,
+        baniTitle: entry.baniTitle,
+        baniNameUni: entry.baniNameUni,
+        baniId: entry.baniId,
+        sizeMB: entry.sizeMB ?? 0,
+        relativePath,
+        finalPath,
+        // Connection the download starts on — recorded so the completion
+        // analytics reports what the user actually used (always a concrete
+        // value, never null).
+        downloadNetwork: networkRef.current.isWifi
+          ? 'wifi'
+          : networkRef.current.isConnected
+          ? 'mobile_data'
+          : 'unknown',
+        // Bani name (Punjabi) + artist (English) — the notification title.
+        groupName: [entry.baniNameUni || entry.baniTitle, entry.displayName]
+          .filter(Boolean)
+          .join('  •  ') || 'Sundar Gutka',
+      };
+
       // Already fully downloaded (e.g. re-enqueued) → finalize immediately.
       if (await exists(finalPath)) {
         const { size } = await stat(finalPath);
@@ -456,18 +500,32 @@ const useGlobalDownloadManager = () => {
     }
     queued.forEach((entry) => startTask(entry));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [downloadQueue, downloadWifiOnly, networkReady]);
+  }, [downloadQueue, downloadWifiOnly, networkReady, networkTick]);
 
   // ── Initial network state fetch (runs once on mount) ───────────────────────
+  //
+  // `networkReady` gates the queue processor, so this one read decides whether
+  // ANYTHING downloads. It was awaited unbounded: a fetch that never settles
+  // (neither resolve nor reject, so the .catch below never fires either) left
+  // the flag false and every entry sitting on "queued" for the life of the
+  // process. It is bounded now, and the live NetInfo listener corrects
+  // whatever the fallback assumed on its first event.
   useEffect(() => {
     let mounted = true;
-    NetInfo.fetch().then(({ isConnected, type }) => {
+    withDeadline(NetInfo.fetch(), NETWORK_READY_TIMEOUT_MS, null).then((state) => {
       if (!mounted) return;
-      networkRef.current = { isConnected: Boolean(isConnected), isWifi: type === 'wifi' };
-      setNetworkReady(true);
-    }).catch(() => {
-      if (!mounted) return;
-      networkRef.current = { isConnected: true, isWifi: true };
+      if (state) {
+        networkRef.current = {
+          isConnected: Boolean(state.isConnected),
+          isWifi: state.type === 'wifi',
+        };
+      } else {
+        // Assume an allowed network rather than stalling the queue. If that is
+        // wrong the download fails and retries, which is recoverable; never
+        // starting is not.
+        logMessage('NetInfo did not answer in time — assuming an allowed network');
+        networkRef.current = { isConnected: true, isWifi: true };
+      }
       setNetworkReady(true);
     });
     return () => { mounted = false; };
@@ -554,6 +612,9 @@ const useGlobalDownloadManager = () => {
     const unsubscribe = NetInfo.addEventListener(({ isConnected, type }) => {
       const isWifi = type === 'wifi';
       networkRef.current = { isConnected: Boolean(isConnected), isWifi };
+      // Wake the queue processor on every event, whatever the branches below
+      // decide: coming back online must restart a queued download on its own.
+      setNetworkTick((n) => n + 1);
 
       if (!isConnected) {
         // Offline: stop any in-flight transfer and mark everything waiting.

@@ -4,7 +4,14 @@ import { useSelector } from "react-redux";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { themeForScreen } from "@theme/screenPalettes";
 import useSsoActions from "@common/hooks/useSsoActions";
-import { SafeArea, StatusBarComponent, useTheme, logError, trackJourneyView } from "@common";
+import {
+  SafeArea,
+  StatusBarComponent,
+  useTheme,
+  logError,
+  trackDashboardEvent,
+  trackJourneyView,
+} from "@common";
 import { getOrCreateSummary } from "../database/analytics";
 import { useRestoreTick } from "../services/dashboard/restoreSignal";
 import { requestPull } from "../services/dashboard/syncSignal";
@@ -52,7 +59,7 @@ const DashboardScreen = () => {
 
   // Avatar affordance: sign in directly when signed out, otherwise open
   // Settings, where the account details and sign-out live.
-  const { status: authStatus, signIn } = useSsoActions();
+  const { status: authStatus, signIn } = useSsoActions({ entryPoint: "dashboard_header" });
   const handleAvatarPress = useCallback(() => {
     if (authStatus === "signedIn") {
       navigation.navigate("Settings");
@@ -73,6 +80,7 @@ const DashboardScreen = () => {
   // finished, so the spinner reflects the request rather than a fixed delay.
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
+    trackDashboardEvent("refreshed");
     setRefreshing(true);
     try {
       await requestPull("pull-to-refresh");
@@ -136,7 +144,10 @@ const DashboardScreen = () => {
         }
       >
         <DashboardHeader
-          onMenuPress={() => setSectionsVisible(true)}
+          onMenuPress={() => {
+            trackDashboardEvent("sections_sheet_opened");
+            setSectionsVisible(true);
+          }}
           onClosePress={() => navigation.navigate("Home")}
           onAvatarPress={handleAvatarPress}
         />

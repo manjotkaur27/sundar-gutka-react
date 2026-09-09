@@ -6,6 +6,7 @@ import { Icon } from "@rneui/themed";
 import { pickByMode } from "@theme/colorUtils";
 import { getLanguages } from "@settings/components/comon/strings";
 import { androidLineHeight } from "@theme/lineHeight";
+import { trackTourEvent } from "../../firebase/analytics";
 import CustomText from "../CustomText";
 import STRINGS from "../../localization";
 import useTheme from "../../context";
@@ -57,14 +58,28 @@ const OnboardingCarousel = () => {
   const effectiveLanguage = language === "DEFAULT" ? "en-US" : language;
   const currentLangTitle = byKey[effectiveLanguage]?.title;
 
-  const finish = useCallback(() => {
-    dispatch(setOnboardingSeen(constant.ONBOARDING_VERSION));
-    dispatch(setOnboardingVisible(false));
-  }, [dispatch]);
+  // Every exit reports which one it was, and where. Skipping on the first
+  // slide and finishing the last are the same "seen" to the store and opposite
+  // outcomes to a report, so the reason is a parameter rather than one event.
+  const finish = useCallback(
+    (reason) => {
+      trackTourEvent(reason, {
+        step_id: slides[index]?.key,
+        step_index: index,
+        step_count: slides.length,
+      });
+      dispatch(setOnboardingSeen(constant.ONBOARDING_VERSION));
+      dispatch(setOnboardingVisible(false));
+    },
+    [dispatch, slides, index]
+  );
 
-  // Reset to the first slide whenever the carousel (re)opens.
+  // Reset to the first slide whenever the carousel (re)opens. Opening IS the
+  // start — the carousel is mounted at the app root for the whole session, so
+  // a mount is not a viewing and only this transition is.
   useEffect(() => {
     if (!visible) return;
+    trackTourEvent("started", { step_count: slides.length });
     setIndex(0);
     setLangOpen(false);
     requestAnimationFrame(() => {
@@ -77,7 +92,8 @@ const OnboardingCarousel = () => {
     if (!visible) return;
 
     const onBack = () => {
-      finish();
+      // Its own outcome: backing out is not the same intent as tapping Skip.
+      finish("dismissed");
       return true;
     };
 
@@ -87,7 +103,7 @@ const OnboardingCarousel = () => {
 
   const goNext = useCallback(() => {
     if (isLast) {
-      finish();
+      finish("completed");
       return;
     }
     listRef.current?.scrollToOffset({ offset: (index + 1) * width, animated: true });
@@ -197,7 +213,7 @@ const OnboardingCarousel = () => {
 
       <View style={styles.controls}>
         {!isLast ? (
-          <Pressable style={styles.skipButton} onPress={finish} hitSlop={8}>
+          <Pressable style={styles.skipButton} onPress={() => finish("skipped")} hitSlop={8}>
             <CustomText style={styles.skipText}>{STRINGS.TOUR_SKIP}</CustomText>
           </Pressable>
         ) : (

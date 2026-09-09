@@ -3,9 +3,10 @@ import { Text } from "react-native";
 
 import { render, screen } from "@testing-library/react-native";
 import lightTheme from "@theme/lightTheme";
+import { remoteThemeRows } from "@theme/reader/__fixtures__/remoteThemes";
 import { contrastRatio } from "@theme/reader/contrast";
+import { mergeThemeRegistry } from "@theme/reader/registry";
 import { designedRolesFor } from "@theme/reader/screenPalette";
-import { READER_THEMES_BY_ID } from "@theme/reader/themes";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 
 import ThemeContext, { useTheme } from "./ThemeContext";
@@ -24,8 +25,12 @@ const Probe = () => {
   return <Text testID="probe">{`${cta}|${theme.c.surfaceElevated}`}</Text>;
 };
 
+// The designed themes are served from the backend now, so they reach the app
+// through the merge rather than through an import. Same records, same result.
+const DESIGNED = mergeThemeRegistry({ themes: remoteThemeRows }).byId;
+
 const renderScoped = (themeId, scope) => {
-  const record = READER_THEMES_BY_ID[themeId];
+  const record = DESIGNED[themeId];
   const value = {
     theme: { ...lightTheme, c: { ...lightTheme.c, ...record.app }, designedTheme: themeId },
   };
@@ -61,7 +66,7 @@ describe("a designed theme still receives its screen adjustments", () => {
     // colour. No screen override may contain it.
     const FORBIDDEN = ["primary", "onPrimary", "primaryPressed"];
     ["settings", "settingsSheet", "seva"].forEach((scope) => {
-      Object.values(READER_THEMES_BY_ID).forEach((theme) => {
+      Object.values(DESIGNED).forEach((theme) => {
         const roles = designedRolesFor(scope, theme.app) ?? {};
         const leaked = Object.keys(roles).filter((k) => FORBIDDEN.includes(k));
         expect([scope, theme.id, leaked]).toEqual([scope, theme.id, []]);

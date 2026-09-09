@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS, openInAppBrowser } from "@common";
+import { CustomText, STRINGS, openInAppBrowser, trackDashboardEvent } from "@common";
 import { getRandomShabad } from "../../services/dashboard";
 import DashboardCard from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
@@ -128,9 +128,14 @@ const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoa
             <Pressable
               style={styles.readLink}
               hitSlop={6}
-              onPress={() =>
-                openInAppBrowser(`https://www.sikhitothemax.org/shabad?id=${shabad.shabadId}`)
-              }
+              onPress={() => {
+                trackDashboardEvent("shabad_open", {
+                  shabad_id: shabad.shabadId,
+                  ang: shabad.ang,
+                  raag: shabad.raag,
+                });
+                openInAppBrowser(`https://www.sikhitothemax.org/shabad?id=${shabad.shabadId}`);
+              }}
             >
               <CustomText style={[styles.readText, { color: gurmukhiColor }]}>
                 {STRINGS.READ_SHABAD}

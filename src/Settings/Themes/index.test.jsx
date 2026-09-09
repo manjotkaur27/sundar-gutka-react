@@ -1,7 +1,9 @@
 import React from "react";
 
 import { render, fireEvent } from "@testing-library/react-native";
-import { READER_THEMES } from "@theme/reader/themes";
+import { ALL_THEMES as READER_THEMES } from "@theme/reader/__fixtures__/allThemes";
+import { remoteThemeRows } from "@theme/reader/__fixtures__/remoteThemes";
+import { mergeThemeRegistry } from "@theme/reader/registry";
 
 import { getMockDispatch, setMockState } from "@common/test-utils/mocks/react-redux";
 
@@ -34,16 +36,15 @@ jest.mock("@common", () => {
       default: "System default",
       light: "Light",
       dark: "Dark",
-      reader_theme_blue: "Blue",
-      reader_theme_kesari: "Kesari",
-      reader_theme_puratan: "Puratan",
-      reader_theme_white: "White",
-      reader_theme_sanjh: "Sanjh",
     },
   };
 });
 
 const { applyTheme } = require("@common/actions");
+
+// The live registry: bundled light/dark plus the themes the backend serves.
+// themeOptions(MERGED) on its own would see only the two the app ships with.
+const MERGED = mergeThemeRegistry({ themes: remoteThemeRows });
 
 const navigation = { goBack: jest.fn() };
 const open = () => render(<Themes navigation={navigation} />);
@@ -56,7 +57,9 @@ describe("Theme picker", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    setMockState({ theme: "Default" });
+    // The designed themes are SERVED, so the picker only sees them once the
+    // synced slice is in the store — that is what useThemeRegistry reads.
+    setMockState({ theme: "Default", remoteThemes: { themes: remoteThemeRows } });
   });
 
   it("offers System, Light, Dark and every designed theme", () => {
@@ -71,7 +74,7 @@ describe("Theme picker", () => {
   it("applies EVERY tile on a single tap, with no confirm step", () => {
     // The tile is the preview, and the change is instant and reversible, so a
     // confirm step only added a tap. Designed themes are no different.
-    const options = themeOptions();
+    const options = themeOptions(MERGED);
     const { getAllByRole } = open();
     getAllByRole("radio").forEach((tile, i) => {
       fireEvent.press(tile);
@@ -83,7 +86,7 @@ describe("Theme picker", () => {
   it("applies a designed theme on the same single tap", () => {
     const { getAllByRole } = open();
     fireEvent.press(getAllByRole("radio")[FIRST_DESIGNED]);
-    expect(applyTheme).toHaveBeenCalledWith(themeOptions()[FIRST_DESIGNED].value);
+    expect(applyTheme).toHaveBeenCalledWith(themeOptions(MERGED)[FIRST_DESIGNED].value);
   });
 
   it("marks the stored selection, whichever kind of value it is", () => {
@@ -104,7 +107,7 @@ describe("Theme picker", () => {
 
 describe("themeOptions", () => {
   it("puts System first and previews it from no single record", () => {
-    const [first] = themeOptions();
+    const [first] = themeOptions(MERGED);
     expect(first.value).toBe("Default");
     expect(first.record).toBeNull();
   });
@@ -113,13 +116,13 @@ describe("themeOptions", () => {
     // The stored keyword is capitalised and long-persisted ("Light"); the
     // record's id is lowercase ("light"). Keeping the mapping in one place means
     // the storage format never has to change.
-    const byValue = Object.fromEntries(themeOptions().map((o) => [o.value, o]));
+    const byValue = Object.fromEntries(themeOptions(MERGED).map((o) => [o.value, o]));
     expect(byValue.Light.record.id).toBe("light");
     expect(byValue.Dark.record.id).toBe("dark");
   });
 
   it("stores a designed theme under its own id", () => {
-    const puratan = themeOptions().find((o) => o.value === "puratan");
+    const puratan = themeOptions(MERGED).find((o) => o.value === "puratan");
     expect(puratan.record.id).toBe("puratan");
   });
 });

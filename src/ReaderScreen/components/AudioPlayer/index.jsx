@@ -26,6 +26,12 @@ import useListeningSession from "@common/hooks/useListeningSession";
 import { getSequenceFromPosition } from "./utils/getSequenceFromPosition";
 import { getLocalTrackPath, prefetchPreviews } from "./utils/audioDownloader";
 
+// How far RNTP's reported duration may sit from the manifest's before the two
+// are taken to be different tracks. A couple of seconds absorbs the usual
+// disagreement between a container's header and the decoded stream; anything
+// beyond it means RNTP has not switched over yet. See the completion sampler.
+const TRACK_MATCH_TOLERANCE_SEC = 2;
+
 const AudioPlayer = ({
   baniID,
   title,
@@ -34,6 +40,7 @@ const AudioPlayer = ({
   isNavBarVisible = false,
   barsDrop = 0,
   onHideBars = () => {},
+  onShowBars = () => {},
   onPlayerTouch = () => {},
 }) => {
   const dispatch = useDispatch();
@@ -117,28 +124,91 @@ const AudioPlayer = ({
   const progressRef = useRef(progress);
   useEffect(() => { progressRef.current = progress; }, [progress]);
 
-  const completionDataRef = useRef({ positionSec: 0, trackLengthSec: 0, artist: null });
+  // How far into a track the reader actually got, reported once on leaving.
+  //
+  // Sampled ONLY while audio is genuinely playing AND only once RNTP confirms
+  // it is on THIS track. Both conditions are load-bearing; the event used to
+  // have neither, and was wrong in two separate ways because of it.
+  //
+  //   It fired on any `position > 0` at exit. The player SEEKS to a saved
+  //   position when a bani is reopened, so someone who opened a bani they had
+  //   listened to before, read for a moment and left without ever pressing
+  //   play was logged as having listened — at whatever percent they had
+  //   previously reached, frequently "completed". That is why more users had a
+  //   completion than had a `bani_listen`, which the name says is impossible.
+  //
+  //   It read `progress.position` raw. While a newly chosen track loads, RNTP
+  //   still reports the PREVIOUS track's position — the exact staleness the
+  //   visible timer already defends against (AudioControlBar's `safePosition`,
+  //   "flash of saved progress from other last played track"). A completion
+  //   could therefore carry one bani's position under another bani's id.
+  //
+  // Sampling during confirmed playback answers both at once: nothing played
+  // means there is nothing to report, and a position seen while this track is
+  // playing cannot belong to a different one.
+  const completionSampleRef = useRef(null);
   const completionFiredRef = useRef(false);
+  const currentTrackId = currentPlaying?.id ?? null;
+
+  // A new track is a new session — nothing of it has been played yet, and
+  // leaving may report it once more.
+  useEffect(() => {
+    completionSampleRef.current = null;
+    completionFiredRef.current = false;
+  }, [currentTrackId]);
 
   useEffect(() => {
-    completionDataRef.current = {
-      positionSec: progress?.position ?? 0,
-      trackLengthSec: currentPlaying?.trackLengthSec ?? 0,
+    if (!isPlaying) return;
+    // RNTP reports the ACTIVE track's duration alongside its position. Until
+    // that matches the track we believe is playing, the pair belongs to the
+    // previous one — this is the confirmation the old code lacked.
+    const activeDuration = Number(progress?.duration) || 0;
+    const expectedDuration = Number(currentPlaying?.trackLengthSec) || 0;
+    if (activeDuration <= 0) return;
+    if (
+      expectedDuration > 0 &&
+      Math.abs(activeDuration - expectedDuration) > TRACK_MATCH_TOLERANCE_SEC
+    ) {
+      return;
+    }
+    const positionSec = Number(progress?.position) || 0;
+    if (positionSec <= 0) return;
+    completionSampleRef.current = {
+      positionSec,
+      // What RNTP is actually playing, not the manifest's estimate of it, so
+      // percent_complete is computed against the same clock as the position.
+      trackLengthSec: activeDuration,
       artist: currentPlaying?.displayName ?? null,
     };
-    // Reset guard when a new track starts so we fire again on next exit.
-    completionFiredRef.current = false;
-  }, [progress?.position, currentPlaying?.trackLengthSec, currentPlaying?.displayName]);
+  }, [
+    isPlaying,
+    progress?.position,
+    progress?.duration,
+    currentPlaying?.trackLengthSec,
+    currentPlaying?.displayName,
+  ]);
 
   // Fire bani_listen_completion once when the user leaves this screen.
+  //
+  // The fired-guard is reset ONLY by a track change, never by a progress tick.
+  // It used to be cleared on every tick, so audio still playing after the blur
+  // reset it and the unmount safety-net fired a second time — one exit, two
+  // events.
   useEffect(() => {
     const fireCompletion = () => {
       if (completionFiredRef.current) return;
-      const { positionSec, trackLengthSec, artist } = completionDataRef.current;
-      if (positionSec > 0) {
-        completionFiredRef.current = true;
-        trackBaniListenCompletion(baniID, title, artist, positionSec, trackLengthSec);
-      }
+      const sample = completionSampleRef.current;
+      // No confirmed playback on this screen, so there is no completion to
+      // report. Silence is the correct answer, not a zero.
+      if (!sample) return;
+      completionFiredRef.current = true;
+      trackBaniListenCompletion(
+        baniID,
+        title,
+        sample.artist,
+        sample.positionSec,
+        sample.trackLengthSec
+      );
     };
     const unsubscribe = navigation.addListener("blur", fireCompletion);
     return () => {
@@ -198,7 +268,12 @@ const AudioPlayer = ({
       await stop();
     }
     dispatch(toggleAudio(false));
-  }, [isPlaying]);
+    // Closing the player ends the reason the chrome was hidden. Opening it
+    // hides the bars (onHideBars) because the user asked for the controls;
+    // dismissing it leaves them on a bare page with no way back to the header
+    // or the tab bar except a tap they have no reason to guess at.
+    onShowBars();
+  }, [isPlaying, onShowBars]);
 
   useEffect(() => {
     const autoStartFirstTrack = async () => {
@@ -578,6 +653,8 @@ AudioPlayer.propTypes = {
   barsDrop: PropTypes.number,
   /** Asks the Reader to keep its chrome hidden. See MinimizePlayer's pause. */
   onHideBars: PropTypes.func,
+  /** Gives the chrome back when the player closes — the counterpart above. */
+  onShowBars: PropTypes.func,
   /** Any touch on the player, so the page cannot report it as a tap on the bani. */
   onPlayerTouch: PropTypes.func,
 };

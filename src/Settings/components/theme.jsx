@@ -1,62 +1,39 @@
-import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { setTheme } from "@common/actions";
+import React from "react";
+import { useSelector } from "react-redux";
+import useThemeRegistry from "@theme/reader/useThemeRegistry";
+import PropTypes from "prop-types";
 import { ThemeIcon } from "@common/icons";
 import { STRINGS } from "@common";
-import SelectSheet from "./comon/SelectSheet";
+import { themeLabel, themeOptions } from "../Themes/options";
 import SettingsRow from "./comon/SettingsRow";
-import { getTheme } from "./comon/strings";
 
 // The app's ONE appearance control.
 //
-// Back to a three-option sheet (Default / Light / Dark), matching every other
-// choice on this screen. The designed themes and the `Themes` grid screen are
-// deliberately LEFT IN PLACE — registry, records, previews and route are all
-// untouched — they are simply no longer reachable from Settings, so the app
-// ships the three appearances while the rest stays ready to re-expose.
+// It pushes the theme grid rather than opening a sheet, because the choice is
+// no longer a single word — each option is a page you can look at, and the
+// grid is where the themes the backend adds, corrects or withdraws show up.
 //
-// Nothing migrates a stored value. A build that already selected a designed
-// theme keeps rendering it; the row shows the raw id until the user picks one
-// of the three, which is the honest thing to show for a theme this sheet
-// cannot name.
-const ThemeComponent = () => {
-  const dispatch = useDispatch();
-  const [isVisible, setIsVisible] = useState(false);
+// The row's value is named the way the grid names its tiles: a bundled theme
+// from the localisation file, a remote one from the names it carries. A stored
+// id nothing can name any more (a theme withdrawn since it was chosen) shows
+// as the raw id rather than an empty row.
+const ThemeComponent = ({ navigate }) => {
   const theme = useSelector((state) => state.theme);
-
-  const options = getTheme(STRINGS);
-  // Falls back to the stored value so a designed theme still shows something
-  // rather than an empty row.
-  const selectedTitle = options.find((option) => option.key === theme)?.title || theme;
-
-  const handleSelection = (key) => {
-    setIsVisible(false);
-    dispatch(setTheme(key));
-  };
+  const language = useSelector((state) => state.language);
+  const registry = useThemeRegistry();
+  const current = themeOptions(registry).find((option) => option.value === theme);
+  const label = current ? themeLabel(current, language, STRINGS) : theme;
 
   return (
-    <>
-      {/* A themed vector, not the old `bgcoloricon.png`. The PNG was rendered
-          with tinting turned OFF, so it kept one fixed colour in both themes
-          while every other row's icon followed the theme — and being a raster
-          asset it softened on high-density screens. */}
-      <SettingsRow
-        title={STRINGS.theme}
-        value={selectedTitle}
-        IconComponent={ThemeIcon}
-        onPress={() => setIsVisible(true)}
-      />
-      <SelectSheet
-        visible={isVisible}
-        title={STRINGS.theme}
-        options={options}
-        value={theme}
-        onSelect={handleSelection}
-        onClose={() => setIsVisible(false)}
-        closeLabel={STRINGS.cancel}
-      />
-    </>
+    <SettingsRow
+      title={STRINGS.theme}
+      value={label}
+      IconComponent={ThemeIcon}
+      onPress={() => navigate("Themes")}
+    />
   );
 };
+
+ThemeComponent.propTypes = { navigate: PropTypes.func.isRequired };
 
 export default ThemeComponent;

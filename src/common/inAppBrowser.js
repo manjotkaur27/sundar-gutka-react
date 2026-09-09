@@ -81,7 +81,7 @@ const isHttpUrl = (url) => /^https?:\/\//i.test(String(url || ""));
 // reaches it is a genuine hang — and a cap tight enough to fire on a merely
 // slow device would open the browser on top of an app that then launches.
 export const APP_ATTEMPT_TIMEOUT_MS = 1500;
-const withinTimeout = (promise) =>
+export const withinTimeout = (promise) =>
   new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), APP_ATTEMPT_TIMEOUT_MS);
     Promise.resolve(promise).then(

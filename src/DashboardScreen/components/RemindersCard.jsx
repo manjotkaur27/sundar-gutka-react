@@ -1,10 +1,12 @@
-import React, { useEffect, useCallback } from "react";
-import { View, Pressable, Alert, Linking, StyleSheet } from "react-native";
+import React, { useEffect, useCallback, useRef, useState } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
 import Svg, { Circle, Path, Line } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import moment from "moment";
 import PropTypes from "prop-types";
+import useBaniLookup, { toTitleCase } from "@common/hooks/useBaniLookup";
+import useReminderPermissionGate from "@common/hooks/useReminderPermissionGate";
 import { SunriseIcon, SunsetIcon } from "@common/icons";
 import {
   CustomText,
@@ -12,16 +14,15 @@ import {
   actions,
   ThemedSwitch,
   scheduleReminders,
-  checkPermissions,
   logError,
+  trackDashboardEvent,
 } from "@common";
 import { getBaniList } from "@database";
 import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
-import useBaniLookup, { toTitleCase } from "@common/hooks/useBaniLookup";
 
 // Same default reminder set as Settings (setDefaultReminders): Gur Mantar, Japji,
-// Rehras, Sohila. Seeded disabled so the rows always show in the dashboard.
+// Rehras, Sohila. Shown as suggestions while the list is empty — see below.
 const DEFAULT_INDEXES = [0, 1, 19, 21];
 const DEFAULT_TIMINGS = ["3:00 AM", "3:30 AM", "6:00 PM", "10:00 PM"];
 
@@ -49,7 +50,6 @@ const SunIcon = ({ color }) => (
   </Svg>
 );
 SunIcon.propTypes = { color: PropTypes.string.isRequired };
-
 
 const MoonIcon = ({ color }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill={color} stroke="none">
@@ -129,6 +129,15 @@ const buildIconStyles = (p, accentBlue, mutedText, gold) => ({
   night: { color: mutedText, bg: p.neutralSurface },
 });
 
+const parse = (json) => {
+  try {
+    const parsed = json ? JSON.parse(json) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+};
+
 const RemindersCard = () => {
   const { accentBlue, gold, mutedText, separator, palette } = useDashboardTheme();
   const dispatch = useDispatch();
@@ -153,75 +162,100 @@ const RemindersCard = () => {
   const reminderSound = useSelector((state) => state.reminderSound);
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
 
-  let reminders = [];
-  try {
-    reminders = reminderBanis ? JSON.parse(reminderBanis) : [];
-  } catch (_) {
-    reminders = [];
-  }
+  const stored = parse(reminderBanis);
 
-  // Seed the default reminder rows (disabled) if none exist yet, so the section
-  // always shows the list. Nothing is scheduled until a row is toggled on.
+  // The default rows are SUGGESTIONS, shown while the list is empty and written
+  // to the store only when one is switched on. They used to be written on
+  // sight, as four disabled reminders, and that write is what the account sync
+  // watches: a signed-in user who had deleted every reminder saw all four come
+  // back here — and then on every other device — the next time the Dashboard
+  // opened. Nothing is stored now until the user acts, so deleting the last
+  // reminder stays deleted everywhere, and the section still shows the rows.
+  const [placeholders, setPlaceholders] = useState([]);
   useEffect(() => {
-    if (reminders.length) return undefined;
+    if (stored.length) return undefined;
     let active = true;
     getBaniList(transliterationLanguage)
       .then((list) => {
         if (!active) return;
-        const data = DEFAULT_INDEXES.map((idx, i) => {
-          const b = list[idx];
-          return {
-            key: b.id,
-            id: b.id,
-            gurmukhi: b.gurmukhi,
-            translit: toTitleCase(b.translit),
-            enabled: false,
-            title: `${STRINGS.time_for} ${toTitleCase(b.translit)}`,
-            time: DEFAULT_TIMINGS[i],
-          };
-        });
-        dispatch(actions.setReminderBanis(JSON.stringify(data)));
+        setPlaceholders(
+          DEFAULT_INDEXES.map((idx, i) => {
+            const b = list[idx];
+            return {
+              key: b.id,
+              id: b.id,
+              gurmukhi: b.gurmukhi,
+              translit: toTitleCase(b.translit),
+              enabled: false,
+              title: `${STRINGS.time_for} ${toTitleCase(b.translit)}`,
+              time: DEFAULT_TIMINGS[i],
+            };
+          })
+        );
       })
       .catch(logError);
     return () => {
       active = false;
     };
-  }, [reminders.length, transliterationLanguage, dispatch]);
+  }, [stored.length, transliterationLanguage]);
 
-  const redirectToSettings = () => {
-    Alert.alert(STRINGS.permissionTitle, STRINGS.premissionDescription, [
-      { text: STRINGS.cancel, style: "cancel" },
-      { text: STRINGS.openSettings, onPress: () => Linking.openSettings() },
-    ]);
-  };
+  const reminders = stored.length ? stored : placeholders;
 
-  // Per-reminder toggle. Self-enables the reminders system on first turn-on so the
-  // dashboard works without a master switch (mirrors Settings scheduling).
+  // Writes the toggle through and schedules. `remindersOn` is passed rather
+  // than read, because the master switch may have been turned on in the same
+  // tap and the store has not re-rendered this closure yet.
+  const applyToggle = useCallback(
+    async (key, value, remindersOn) => {
+      const base = stored.length ? stored : placeholders;
+      const idx = base.findIndex((item) => item.key === Number(key));
+      if (idx === -1) return;
+      const array = base.map((item, i) => (i === idx ? { ...item, enabled: value } : item));
+      const json = JSON.stringify(array);
+      dispatch(actions.setReminderBanis(json));
+      await scheduleReminders(remindersOn, reminderSound, json);
+    },
+    [stored, placeholders, reminderSound, dispatch]
+  );
+
+  // A tap that had to wait for a trip to system settings. Finished by the
+  // gate's `onReturnGranted` when the user comes back with the permission.
+  const pendingRef = useRef(null);
+  const latestRef = useRef({ applyToggle });
+  latestRef.current = { applyToggle };
+
+  const { resolvePermissions } = useReminderPermissionGate({
+    onReturnGranted: async () => {
+      const pending = pendingRef.current;
+      pendingRef.current = null;
+      if (!pending) return;
+      dispatch(actions.toggleReminders(true));
+      await latestRef.current.applyToggle(pending.key, pending.value, true);
+    },
+  });
+
+  // Per-reminder toggle. Turning the FIRST reminder on also turns the reminder
+  // system on, so the Dashboard works without a master switch — but only once
+  // both permissions are there. It used to flip the master switch after the
+  // notification check alone, exactly the fault Settings had already been
+  // fixed for: a missing "Alarms & reminders" permission left everything
+  // reading ON with nothing scheduled.
   const toggleItem = useCallback(
     async (key, value) => {
       try {
-        let remindersOn = isReminders;
         if (value && !isReminders) {
-          const allowed = await checkPermissions();
-          if (!allowed) {
-            redirectToSettings();
-            return;
-          }
+          pendingRef.current = { key, value };
+          if (!(await resolvePermissions(null, { prompt: true }))) return;
+          pendingRef.current = null;
           dispatch(actions.toggleReminders(true));
-          remindersOn = true;
+          await applyToggle(key, value, true);
+          return;
         }
-        const array = JSON.parse(reminderBanis);
-        const idx = array.findIndex((item) => item.key === Number(key));
-        if (idx === -1) return;
-        array[idx] = { ...array[idx], enabled: value };
-        const json = JSON.stringify(array);
-        dispatch(actions.setReminderBanis(json));
-        await scheduleReminders(remindersOn, reminderSound, json);
+        await applyToggle(key, value, isReminders);
       } catch (err) {
         logError(err);
       }
     },
-    [reminderBanis, isReminders, reminderSound, dispatch]
+    [isReminders, resolvePermissions, applyToggle, dispatch]
   );
 
   return (
@@ -276,7 +310,10 @@ const RemindersCard = () => {
           ) : null}
           <Pressable
             style={styles.addRow}
-            onPress={() => navigation.navigate("ReminderOptions")}
+            onPress={() => {
+              trackDashboardEvent("reminders_opened", { count: reminders.length });
+              navigation.navigate("ReminderOptions");
+            }}
             hitSlop={6}
           >
             <PlusCircle color={addColor} />

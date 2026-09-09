@@ -3,6 +3,7 @@ import * as actionTypes from "./actions/actionTypes";
 import constant from "./constant";
 import * as pothiModel from "./pothi/model";
 import { emptyRemindersSync } from "./reminders/syncModel";
+import { emptySettingsSync } from "./settings/syncModel";
 import * as outbox from "./sync/outboxModel";
 
 const createReducer =
@@ -199,6 +200,24 @@ const remindersSync = createReducer(emptyRemindersSync(), {
       base,
       settingsUpdatedAt: p.settingsUpdatedAt ?? state.settingsUpdatedAt,
       settingsBase: p.settingsBase ?? state.settingsBase,
+      lastSyncedAt: p.lastSyncedAt ?? state.lastSyncedAt,
+    };
+  },
+});
+
+// Per-setting sync clocks and server bases — see settings/syncModel.
+// Persisted, and reset with the rest of the account's data on a switch
+// (USER_DATA_SLICES), so one person's pending edits never reach another.
+const settingsSync = createReducer(emptySettingsSync(), {
+  [actionTypes.MERGE_SETTINGS_SYNC_META]: (state, action) => {
+    const p = action.payload || {};
+    if (p.replace) return { ...emptySettingsSync(), ...p.replace };
+    const clocks = { ...state.clocks, ...(p.clocks || {}) };
+    const base = { ...state.base, ...(p.base || {}) };
+    (p.removeClocks || []).forEach((key) => delete clocks[key]);
+    return {
+      clocks,
+      base,
       lastSyncedAt: p.lastSyncedAt ?? state.lastSyncedAt,
     };
   },
@@ -845,6 +864,24 @@ const pothis = createReducer(pothiModel.emptyPothis(), {
   }),
 });
 
+// Reading themes served by the backend — raw rows, sanitised on the way in
+// (useRemoteThemesSync) and built into records on the way out
+// (theme/reader/registry). Persisted, so a device offline for a month keeps
+// the themes it last saw; NOT user data — a theme list is the same for
+// every account, so it survives sign-out and an account switch.
+const remoteThemes = (state = { version: 0, fetchedAt: 0, themes: [] }, action) => {
+  switch (action.type) {
+    case actionTypes.SET_REMOTE_THEMES:
+      return {
+        version: Number(action.payload?.version) || 0,
+        fetchedAt: Number(action.payload?.fetchedAt) || 0,
+        themes: Array.isArray(action.payload?.themes) ? action.payload.themes : [],
+      };
+    default:
+      return state;
+  }
+};
+
 const appReducer = combineReducers({
   donor,
   donorType,
@@ -884,6 +921,7 @@ const appReducer = combineReducers({
   reminderBanis,
   reminderSound,
   remindersSync,
+  settingsSync,
   syncOutbox,
   autoScrollSpeedObj,
   baniOrder,
@@ -895,6 +933,7 @@ const appReducer = combineReducers({
   audioManifest,
   audioCatalog,
   audioCatalogMeta,
+  remoteThemes,
   audioProgress,
   currentBani,
   readerTapTick,
@@ -934,6 +973,7 @@ const USER_DATA_SLICES = [
   // The clocks that go with the reminders, and every change of the outgoing
   // account still waiting to be sent — neither may reach the next account.
   "remindersSync",
+  "settingsSync",
   "syncOutbox",
 ];
 

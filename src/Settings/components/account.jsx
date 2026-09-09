@@ -14,7 +14,9 @@ import SettingsRow from "./comon/SettingsRow";
 // navigates here — so the app has exactly one destructive surface.
 const Account = () => {
   const { c } = useTokens();
-  const { status, user, busy, signIn, signOut, deleteAccount } = useSsoActions();
+  const { status, user, busy, signIn, signOut, deleteAccount } = useSsoActions({
+    entryPoint: "settings",
+  });
 
   // iOS ONLY, and that is the whole scope of this change.
   //
@@ -65,9 +67,14 @@ const Account = () => {
   // "unknown" means the Keychain read is still in flight. It resolves in well
   // under a second, so the row renders in place but disabled rather than
   // popping in late and shifting the section.
+  //
+  // The subtitle is the same note the Dashboard carries in its header: what
+  // signing in buys. Only on the settled "signedOut" state — during "unknown"
+  // an already signed-in person would otherwise be told to sign in.
   return (
     <SettingsRow
       title={STRINGS.SIGN_IN}
+      subtitle={status === "signedOut" ? STRINGS.SETTINGS_SIGN_IN_HINT : undefined}
       icon="login"
       onPress={signIn}
       trailing={spinner}

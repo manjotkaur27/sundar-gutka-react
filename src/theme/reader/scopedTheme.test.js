@@ -1,6 +1,6 @@
 import { light as lightColors, dark as darkColors } from "@theme/semanticColors";
+import { ALL_THEMES_BY_ID as READER_THEMES_BY_ID } from "./__fixtures__/allThemes";
 import { AUDIO_ROLES } from "./bases/appBase";
-import { READER_THEMES_BY_ID } from "./themes";
 import { buildScopedTheme } from "./useReaderScopedTheme";
 
 // The seam that lets the audio player and the bottom navigation follow the

@@ -401,7 +401,13 @@ export const reconcile = (persisted) => {
  * the bani database is not re-scanned on every launch.
  */
 export const seedDefaults = (state, pothis = []) => {
-  const seeded = pothis.reduce((acc, pothi) => addPothi(acc, pothi), state);
+  // Back to front, because addPothi PREPENDS. That is right for a pothi the
+  // user just made — it is the one they are about to use — and wrong for a
+  // batch whose order is meaningful: seeding [Morning, Evening] forwards left
+  // Evening on top, the reverse of how a nitnem is read. Reversing here keeps
+  // the list in the order given while addPothi stays the only place that knows
+  // about the cap and the de-duplication.
+  const seeded = [...pothis].reverse().reduce((acc, pothi) => addPothi(acc, pothi), state);
   const pick = (kind, id) =>
     pothis.some((pothi) => pothi.id === id) ? id : seeded.defaultIds?.[kind] ?? null;
   return {

@@ -1,13 +1,20 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { View, ScrollView, Pressable, StyleSheet } from "react-native";
-import Svg, { Circle, Polyline } from "react-native-svg";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { createPothi, defaultPothi, makeBaniItem, MORNING_ID } from "@common/pothi/model";
-import { convertToUnicode, CustomText, STRINGS, actions, logError } from "@common";
+import {
+  convertToUnicode,
+  CustomText,
+  STRINGS,
+  actions,
+  logError,
+  trackDashboardEvent,
+} from "@common";
 import { getBaniList } from "@database";
 import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
 import useSetPothiBanis from "../../Pothi/hooks/useSetPothiBanis";
+import CheckCircle from "./CheckCircle";
 import useDashboardTheme from "./dashboardTheme";
 import SheetModal from "./SheetModal";
 import { toTitleCase } from "@common/hooks/useBaniLookup";
@@ -67,42 +74,11 @@ const styles = StyleSheet.create({
   translit: { fontSize: 12, marginTop: 2 },
 });
 
-const Check = ({ filled, muted, gold, tick }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Circle
-      cx="12"
-      cy="12"
-      r="10"
-      fill={filled ? gold : "none"}
-      stroke={filled ? gold : muted}
-      strokeWidth="2"
-    />
-    {filled ? (
-      <Polyline
-        points="17 9 10.5 15.5 7 12"
-        fill="none"
-        stroke={tick}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ) : null}
-  </Svg>
-);
-Check.propTypes = {
-  filled: PropTypes.bool.isRequired,
-  muted: PropTypes.string.isRequired,
-  gold: PropTypes.string.isRequired,
-  /** The tick, drawn ON the filled circle — must be its contrast partner. */
-  tick: PropTypes.string.isRequired,
-};
-
 // Picks the banis that make up Today's Nitnem — which is the Morning Nitnem
 // pothi, so this edits that pothi and nothing else. There is no separate
 // dashboard list to keep in step with it.
 const EditBanisModal = ({ visible, onClose }) => {
-  const { cardBg, primaryText, mutedText, accentBlue, separator, gold, theme, c } =
-    useDashboardTheme();
+  const { cardBg, primaryText, mutedText, accentBlue, separator, theme, c } = useDashboardTheme();
   // Explicit fontFamily and NO fontWeight beside it. Baloo ships as separate
   // named TTFs, so a numeric weight makes Android try to synthesize bold and
   // silently drop back to the system font — which is why the title and Save
@@ -190,6 +166,7 @@ const EditBanisModal = ({ visible, onClose }) => {
         ])
       );
     }
+    trackDashboardEvent("nitnem_banis_saved", { count: items.length });
     onClose();
   }, [allBanis, picked, morning, setBanis, requireOnline, dispatch, onClose]);
 
@@ -247,7 +224,7 @@ const EditBanisModal = ({ visible, onClose }) => {
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isPicked }}
                 >
-                  <Check filled={isPicked} muted={mutedText} gold={gold} tick={c.onGold} />
+                  <CheckCircle filled={isPicked} accent={accentBlue} muted={mutedText} />
                   <View style={styles.rowText}>
                     {/* Some banis (Amrit Bani, Bhagat Bani, 22 Vaaran,
                         Savaiye) carry no GurmukhiUni in the database, which

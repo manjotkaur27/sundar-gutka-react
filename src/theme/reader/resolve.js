@@ -15,7 +15,7 @@ import { READER_THEMES_BY_ID } from "./themes";
  * appearance keyword? Unknown values answer no, so a theme withdrawn in a later
  * release degrades to the app's normal light/dark handling instead of crashing.
  */
-export const isDesignedTheme = (themeMode) => Boolean(READER_THEMES_BY_ID[themeMode]);
+export const isDesignedTheme = (themeMode, byId = READER_THEMES_BY_ID) => Boolean(byId[themeMode]);
 
 /**
  * The appearance a stored theme value implies, or null when the value is not a
@@ -23,18 +23,22 @@ export const isDesignedTheme = (themeMode) => Boolean(READER_THEMES_BY_ID[themeM
  *
  * @returns {"light"|"dark"|null}
  */
-export const appearanceFor = (themeMode) => READER_THEMES_BY_ID[themeMode]?.base ?? null;
+export const appearanceFor = (themeMode, byId = READER_THEMES_BY_ID) =>
+  byId[themeMode]?.base ?? null;
 
 /**
  * The reading-theme record to render the Bani with.
  *
  * @param themeMode  `state.theme`.
+ * @param byId       The registry to resolve against — the bundled map by
+ *                   default, or the merged one (theme/reader/registry) which
+ *                   carries the backend's themes too.
  * @param appIsDark  Whether the app is currently dark — already accounts for
  *                   "Default" following the OS. Used only when `themeMode` is
  *                   not a designed theme, where the Reader follows the app and
  *                   renders exactly as it did before this feature existed.
  */
-const resolveReaderTheme = (themeMode, appIsDark) =>
-  READER_THEMES_BY_ID[themeMode] ?? READER_THEMES_BY_ID[appIsDark ? "dark" : "light"];
+const resolveReaderTheme = (themeMode, appIsDark, byId = READER_THEMES_BY_ID) =>
+  byId[themeMode] ?? byId[appIsDark ? "dark" : "light"];
 
 export default resolveReaderTheme;

@@ -7,4 +7,11 @@ export { default as resolveReaderTheme, appearanceFor, isDesignedTheme } from ".
 export { default as useReaderTheme } from "./useReaderTheme";
 export { useReaderScopedTheme, useReaderScopedStyles } from "./useReaderScopedTheme";
 export { READER_THEMES, READER_THEMES_BY_ID } from "./themes";
+export {
+  mergeThemeRegistry,
+  bundledRegistry,
+  sanitizeRemoteTheme,
+  remoteThemeName,
+} from "./registry";
+export { default as useThemeRegistry } from "./useThemeRegistry";
 export { contrastRatio, flattenColor, AA_CONTRAST } from "./contrast";

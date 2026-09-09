@@ -7,7 +7,7 @@ import PropTypes from "prop-types";
 // flower-strip scroll hint below) — importing the shared icon under the same
 // name would collide with it.
 import { ChevronLeftIcon, ChevronRight as ChevronRightIcon } from "@common/icons";
-import { CustomText, STRINGS, constant, showInfoToast } from "@common";
+import { CustomText, STRINGS, constant, showInfoToast, trackDashboardEvent } from "@common";
 import { getOrCreateSummary, getDailyActivity } from "../../database/analytics";
 import { dayQualifies, getLocalDate } from "../../services/streakDays";
 import useDashboardTheme from "./dashboardTheme";
@@ -136,7 +136,11 @@ const weekDatesForOffset = (offsetWeeks) => {
 };
 
 const StreakCard = ({ refreshKey = 0 }) => {
-  const { mutedText, accentBlue, gold, separator, theme, c, palette } = useDashboardTheme();
+  const { mutedText, accentBlue, separator, theme, palette } = useDashboardTheme();
+  // A done day is green — see `streakDone` in screenPalettes for the pairing
+  // and why the tick colour differs by mode.
+  const doneFill = palette.streakDone;
+  const doneTick = palette.onStreakDone;
   // Streak number matches the username: brand blue (light) / off-white (dark).
   const numColor = palette.brandText;
   const dayStreakColor = palette.statLabel;
@@ -223,6 +227,10 @@ const StreakCard = ({ refreshKey = 0 }) => {
   );
 
   const openDay = useCallback((day) => {
+    // Every tap is reported, including the two that open nothing — a strip
+    // mostly tapped on empty days says something the successful opens do not.
+    const outcome = day.isFuture ? "future" : (day.hasActivity && "opened") || "empty";
+    trackDashboardEvent("day_tapped", { surface: "streak_strip", outcome });
     // Future day → nothing to show yet, and nothing to say either.
     if (day.isFuture) return;
     // No activity on this (past/today) day → quick toast instead of an empty detail sheet.
@@ -232,6 +240,16 @@ const StreakCard = ({ refreshKey = 0 }) => {
     }
     setModalDate(day.date);
     setModalVisible(true);
+  }, []);
+
+  // Stepping back and forward through weeks. `offset` says how far from this
+  // week they went, so a single curious tap reads apart from real browsing.
+  const stepWeek = useCallback((direction) => {
+    setWeekOffset((o) => {
+      const next = direction === "back" ? o + 1 : Math.max(0, o - 1);
+      trackDashboardEvent("week_navigated", { surface: "streak_strip", direction, offset: next });
+      return next;
+    });
   }, []);
 
   // stage = number of thresholds reached (1..14).
@@ -341,7 +359,7 @@ const StreakCard = ({ refreshKey = 0 }) => {
       </View>
 
       {/* Week activity strip — minimal: weekday letters only, no dates. done =
-          filled gold + check, today = gold ring, past-missed = dashed, future
+          filled green + check, today = green ring, past-missed = dashed, future
           = faint ring. Tap a day for its detail / no-activity toast. ‹ ›
           steps a full Monday-first week at a time, floored at
           DASHBOARD_HISTORY_FLOOR and capped at the current week. */}
@@ -358,7 +376,7 @@ const StreakCard = ({ refreshKey = 0 }) => {
       </CustomText>
       <View style={styles.weekNavRow}>
         <Pressable
-          onPress={() => setWeekOffset((o) => o + 1)}
+          onPress={() => stepWeek("back")}
           disabled={!canGoPrevWeek}
           hitSlop={8}
           style={[styles.navBtn, !canGoPrevWeek && styles.navBtnDisabled]}
@@ -372,7 +390,7 @@ const StreakCard = ({ refreshKey = 0 }) => {
                 style={[
                   styles.dayDot,
                   { width: dotSize, height: dotSize, borderRadius: dotSize / 2 },
-                  s.done && { backgroundColor: gold, borderColor: gold },
+                  s.done && { backgroundColor: doneFill, borderColor: doneFill },
                   !s.done &&
                     !s.isToday &&
                     !s.isFuture && {
@@ -382,19 +400,19 @@ const StreakCard = ({ refreshKey = 0 }) => {
                       opacity: 0.2,
                     },
                   !s.done && s.isFuture && { borderColor: separator, borderWidth: 1.5 },
-                  !s.done && s.isToday && { borderColor: gold, borderWidth: 2 },
+                  !s.done && s.isToday && { borderColor: doneFill, borderWidth: 2 },
                 ]}
               >
-                {s.done ? <CheckIcon color={c.onAccent} /> : null}
+                {s.done ? <CheckIcon color={doneTick} /> : null}
               </View>
-              <CustomText style={[styles.dayLabel, { color: s.isToday ? gold : mutedText }]}>
+              <CustomText style={[styles.dayLabel, { color: s.isToday ? doneFill : mutedText }]}>
                 {s.letter}
               </CustomText>
             </Pressable>
           ))}
         </View>
         <Pressable
-          onPress={() => setWeekOffset((o) => Math.max(0, o - 1))}
+          onPress={() => stepWeek("forward")}
           disabled={!canGoNextWeek}
           hitSlop={8}
           style={[styles.navBtn, !canGoNextWeek && styles.navBtnDisabled]}

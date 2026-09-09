@@ -1,22 +1,16 @@
-import React, { useCallback, useState } from "react";
-import {
-  View,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  Image,
-  Linking,
-  Platform,
-  NativeModules,
-} from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, ScrollView, Pressable, StyleSheet, Image, Platform } from "react-native";
 import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
 import { brandMarks } from "@theme/palette";
 import PropTypes from "prop-types";
 import { useNavigation } from "@react-navigation/native";
-import { useDispatch } from "react-redux";
-import { CustomText, STRINGS, constant, actions, openInAppBrowser } from "@common";
+import { useDispatch, useSelector } from "react-redux";
+import { openAppLink } from "@common/openAppLink";
+import { CustomText, STRINGS, constant, actions, trackDashboardEvent } from "@common";
 import { getRecentReadBanis, getRecentListenedBanis } from "../../database/analytics";
 import { getRestoredTopBanis } from "../../services/dashboard";
+import { bundledExploreLinks } from "../../services/dashboard/exploreBundled";
+import { getExploreLinks } from "../../services/dashboard/exploreLinks";
 import DashboardCard, { CARD_SHADOW_BLEED } from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
@@ -35,24 +29,12 @@ const STTM_LOGO = require("../../assets/images/sikhi2max.webp");
 const SEHAJ_PATH_LOGO = require("../../assets/images/sehajpath.webp");
 const SHABADAVALI_LOGO = require("../../assets/images/shabadavali.png");
 
-// Android: launched directly via the native AppLauncher module (see
-// AppLauncherModule.kt), which asks PackageManager for the app's own launcher
-// intent — a real app-to-app launch, not a Play Store listing. iOS has no
-// equivalent here (no custom URL scheme was provided for Sehaj Path), so it
-// always opens the App Store listing, which itself shows "Open" instead of
-// "Get" when the app is already installed.
 // An illustration needs more of the box than a logotype does: a logo is a
 // simple mark that still reads at 32, where a drawing of a building has domes,
 // arches and a balustrade to resolve. `contain` keeps the aspect, so 40 renders
 // the darbar at 40x33 with a few points of air on every side. A module constant
 // rather than a StyleSheet entry so the image keeps one stable style reference.
 const ILLUSTRATION_SIZE = { width: 40, height: 40 };
-
-const SEHAJ_PATH_ANDROID_PKG = "com.khalis.sehajpathapp";
-const SEHAJ_PATH_STORE_URL = Platform.select({
-  ios: "https://apps.apple.com/us/app/khalis-sehaj-path/id6752426194",
-  default: "https://play.google.com/store/apps/details?id=com.khalis.sehajpathapp",
-});
 
 const BookIcon = ({ color }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -70,6 +52,19 @@ const HeadphonesIcon = ({ color }) => (
   </Svg>
 );
 HeadphonesIcon.propTypes = { color: PropTypes.string.isRequired };
+
+// A globe, for a tile whose icon key this build does not bundle — a tile the
+// backend added after this version shipped. Drawn in the theme's tile-icon
+// colour like the book and headphones, so it belongs to the row rather than
+// looking like a missing image.
+const LinkIcon = ({ color }) => (
+  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+    <Path d="M2 12h20" />
+    <Path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </Svg>
+);
+LinkIcon.propTypes = { color: PropTypes.string.isRequired };
 
 // The Gurdham mark, as supplied. It replaces the location pin that stood in
 // while no artwork existed.
@@ -108,52 +103,46 @@ const GurdhamIcon = ({ mode }) => (
 
 GurdhamIcon.propTypes = { mode: PropTypes.oneOf(["light", "dark"]).isRequired };
 
-// `titleKey`/`subtitleKey`/`badgeKey` hold STRINGS keys for the localisable
-// labels (resolved at render time so a language switch applies); brand and
-// proper-noun labels (SikhiToTheMax, Shabadavali, Sehaj Path, Khalis App,
-// Sri Darbar Sahib) stay as literal `title`/`subtitle` — they aren't translated.
-const APP_TILES = [
-  { id: "search", titleKey: "TILE_SEARCH_SHABAD", subtitle: "SikhiToTheMax", image: STTM_LOGO, url: "https://www.sikhitothemax.org" },
-  // The darbar itself rather than a stroked glyph of it. Gold and white marble,
-  // so it needs the deep plate: on a pale one the marble storey and the
-  // balustrade disappear and the building loses its base.
-  { id: "hukamnama", titleKey: "TILE_HUKAMNAMA", subtitle: "Sri Darbar Sahib", image: DARBAR_MARK, plate: "deep", illustration: true, url: "https://www.sikhitothemax.org/hukamnama" },
-  { id: "khalis-ai", titleKey: "TILE_ASK_AI", subtitleKey: "TILE_GURBANI_QA", image: KHALIS_LOGO, badgeKey: "BADGE_NEW", url: "https://www.sikhitothemax.org/" },
-  {
-    id: "sehaj-path",
-    title: "Sehaj Path",
-    subtitle: "Khalis App",
-    image: SEHAJ_PATH_LOGO,
-    // Its artwork is the app icon itself, navy edge to edge.
-    plate: "pale",
-    pkg: SEHAJ_PATH_ANDROID_PKG,
-    url: SEHAJ_PATH_STORE_URL,
-    deepLink: true,
-  },
-  { id: "shabadavali", titleKey: "TILE_LEARN_WORD", subtitle: "Shabadavali", image: SHABADAVALI_LOGO, url: "https://shabadavali.com/en/login" },
-  { id: "gurdham", titleKey: "TILE_EXPLORE_GURDHAM", subtitle: "Gurdham", icon: "gurdham", url: "https://gurdham.com" },
-];
-
-// Deep-links to the native Sehaj Path app instead of the in-app browser used
-// for the other tiles (those are plain websites). On Android, AppLauncher
-// resolves true if it found and launched the app; false means it isn't
-// installed (not an error) so we fall through to the store link either way.
-const openAppTile = async (t) => {
-  if (Platform.OS === "android" && t.pkg && NativeModules.AppLauncher) {
-    try {
-      const opened = await NativeModules.AppLauncher.openApp(t.pkg);
-      if (opened) return;
-    } catch (_) {
-      // Fall through to the store link below.
-    }
-  }
-  Linking.openURL(t.url).catch(() => {});
+// The artwork a tile's `icon` key names. Icons are app assets — a database can
+// point at one but cannot ship one — so the backend's tile list carries keys
+// and this map turns them into pictures. A key this build does not know draws
+// the globe, so a tile added after this version shipped still renders.
+//
+// The darbar is an ILLUSTRATION: it needs the deep plate (gold and white
+// marble vanish on a pale one) and the larger box — see ILLUSTRATION_SIZE.
+const TILE_ICONS = {
+  sttm: { image: STTM_LOGO },
+  darbar: { image: DARBAR_MARK, illustration: true },
+  khalis: { image: KHALIS_LOGO },
+  sehajpath: { image: SEHAJ_PATH_LOGO },
+  shabadavali: { image: SHABADAVALI_LOGO },
+  gurdham: { Component: GurdhamIcon },
 };
+
+const TileArtwork = ({ icon, mode, fallbackColor }) => {
+  const art = icon ? TILE_ICONS[icon] : null;
+  if (!art) return <LinkIcon color={fallbackColor} />;
+  if (art.Component) return <art.Component mode={mode} />;
+  return (
+    <Image
+      source={art.image}
+      style={art.illustration ? ILLUSTRATION_SIZE : styles.iconImg}
+      resizeMode="contain"
+    />
+  );
+};
+TileArtwork.propTypes = {
+  icon: PropTypes.string,
+  mode: PropTypes.oneOf(["light", "dark"]).isRequired,
+  fallbackColor: PropTypes.string.isRequired,
+};
+TileArtwork.defaultProps = { icon: null };
 
 const ExploreGurbani = ({ refreshKey = 0 }) => {
   const { gold, mutedText, theme, c, palette } = useDashboardTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const language = useSelector((state) => state.language);
   const { nameOf } = useBaniLookup();
   const iconBg = palette.iconPlate;
   // Tile titles match the streak count / username navy.
@@ -167,9 +156,23 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
 
   const [lastRead, setLastRead] = useState(null);
   const [lastListened, setLastListened] = useState(null);
+  // The app tiles start from the bundled list rather than from nothing, so the
+  // row is never empty — not on first launch offline, and not for the moment
+  // the network takes to answer. The fetched list replaces it when it lands.
+  const [explore, setExplore] = useState(() => ({
+    links: bundledExploreLinks(),
+    source: "bundled",
+  }));
 
   const task = useCallback(async () => {
-    const [r, l] = await Promise.all([getRecentReadBanis(1), getRecentListenedBanis(1)]);
+    // The tile list and the recent history are independent; neither failing
+    // may hide the other, and getExploreLinks never throws.
+    const [r, l, links] = await Promise.all([
+      getRecentReadBanis(1),
+      getRecentListenedBanis(1),
+      getExploreLinks({ lang: language }),
+    ]);
+    setExplore({ links: links.links, source: links.source });
     // Raw session history doesn't survive a reinstall — fall back to the
     // last-read/listened baaniId captured at the last cloud push. nameOf()
     // above already resolves the display name from the static bani
@@ -188,9 +191,10 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
       const baniId = restored?.listen?.last?.baaniId;
       setLastListened(baniId != null ? { bani_id: baniId } : null);
     }
-    // refreshKey isn't read above but forces a refetch on screen focus.
+    // refreshKey isn't read above but forces a refetch on screen focus;
+    // language is, so a switch re-resolves the labels.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  }, [refreshKey, language]);
 
   // No SectionError on failure: these tiles are supplementary personalization,
   // not core content — falling back to "no continue tiles" (same as a genuinely
@@ -201,6 +205,11 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
   // false opens it for reading (Continue Reading). The Reader only mounts the
   // AudioPlayer when state.isAudio is true.
   const openReader = (item, withAudio) => {
+    trackDashboardEvent(withAudio ? "continue_listening_tap" : "continue_reading_tap", {
+      bani_id: item.bani_id,
+      // The resolved name, so the report reads without an id lookup.
+      bani_title: nameOf(item.bani_id) || item.bani_title,
+    });
     dispatch(actions.toggleAudio(withAudio));
     navigation.navigate(constant.READER, {
       key: `Reader-${item.bani_id}`,
@@ -217,11 +226,52 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
     });
   };
 
+  // Installed app, then its store, then the web — and which one took the tap
+  // goes to analytics with the tile, so a campaign can see app opens apart
+  // from store visits apart from web fallbacks.
+  const openTile = async (tile, index) => {
+    const outcome = await openAppLink(tile);
+    trackDashboardEvent("explore_tile_tap", {
+      tile_id: tile.id,
+      // The label as the user read it, so a report needs no id lookup. It is
+      // the LOCALISED title, which is what was actually on the tile.
+      tile_title: tile.title,
+      outcome,
+      position: index,
+      source: explore.source,
+      // Whether this platform had an app route to try at all. Without it a
+      // "browser" outcome on a web-only tile looks like a failed app open.
+      has_app:
+        Platform.OS === "ios"
+          ? !!(tile.appLink || tile.iosAppId)
+          : !!(tile.appLink || tile.androidPkg),
+      badge: tile.badge || null,
+      tile_count: explore.links.length,
+    });
+  };
+
+  // The denominator for those taps: the row as it was seen. Keyed on the id
+  // list, so it fires once per distinct set — not per re-render, not per
+  // horizontal scroll, and not again when a focus refetch returns the same
+  // tiles. A backend change to the list is a new set and reports again.
+  const reportedTiles = useRef("");
+  useEffect(() => {
+    if (loading) return;
+    const ids = explore.links.map((t) => t.id).join(",");
+    if (!ids || ids === reportedTiles.current) return;
+    reportedTiles.current = ids;
+    trackDashboardEvent("explore_impression", {
+      tile_ids: ids,
+      tile_count: explore.links.length,
+      source: explore.source,
+    });
+  }, [loading, explore]);
+
   const ContinueTile = ({ icon, label, item, withAudio }) => (
     <DashboardCard style={styles.tile}>
       <Pressable
         onPress={() => openReader(item, withAudio)}
-        style={({ pressed }) => pressed && styles.pressed}
+        style={({ pressed }) => [styles.tilePress, pressed && styles.pressed]}
       >
         <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
           {icon === "book" ? <BookIcon color={iconColor} /> : <HeadphonesIcon color={iconColor} />}
@@ -256,7 +306,7 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
         contentContainerStyle={styles.row}
       >
         {/* While the recent-history lookup is in flight, hold the tiles' place
-            with skeletons instead of popping them in after APP_TILES. */}
+            with skeletons instead of popping them in after the app tiles. */}
         {loading ? (
           <>
             <DashboardCard style={styles.tile}>
@@ -287,33 +337,23 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
           />
         ) : null}
 
-        {APP_TILES.map((t) => {
-          // Resolve localisable labels from STRINGS; brand/proper-noun labels
-          // fall through to the literal title/subtitle on the tile.
-          const title = t.titleKey ? STRINGS[t.titleKey] : t.title;
-          const subtitle = t.subtitleKey ? STRINGS[t.subtitleKey] : t.subtitle;
-          const badge = t.badgeKey ? STRINGS[t.badgeKey] : t.badge;
+        {explore.links.map((t, index) => {
           const plate = plateFor(t, theme, iconBg);
-          const imgStyle = t.illustration ? ILLUSTRATION_SIZE : styles.iconImg;
           return (
           <DashboardCard key={t.id} style={styles.tile}>
             <Pressable
-              onPress={() => (t.deepLink ? openAppTile(t) : openInAppBrowser(t.url))}
-              style={({ pressed }) => pressed && styles.pressed}
+              onPress={() => openTile(t, index)}
+              style={({ pressed }) => [styles.tilePress, pressed && styles.pressed]}
               accessibilityRole="link"
-              accessibilityLabel={title}
+              accessibilityLabel={t.title}
             >
               <View style={styles.iconRow}>
                 <View style={[styles.iconBox, { backgroundColor: plate }]}>
-                  {t.icon ? (
-                    <GurdhamIcon mode={theme.mode} />
-                  ) : (
-                    <Image source={t.image} style={imgStyle} resizeMode="contain" />
-                  )}
+                  <TileArtwork icon={t.icon} mode={theme.mode} fallbackColor={iconColor} />
                 </View>
-                {badge ? (
+                {t.badge ? (
                   <View style={[styles.badge, { backgroundColor: gold }]}>
-                    <CustomText style={[styles.badgeText, { color: c.onGold }]}>{badge}</CustomText>
+                    <CustomText style={[styles.badgeText, { color: c.onGold }]}>{t.badge}</CustomText>
                   </View>
                 ) : null}
               </View>
@@ -325,10 +365,10 @@ const ExploreGurbani = ({ refreshKey = 0 }) => {
                 style={[styles.title, { color: titleColor, fontFamily: titleFont }]}
                 numberOfLines={3}
               >
-                {title}
+                {t.title}
               </CustomText>
               <CustomText style={[styles.subtitle, { color: mutedText }]} numberOfLines={2}>
-                {subtitle}
+                {t.subtitle}
               </CustomText>
             </Pressable>
           </DashboardCard>
@@ -358,7 +398,12 @@ const styles = StyleSheet.create({
   // minWidth keeps short tiles from looking cramped, maxWidth forces wrapping
   // so one long translation can't stretch a tile across the screen. Tiles are
   // stretched to a common height by the row, so they stay aligned.
-  tile: { minWidth: 150, maxWidth: 190, paddingHorizontal: 16, paddingVertical: 20 },
+  tile: { minWidth: 150, maxWidth: 190 },
+  // The padding sits on the Pressable, not the card, and the Pressable fills
+  // the card: the row stretches every tile to the tallest one, and a tile
+  // with a one-line title used to have a dead band below its text where a
+  // tap did nothing.
+  tilePress: { flex: 1, paddingHorizontal: 16, paddingVertical: 20 },
   pressed: { opacity: 0.75 },
   iconRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   iconBox: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: 14 },

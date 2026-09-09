@@ -28,6 +28,11 @@ export default {
   SETTINGS: "Settings",
   DASHBOARD: "Dashboard",
   SEVA: "Seva",
+  DATABASE_UPDATE: "DatabaseUpdate",
+  // This app's own store identity, so an "update available" push can open
+  // the listing. The iOS id is the App Store's, not the bundle id.
+  APP_ANDROID_PACKAGE: "com.WahegurooNetwork.SundarGutka",
+  APP_IOS_APP_ID: "431446112",
   // The current onboarding-carousel version. The carousel auto-opens whenever a
   // user's persisted `seenOnboardingVersion` is below this number, so every
   // build that bumps this re-shows the carousel exactly once to EVERYONE on
@@ -231,12 +236,21 @@ export default {
 
   // Khalis backend endpoints (all derived from KHALIS_API_BASE above).
   DASHBOARD_API_BASE_URL: KHALIS_API_BASE,
+  // Push device registry (src/push in the API). Registers this device's FCM
+  // token — anonymously before sign-in, attached to the account after — so a
+  // campaign can be aimed at a person, a platform or a language.
+  PUSH_DEVICES_API_URL: `${KHALIS_API_BASE}/push/devices`,
   SEVA_CONFIG_API_URL: `${KHALIS_API_BASE}/seva/config`,
   // "Seva by other means" pages (public, no auth). Each returns a translated,
   // constrained HTML content fragment the app renders natively and caches (per
   // page + language) for offline use. The path segment matches the page key
   // sent by services/sevaMeans.js.
   SEVA_MEANS_API_BASE: KHALIS_API_BASE,
+  // Reading themes served by the backend (public, no auth), merged over the
+  // bundled set — see theme/reader/registry.
+  THEMES_API_URL: `${KHALIS_API_BASE}/themes`,
+  // The Dashboard's Explore tiles with labels resolved per language.
+  EXPLORE_LINKS_API_URL: `${KHALIS_API_BASE}/explore-links`,
   DAILY_VAAK_API_URL: `${KHALIS_API_BASE}/dashboard/daily-vaak`,
   WORD_OF_DAY_API_URL: `${KHALIS_API_BASE}/dashboard/word-of-day`,
   // Both are public and keyed on deviceId — deliberately NOT behind the SSO
@@ -273,6 +287,11 @@ export default {
   // everything it competes with at launch does: on a fresh install the bundled
   // DB seed alone is multiple seconds of I/O. Measured on device.
   AUDIO_CATALOG_SYNC_DELAY_MS: 12000,
+  // How long after launch the reading-theme catalogue may be topped up. Same
+  // reasoning as the sweep above and shorter only because it is ONE small
+  // request: the catalogue is read when the theme picker is opened, so it has
+  // no launch deadline, while the DB seed and the first Home mount do.
+  THEMES_SYNC_DELAY_MS: 8000,
   // Random Shabad stays on BaniDB directly (backend proxy was dropped).
   RANDOM_SHABAD_API_URL: "",
   // Backend serves the yearly Gurpurab/events feed here (CMS-style — updated

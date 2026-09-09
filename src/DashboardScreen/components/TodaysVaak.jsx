@@ -10,6 +10,7 @@ import {
   logMessage,
   openInAppBrowser,
   showInfoToast,
+  trackDashboardEvent,
 } from "@common";
 import { getDailyVaak } from "../../services/dashboard";
 import { OfflineError } from "../../services/dashboard/connectivity";
@@ -287,7 +288,17 @@ const TodaysVaak = ({
             {/* Tap to read the full hukamnama on SikhiToTheMax. */}
             <Pressable
               style={styles.readLink}
-              onPress={() => openInAppBrowser(HUKAMNAMA_URL)}
+              onPress={() => {
+                trackDashboardEvent("vaak_open", {
+                  ang: vaak.ang,
+                  raag: vaak.raag,
+                  ist_date: vaak.istDate,
+                  // Whether they were reading the previous day's, which is the
+                  // one case where the card is not showing today's hukamnama.
+                  showing_older_day: showingOlderDay,
+                });
+                openInAppBrowser(HUKAMNAMA_URL);
+              }}
               hitSlop={6}
               accessibilityRole="button"
             >

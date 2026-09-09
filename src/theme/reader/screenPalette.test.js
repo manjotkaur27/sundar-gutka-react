@@ -1,6 +1,10 @@
 import { mix } from "@theme/colorUtils";
 import { screenPalettes, paletteFor, rolesFor, themeForScreen } from "@theme/screenPalettes";
 import { dark as darkColors, light as lightColors } from "@theme/semanticColors";
+import {
+  ALL_THEMES as READER_THEMES,
+  ALL_THEMES_BY_ID as READER_THEMES_BY_ID,
+} from "./__fixtures__/allThemes";
 import { contrastRatio } from "./contrast";
 import {
   ACCENT_WASH_ALPHA,
@@ -9,7 +13,6 @@ import {
   groupFor,
   themedScreenPalette,
 } from "./screenPalette";
-import { READER_THEMES, READER_THEMES_BY_ID } from "./themes";
 
 // Dashboard and Seva do not colour themselves from semantic roles. They read
 // ~80 one-off keys through paletteFor(), which is keyed by light/dark and

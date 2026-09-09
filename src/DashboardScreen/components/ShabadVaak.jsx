@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Pressable, StyleSheet, Image, useWindowDimensions } from "react-native";
 import PropTypes from "prop-types";
-import { CustomText, STRINGS } from "@common";
+import { CustomText, STRINGS, trackDashboardEvent } from "@common";
 import DashboardCard, { CARD_RADIUS } from "./DashboardCard";
 import useDashboardTheme from "./dashboardTheme";
 import RandomShabad from "./RandomShabad";
@@ -53,12 +53,18 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
       ? {
           busy: vaakLoading,
           label: STRINGS.REFRESH_HUKAMNAMA,
-          onPress: () => setVaakNonce((n) => n + 1),
+          onPress: () => {
+            trackDashboardEvent("vaak_refreshed");
+            setVaakNonce((n) => n + 1);
+          },
         }
       : {
           busy: shabadLoading,
           label: STRINGS.SHUFFLE,
-          onPress: () => setShabadNonce((n) => n + 1),
+          onPress: () => {
+            trackDashboardEvent("shabad_shuffle");
+            setShabadNonce((n) => n + 1);
+          },
         };
 
   return (
@@ -89,7 +95,12 @@ const ShabadVaak = ({ refreshKey = 0 }) => {
               return (
                 <Pressable
                   key={t.id}
-                  onPress={() => setTab(t.id)}
+                  onPress={() => {
+                    // Only a real switch. Re-tapping the tab already open is
+                    // not a preference, and counting it would overstate both.
+                    if (t.id !== tab) trackDashboardEvent("shabad_vaak_tab", { tab: t.id });
+                    setTab(t.id);
+                  }}
                   style={[styles.tab, { backgroundColor: active ? goldTint : inactiveBg }]}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: active }}

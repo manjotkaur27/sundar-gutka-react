@@ -1,23 +1,25 @@
-// Reading-theme registry.
+// Reading-theme registry — the themes the APP SHIPS WITH.
 //
-// Adding a theme is three things: one file next to these, one import plus one
-// array entry here, and one `reader_theme_<id>` string per language in
-// src/common/localization.js. Nothing else in the app has to learn it exists —
-// the Settings grid, the thumbnails and the contrast guard all iterate this
-// array, so a new theme gets its tile, its preview and its test coverage for
-// free.
+// Light and dark only, deliberately. Every other theme is served from the
+// backend (`reader_themes`) and merged over these at runtime by
+// mergeThemeRegistry, so the catalogue can grow, be retuned or be withdrawn
+// without an app release. The five that used to live here — blue, kesari,
+// puratan, white, sanjh — are database rows now; each derives to exactly the
+// theme it replaced.
+//
+// These two stay bundled because they are the FALLBACK: a first launch with no
+// network still needs a reading surface, and `mergeThemeRegistry` refuses to
+// let a remote row remove either of them.
+//
+// Adding a theme here is three things: one file next to these, one import plus
+// one array entry, and one `reader_theme_<id>` string per language in
+// src/common/localization.js — but prefer a database row unless the theme has
+// to work offline on a fresh install.
 
-import blue from "./blue";
 import dark from "./dark";
-import kesari from "./kesari";
 import light from "./light";
-import puratan from "./puratan";
-import sanjh from "./sanjh";
-import white from "./white";
 
-export const READER_THEMES = [light, dark, blue, kesari, puratan, white, sanjh].sort(
-  (a, b) => a.order - b.order
-);
+export const READER_THEMES = [light, dark].sort((a, b) => a.order - b.order);
 
 export const READER_THEMES_BY_ID = READER_THEMES.reduce((acc, theme) => {
   acc[theme.id] = theme;

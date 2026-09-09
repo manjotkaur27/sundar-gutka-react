@@ -12,7 +12,7 @@ import {
   Text,
 } from "../../common/components/ui";
 import BaniPickRow from "./BaniPickRow";
-import { shabadCountLabel } from "./PothiRow";
+import { baniCountLabel } from "./PothiRow";
 
 // "Choose banis" as a whole sheet step: the count, the keyboard switch, the
 // search field, the scrolling list and the two actions.
@@ -90,7 +90,7 @@ const PickBanisStep = ({
           color={picked.length ? "accent" : "textSecondary"}
           style={{ flexShrink: 1 }}
         >
-          {shabadCountLabel(picked.length)}
+          {baniCountLabel(picked.length)}
         </Text>
         <GurmukhiKeyboardToggle
           label={STRINGS.POTHI_KEYBOARD_TOGGLE}

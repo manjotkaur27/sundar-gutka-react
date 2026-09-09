@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState, Linking } from "react-native";
 import { useDispatch } from "react-redux";
 import { setAuthSession, clearAuthSession } from "../actions";
+import { trackSsoEvent } from "../firebase/analytics";
 import { applyAccountScope, switchAnalyticsAccount } from "../sso/accountScope";
 import STRINGS from "../localization";
 import { decodeJwtPayload, isTokenValid, toSessionUser } from "../sso/jwt";
@@ -70,7 +71,12 @@ const useSsoSession = () => {
       // dashboard over the previous account's numbers.
       await switchAnalyticsAccount(null);
       dispatch(clearAuthSession());
-      if (notify) showInfoToast(STRINGS.SESSION_EXPIRED);
+      // `notify` is exactly the expiry case — the silent way accounts are lost.
+      // A clear on launch with no session to begin with is not an expiry.
+      if (notify) {
+        trackSsoEvent("session_expired");
+        showInfoToast(STRINGS.SESSION_EXPIRED);
+      }
     },
     [dispatch, clearExpiryTimer]
   );
@@ -116,6 +122,9 @@ const useSsoSession = () => {
       }
       const payload = decodeJwtPayload(token);
       await beginSession(toSessionUser(payload), payload.exp * 1000);
+      // A session picked up from the Keychain is NOT a sign-in and must not
+      // inflate that funnel — it is how most launches by a signed-in user look.
+      trackSsoEvent("session_restored");
     };
 
     const handleUrl = async (url) => {

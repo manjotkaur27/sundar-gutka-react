@@ -633,22 +633,22 @@ describe("Reader", () => {
     expect(getByTestId("audio-player")).toBeTruthy();
   });
 
-  it("renders AutoScrollComponent when isAutoScroll is true, once the chrome is up", () => {
+  it("renders AutoScrollComponent when isAutoScroll is true, with the chrome up", () => {
     mockState.isAutoScroll = true;
     const { getByTestId, queryByTestId } = render(
       <Reader navigation={mockNavigation} route={mockRoute} />
     );
 
-    // A bani OPENS on the bani alone — no header, no bottom navigation, and so
-    // no auto-scroll bar either. Reading is what the screen is for; the chrome
-    // is what you reach for afterwards.
-    expect(queryByTestId("auto-scroll-component")).toBeNull();
+    // A bani OPENS with its chrome: a bani is reached from the home list, the
+    // Dashboard, a pothi, a search result and a notification, and arriving with
+    // the bars already gone left no visible way back from any of them.
+    expect(getByTestId("auto-scroll-component")).toBeTruthy();
 
     // Tap detection lives in the WebView's injected JS, which posts "toggle".
     act(() => {
       getByTestId("webview").props.onMessage({ nativeEvent: { data: "toggle" } });
     });
-    expect(getByTestId("auto-scroll-component")).toBeTruthy();
+    expect(queryByTestId("auto-scroll-component")).toBeNull();
   });
 
   it("toggles the chrome when the reader taps the page", () => {
@@ -661,16 +661,15 @@ describe("Reader", () => {
         getByTestId("webview").props.onMessage({ nativeEvent: { data: "toggle" } });
       });
 
-    // Hidden on arrival, so the FIRST tap reveals rather than hides — the
-    // direction is what changed when the bani started opening bare.
+    // Up on arrival, so the FIRST tap puts the chrome away rather than
+    // revealing it. The wrapper stays mounted but is display:none, which the
+    // query layer treats as hidden — the same thing the reader sees.
+    expect(queryByTestId("auto-scroll-component")).toBeTruthy();
+    tapThePage();
     expect(queryByTestId("auto-scroll-component")).toBeNull();
+
     tapThePage();
     expect(queryByTestId("auto-scroll-component")).toBeTruthy();
-
-    // The wrapper stays mounted but is display:none, which the query layer
-    // treats as hidden — the same thing the reader sees.
-    tapThePage();
-    expect(queryByTestId("auto-scroll-component")).toBeNull();
   });
 
   it("restores saved position on mount", async () => {

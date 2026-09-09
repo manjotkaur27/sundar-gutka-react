@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet } from "react-native";
 import { weekdayNarrow } from "@common/dateLocale";
 import PropTypes from "prop-types";
 import { ChevronLeftIcon, ChevronRight } from "@common/icons";
-import { CustomText, STRINGS, constant } from "@common";
+import { CustomText, STRINGS, constant, trackDashboardEvent } from "@common";
 import { getDayActivity } from "../../database/analytics";
 import useDashboardTheme from "./dashboardTheme";
 import SectionError from "./SectionError";
@@ -38,6 +38,16 @@ const WeekChart = ({ refreshKey = 0 }) => {
   // uses: at bar size on a white card the navy reads as a black block.
   const barColor = palette.chartBar;
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Stepping back and forward through weeks. `offset` says how far from this
+  // week they went, so a single curious tap reads apart from real browsing.
+  const stepWeek = useCallback((direction) => {
+    setWeekOffset((o) => {
+      const next = direction === "back" ? o + 1 : Math.max(0, o - 1);
+      trackDashboardEvent("week_navigated", { surface: "week_chart", direction, offset: next });
+      return next;
+    });
+  }, []);
   const [bars, setBars] = useState([]);
   const [avg, setAvg] = useState(0);
 
@@ -100,7 +110,7 @@ const WeekChart = ({ refreshKey = 0 }) => {
               {STRINGS.formatString(STRINGS.AVG_PER_DAY, { count: avg })}
             </CustomText>
             <Pressable
-              onPress={() => setWeekOffset((o) => o + 1)}
+              onPress={() => stepWeek("back")}
               disabled={!canGoPrev}
               hitSlop={8}
               style={[styles.navBtn, !canGoPrev && styles.navBtnDisabled]}
@@ -108,7 +118,7 @@ const WeekChart = ({ refreshKey = 0 }) => {
               <ChevronLeftIcon size={16} color={mutedText} />
             </Pressable>
             <Pressable
-              onPress={() => setWeekOffset((o) => Math.max(0, o - 1))}
+              onPress={() => stepWeek("forward")}
               disabled={!canGoNext}
               hitSlop={8}
               style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]}

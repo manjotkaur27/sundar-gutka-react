@@ -1,4 +1,5 @@
-import { READER_THEMES_BY_ID } from "@theme/reader/themes";
+import { ALL_THEMES_BY_ID as READER_THEMES_BY_ID } from "@theme/reader/__fixtures__/allThemes";
+import { remoteThemeRows } from "@theme/reader/__fixtures__/remoteThemes";
 import { applyTheme } from "./actions";
 import * as actionTypes from "./actions/actionTypes";
 import constant from "./constant";
@@ -23,13 +24,35 @@ jest.mock("./localization", () => ({ __esModule: true, default: {} }));
 const initial = () => rootReducer(undefined, { type: "@@INIT" });
 
 // Runs the thunk against a fixed state and reports what it dispatched.
+// Puratan and the rest are SERVED now, so the state carries the synced slice —
+// without it the merge sees only light and dark and the thunk has no record to
+// seed from. This is the shape a device holds after a theme sync.
+// No shipped theme seeds a setting any more — Puratan used to turn
+// transliteration on and no longer does — but the mechanism is still there for
+// one that wants it, so it gets a subject of its own rather than losing its
+// coverage. Served like any other theme.
+const SEEDING_THEME = {
+  id: "seedy",
+  position: 90,
+  enabled: true,
+  names: { "en-US": "Seedy" },
+  record: {
+    base: "light",
+    palette: { ground: "#FFFFFF", ink: "#111111", accent: "#7A2E2E" },
+    defaults: { isTransliteration: true },
+  },
+};
+
 const run = (id, state = {}) => {
   const dispatched = [];
   const dispatch = (action) => {
     dispatched.push(action);
     return action;
   };
-  applyTheme(id)(dispatch, () => state);
+  applyTheme(id)(dispatch, () => ({
+    remoteThemes: { themes: [...remoteThemeRows, SEEDING_THEME] },
+    ...state,
+  }));
   return dispatched;
 };
 
@@ -77,23 +100,25 @@ describe("applyTheme", () => {
   });
 
   it("seeds a theme's suggested settings the first time only", () => {
-    // Puratan is a manuscript theme, chosen by people reading along with the
-    // Gurmukhi, so it suggests transliteration on.
-    expect(READER_THEMES_BY_ID.puratan.defaults).toEqual({ isTransliteration: true });
-
-    const first = run("puratan", { isTransliteration: false, readerThemeSeeded: {} });
+    const first = run("seedy", { isTransliteration: false, readerThemeSeeded: {} });
     expect(
       first.some((a) => a.type === actionTypes.TOGGLE_TRANSLITERATION && a.value === true)
     ).toBe(true);
     expect(first.some((a) => a.type === actionTypes.MARK_READER_THEME_SEEDED)).toBe(true);
   });
 
-  it("never re-seeds, so a later manual toggle is permanent", () => {
-    // The user turned transliteration back off after first picking Puratan.
+  it("no shipped theme seeds a setting — a font is a look, a toggle is a choice", () => {
+    Object.values(READER_THEMES_BY_ID).forEach((theme) => {
+      expect(theme.defaults).toEqual({});
+    });
+  });
+
+  it("never re-seeds a SETTING, so a later manual toggle is permanent", () => {
+    // The user turned transliteration back off after first picking the theme.
     // Re-selecting it must not undo that.
-    const again = run("puratan", {
+    const again = run("seedy", {
       isTransliteration: false,
-      readerThemeSeeded: { puratan: true },
+      readerThemeSeeded: { seedy: true },
     });
     expect(again.map((a) => a.type)).toEqual([actionTypes.SET_THEME]);
   });
@@ -106,11 +131,44 @@ describe("applyTheme", () => {
     expect(acts.some((a) => a.type === actionTypes.MARK_READER_THEME_SEEDED)).toBe(true);
   });
 
-  it("seeds a suggested Bani font through the same once-only path", () => {
+  it("applies a theme's Bani font when it is chosen", () => {
     const acts = run("puratan", { baniFontFace: "GurbaniAkharTrue", readerThemeSeeded: {} });
     expect(
       acts.some((a) => a.type === actionTypes.SET_BANI_FONT_FACE && a.value === "AnmolLipiSG")
     ).toBe(true);
+  });
+
+  it("applies it AGAIN every time the theme is chosen, unlike a seeded setting", () => {
+    // The face is part of how the theme looks, so coming back to Puratan brings
+    // Anmol Lipi back with it — even though the theme has been selected before
+    // and its once-only seeding is long done.
+    const acts = run("puratan", {
+      baniFontFace: "GurbaniAkharTrue",
+      readerThemeSeeded: { puratan: true },
+    });
+    expect(
+      acts.some((a) => a.type === actionTypes.SET_BANI_FONT_FACE && a.value === "AnmolLipiSG")
+    ).toBe(true);
+  });
+
+  it("does not re-assert the face the user is already reading in", () => {
+    // Nothing changed, so dispatching would only emit a misleading analytics
+    // event for a change that never happened.
+    const acts = run("puratan", {
+      baniFontFace: "AnmolLipiSG",
+      readerThemeSeeded: { puratan: true },
+    });
+    expect(acts.some((a) => a.type === actionTypes.SET_BANI_FONT_FACE)).toBe(false);
+  });
+
+  it("leaves the user's own face alone for a theme that suggests none", () => {
+    // Sanjh states a palette and nothing else. Choosing it must not disturb a
+    // font the reader picked for themselves.
+    const acts = run("sanjh", {
+      baniFontFace: "GurbaniAkharTrue",
+      readerThemeSeeded: { sanjh: true },
+    });
+    expect(acts.some((a) => a.type === actionTypes.SET_BANI_FONT_FACE)).toBe(false);
   });
 
   it("marks a theme with no defaults as seeded, so the check short-circuits after", () => {

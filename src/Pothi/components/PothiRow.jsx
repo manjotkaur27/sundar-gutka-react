@@ -7,11 +7,11 @@ import { STRINGS } from "@common";
 import { Text } from "../../common/components/ui";
 import usePothiTitle from "../hooks/usePothiTitle";
 
-/** "1 shabad" / "{count} shabads" — the singular is its own string, not a suffix. */
-export const shabadCountLabel = (count) =>
+/** "1 bani" / "{count} banis" — the singular is its own string, not a suffix. */
+export const baniCountLabel = (count) =>
   count === 1
-    ? STRINGS.POTHI_SHABAD_COUNT_ONE
-    : STRINGS.formatString(STRINGS.POTHI_SHABAD_COUNT, { count });
+    ? STRINGS.POTHI_BANI_COUNT_ONE
+    : STRINGS.formatString(STRINGS.POTHI_BANI_COUNT, { count });
 
 // One pothi in the Folders tab.
 //
@@ -53,7 +53,7 @@ const PothiRow = ({
       onLongPress={onLongPress ?? undefined}
       delayLongPress={400}
       accessibilityRole="button"
-      accessibilityLabel={`${title}, ${shabadCountLabel(pothi.count)}, ${action}`}
+      accessibilityLabel={`${title}, ${baniCountLabel(pothi.count)}, ${action}`}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
@@ -74,7 +74,7 @@ const PothiRow = ({
           {title}
         </Text>
         <Text variant="caption" color="textSecondary">
-          {shabadCountLabel(pothi.count)}
+          {baniCountLabel(pothi.count)}
         </Text>
       </View>
 

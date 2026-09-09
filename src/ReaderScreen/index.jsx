@@ -127,16 +127,19 @@ const Reader = ({ navigation, route }) => {
   const webViewRef = useRef(null);
   const { webView } = styles;
   const { title, id, titleUni } = route.params.params || {};
-  // A bani OPENS on the bani alone — no header, no bottom navigation.
+  // A bani OPENS with the header and the bottom navigation in place.
   //
-  // Reading is what the screen is for, and the chrome is what you reach for
-  // afterwards, so it is not there until asked for: a tap brings it back, as
-  // does a scroll up, and a scroll down puts it away again.
+  // A bani is reached from the home list, the Dashboard, a pothi, a search
+  // result and a notification, and arriving with the chrome already gone left
+  // no visible way back from any of them — the way out had to be discovered by
+  // tapping the page. It is still a reading screen: a scroll down puts the bars
+  // away, a scroll up or a tap brings them back, and auto-scroll and audio
+  // still hide them once the screen has been left alone.
   //
-  // The transform values below already sit at their hidden positions on mount,
+  // The transform values below sit at their SHOWN positions on mount to match,
   // so this is where the screen settles rather than somewhere it animates to —
-  // the bars do not appear for a frame and slide away.
-  const [isHeader, toggleHeader] = useState(false);
+  // the bars do not slide in for a frame after the page has drawn.
+  const [isHeader, toggleHeader] = useState(true);
   // Chrome up, the bar sits on the app's navy nav; chrome away, it sits on the
   // bani page, whose lightness is the reading theme's, not the app's. The Reader
   // slides the cluster off rather than unmounting it, so `isHeader` is what says
@@ -200,7 +203,7 @@ const Reader = ({ navigation, route }) => {
   // the audio player disappeared behind the three buttons the moment the app's
   // own bars auto-hid. They rest above it instead; the shown position stacks the
   // app's nav on top of that, which is what `navChromeHeight` already includes.
-  const navSlideAnim = useRef(new Animated.Value(300)).current; // starts hidden
+  const navSlideAnim = useRef(new Animated.Value(0)).current; // starts shown
   const navClusterHeightRef = useRef(0);
   // How far the two rest above the window bottom once the app's own bars are
   // hidden — the same clearance the bottom nav pads, and deliberately so: with
@@ -213,10 +216,12 @@ const Reader = ({ navigation, route }) => {
   // indicator — an overlay, not an obstruction — and resting the full 34pt up
   // left a band of blank page below the progress track.
   const chromeRestLift = bottomNavInset(insetBottom);
-  // Seeded at the resting lift, not 0, so a freshly opened bani does not slide
-  // them up over the system bar on mount.
-  const audioLiftAnim = useRef(new Animated.Value(-chromeRestLift)).current;
-  const progressLiftAnim = useRef(new Animated.Value(-chromeRestLift)).current;
+  // Seeded where the bars being UP puts them, since that is how a bani opens:
+  // the audio player clearing the nav, and the progress track sitting on it.
+  // Seeding them at the resting lift instead would drop both to the page bottom
+  // for a frame and then jump.
+  const audioLiftAnim = useRef(new Animated.Value(-navChromeHeight)).current;
+  const progressLiftAnim = useRef(new Animated.Value(-(navChromeHeight - 5))).current;
 
   useEffect(() => {
     const distance = navClusterHeightRef.current || 300;
@@ -900,6 +905,8 @@ const Reader = ({ navigation, route }) => {
             // Opening the full player from the circle must not bring the bars
             // back with it — the user asked for the controls, not the chrome.
             onHideBars={() => setBarsVisible(false, "player_expanded")}
+            // Closing it gives them back: the player was what hid them.
+            onShowBars={() => setBarsVisible(true, "player_closed")}
             // Any touch anywhere in the player, in any of its forms.
             onPlayerTouch={notePlayerTouch}
           />

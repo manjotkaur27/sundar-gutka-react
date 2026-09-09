@@ -1,4 +1,5 @@
 import { mix } from "./colorUtils";
+import { green } from "./palette";
 import { designedRolesFor, themedScreenPalette } from "./reader/screenPalette";
 
 // Screen-scoped palettes.
@@ -53,6 +54,22 @@ const gold = { light: "#eb9d18ff", dark: "#f2b03e" };
 const white = "#FFFFFF";
 /** The off-white the old themes used for text on dark grounds. */
 const offWhite = "#faf9f6";
+/**
+ * A completed day in the week strip. Green, because a tick is a "yes" and the
+ * decorative gold read as a highlight rather than an achievement.
+ *
+ * The two modes take opposite steps of the ramp and therefore opposite ticks:
+ * the light fill is dark enough to carry a white tick (5.63:1), the dark fill
+ * is light enough that only a dark one works (8.25:1 against the card colour).
+ * Gold carried white in both and measured 2.24:1 and 1.90:1 — under the 3:1
+ * that 1.4.11 asks of a graphical object — so this is a contrast fix as much
+ * as a colour change. Both fills also clear 3:1 against their own card, which
+ * is what today's unfilled ring needs.
+ */
+const streakDone = {
+  light: { fill: green[600], tick: white },
+  dark: { fill: green[300], tick: "#062346" },
+};
 
 const dashboard = {
   light: {
@@ -70,6 +87,9 @@ const dashboard = {
     brandText: brandRamp.base,
     accentBlue: brandRamp.base,
     gold: gold.light,
+    /** A completed day in the week strip, and its tick. */
+    streakDone: streakDone.light.fill,
+    onStreakDone: streakDone.light.tick,
     /**
      * A card's own title line. Pre-overhaul #0F3677, another near-navy off the
      * brand blue by a few points; folded onto the brand blue with accentText.
@@ -189,6 +209,8 @@ const dashboard = {
     brandText: white,
     accentBlue: brandRamp.accentOnDark,
     gold: gold.dark,
+    streakDone: streakDone.dark.fill,
+    onStreakDone: streakDone.dark.tick,
     cardTitle: offWhite,
     cardMeta: "#a1bee7ff",
     // Tints of the icon's own colour, so each plate reads as a wash of it

@@ -419,6 +419,13 @@ describe("the default pothi pointer", () => {
       withItems(EVENING_ID, "ਸ਼ਾਮ ਦਾ ਨਿਤਨੇਮ", EVENING_NITNEM_IDS),
     ]);
 
+  it("lists Morning above Evening — the order a nitnem is read in", () => {
+    const order = listPothis(seededPair()).map((pothi) => pothi.id);
+
+    // addPothi prepends, so seeding the pair forwards used to invert it.
+    expect(order).toEqual([MORNING_ID, EVENING_ID]);
+  });
+
   it("is recorded when the pair is seeded", () => {
     const s = seededPair();
     expect(defaultPothiId(s, "morning")).toBe(MORNING_ID);

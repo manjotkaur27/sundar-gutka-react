@@ -1,5 +1,8 @@
+import {
+  ALL_THEMES as READER_THEMES,
+  ALL_THEMES_BY_ID as READER_THEMES_BY_ID,
+} from "@theme/reader/__fixtures__/allThemes";
 import defineReaderTheme from "@theme/reader/schema";
-import { READER_THEMES, READER_THEMES_BY_ID } from "@theme/reader/themes";
 import { createDiv, fontColorForReader, fontSizeForReader, loadHTML } from "./index";
 
 // What the WebView is actually handed. The colours a reader sees are decided in

@@ -26,9 +26,28 @@ export const createCommonMock = (overrides = {}) => {
     navigate: jest.fn(),
     StatusBarComponent: ({ children, ...rest }) => React.createElement(RN.View, rest, children),
     trackSevaEvent: jest.fn(),
+    trackDashboardEvent: jest.fn(),
+    trackThemeEvent: jest.fn(),
+    trackSsoEvent: jest.fn(),
     openInAppBrowser: jest.fn(() => Promise.resolve()),
     useBackHandler: jest.fn(),
+    useCustomScrollbar: () => ({ scrollViewProps: {}, Indicator: null, ownedScrollProps: {} }),
     trackTourEvent: jest.fn(),
+    logError: jest.fn(),
+    logMessage: jest.fn(),
+    logNetworkError: jest.fn(),
+    // Online by default, matching DEFAULT_NETWORK_STATE: a consumer outside a
+    // NetworkProvider must never falsely degrade.
+    useNetwork: () => ({
+      isConnected: true,
+      isInternetReachable: true,
+      type: "wifi",
+      isWifi: true,
+      isCellular: false,
+      isExpensive: false,
+      isOffline: false,
+      isOnline: true,
+    }),
     OnboardingCarousel: () => null,
     actions: {
       toggleAutoScroll: jest.fn(toggleAutoScrollAction),

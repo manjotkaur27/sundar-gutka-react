@@ -8,7 +8,14 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import { ChevronRight, DragHandleIcon, EyeIcon } from "@common/icons";
-import { CustomText, STRINGS, constant, actions, showErrorToast } from "@common";
+import {
+  CustomText,
+  STRINGS,
+  constant,
+  actions,
+  showErrorToast,
+  trackDashboardEvent,
+} from "@common";
 import { requestPush } from "../../services/dashboard/syncSignal";
 import useDashboardTheme from "./dashboardTheme";
 import { sectionLabel } from "./sectionRegistry";
@@ -166,12 +173,20 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
   // Both paths ring the sync signal; without it a rearranged dashboard sat on
   // this phone until something unrelated happened to trigger a push.
   const save = useCallback(() => {
+    // What the page ends up looking like, not which rows were touched: the
+    // useful question is how many people hide sections and reorder at all.
+    trackDashboardEvent("sections_changed", {
+      hidden_count: hidden.length,
+      visible_count: order.length - hidden.length,
+      reordered: order.join(",") !== layout.order.join(","),
+    });
     dispatch(actions.setDashboardLayout({ order, hidden }));
     requestPush("dashboard-layout");
     setEditing(false);
-  }, [order, hidden, dispatch]);
+  }, [order, hidden, dispatch, layout.order]);
 
   const reset = useCallback(() => {
+    trackDashboardEvent("sections_reset");
     dispatch(actions.resetDashboardLayout());
     requestPush("dashboard-layout-reset");
     setEditing(false);
@@ -359,7 +374,10 @@ const SectionsModal = ({ visible, onClose, onSelectSection }) => {
                 {browsable.map((key) => (
                   <Pressable
                     key={key}
-                    onPress={() => onSelectSection(key)}
+                    onPress={() => {
+                      trackDashboardEvent("section_jump", { section: key });
+                      onSelectSection(key);
+                    }}
                     style={({ pressed }) => [
                       styles.row,
                       styles.browseRow,
