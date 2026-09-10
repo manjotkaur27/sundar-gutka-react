@@ -3,8 +3,8 @@ import { Pressable, View } from "react-native";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
+import { isCustomTitle, reminderBaniName } from "@common/reminders/title";
 import { constant, CustomText, ThemedSwitch } from "@common";
-import { isCustomTitle } from "../utils";
 
 // One reminder. Replaces the accordion.
 //
@@ -17,12 +17,14 @@ import { isCustomTitle } from "../utils";
 const ReminderRow = ({ section, onPress, onToggle }) => {
   const { c, space, layout, type } = useTokens();
   const isTransliteration = useSelector((state) => state.isTransliteration);
-  const { enabled, translit, gurmukhi, time, title } = section;
+  const { enabled, time, title } = section;
   // A title the user wrote is what the notification will say, so the row says
   // it too — a rename that only showed inside the edit sheet read as a rename
   // that had not saved. Until then the bani's name is the better label.
   const showsTitle = isCustomTitle(section);
-  let name = isTransliteration ? translit : gurmukhi;
+  // Not `gurmukhi` — that is the legacy ASCII encoding, which only reads as
+  // Gurmukhi under the Gurbani face. reminderBaniName gives real Unicode.
+  let name = reminderBaniName(section, isTransliteration);
   if (showsTitle) name = title;
 
   return (
@@ -49,9 +51,11 @@ const ReminderRow = ({ section, onPress, onToggle }) => {
         <CustomText
           style={[
             type.bodySmall,
-            // The Gurbani face only for a bani name in its legacy encoding — a
-            // typed title is plain text, and would render as gibberish in it.
-            !isTransliteration && !showsTitle && { fontFamily: constant.GURBANI_AKHAR_TRUE },
+            // Baloo, not the Gurbani face: the name is real Unicode Gurmukhi now
+            // (reminderBaniName), and GurbaniAkhar draws the LEGACY ASCII encoding,
+            // so it would mangle it. Same pairing the add-a-bani picker uses.
+            // A typed title is plain text and takes the UI font.
+            !isTransliteration && !showsTitle && { fontFamily: constant.BALOO_PAAJI },
             { color: enabled ? c.textSecondary : c.textDisabled },
           ]}
         >

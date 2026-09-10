@@ -118,6 +118,7 @@ beforeEach(() => {
     reminderBanis: "[]",
     reminderSound: "default",
     transliterationLanguage: "ENGLISH",
+    isTransliteration: false,
   };
   mockHasNotificationPermission.mockImplementation(() => mockCheckPermissions());
   jest.spyOn(AppState, "addEventListener").mockImplementation((_, cb) => {
@@ -186,7 +187,7 @@ describe("turning the first reminder on", () => {
     const [write] = dispatched("SET_REMINDER_BANIS");
     const list = JSON.parse(write[0].value);
     expect(list.map((r) => r.enabled)).toEqual([false, true, false, false]);
-    expect(mockScheduleReminders).toHaveBeenCalledWith(true, "default", write[0].value);
+    expect(mockScheduleReminders).toHaveBeenCalledWith(true, "default", write[0].value, false);
   });
 
   it("finishes the tap when the user comes back from settings with the permission", async () => {
@@ -222,6 +223,6 @@ describe("with reminders already on", () => {
     expect(mockCheckPermissions).not.toHaveBeenCalled();
     const [write] = dispatched("SET_REMINDER_BANIS");
     expect(JSON.parse(write[0].value)[1].enabled).toBe(true);
-    expect(mockScheduleReminders).toHaveBeenCalledWith(true, "default", write[0].value);
+    expect(mockScheduleReminders).toHaveBeenCalledWith(true, "default", write[0].value, false);
   });
 });

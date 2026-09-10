@@ -24,6 +24,7 @@ const RemindersComponent = ({ navigation }) => {
   const reminderSound = useSelector((state) => state.reminderSound);
   const reminderBanis = useSelector((state) => state.reminderBanis);
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
+  const isTransliteration = useSelector((state) => state.isTransliteration);
   const [isReminderSound, toggleReminderSound] = useState(false);
 
   const dispatch = useDispatch();
@@ -39,7 +40,7 @@ const RemindersComponent = ({ navigation }) => {
   const handleSoundChange = async (sound) => {
     if (!isReminders) return;
     try {
-      await scheduleReminders(true, sound, reminderBanis);
+      await scheduleReminders(true, sound, reminderBanis, isTransliteration);
     } catch (error) {
       logError(error);
       logMessage("handleSoundChange: failed to reschedule reminders");
@@ -48,7 +49,7 @@ const RemindersComponent = ({ navigation }) => {
 
   const fetchBanis = async (value) => {
     const data = await getBaniList(transliterationLanguage);
-    setDefaultReminders(data, dispatch, value, reminderSound);
+    setDefaultReminders(data, dispatch, value, reminderSound, isTransliteration);
   };
 
   // Switching on keeps the list that is already there and only schedules it:
@@ -57,7 +58,7 @@ const RemindersComponent = ({ navigation }) => {
   const enableReminders = async () => {
     dispatch(actions.toggleReminders(true));
     if (parseReminders(reminderBanis).length) {
-      await scheduleReminders(true, reminderSound, reminderBanis);
+      await scheduleReminders(true, reminderSound, reminderBanis, isTransliteration);
     } else {
       await fetchBanis(true);
     }

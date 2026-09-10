@@ -15,11 +15,26 @@ jest.mock("@common/hooks/useTokens", () => () => ({
   layout: { screenGutter: 16, row: { minHeightTwoLine: 64 } },
   type: { display: {}, bodySmall: {} },
 }));
+jest.mock("@common/localization", () => ({
+  __esModule: true,
+  default: {
+    time_for: "Time for",
+    getString: (key, lang) =>
+      ({
+        "en-US": "Time for",
+        hi: "समां है",
+        pa: "ਸਮਾਂ ਹੈ",
+        fr: "Il est temps de",
+        it: "È l'ora di",
+        es: "Es ora de",
+      }[lang]),
+  },
+}));
 jest.mock("@common/actions", () => ({ setReminderBanis: jest.fn() }));
 jest.mock("@common", () => {
   const { Text, Switch } = require("react-native");
   return {
-    constant: { GURBANI_AKHAR_TRUE: "GurbaniAkharTrue" },
+    constant: { GURBANI_AKHAR_TRUE: "GurbaniAkharTrue", BALOO_PAAJI: "BalooPaaji2-Regular" },
     STRINGS: { time_for: "Time for", getString: () => "Time for" },
     scheduleReminders: jest.fn(),
     trackReminderEvent: jest.fn(),
@@ -45,7 +60,11 @@ describe("the reminder row's second line", () => {
         onToggle={jest.fn()}
       />
     );
-    expect(getByText("jpujI swihb")).toBeTruthy();
+    // Real Unicode Gurmukhi, not the legacy ASCII encoding the row used to
+    // show: this name is also what the notification says, where no Gurbani
+    // font exists to make "jpujI swihb" legible.
+    expect(getByText("ਜਪੁਜੀ ਸਾਹਿਬ")).toBeTruthy();
+    expect(queryByText("jpujI swihb")).toBeNull();
     expect(queryByText("Time for japji")).toBeNull();
   });
 
@@ -82,11 +101,13 @@ describe("the reminder row's second line", () => {
     expect(styles.some((s) => s.fontFamily === "GurbaniAkharTrue")).toBe(false);
   });
 
-  it("keeps the Gurbani face for an untouched name with transliteration off", () => {
+  it("draws the Gurmukhi name in a face that can render Unicode", () => {
+    // GurbaniAkhar draws the LEGACY encoding; handed Unicode it mangles it.
     const { getByText } = render(
       <ReminderRow section={base} onPress={jest.fn()} onToggle={jest.fn()} />
     );
-    const styles = [getByText("jpujI swihb").props.style].flat(Infinity).filter(Boolean);
-    expect(styles.some((s) => s.fontFamily === "GurbaniAkharTrue")).toBe(true);
+    const styles = [getByText("ਜਪੁਜੀ ਸਾਹਿਬ").props.style].flat(Infinity).filter(Boolean);
+    expect(styles.some((s) => s.fontFamily === "BalooPaaji2-Regular")).toBe(true);
+    expect(styles.some((s) => s.fontFamily === "GurbaniAkharTrue")).toBe(false);
   });
 });

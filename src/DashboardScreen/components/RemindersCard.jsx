@@ -8,6 +8,7 @@ import PropTypes from "prop-types";
 import useBaniLookup, { toTitleCase } from "@common/hooks/useBaniLookup";
 import useReminderPermissionGate from "@common/hooks/useReminderPermissionGate";
 import { SunriseIcon, SunsetIcon } from "@common/icons";
+import { reminderTitle } from "@common/reminders/title";
 import {
   CustomText,
   STRINGS,
@@ -161,6 +162,7 @@ const RemindersCard = () => {
   const reminderBanis = useSelector((state) => state.reminderBanis);
   const reminderSound = useSelector((state) => state.reminderSound);
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
+  const isTransliteration = useSelector((state) => state.isTransliteration);
 
   const stored = parse(reminderBanis);
 
@@ -181,15 +183,16 @@ const RemindersCard = () => {
         setPlaceholders(
           DEFAULT_INDEXES.map((idx, i) => {
             const b = list[idx];
-            return {
+            const item = {
               key: b.id,
               id: b.id,
               gurmukhi: b.gurmukhi,
+              gurmukhiUni: b.gurmukhiUni,
               translit: toTitleCase(b.translit),
               enabled: false,
-              title: `${STRINGS.time_for} ${toTitleCase(b.translit)}`,
               time: DEFAULT_TIMINGS[i],
             };
+            return { ...item, title: reminderTitle(item, isTransliteration) };
           })
         );
       })
@@ -212,7 +215,7 @@ const RemindersCard = () => {
       const array = base.map((item, i) => (i === idx ? { ...item, enabled: value } : item));
       const json = JSON.stringify(array);
       dispatch(actions.setReminderBanis(json));
-      await scheduleReminders(remindersOn, reminderSound, json);
+      await scheduleReminders(remindersOn, reminderSound, json, isTransliteration);
     },
     [stored, placeholders, reminderSound, dispatch]
   );

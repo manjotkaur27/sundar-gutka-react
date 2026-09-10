@@ -2,6 +2,47 @@
 // Jest setup file - runs before all tests
 // This centralizes common mocks so you don't have to repeat them in every test file
 
+// anvaad-js (Gurmukhi ASCII -> Unicode, used by convertToUnicode) ships a UMD
+// bundle that assigns to `self`. Node has no such global, so merely importing
+// it throws "self is not defined" and takes the whole suite with it. Pointing
+// `self` at the global object loads the REAL library rather than mocking it, so
+// a conversion under test is the conversion that ships.
+if (typeof global.self === "undefined") global.self = global;
+
+// react-native-localization asks a native module for the device locale, so
+// `new LocalizedStrings(...)` throws under jest and any file importing
+// common/localization fails to load at all. This is the same class over the
+// same translations, defaulting to en-US — the strings a test sees are the
+// strings the app ships, rather than a mock of them.
+jest.mock("react-native-localization", () => {
+  class LocalizedStrings {
+    constructor(translations) {
+      this.translations = translations;
+      this.setLanguage("en-US");
+    }
+
+    setLanguage(language) {
+      this.language = this.translations[language] ? language : "en-US";
+      Object.assign(this, this.translations[this.language]);
+    }
+
+    getLanguage() {
+      return this.language;
+    }
+
+    getString(key, language) {
+      const table = this.translations[language] || this.translations[this.language] || {};
+      return table[key];
+    }
+
+    getAvailableLanguages() {
+      return Object.keys(this.translations);
+    }
+  }
+
+  return LocalizedStrings;
+});
+
 // Mock react-redux hooks (factory functions are called inside jest.mock)
 jest.mock("react-redux", () => {
   const { createReactReduxMock } = require("@common/test-utils/mocks/react-redux");

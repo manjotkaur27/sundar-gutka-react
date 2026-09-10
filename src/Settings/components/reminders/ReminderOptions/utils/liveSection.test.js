@@ -1,6 +1,21 @@
 /* eslint-env jest */
 import { isCustomTitle, liveSection } from "./index";
 
+jest.mock("@common/localization", () => ({
+  __esModule: true,
+  default: {
+    time_for: "Time for",
+    getString: (key, lang) =>
+      ({
+        "en-US": "Time for",
+        hi: "समां है",
+        pa: "ਸਮਾਂ ਹੈ",
+        fr: "Il est temps de",
+        it: "È l'ora di",
+        es: "Es ora de",
+      }[lang]),
+  },
+}));
 jest.mock("@common/actions", () => ({ setReminderBanis: jest.fn() }));
 jest.mock("@common", () => ({
   scheduleReminders: jest.fn(),

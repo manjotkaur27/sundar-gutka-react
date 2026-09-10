@@ -80,7 +80,12 @@ describe("enabling reminders", () => {
   let appStateHandler;
   beforeEach(() => {
     jest.clearAllMocks();
-    mockState = { isReminders: false, reminderSound: "default", reminderBanis: "[]" };
+    mockState = {
+      isReminders: false,
+      reminderSound: "default",
+      reminderBanis: "[]",
+      isTransliteration: true,
+    };
     // The read-only check follows whatever the prompting one would say.
     mockHasNotificationPermission.mockImplementation(() => mockCheckPermissions());
     jest.spyOn(AppState, "addEventListener").mockImplementation((_, cb) => {
@@ -117,7 +122,9 @@ describe("enabling reminders", () => {
     expect(enabledDispatches()).toHaveLength(1);
     expect(mockSetDefaultReminders).not.toHaveBeenCalled();
     const { scheduleReminders } = jest.requireMock("@common");
-    expect(scheduleReminders).toHaveBeenCalledWith(true, "default", list);
+    // The transliteration setting rides along: a reminder title is resolved
+    // when the schedule is written, so the scheduler has to know the script.
+    expect(scheduleReminders).toHaveBeenCalledWith(true, "default", list, true);
   });
 
   it("explains a missing notification permission in the app's own dialog and stays off", async () => {

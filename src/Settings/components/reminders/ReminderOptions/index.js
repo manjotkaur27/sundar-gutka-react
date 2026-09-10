@@ -6,6 +6,7 @@ import moment from "moment";
 import PropTypes from "prop-types";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import useTokens from "@common/hooks/useTokens";
+import { reminderTitle } from "@common/reminders/title";
 import {
   constant,
   convertToUnicode,
@@ -76,7 +77,7 @@ const ReminderOptions = ({ navigation }) => {
     if (targetIndex === -1) return;
     array[targetIndex] = { ...array[targetIndex], enabled: value };
     dispatch(actions.setReminderBanis(JSON.stringify(array)));
-    await scheduleReminders(isReminders, reminderSound, JSON.stringify(array));
+    await scheduleReminders(isReminders, reminderSound, JSON.stringify(array), isTransliteration);
   };
 
   const createReminder = async (selectedOption) => {
@@ -89,18 +90,19 @@ const ReminderOptions = ({ navigation }) => {
         key: newObjKey,
         id: selectedOption.id,
         gurmukhi: selectedOption.gurmukhi,
+        gurmukhiUni: selectedOption.gurmukhiUni,
         translit: selectedOption.translit,
         enabled: true,
-        title: `${STRINGS.time_for} ${selectedOption.translit}`,
         time: moment(new Date()).local().format("h:mm A"),
       };
+      newObj.title = reminderTitle(newObj, isTransliteration);
 
       array.push(newObj);
     }
 
     dispatch(actions.setReminderBanis(JSON.stringify(array)));
     trackReminderEvent(constant.ADD_REMINDER, array);
-    await scheduleReminders(isReminders, reminderSound, JSON.stringify(array));
+    await scheduleReminders(isReminders, reminderSound, JSON.stringify(array), isTransliteration);
   };
 
   return (

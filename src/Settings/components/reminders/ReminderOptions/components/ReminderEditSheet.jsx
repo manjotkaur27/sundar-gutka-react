@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
 import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
+import { reminderTitle } from "@common/reminders/title";
 import {
   ConfirmDialogHost,
   constant,
@@ -53,12 +54,17 @@ const ReminderEditSheet = ({ section = null, visible, onClose }) => {
   const reminderBanis = useSelector((state) => state.reminderBanis);
   const isReminders = useSelector((state) => state.isReminders);
   const reminderSound = useSelector((state) => state.reminderSound);
+  const isTransliteration = useSelector((state) => state.isTransliteration);
 
   const [isTimePicker, toggleTimePicker] = useState(false);
   const [isLabelModal, toggleLabelModal] = useState(false);
 
   if (!section) return null;
-  const { key, time, title } = section;
+  const { key, time } = section;
+  // Resolved here rather than read off the stored title, so the heading follows
+  // the transliteration setting the same way the home bani list does. A title
+  // the user typed is returned untouched.
+  const title = reminderTitle(section, isTransliteration);
 
   const handleTimePicked = (formattedTime) => {
     const array = JSON.parse(reminderBanis);
@@ -72,7 +78,7 @@ const ReminderEditSheet = ({ section = null, visible, onClose }) => {
     }
     dispatch(setReminderBanis(JSON.stringify(array)));
     toggleTimePicker(false);
-    scheduleReminders(isReminders, reminderSound, JSON.stringify(array));
+    scheduleReminders(isReminders, reminderSound, JSON.stringify(array), isTransliteration);
     trackReminderEvent(constant.UPDATE_REMINDER, array[targetIndex]);
     onClose();
   };
@@ -90,7 +96,7 @@ const ReminderEditSheet = ({ section = null, visible, onClose }) => {
         // Rewrite the OS schedule too. Without this the reminder vanished from
         // the list but its notification stayed registered and kept firing —
         // deleting it only ever changed the app's own copy.
-        scheduleReminders(isReminders, reminderSound, JSON.stringify(arr));
+        scheduleReminders(isReminders, reminderSound, JSON.stringify(arr), isTransliteration);
         onClose();
       },
     });

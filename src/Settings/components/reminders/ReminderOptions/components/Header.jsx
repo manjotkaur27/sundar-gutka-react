@@ -20,6 +20,7 @@ const Header = ({ baniListData, navigation, onAdd }) => {
   const dispatch = useDispatch();
   const isReminders = useSelector((state) => state.isReminders);
   const reminderSound = useSelector((state) => state.reminderSound);
+  const isTransliteration = useSelector((state) => state.isTransliteration);
 
   const action = (name, label, onPress) => (
     <Pressable
@@ -57,7 +58,13 @@ const Header = ({ baniListData, navigation, onAdd }) => {
                   confirmText: STRINGS.reset,
                   destructive: true,
                   onConfirm: () =>
-                    setDefaultReminders(baniListData, dispatch, isReminders, reminderSound),
+                    setDefaultReminders(
+                      baniListData,
+                      dispatch,
+                      isReminders,
+                      reminderSound,
+                      isTransliteration
+                    ),
                 })
               )}
               {action("add", STRINGS.ADD_BANI, onAdd)}

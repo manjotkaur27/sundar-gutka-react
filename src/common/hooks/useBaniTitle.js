@@ -1,16 +1,17 @@
 import { useCallback } from "react";
 import { useSelector } from "react-redux";
 import constant from "../constant";
-import convertToUnicode from "../utils";
+import { baniName } from "../reminders/title";
 
 /**
  * How a bani's name is displayed, and in which face.
  *
- * ONE implementation. This is the rule the home bani list has always used
- * (`BaniList.getBaniTuk`); My Pothi grew a second, shorter copy of it that
- * skipped the transliteration branch entirely, so the same bani appeared in
- * Gurmukhi inside a pothi while the list behind it showed Latin. Anything that
- * renders a bani name reads this instead of re-deriving it.
+ * ONE implementation, and it lives in reminders/title as `baniName` so the
+ * notification path can share it without pulling React in. This hook is that
+ * rule plus the two settings it needs. My Pothi once grew a second, shorter
+ * copy that skipped the transliteration branch entirely, so the same bani
+ * appeared in Gurmukhi inside a pothi while the list behind it showed Latin.
+ * Anything that renders a bani name reads this instead of re-deriving it.
  *
  * The order matters: transliteration WINS. It is an explicit user choice about
  * the script they read in, so it is checked before the Gurmukhi font question
@@ -27,12 +28,7 @@ const useBaniTitle = () => {
   const isUnicode = fontFace === constant.BALOO_PAAJI;
 
   const titleFor = useCallback(
-    (bani) => {
-      if (!bani) return "";
-      if (isTransliteration) return bani.translit;
-      if (isUnicode) return bani.gurmukhiUni || convertToUnicode(bani.gurmukhi);
-      return bani.gurmukhi;
-    },
+    (bani) => baniName(bani, { isTransliteration, unicode: isUnicode }),
     [isTransliteration, isUnicode]
   );
 

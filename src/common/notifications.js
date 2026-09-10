@@ -9,6 +9,7 @@ import notifee, {
 import { FallBack } from "./components";
 import constant from "./constant";
 import { logError, logMessage } from "./firebase/crashlytics";
+import { reminderTitle } from "./reminders/title";
 
 /**
  * Whether the OS will let us schedule a reminder at an exact time.
@@ -166,7 +167,7 @@ export const pruneStaleChannels = async (keepIds) => {
   }
 };
 
-export const createReminder = async (notification, sound) => {
+export const createReminder = async (notification, sound, isTransliteration = false) => {
   const androidChannel = {
     channelId: channelIdFor(sound),
     // NOT ic_launcher_foreground. That resource exists only as
@@ -204,12 +205,19 @@ export const createReminder = async (notification, sound) => {
     // Create notification
     await notifee.createTriggerNotification(
       {
-        title: notification.title,
+        // Resolved at SCHEDULE time, not read from the stored string: the name
+        // must follow the transliteration setting, and a title written months
+        // ago cannot know what that setting is now.
+        title: reminderTitle(notification, isTransliteration),
         body: notification.time,
         data: {
           id: notification.id.toString(),
-          gurmukhi: notification.gurmukhi,
-          translit: String(notification.translit) || "",
+          // Strings only, and every one of them coerced the same way. notifee
+          // rejects a non-string value here, and `String(x) || ""` does not
+          // guard a missing field: String(undefined) is the truthy text
+          // "undefined", so the fallback never fires and that is what gets stored.
+          gurmukhi: String(notification.gurmukhi || ""),
+          translit: String(notification.translit || ""),
         },
         android: androidChannel,
         ios: {
@@ -242,7 +250,7 @@ export const createReminder = async (notification, sound) => {
  *
  * @returns {Promise<number>} how many reminders were re-armed.
  */
-export const rearmReminders = async (sound, remindersList) => {
+export const rearmReminders = async (sound, remindersList, isTransliteration = false) => {
   if (!(await canScheduleExactAlarms())) return 0;
 
   let reminders;
@@ -255,7 +263,9 @@ export const rearmReminders = async (sound, remindersList) => {
   if (reminders.length === 0) return 0;
 
   await notifee.cancelTriggerNotifications();
-  await Promise.all(reminders.map((reminder) => createReminder(reminder, sound)));
+  await Promise.all(
+    reminders.map((reminder) => createReminder(reminder, sound, isTransliteration))
+  );
   return reminders.length;
 };
 
@@ -278,7 +288,12 @@ export const cancelAllReminders = async () => {
   await notifee.cancelAllNotifications();
 };
 
-export const updateReminders = async (remindersOn, sound, remindersList) => {
+export const updateReminders = async (
+  remindersOn,
+  sound,
+  remindersList,
+  isTransliteration = false
+) => {
   await cancelAllReminders();
   const channels = [
     {
@@ -331,7 +346,9 @@ export const updateReminders = async (remindersOn, sound, remindersList) => {
     return { scheduled: 0, blocked: true };
   }
 
-  await Promise.all(reminders.map((reminder) => createReminder(reminder, sound)));
+  await Promise.all(
+    reminders.map((reminder) => createReminder(reminder, sound, isTransliteration))
+  );
   return { scheduled: reminders.length, blocked: false };
 };
 

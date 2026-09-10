@@ -1,5 +1,8 @@
 import { setReminderBanis } from "@common/actions";
-import { scheduleReminders, constant, trackReminderEvent, STRINGS } from "@common";
+import { reminderTitle } from "@common/reminders/title";
+import { scheduleReminders, constant, trackReminderEvent } from "@common";
+
+export { isCustomTitle } from "@common/reminders/title";
 
 /**
  * The reminder the edit sheet should show, read from the store as it is NOW.
@@ -14,33 +17,6 @@ import { scheduleReminders, constant, trackReminderEvent, STRINGS } from "@commo
  * `rows` the display list with the bani's translit/gurmukhi/label resolved.
  * Returns null once the reminder no longer exists, which closes the sheet.
  */
-// Every language's stock title begins with its own "Time for". A title that
-// starts with none of them was typed by the user.
-const STOCK_TITLE_LANGUAGES = ["en-US", "hi", "pa", "fr", "it", "es"];
-const stockTitlePrefixes = () =>
-  STOCK_TITLE_LANGUAGES.map((lang) =>
-    typeof STRINGS.getString === "function"
-      ? STRINGS.getString("time_for", lang) || STRINGS.time_for
-      : STRINGS.time_for
-  ).filter(Boolean);
-
-/**
- * Whether a reminder's notification title is the user's own words.
- *
- * A rename sets `titleCustom`, but titles renamed before that flag existed have
- * no flag — so the text itself is the fallback: the stock title is
- * "<Time for> <bani>" in whichever language it was created in, and a title
- * that opens with none of those six prefixes was typed. Prefix only, so a
- * later language or transliteration switch cannot make an untouched title
- * look customised.
- */
-export const isCustomTitle = (section) => {
-  if (!section || !section.title) return false;
-  if (section.titleCustom) return true;
-  const title = String(section.title);
-  return !stockTitlePrefixes().some((prefix) => title.startsWith(`${prefix} `));
-};
-
 export const liveSection = (parsed, rows, editing) => {
   if (!editing) return null;
   const stored = (parsed || []).find((item) => item.key === editing.key);
@@ -49,7 +25,13 @@ export const liveSection = (parsed, rows, editing) => {
   return { ...editing, ...row, ...stored };
 };
 
-const setDefaultReminders = async (baniListData, dispatch, isReminders, reminderSound) => {
+const setDefaultReminders = async (
+  baniListData,
+  dispatch,
+  isReminders,
+  reminderSound,
+  isTransliteration = false
+) => {
   const baniList = baniListData;
 
   const defaultReminders = () => {
@@ -57,15 +39,16 @@ const setDefaultReminders = async (baniListData, dispatch, isReminders, reminder
     const defaultTimings = ["3:00 AM", "3:30 AM", "6:00 PM", "10:00 PM"];
     return defaultIndexes.map((index, idx) => {
       const bani = baniList[index];
-      return {
+      const item = {
         key: bani.id,
         id: bani.id,
         gurmukhi: bani.gurmukhi,
+        gurmukhiUni: bani.gurmukhiUni,
         translit: bani.translit,
         enabled: true,
-        title: `${STRINGS.time_for} ${bani.translit}`,
         time: defaultTimings[idx],
       };
+      return { ...item, title: reminderTitle(item, isTransliteration) };
     });
   };
   const data = defaultReminders();

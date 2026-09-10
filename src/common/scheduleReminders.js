@@ -16,10 +16,14 @@ import { openExactAlarmSettings, updateReminders } from "./notifications";
  * The prompt is a normal confirm, not a hard block: the user may genuinely want
  * to say no, and everything else about the screen still works if they do.
  *
+ * `isTransliteration` rides along because the notification title is resolved
+ * when the schedule is written, not when the reminder was created — see
+ * common/reminders/title.
+ *
  * @returns {Promise<{scheduled: number, blocked: boolean}>}
  */
-const scheduleReminders = async (remindersOn, sound, remindersList) => {
-  const result = await updateReminders(remindersOn, sound, remindersList);
+const scheduleReminders = async (remindersOn, sound, remindersList, isTransliteration = false) => {
+  const result = await updateReminders(remindersOn, sound, remindersList, isTransliteration);
 
   if (result?.blocked) {
     showConfirm({

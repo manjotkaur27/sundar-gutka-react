@@ -1,8 +1,73 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-index b2409a0..1b2fff5 100644
+index b2409a0..ea8db8b 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-@@ -235,12 +235,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -34,6 +34,13 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+     private var playerOptions: Bundle? = null
+     private var isServiceBound = false
+     private var playerSetUpPromise: Promise? = null
++
++    // Set when setting the player up threw for a reason that cannot change on
++    // this device (see onServiceConnected). Sticky, because without it the next
++    // setupPlayer() sees isServiceBound and answers player_already_initialized,
++    // which the JS side reads as success — leaving an audio player on screen
++    // that can never play anything.
++    private var playerSetUpFailed = false
+     private val scope = MainScope()
+     private lateinit var musicService: MusicService
+     private val context = reactContext
+@@ -54,7 +61,34 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+             if (!::musicService.isInitialized) {
+                 val binder: MusicService.MusicBinder = service as MusicService.MusicBinder
+                 musicService = binder.service
+-                musicService.setupPlayer(playerOptions)
++                try {
++                    musicService.setupPlayer(playerOptions)
++                } catch (e: Throwable) {
++                    // setupPlayer builds a MediaSessionCompat, which asks the system to
++                    // create a session for this package name. On a CLONED install — Dual
++                    // Apps, parallel space, App Cloner — the process runs under a
++                    // different UID from the one that owns the package, so the system's
++                    // enforcePackageName refuses it:
++                    //   IllegalArgumentException: packageName is not owned by the calling process
++                    //
++                    // This runs in a coroutine on the main handler, NOT on the promise
++                    // path the JS side awaits, so an uncaught throw here leaves the
++                    // coroutine and kills the process: the whole app died on the first
++                    // bani opened with audio.
++                    //
++                    // Rejecting instead leaves the player unset. Audio is unavailable on
++                    // such a device, which it was going to be either way, and reading is
++                    // untouched. The code is deliberately not player_not_initialized —
++                    // that one means "bind again", and binding again cannot help here.
++                    playerSetUpFailed = true
++                    playerSetUpPromise?.reject(
++                        "android_cannot_setup_player",
++                        "Could not set up the player: ${e.message}"
++                    )
++                    playerSetUpPromise = null
++                    isServiceBound = true
++                    return@launch
++                }
+                 playerSetUpPromise?.resolve(null)
+             }
+ 
+@@ -161,6 +195,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+ 
+     @ReactMethod
+     fun setupPlayer(data: ReadableMap?, promise: Promise) {
++        if (playerSetUpFailed) {
++            promise.reject(
++                "android_cannot_setup_player",
++                "The player could not be set up on this device."
++            )
++            return
++        }
++
+         if (isServiceBound) {
+             promise.reject(
+                 "player_already_initialized",
+@@ -235,12 +277,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          )
  
          Intent(context, MusicService::class.java).also { intent ->

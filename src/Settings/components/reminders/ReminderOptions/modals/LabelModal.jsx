@@ -38,6 +38,7 @@ const LabelModal = ({ section, onHide }) => {
   const reminderBanis = useSelector((state) => state.reminderBanis);
   const isReminders = useSelector((state) => state.isReminders);
   const reminderSound = useSelector((state) => state.reminderSound);
+  const isTransliteration = useSelector((state) => state.isTransliteration);
   const dispatch = useDispatch();
 
   const cleanedTitle = cleanTitle(reminderTitle);
@@ -57,7 +58,9 @@ const LabelModal = ({ section, onHide }) => {
     dispatch(setReminderBanis(JSON.stringify(array)));
     // The title is saved by the dispatch above; a failed reschedule must not
     // surface as an unhandled rejection that looks like the save failed.
-    scheduleReminders(isReminders, reminderSound, JSON.stringify(array)).catch(logError);
+    scheduleReminders(isReminders, reminderSound, JSON.stringify(array), isTransliteration).catch(
+      logError
+    );
     onHide();
   };
 

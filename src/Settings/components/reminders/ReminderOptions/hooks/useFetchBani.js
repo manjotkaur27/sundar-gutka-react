@@ -57,7 +57,7 @@ const useFetchBani = (setBaniListData, setReminderBaniData, setStateData, parsed
           })
         );
       } else {
-        await setDefaultReminders(data, dispatch, isReminders, reminderSound);
+        await setDefaultReminders(data, dispatch, isReminders, reminderSound, isTransliteration);
       }
     } catch (error) {
       logError(error);
