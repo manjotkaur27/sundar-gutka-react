@@ -316,6 +316,51 @@ describe("usePothiSync default-pothi reseeding", () => {
     });
   });
 
+  // The test above builds a FRESH pothi object for each sign-out, which is not
+  // what the reducer does. Its initial state is one object built at module load
+  // and handed back by reference every time the slice is cleared. The latch was
+  // set on that object by the first seed and matched it again on the second
+  // sign-out, so the first sign-out showed the defaults and the second showed
+  // an empty list — exactly what was reported.
+  it("reseeds on a second sign-out when the reducer hands back the SAME initial object", async () => {
+    const INITIAL = { folders: [], seededDefaults: false, lastSyncedAt: null, deletedIds: [] };
+    const signedOutOn = (pothis) => {
+      mockState = { auth: { status: "signedOut" }, baniList: [{ id: 1 }], pothis };
+    };
+    const seeded = () =>
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: "SEED_DEFAULT_POTHIS",
+        folders: [{ id: "default_morning_nitnem" }],
+      });
+
+    signedOutOn(INITIAL);
+    const { rerender } = renderHook(() => usePothiSync());
+    await flush(0);
+    seeded();
+    mockDispatch.mockClear();
+
+    // Three more sign-in / sign-out rounds, without a restart in between. Each
+    // sign-out clears the slice and the reducer returns its ONE initial object
+    // again, so every round has to seed afresh.
+    for (let round = 0; round < 3; round += 1) {
+      // The store reflects the seed, still signed out.
+      signedOutOn({
+        ...INITIAL,
+        folders: [{ id: "default_morning_nitnem" }],
+        seededDefaults: true,
+      });
+      rerender();
+      signedInWith([{ id: "default_morning_nitnem" }]);
+      rerender();
+      signedOutOn(INITIAL);
+      rerender();
+      // eslint-disable-next-line no-await-in-loop
+      await flush(0);
+
+      seeded();
+      mockDispatch.mockClear();
+    }
+  });
   it("does not reseed while already seeded", () => {
     signedOutWith({ folders: [{ id: "default_morning_nitnem" }], seededDefaults: true });
     renderHook(() => usePothiSync());

@@ -108,6 +108,14 @@ const usePothiSync = () => {
   }, [isSignedIn, baniList, fallbackBanis, pothis, transliterationLanguage]);
 
   useEffect(() => {
+    // Release the latch the moment the store has moved on from the object it
+    // was set for. It only has to cover the render between dispatching the seed
+    // and the store reflecting it. Left holding, it matched again on the NEXT
+    // sign-out: the reducer's initial state is one object built at module load
+    // and handed back by reference every time the slice is cleared, so the
+    // second sign-out found the very object the first had seeded for and the
+    // defaults never came back.
+    if (seededFor.current && seededFor.current !== pothis) seededFor.current = null;
     if (isSignedIn) return;
     if (!pothis || pothis.seededDefaults || seededFor.current === pothis) return;
     if (pothis.folders?.length) return;
