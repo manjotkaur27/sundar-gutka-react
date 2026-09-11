@@ -6,7 +6,6 @@ import notifee, {
   AndroidNotificationSetting,
   AuthorizationStatus,
 } from "@notifee/react-native";
-import { FallBack } from "./components";
 import constant from "./constant";
 import { logError, logMessage } from "./firebase/crashlytics";
 import { reminderTitle } from "./reminders/title";
@@ -229,9 +228,14 @@ export const createReminder = async (notification, sound, isTransliteration = fa
       trigger
     );
   } catch (error) {
+    // Logged and swallowed: one reminder failing to schedule must not take the
+    // rest of the batch with it. There is deliberately nothing shown here -
+    // this runs in the background with no UI of its own, and the error screen
+    // it used to call belongs to an error boundary. Invoking that component as
+    // a plain function ran its hooks outside React's render, so the handler
+    // threw "Invalid hook call" and buried the failure it was meant to report.
     logError(error);
     logMessage("createReminder: Failed to create reminder");
-    FallBack();
   }
 };
 

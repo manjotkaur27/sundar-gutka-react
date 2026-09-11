@@ -1,8 +1,10 @@
 import { Platform } from "react-native";
 import notifee, { AndroidNotificationSetting } from "@notifee/react-native";
+import { logError } from "./firebase/crashlytics";
 import {
   canScheduleExactAlarms,
   channelIdFor,
+  createReminder,
   iosSoundName,
   rearmReminders,
   updateReminders,
@@ -37,7 +39,6 @@ jest.mock("@notifee/react-native", () => ({
   AuthorizationStatus: { DENIED: 0, AUTHORIZED: 1 },
 }));
 
-jest.mock("./components", () => ({ FallBack: jest.fn() }));
 jest.mock("./firebase/crashlytics", () => ({ logError: jest.fn(), logMessage: jest.fn() }));
 
 const reminder = (over = {}) => ({
@@ -360,5 +361,21 @@ describe("openNotificationSettings", () => {
     await require("./notifications").openNotificationSettings();
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+});
+
+describe("a reminder that cannot be scheduled", () => {
+  it("logs and moves on instead of throwing a second error over the first", async () => {
+    // The catch used to call FallBack(), the error-boundary SCREEN, as a plain
+    // function. That ran its hooks outside React's render and threw "Invalid
+    // hook call", which buried the real failure and reported a React bug
+    // instead. Nothing can be rendered from here: this runs in the background.
+    notifee.createTriggerNotification.mockRejectedValueOnce(new Error("no slots"));
+
+    await expect(
+      createReminder({ id: 1, time: "6:00 AM", gurmukhi: "g", translit: "t" }, "sound")
+    ).resolves.toBeUndefined();
+
+    expect(logError).toHaveBeenCalled();
   });
 });
