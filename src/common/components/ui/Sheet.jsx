@@ -30,6 +30,7 @@ const SheetContent = ({
   scrollable = true,
   testID = undefined,
   variant = "floating",
+  actions = null,
   footer = null,
 }) => {
   // Two presentations, both driven entirely by tokens.
@@ -183,25 +184,39 @@ const SheetContent = ({
                 implement — dismissal is the scrim and the Cancel button — and
                 it was asked to go from every sheet. */}
             {title ? (
-              <Text
-                // Flush titles sit at body size, centred — the same treatment
-                // the old sheet's title carried.
-                variant={flush ? "body" : "subheading"}
-                color="textPrimary"
-                style={
-                  flush
-                    ? {
-                        textAlign: "center",
-                        // Padding rather than a height, so a translated title
-                        // that wraps to two lines grows the block instead of
-                        // being clipped by it.
-                        padding: layout.sheet.titlePadding,
-                      }
-                    : { marginBottom: space.sm }
-                }
+              // The title shares its row with any `actions`, the same three-column
+              // arrangement ScreenHeader uses. The actions are fixed-size tap
+              // targets that do not shrink, and the title takes everything they
+              // leave and WRAPS into it — so a long pothi name grows the row
+              // rather than running under an icon or pushing one off the edge.
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: space.sm,
+                  marginBottom: flush ? 0 : space.sm,
+                }}
               >
-                {title}
-              </Text>
+                <Text
+                  // Flush titles sit at body size, centred — the same treatment
+                  // the old sheet's title carried.
+                  variant={flush ? "body" : "subheading"}
+                  color="textPrimary"
+                  style={[
+                    { flexShrink: 1, flexGrow: 1 },
+                    flush && {
+                      textAlign: "center",
+                      // Padding rather than a height, so a translated title
+                      // that wraps to two lines grows the block instead of
+                      // being clipped by it.
+                      padding: layout.sheet.titlePadding,
+                    },
+                  ]}
+                >
+                  {title}
+                </Text>
+                {actions}
+              </View>
             ) : null}
 
             {/* The rule under a flush title. StyleSheet.hairlineWidth rounds to
@@ -245,6 +260,12 @@ const sheetPropTypes = {
   closeAccessibilityLabel: PropTypes.string,
   /** Set false when the content manages its own scrolling (e.g. a FlatList). */
   scrollable: PropTypes.bool,
+  /**
+   * Controls for the title's row, at its trailing edge. A sheet whose actions
+   * live here rather than under its body keeps them reachable with a keyboard
+   * up and without scrolling a long list to the end.
+   */
+  actions: PropTypes.node,
   /** Pinned below the scrolling body — an on-screen keyboard, a sticky action. */
   footer: PropTypes.node,
   testID: PropTypes.string,

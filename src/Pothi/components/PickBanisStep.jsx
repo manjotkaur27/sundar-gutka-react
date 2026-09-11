@@ -5,17 +5,12 @@ import useBaniTitle from "@common/hooks/useBaniTitle";
 import useTokens from "@common/hooks/useTokens";
 import { makeBaniItem } from "@common/pothi/model";
 import { STRINGS } from "@common";
-import {
-  Button,
-  GurmukhiKeyboardToggle,
-  GurmukhiTextField,
-  Text,
-} from "../../common/components/ui";
+import { GurmukhiKeyboardToggle, GurmukhiTextField, Text } from "../../common/components/ui";
 import BaniPickRow from "./BaniPickRow";
 import { baniCountLabel } from "./PothiRow";
 
 // "Choose banis" as a whole sheet step: the count, the keyboard switch, the
-// search field, the scrolling list and the two actions.
+// search field and the scrolling list.
 //
 // ONE implementation, used by both places that offer it — the second step of
 // creating a pothi, and Add Banis on a pothi that already exists. Those were two
@@ -26,9 +21,10 @@ import { baniCountLabel } from "./PothiRow";
 // The picker is always expanded. It is the entire step, so there is nothing to
 // collapse back into and nothing else on the sheet competing for the height.
 //
-// The in-app keyboard is deliberately NOT here: only the host `Sheet` can pin
-// something outside its own scrolling body, so each caller puts the keys in its
-// `footer` and passes the state down.
+// Two things are deliberately NOT here, because only the host `Sheet` can place
+// them outside its own scrolling body: the in-app keyboard, which each caller
+// puts in the sheet's `footer`, and the cancel and confirm controls, which go in
+// its title row — see `SheetActions`.
 const PickBanisStep = ({
   picked,
   onChange,
@@ -37,10 +33,6 @@ const PickBanisStep = ({
   onQueryChange,
   gurmukhiOpen,
   onToggleGurmukhi,
-  onCancel,
-  confirmTitle,
-  onConfirm,
-  confirmDisabled = false,
 }) => {
   const { space } = useTokens();
   const { titleFor, titleFontFamily } = useBaniTitle();
@@ -68,12 +60,10 @@ const PickBanisStep = ({
     onChange([...picked, makeBaniItem({ baaniId: bani.id, title: titleFor(bani) })]);
   };
 
-  const grow = { flexGrow: 1, flexBasis: "auto" };
-
   return (
     // `flexShrink` has to run the whole way down: the sheet body shrinks, so
-    // this column must too, or the capped list below never gives up its height
-    // to the actions underneath it.
+    // this column must too, or the list below never gives up its height to the
+    // keys underneath it.
     <View style={{ gap: space.lg, flexShrink: 1 }}>
       {/* The count is a readout, not an action, so it rides the switch's row
           rather than owning one — no extra height, no tap target. */}
@@ -118,8 +108,8 @@ const PickBanisStep = ({
           every drag, which is why scrolling these sheets was so hard. And the
           cap was measured against the FULL window with a `listMinHeight`
           FLOOR — so with the keys up it went on claiming height that no longer
-          existed, and the search field and both buttons were pushed off the
-          bottom of a sheet that could not scroll to reach them.
+          existed, and the search field was pushed off the bottom of a sheet
+          that could not scroll to reach it.
 
           Rendered inline, the column is simply as tall as it is and the sheet
           scrolls it. Nothing is ever unreachable at any text size, and the keys
@@ -137,20 +127,6 @@ const PickBanisStep = ({
           />
         ))}
       </View>
-
-      {/* Wraps rather than clips: at a large OS font size two translated labels
-          do not fit one row, and each grows to share the width it does get. */}
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          justifyContent: "flex-end",
-          gap: space.sm,
-        }}
-      >
-        <Button title={STRINGS.CANCEL} onPress={onCancel} variant="ghost" style={grow} />
-        <Button title={confirmTitle} onPress={onConfirm} disabled={confirmDisabled} style={grow} />
-      </View>
     </View>
   );
 };
@@ -166,11 +142,6 @@ PickBanisStep.propTypes = {
   /** Whether the sheet's in-app keyboard is up; the caller renders the keys. */
   gurmukhiOpen: PropTypes.bool.isRequired,
   onToggleGurmukhi: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired,
-  /** Label for the confirming action — "Create" here, "Done" there. */
-  confirmTitle: PropTypes.string.isRequired,
-  onConfirm: PropTypes.func.isRequired,
-  confirmDisabled: PropTypes.bool,
 };
 
 export default PickBanisStep;

@@ -5,13 +5,15 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
+import { SaveIcon } from "@common/icons";
 import { isDefaultPothi, isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
-import { actions, ConfirmDialogHost, STRINGS, trackPothiEvent } from "@common";
+import { actions, ConfirmDialogHost, showConfirm, STRINGS, trackPothiEvent } from "@common";
 import {
   Button,
   GurmukhiKeyboard,
   GurmukhiKeyboardToggle,
   Sheet,
+  SheetActions,
 } from "../../common/components/ui";
 import useDeletePothi from "../hooks/useDeletePothi";
 import useRequireOnline from "../hooks/useRequireOnline";
@@ -72,6 +74,32 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
   // platforms. Cancelling now leaves the sheet up, which is where the user was.
   const askDelete = () => confirmDelete(pothi, onClose);
 
+  // Back out of the sheet, not into a menu the user never came through.
+  // Opened from the folder screen's overflow, rename IS the sheet —
+  // `startRenaming` skips the choice row on the way in, so falling back to it
+  // on the way out stranded the user on a panel whose only content was a
+  // second Rename button (and not even a Delete beside it, for a default
+  // pothi). Long-pressed from the Folders tab, where that row is where rename
+  // was chosen, it still returns to it.
+  const leaveRename = () => (startRenaming ? onClose() : setRenaming(false));
+
+  // Asked only when there is something to lose. Backing out of a name the
+  // user never changed is not a discard, and being questioned about it is one
+  // more tap for nothing.
+  const cancelRename = () => {
+    if (name === pothi.name) {
+      leaveRename();
+      return;
+    }
+    showConfirm({
+      title: STRINGS.formatString(STRINGS.POTHI_DISCARD_EDITS_CONFIRM, { name: pothi.name }),
+      cancelText: STRINGS.POTHI_KEEP_EDITING,
+      confirmText: STRINGS.POTHI_DISCARD,
+      destructive: true,
+      onConfirm: leaveRename,
+    });
+  };
+
   const actionRow = (children) => (
     <View
       style={{
@@ -95,6 +123,22 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
         visible={visible}
         onClose={onClose}
         title={pothi.name}
+        // While renaming, in the title row rather than under the field: the
+        // Punjabi keyboard is pinned below and covers anything down there at a
+        // raised text size — see SheetActions. The choice row is left as
+        // buttons, because Delete and Rename are choices, not a confirmation.
+        actions={
+          renaming ? (
+            <SheetActions
+              onCancel={cancelRename}
+              cancelLabel={STRINGS.CANCEL}
+              confirmIcon={SaveIcon}
+              confirmLabel={STRINGS.SAVE}
+              onConfirm={submitRename}
+              confirmDisabled={!isValidName(name)}
+            />
+          ) : null
+        }
         // Scrollable, because renaming pins the Punjabi keyboard below this.
         // As a plain View the body could only be squeezed by it, so at a raised
         // text size the name field and Save were clipped away rather than being
@@ -128,31 +172,6 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
                 receivingKeys={gurmukhi}
                 onFocus={() => {}}
               />
-              {actionRow(
-                <>
-                  <Button
-                    title={STRINGS.CANCEL}
-                    // Back out of the sheet, not into a menu the user never
-                    // came through. Opened from the folder screen's overflow,
-                    // rename IS the sheet — `startRenaming` skips the choice
-                    // row on the way in, so falling back to it on the way out
-                    // stranded the user on a panel whose only content was a
-                    // second Rename button (and not even a Delete beside it,
-                    // for a default pothi). Long-pressed from the Folders tab,
-                    // where that row is where rename was chosen, Cancel still
-                    // returns to it.
-                    onPress={startRenaming ? onClose : () => setRenaming(false)}
-                    variant="ghost"
-                    style={grow}
-                  />
-                  <Button
-                    title={STRINGS.SAVE}
-                    onPress={submitRename}
-                    disabled={!isValidName(name)}
-                    style={grow}
-                  />
-                </>
-              )}
             </>
           ) : (
             actionRow(

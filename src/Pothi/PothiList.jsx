@@ -8,7 +8,7 @@ import PropTypes from "prop-types";
 import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { DragHandleIcon } from "@common/icons";
-import { countPinned, emptyPothis, MAX_PINNED } from "@common/pothi/model";
+import { emptyPothis, MAX_PINNED } from "@common/pothi/model";
 import { folderTabRows, resolveBanis } from "@common/pothi/selectors";
 import { actions, STRINGS, trackPothiEvent, useCustomScrollbar } from "@common";
 import { ListSeparator, Text } from "../common/components/ui";
@@ -40,6 +40,18 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
   const pothis = useSelector((state) => state.pothis) ?? emptyPothis();
   // Reading a pothi works offline; changing one does not. See useRequireOnline.
   const requireOnline = useRequireOnline();
+  // Pinning and reordering are the exceptions, and refusing them signed out was
+  // worse than pointless: the drag handle is offered, the row animates and
+  // visually swaps, and only THEN is the write refused — so the list is left
+  // drawing an order the store does not have, which is where the rows landing
+  // on the header and the gaps between them came from.
+  //
+  // They are also meaningful without an account, in the way `localEdit` already
+  // means: signed out there are only the two seeded pothis, and putting them in
+  // the reader's own order is their arrangement of their own list. Signed in it
+  // lands in the same folders and syncs like any other edit — `pinned` is part
+  // of what goes up the wire, and a reorder stamps every folder that moved.
+  const requireLocal = useRequireOnline({ localEdit: true });
   // The app-wide themed scrollbar, not a standalone one.
   const { ownedScrollProps, Indicator } = useCustomScrollbar();
   const { titleFor, variantFor } = usePothiTitle();
@@ -87,6 +99,15 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
   // cannot reach them and there is nothing to snap back.
   const pinned = useMemo(() => rows.filter((row) => !row.system && row.pinned), [rows]);
   const mine = useMemo(() => rows.filter((row) => !row.system && !row.pinned), [rows]);
+  // The pin count, read through a ref so the handler below does not depend on
+  // the store.
+  //
+  // It did, and that made `renderItem` a NEW function after every reorder —
+  // the store changes, so the callback changes, so the list re-renders every
+  // cell at the exact moment the drag has ended and the cells are settling
+  // back. Keeping the identity stable leaves that moment alone.
+  const pinnedCountRef = useRef(pinned.length);
+  pinnedCountRef.current = pinned.length;
 
   // A pothi's banis open on their own screen, in the ordinary All Banis list,
   // so a bani inside a pothi behaves exactly as it does anywhere else — the
@@ -109,17 +130,17 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
 
   const togglePin = useCallback(
     (row) => {
-      if (!requireOnline()) return;
+      if (!requireLocal()) return;
       // The model refuses a fourth pin by returning the same state, so the
       // ceiling is checked here to say WHY nothing happened.
-      if (!row.pinned && countPinned(pothis) >= MAX_PINNED) {
+      if (!row.pinned && pinnedCountRef.current >= MAX_PINNED) {
         onPinLimit();
         return;
       }
       trackPothiEvent(row.pinned ? "unpinned" : "pinned", { pothi_size: row.count });
       dispatch(actions.togglePothiPin(row.id));
     },
-    [dispatch, pothis, onPinLimit, requireOnline]
+    [dispatch, onPinLimit, requireLocal]
   );
 
   const renderPothi = useCallback(
@@ -243,7 +264,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         onDragBegin={() => setDragging(true)}
         onDragEnd={({ data }) => {
           setDragging(false);
-          if (!requireOnline()) return;
+          if (!requireLocal()) return;
           const next = data.map((row) => row.id);
           trackPothiEvent("reordered", { count: next.length });
           dispatch(actions.setPothiOrder(next));
@@ -254,7 +275,12 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         )}
         ItemSeparatorComponent={ListSeparator}
         ListHeaderComponent={header}
-        ListEmptyComponent={empty}
+        // Measured against EVERY user pothi, not against this list's data.
+        // Its data is the unpinned lane alone — a pinned pothi is lifted out
+        // into the header so the drag cannot reach it — so pinning the last
+        // one emptied the lane and the list announced "no pothis yet" over a
+        // header still showing them.
+        ListEmptyComponent={pinned.length ? null : empty}
         ListFooterComponent={footer}
         refreshControl={
           signedIn ? (

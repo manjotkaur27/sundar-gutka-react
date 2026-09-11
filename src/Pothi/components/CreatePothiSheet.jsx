@@ -3,7 +3,9 @@ import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
+import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
+import { ArrowRightIcon, SaveIcon } from "@common/icons";
 import {
   createPothi,
   isValidName,
@@ -11,12 +13,19 @@ import {
   MAX_FOLDERS,
   MAX_NAME_LENGTH,
 } from "@common/pothi/model";
-import { actions, showToast, STRINGS, trackPothiEvent } from "@common";
 import {
-  Button,
+  actions,
+  ConfirmDialogHost,
+  showConfirm,
+  showToast,
+  STRINGS,
+  trackPothiEvent,
+} from "@common";
+import {
   GurmukhiKeyboard,
   GurmukhiKeyboardToggle,
   Sheet,
+  SheetActions,
 } from "../../common/components/ui";
 import useRequireOnline from "../hooks/useRequireOnline";
 import PickBanisStep from "./PickBanisStep";
@@ -99,6 +108,26 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
     onClose();
   };
 
+  // Nothing has been created yet, so this discards a draft rather than an
+  // existing pothi — but the name and every bani ticked so far go with it,
+  // which is worth one question.
+  //
+  // Except on an untouched step 1, where there is nothing to lose and being
+  // asked to confirm closing an empty form is just an extra tap.
+  const discard = () => {
+    if (!name && !picked.length) {
+      onClose();
+      return;
+    }
+    showConfirm({
+      title: STRINGS.formatString(STRINGS.POTHI_DISCARD_NEW_CONFIRM, { name }),
+      cancelText: STRINGS.POTHI_KEEP_EDITING,
+      confirmText: STRINGS.POTHI_DISCARD,
+      destructive: true,
+      onConfirm: onClose,
+    });
+  };
+
   return (
     // Scoped to the SETTINGS palette — the same one the reminder sheets get
     // from `withScreenRoles(Settings, "settings")` at the route. Without it a
@@ -111,6 +140,21 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
         onClose={onClose}
         // Step 2 is about THIS pothi, so it wears the name just typed.
         title={step === 1 ? STRINGS.POTHI_NEW : name}
+        // Both steps carry their actions here rather than under the body,
+        // where a keyboard covers them and step 2's list puts them behind
+        // every bani — see SheetActions. Step 1 confirms by going on to the
+        // banis, step 2 by creating the pothi, which is the whole difference
+        // between them.
+        actions={
+          <SheetActions
+            onCancel={discard}
+            cancelLabel={STRINGS.CANCEL}
+            confirmIcon={step === 1 ? ArrowRightIcon : SaveIcon}
+            confirmLabel={step === 1 ? STRINGS.NEXT : STRINGS.POTHI_CREATE}
+            onConfirm={step === 1 ? () => setStep(2) : submit}
+            confirmDisabled={!isValidName(name)}
+          />
+        }
         // BOTH steps scroll. Step 2 used to hold still while its list scrolled
         // inside a capped box, so that the search field and the actions could
         // not slide away while browsing. With the keys up at a raised text size
@@ -157,27 +201,6 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
               receivingKeys={gurmukhi}
               onFocus={() => {}}
             />
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-                gap: space.sm,
-              }}
-            >
-              <Button
-                title={STRINGS.CANCEL}
-                onPress={onClose}
-                variant="ghost"
-                style={{ flexGrow: 1, flexBasis: "auto" }}
-              />
-              <Button
-                title={STRINGS.NEXT}
-                onPress={() => setStep(2)}
-                disabled={!isValidName(name)}
-                style={{ flexGrow: 1, flexBasis: "auto" }}
-              />
-            </View>
           </View>
         ) : (
           // The SAME step Add Banis renders on an existing pothi — one
@@ -191,11 +214,16 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
             onQueryChange={setQuery}
             gurmukhiOpen={gurmukhi}
             onToggleGurmukhi={() => setGurmukhi((on) => !on)}
-            onCancel={onClose}
-            confirmTitle={STRINGS.POTHI_CREATE}
-            onConfirm={submit}
-            confirmDisabled={!isValidName(name)}
           />
+        )}
+        {/* The sheet stays open behind the discard question, so the question
+            has to be presented BY the sheet — see modalHosts.test.js. Outside
+            the settings scope, so the dialog keeps the surface it wears
+            everywhere else in the app rather than this sheet's navy. */}
+        {NEST_OVERLAYS_IN_SHEET && (
+          <ScreenRolesProvider screen={null}>
+            <ConfirmDialogHost />
+          </ScreenRolesProvider>
         )}
       </Sheet>
     </ScreenRolesProvider>

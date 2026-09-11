@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
-import { STRINGS } from "@common";
-import { GurmukhiKeyboard, Sheet } from "../../common/components/ui";
+import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
+import { SaveIcon } from "@common/icons";
+import { ConfirmDialogHost, showConfirm, STRINGS } from "@common";
+import { GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
 import useSetPothiBanis from "../hooks/useSetPothiBanis";
 import PickBanisStep from "./PickBanisStep";
 
@@ -16,6 +18,11 @@ import PickBanisStep from "./PickBanisStep";
 // Every row applies immediately rather than staging a draft. The list can be
 // long, `Done` is really just "close", and a staged draft would silently lose
 // ticks if the sheet were dismissed by the scrim.
+//
+// Which is why cancelling has to UNDO rather than simply close: the ticks are
+// already in the store by then. The selection the sheet opened with is kept so
+// that discarding can put it back, and it is asked for first, because there is
+// nothing to take back afterwards.
 const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   const setBanis = useSetPothiBanis();
   // Read LIVE from the store, by id. Holding the row object the list handed
@@ -24,6 +31,11 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   const pothi = useSelector((state) => (state.pothis?.folders ?? []).find((f) => f.id === pothiId));
   const [query, setQuery] = useState("");
   const [gurmukhi, setGurmukhi] = useState(false);
+  // What discarding restores. Taken once per opening and null until then —
+  // a sentinel rather than an empty array, because a pothi opened with no
+  // banis in it would otherwise be re-snapshotted after the first tick and
+  // discarding would put that tick back.
+  const [openedWith, setOpenedWith] = useState(null);
 
   // A reopened sheet starts from a clean search with the keyboard down.
   useEffect(() => {
@@ -33,7 +45,27 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
     }
   }, [visible]);
 
+  // Separate from the reset above because it depends on the pothi as well, and
+  // the pothi changes on every tick — the sentinel is what stops the snapshot
+  // following those edits and making discard a no-op.
+  useEffect(() => {
+    if (visible && pothi && openedWith === null) setOpenedWith(pothi.items);
+    if (!visible && openedWith !== null) setOpenedWith(null);
+  }, [visible, pothi, openedWith]);
+
   if (!pothi) return null;
+
+  const discard = () =>
+    showConfirm({
+      title: STRINGS.formatString(STRINGS.POTHI_DISCARD_EDITS_CONFIRM, { name: pothi.name }),
+      cancelText: STRINGS.POTHI_KEEP_EDITING,
+      confirmText: STRINGS.POTHI_DISCARD,
+      destructive: true,
+      onConfirm: () => {
+        setBanis(pothi, openedWith ?? []);
+        onClose();
+      },
+    });
 
   return (
     // Settings-scoped, like the other pothi sheets — see CreatePothiSheet.
@@ -42,9 +74,20 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
         visible={visible}
         onClose={onClose}
         title={STRINGS.POTHI_ADD_BANIS}
+        // In the title row, where no keyboard can cover them and no amount of
+        // list can scroll them away — see PickBanisActions.
+        actions={
+          <SheetActions
+            onCancel={discard}
+            cancelLabel={STRINGS.CANCEL}
+            confirmIcon={SaveIcon}
+            confirmLabel={STRINGS.POTHI_DONE}
+            onConfirm={onClose}
+          />
+        }
         // The sheet is the one and only scroller — the step's list renders
         // inline inside it. Nested scrollers fought for every drag, and a
-        // still sheet left the actions unreachable once the keys were up.
+        // still sheet left the search field unreachable once the keys were up.
         scrollable
         // Pinned below the body, so the keys can never be pushed past the
         // bottom edge however long the list gets.
@@ -69,10 +112,16 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
           onQueryChange={setQuery}
           gurmukhiOpen={gurmukhi}
           onToggleGurmukhi={() => setGurmukhi((on) => !on)}
-          onCancel={onClose}
-          confirmTitle={STRINGS.POTHI_DONE}
-          onConfirm={onClose}
         />
+        {/* The sheet stays open behind the discard question, so the question has
+            to be presented BY the sheet — see modalHosts.test.js. Outside the
+            settings scope, so the dialog keeps the same surface it wears
+            everywhere else in the app rather than this sheet's navy. */}
+        {NEST_OVERLAYS_IN_SHEET && (
+          <ScreenRolesProvider screen={null}>
+            <ConfirmDialogHost />
+          </ScreenRolesProvider>
+        )}
       </Sheet>
     </ScreenRolesProvider>
   );

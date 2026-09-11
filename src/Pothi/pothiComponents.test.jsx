@@ -2,6 +2,7 @@ import React from "react";
 
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import SheetActions from "../common/components/ui/SheetActions";
 import { createPothi } from "../common/pothi/model";
 
 import PothiRow, { baniCountLabel } from "./components/PothiRow";
@@ -42,6 +43,7 @@ jest.mock("@common/icons", () => ({
   ArrowRightIcon: () => null,
   ChevronDownIcon: () => null,
   ChevronRight: () => null,
+  SaveIcon: () => null,
   CloseIcon: () => null,
   FolderIcon: () => null,
   PinIcon: () => null,
@@ -198,5 +200,66 @@ describe("createPothi + row integration", () => {
     renderRow({ pothi: { ...fresh, count: 0, system: false, pinned: false } });
     expect(screen.getByText("New")).toBeTruthy();
     expect(screen.getByText("0 banis")).toBeTruthy();
+  });
+});
+
+// A sheet's actions moved OUT of its body and into its title row. Under a list
+// they sat behind every row — reaching Create meant scrolling to the end — and
+// with either keyboard up they were off the bottom of the sheet entirely.
+//
+// A glyph carries no text, so the label is the only thing a screen reader has,
+// and the disabled state has to be stated rather than merely drawn.
+describe("SheetActions", () => {
+  const renderActions = (over = {}) =>
+    render(
+      <SheetActions
+        onCancel={over.onCancel ?? jest.fn()}
+        cancelLabel="Cancel"
+        confirmIcon={() => null}
+        confirmLabel="Create"
+        onConfirm={over.onConfirm ?? jest.fn()}
+        confirmDisabled={over.confirmDisabled ?? false}
+      />
+    );
+
+  it("names both actions for a screen reader", () => {
+    renderActions();
+
+    expect(screen.getByLabelText("Cancel")).toBeTruthy();
+    expect(screen.getByLabelText("Create")).toBeTruthy();
+  });
+
+  it("reports the confirming action as disabled, not just greys it", () => {
+    const onConfirm = jest.fn();
+    renderActions({ confirmDisabled: true, onConfirm });
+    const confirm = screen.getByLabelText("Create");
+
+    expect(confirm.props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("runs each action when its own icon is pressed", () => {
+    const onCancel = jest.fn();
+    const onConfirm = jest.fn();
+    renderActions({ onCancel, onConfirm });
+
+    fireEvent.press(screen.getByLabelText("Cancel"));
+    fireEvent.press(screen.getByLabelText("Create"));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("reaches the accessible tap floor without reserving the layout for it", () => {
+    // hitSlop rather than a 44pt box: the box would push the pothi name off
+    // its own row, and the slop costs the title nothing. 22pt icon plus 2pt
+    // padding plus 12 either side clears 44.
+    renderActions();
+
+    ["Cancel", "Create"].forEach((label) => {
+      const { hitSlop, style } = screen.getByLabelText(label).props;
+      expect(hitSlop).toBeGreaterThanOrEqual(9);
+      expect(style.width).toBeUndefined();
+    });
   });
 });

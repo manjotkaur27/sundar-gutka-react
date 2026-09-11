@@ -62,3 +62,59 @@ describe("the bani picker has one implementation", () => {
     });
   });
 });
+
+// The cancel and confirm controls used to be two buttons under the list, which
+// put them behind every bani: reaching Create meant scrolling to the end, and
+// with either keyboard up they were off the bottom of the sheet entirely.
+// Pinning them there instead was worse — the sheet is capped at a share of the
+// display and the keys take up to 55% of it, so a pinned row left the list with
+// no rows at all at a raised text size.
+//
+// What the icons DO is covered by rendering them, in pothiComponents.test.jsx.
+// These hold the arrangement: one implementation, placed the same way by both
+// sheets, and never back in the body.
+describe("the picker's actions live in the sheet's title row", () => {
+  const step = read("PickBanisStep.jsx");
+  const CALLERS = ["CreatePothiSheet.jsx", "AddBanisSheet.jsx"];
+
+  it("keeps them out of the scrolling body", () => {
+    // A Button here is the old row coming back.
+    const body = step.slice(0, step.indexOf("const TitleAction"));
+    expect(body).not.toMatch(/<Button/);
+  });
+
+  it("is placed by both sheets, from the one implementation", () => {
+    CALLERS.forEach((file) => {
+      const text = read(file);
+      expect(text).toContain("SheetActions");
+      expect(text).toMatch(/actions=[{]/);
+    });
+  });
+
+  it("asks before discarding, in both sheets", () => {
+    // Cancel throws away a name and every bani ticked since the sheet opened,
+    // which is worth one question. The wording is localised, not built here.
+    CALLERS.forEach((file) => {
+      const text = read(file);
+      expect(text).toContain("showConfirm({");
+      expect(text).toMatch(/STRINGS[.]POTHI_DISCARD_(NEW|EDITS)_CONFIRM/);
+      expect(text).toContain("STRINGS.POTHI_KEEP_EDITING");
+    });
+  });
+
+  it("hosts that question inside the sheet, which stays open behind it", () => {
+    // See modalHosts.test.js: on iOS the app-root host cannot present over a
+    // sheet it is already presenting, so the sheet has to present it itself.
+    CALLERS.forEach((file) => {
+      expect(read(file)).toContain("<ConfirmDialogHost />");
+    });
+  });
+
+  it("puts back what Add Banis opened with, since its ticks already applied", () => {
+    // Every row there writes straight to the store, so cancelling has to undo
+    // rather than merely close, or the question would be a lie.
+    const text = read("AddBanisSheet.jsx");
+    expect(text).toContain("openedWith");
+    expect(text).toMatch(/setBanis[(]pothi, openedWith/);
+  });
+});

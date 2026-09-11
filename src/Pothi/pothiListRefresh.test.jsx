@@ -25,8 +25,10 @@ jest.mock("react-native-draggable-flatlist", () => {
   const ReactModule = require("react");
   const { View } = require("react-native");
   const DraggableFlatList = ({
+    data,
     refreshControl,
     ListHeaderComponent,
+    ListEmptyComponent,
     simultaneousHandlers,
     onDragBegin,
     onDragEnd,
@@ -36,6 +38,8 @@ jest.mock("react-native-draggable-flatlist", () => {
       { testID: simultaneousHandlers ? "scrolls-with-refresh" : "scrolls-alone" },
       refreshControl,
       ListHeaderComponent,
+      // A FlatList shows its empty component only when the data is empty.
+      data && data.length ? null : ListEmptyComponent,
       // Stand-ins for the list's own drag lifecycle, so a test can reorder.
       ReactModule.createElement(View, { testID: "drag-begin", onPress: () => onDragBegin(0) }),
       ReactModule.createElement(View, {
@@ -61,7 +65,11 @@ jest.mock("@common/hooks/useTokens", () => () => ({
 jest.mock("@common/icons", () => ({ DragHandleIcon: () => null }));
 jest.mock("@common", () => ({
   actions: { setPothiOrder: (ids) => ({ type: "SET_POTHI_ORDER", ids }) },
-  STRINGS: { POTHI_EMPTY_BODY: "", POTHI_DEFAULT_FOLDERS: "Default Folders" },
+  STRINGS: {
+    POTHI_EMPTY_TITLE: "No pothis yet",
+    POTHI_EMPTY_BODY: "",
+    POTHI_DEFAULT_FOLDERS: "Default Folders",
+  },
   trackPothiEvent: jest.fn(),
   useCustomScrollbar: () => ({ ownedScrollProps: {}, Indicator: null }),
 }));
@@ -79,6 +87,15 @@ jest.mock("../common/components/ui", () => ({
   Text: require("react-native").Text,
 }));
 
+const folder = (over) => ({
+  id: over.id,
+  name: over.name,
+  source: "mypothi",
+  items: [],
+  createdAt: 1,
+  updatedAt: 1,
+  pinned: Boolean(over.pinned),
+});
 const pothis = { folders: [], deletedIds: [], seededDefaults: true };
 const open = () =>
   render(
@@ -134,4 +151,27 @@ it("switches the pull-down off for the whole of a reorder", () => {
 it("offers no pull-down while signed out — there is no account to pull", () => {
   mockState = { auth: { status: "signedOut" }, pothis };
   expect(open().UNSAFE_queryByType(RefreshControl)).toBeNull();
+});
+
+// Pinning lifts a pothi OUT of the draggable list and into the header, so the
+// list's own data is the unpinned lane alone. Pinning the last one therefore
+// emptied that lane, and the list announced "no pothis yet" over a header that
+// was still showing them. The empty state has to be measured against every
+// user pothi, not against what happens to be draggable.
+it("says nothing about being empty while a pinned pothi is on screen", () => {
+  mockState = {
+    auth: { status: "signedOut" },
+    pothis: {
+      ...pothis,
+      folders: [folder({ id: "a", name: "Morning", pinned: true })],
+    },
+  };
+
+  expect(open().queryByText("No pothis yet")).toBeNull();
+});
+
+it("still says so when there is genuinely nothing", () => {
+  mockState = { auth: { status: "signedOut" }, pothis };
+
+  expect(open().queryByText("No pothis yet")).toBeTruthy();
 });

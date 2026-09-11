@@ -1,6 +1,7 @@
 import React from "react";
+import { ScrollView } from "react-native";
 
-import { act, render, screen } from "@testing-library/react-native";
+import { act, render, screen, within } from "@testing-library/react-native";
 import darkTheme from "@theme/darkTheme";
 import lightTheme from "@theme/lightTheme";
 import { FONT_SCALE_MAX } from "@theme/scale";
@@ -395,6 +396,44 @@ describe("Sheet", () => {
     expect(scrim.height).toBeUndefined();
     expect(scrim.position).toBe("absolute");
     expect(scrim.bottom).toBe(0);
+  });
+
+  // A sheet whose actions live under a long scrolling body puts them behind
+  // all of it, and an open keyboard covers them outright. The title row is the
+  // one part no keyboard reaches and nothing scrolls away.
+  it("carries actions in the title's own row", () => {
+    withTheme(
+      lightTheme,
+      <Sheet visible onClose={() => {}} title="Morning Nitnem" actions={<Text>Save</Text>}>
+        <Text>Rows</Text>
+      </Sheet>
+    );
+    const body = screen.UNSAFE_getByType(ScrollView);
+
+    expect(screen.getByText("Morning Nitnem")).toBeTruthy();
+    expect(screen.getByText("Save")).toBeTruthy();
+    // Outside the scroller is the whole point — inside it they scroll away.
+    expect(within(body).queryByText("Save")).toBeNull();
+  });
+
+  it("lets a long title take the width the actions leave, and wrap into it", () => {
+    // Neither clipped nor running under the icons: the title flexes, the
+    // actions do not, so a long pothi name grows the row instead.
+    withTheme(
+      lightTheme,
+      <Sheet
+        visible
+        onClose={() => {}}
+        title="A very long pothi name indeed"
+        actions={<Text>Save</Text>}
+      >
+        <Text>Rows</Text>
+      </Sheet>
+    );
+    const title = flat(screen.getByText("A very long pothi name indeed").props.style);
+
+    expect(title.flexShrink).toBe(1);
+    expect(title.numberOfLines).toBeUndefined();
   });
 
   it("declares both translucency flags so its window spans the display", () => {
