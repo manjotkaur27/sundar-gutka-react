@@ -183,10 +183,10 @@ export const setReminderSound = (value) => {
   return { type: actionTypes.SET_REMINDER_SOUND, value };
 };
 
-export const setAutoScrollSpeed = (speed, shabad) => {
+// One speed for every bani — see the `autoScrollSpeed` reducer.
+export const setAutoScrollSpeed = (speed) => {
   trackSettingEvent(constant.AUTO_SCROLL_SPEED, speed);
-  const value = { [shabad]: speed };
-  return { type: actionTypes.SET_AUTO_SCROLL_SPEED, value };
+  return { type: actionTypes.SET_AUTO_SCROLL_SPEED, value: speed };
 };
 export const setBaniOrder = (value) => {
   return { type: actionTypes.SET_BANI_ORDER, value };

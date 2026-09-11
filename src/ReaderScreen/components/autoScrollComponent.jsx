@@ -22,8 +22,20 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActi
   const isFocused = useIsFocused();
   const [isPaused, togglePaused] = useState(true);
   const isAutoScroll = useSelector((state) => state.isAutoScroll);
-  const autoScrollSpeedObj = useSelector((state) => state.autoScrollSpeedObj);
-  const savedSpeed = autoScrollSpeedObj[shabadID] || constant.DEFAULT_SPEED;
+  // One speed for every bani. It used to be kept per bani, so 67% chosen in
+  // Jaap Sahib meant nothing in Japji Sahib and each bani opened at the
+  // default again. Persisted, so it also survives switching auto-scroll off
+  // and on.
+  const autoScrollSpeed = useSelector((state) => state.autoScrollSpeed);
+  // The per-bani map it replaced, read only to carry an existing install's
+  // choice forward: this bani's own value if it had one, else whatever was
+  // last chosen anywhere. Nothing writes it any more.
+  const legacySpeeds = useSelector((state) => state.autoScrollSpeedObj) ?? {};
+  const savedSpeed =
+    autoScrollSpeed ??
+    legacySpeeds[shabadID] ??
+    Object.values(legacySpeeds).pop() ??
+    constant.DEFAULT_SPEED;
 
   const [sliderValue, setSliderValue] = useState(savedSpeed);
   const dispatch = useDispatch();
@@ -70,11 +82,11 @@ const AutoScrollComponent = ({ shabadID, webViewRef, webViewLoadTick = 0, onActi
   const handleSlidingComplete = useCallback(
     (valueArr) => {
       const val = Math.floor(valueArr[0]);
-      dispatch(actions.setAutoScrollSpeed(val, shabadID));
+      dispatch(actions.setAutoScrollSpeed(val));
       trackReaderEvent("autoScrollSpeed", val);
       onActivity?.();
     },
-    [dispatch, shabadID, onActivity]
+    [dispatch, onActivity]
   );
 
   const handlePause = useCallback(() => {
@@ -188,6 +200,7 @@ const localStyles = StyleSheet.create({
 });
 
 AutoScrollComponent.propTypes = {
+  /** Only used to look up this bani's speed in the old per-bani map. */
   shabadID: PropTypes.number.isRequired,
   webViewRef: PropTypes.shape({
     current: PropTypes.shape({

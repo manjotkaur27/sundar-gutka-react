@@ -296,14 +296,22 @@ const audioCatalogMeta = (state = {}, action) => {
   }
 };
 
-const autoScrollSpeedObj = (state = {}, action) => {
+// ONE auto-scroll speed for every bani. It was kept per bani, so a speed
+// chosen in Jaap Sahib meant nothing in Japji Sahib and every bani started at
+// the default again. Per device, not per account: see settings/syncModel.
+const autoScrollSpeed = (state = null, action) => {
   switch (action.type) {
     case actionTypes.SET_AUTO_SCROLL_SPEED:
-      return { ...state, ...action.value };
+      return action.value;
     default:
       return state;
   }
 };
+
+// The per-bani map the speed used to live in. Read-only now: nothing writes
+// it, and it stays registered only so an existing install's persisted values
+// can seed `autoScrollSpeed` the first time the slider is shown.
+const autoScrollSpeedObj = (state = {}) => state;
 
 const baniOrder = (state = null, action) => {
   switch (action.type) {
@@ -923,6 +931,7 @@ const appReducer = combineReducers({
   remindersSync,
   settingsSync,
   syncOutbox,
+  autoScrollSpeed,
   autoScrollSpeedObj,
   baniOrder,
   baniList,

@@ -35,6 +35,7 @@ describe("SYNCED_SETTINGS", () => {
       "downloadWifiOnly",
       "autoDownloadOnStream",
       "autoScrollSpeedObj",
+      "autoScrollSpeed",
       "defaultAudio",
       "fontFace",
     ];

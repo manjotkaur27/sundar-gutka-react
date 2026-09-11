@@ -662,7 +662,7 @@ describe("Reader", () => {
       });
 
     // Up on arrival, so the FIRST tap puts the chrome away rather than
-    // revealing it. The wrapper stays mounted but is display:none, which the
+    // revealing it. The wrapper stays mounted but is hidden from accessibility, which the
     // query layer treats as hidden — the same thing the reader sees.
     expect(queryByTestId("auto-scroll-component")).toBeTruthy();
     tapThePage();

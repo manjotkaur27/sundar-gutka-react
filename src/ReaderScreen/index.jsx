@@ -915,13 +915,25 @@ const Reader = ({ navigation, route }) => {
       {isAutoScroll && (
         <View
           testID="auto-scroll-bar-wrapper"
+          // Hidden by opacity, NOT display:none. The speed slider measures its
+          // track width from its own layout, and display:none lays it out at
+          // zero width — which the slider stores as the track length. On the
+          // next show it drew the thumb at the far left, read as 0%, and snapped
+          // to the real speed a layout pass later, on every tap that brought
+          // the chrome back. Keeping the box laid out keeps its width.
+          //
+          // Invisible has to mean untouchable and unannounced as well, so the
+          // touch and accessibility props go with it.
+          pointerEvents={isHeader ? "auto" : "none"}
+          accessibilityElementsHidden={!isHeader}
+          importantForAccessibility={isHeader ? "auto" : "no-hide-descendants"}
           style={[
             styles.autoScrollFixedView,
             {
               // Sits on top of the nav, so it clears exactly what the nav pads
               // — capped on iOS, the whole inset on Android.
               bottom: styles.autoScrollFixedView.bottom + bottomNavInset(insetBottom),
-              display: isHeader ? "flex" : "none",
+              opacity: isHeader ? 1 : 0,
             },
           ]}
         >

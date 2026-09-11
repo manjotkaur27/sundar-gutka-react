@@ -123,6 +123,7 @@ export default {
   STATUS_BAR: "statusBar",
   PARAGRAPH: "paragraph",
   AUTO_SCROLL: "autoScroll",
+  AUTO_SCROLL_SPEED: "autoScrollSpeed",
   AUDIO: "audio",
   AUDIO_AUTO_PLAY: "audioAutoPlay",
   AUDIO_SYNC_SCROLL: "audioSyncScroll",
