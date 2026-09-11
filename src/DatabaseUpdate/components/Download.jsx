@@ -6,7 +6,7 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   logMessage,
-  logError,
+  logNetworkError,
   actions,
   checkForBaniDBUpdate,
   LOCAL_DB_PATH,
@@ -91,7 +91,7 @@ const DownloadComponent = () => {
     } catch (err) {
       await unlink(`${LOCAL_DB_PATH}.download`);
       await revertMD5Hash(currentMD5Hash);
-      logError(`updateDatabaseIfNeeded error: ${err.message}`);
+      logNetworkError(`updateDatabaseIfNeeded error: ${err?.message || err}`, err);
       setDownloadSuccess(false);
     } finally {
       setDownloading(false);

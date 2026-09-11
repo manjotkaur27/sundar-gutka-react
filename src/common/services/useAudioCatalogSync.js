@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { InteractionManager } from "react-native";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import DeviceInfo from "react-native-device-info";
-import { logError } from "@common";
+import { logNetworkError } from "@common";
 import constant from "../constant";
 import { useNetwork } from "../context";
 import { setAudioCatalogEntries, setAudioCatalogMeta } from "../actions";
@@ -140,7 +140,7 @@ const useAudioCatalogSync = () => {
         if (cancelled || hasRunRef.current) return;
         hasRunRef.current = true;
         runCatalogSync(dispatch, () => store.getState(), appVersion).catch((error) =>
-          logError("Audio catalog sync failed:", error)
+          logNetworkError(`Audio catalog sync failed: ${error?.message || error}`, error)
         );
       });
     }, constant.AUDIO_CATALOG_SYNC_DELAY_MS);

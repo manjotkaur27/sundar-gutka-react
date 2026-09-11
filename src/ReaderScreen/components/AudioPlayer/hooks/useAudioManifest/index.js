@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { exists, stat, unlink } from "react-native-fs";
 import { useSelector, useDispatch, useStore } from "react-redux";
-import { actions, logError, STRINGS, useNetwork } from "@common";
+import { actions, logError, logNetworkError, STRINGS, useNetwork } from "@common";
 import constant from "@common/constant";
 import { reconcileDownloads } from "@common/services/audioReconcile";
 import { fetchRawBaniAudio, selectTracksForBani } from "@service";
@@ -410,7 +410,7 @@ const useAudioManifest = (baniID) => {
         // 4. A fresh 200 is the only thing the reconcile is allowed to act on.
         if (fetchedFresh) reconcileAgainst(groups);
       } catch (error) {
-        logError("Error fetching manifest:", error);
+        logNetworkError(`Error fetching manifest: ${error?.message || error}`, error);
 
         // Best-effort offline reconstruction: play whatever is already on disk.
         const offlineTracks = audioManifest?.[baniID];

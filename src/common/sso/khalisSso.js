@@ -21,7 +21,7 @@ import { Linking } from "react-native";
 import { InAppBrowser } from "react-native-inappbrowser-reborn";
 import { brandMarks } from "@theme/palette";
 import constant from "../constant";
-import { logError, logNetworkError } from "../firebase/crashlytics";
+import { logError, logMessage, logNetworkError } from "../firebase/crashlytics";
 import { decodeJwtPayload, isTokenValid, toSessionUser } from "./jwt";
 import { saveToken, clearToken } from "./tokenStore";
 
@@ -142,7 +142,16 @@ export const resetConsumedRedirect = () => {
  *                                  listener in useSsoSession
  *   { status: "error" }          — could not start, or the token was rejected
  */
-export const startLogin = async () => {
+// InAppBrowser keeps ONE redirect handler and asserts it is unset before it
+// opens a session, so a second overlapping call throws "openAuth is in a bad
+// state". useSsoActions guards on Redux `busy`, but that is set by a dispatch
+// the second tap can beat, so two presses still reach here. Holding the
+// in-flight promise means the loser waits for the same login rather than
+// starting a competing one.
+let loginInFlight = null;
+let logoutInFlight = null;
+
+const runLogin = async () => {
   const url = buildLoginUrl();
   try {
     const result = await InAppBrowser.openAuth(url, constant.SSO_LOGIN_REDIRECT, {
@@ -169,15 +178,27 @@ export const startLogin = async () => {
   } catch (err) {
     // No Custom Tabs-capable browser, or the native module failed. Hand off to
     // the system browser; useSsoSession's Linking listener picks up the return.
-    logError(new Error(`SSO startLogin openAuth failed: ${err?.message || err}`));
     try {
       await Linking.openURL(url);
+      // The designed fallback worked and the user is still signing in, so this
+      // is context for a later report rather than a fault of its own.
+      logMessage(`SSO startLogin used the system browser: ${err?.message || err}`);
       return { status: "pending" };
     } catch (fallbackErr) {
+      // Only now is anything actually broken: neither browser would open.
+      logError(new Error(`SSO startLogin openAuth failed: ${err?.message || err}`));
       logError(new Error(`SSO startLogin fallback failed: ${fallbackErr?.message || fallbackErr}`));
       return { status: "error" };
     }
   }
+};
+
+export const startLogin = () => {
+  if (loginInFlight) return loginInFlight;
+  loginInFlight = runLogin().finally(() => {
+    loginInFlight = null;
+  });
+  return loginInFlight;
 };
 
 /**
@@ -192,7 +213,7 @@ export const startLogin = async () => {
  * when only the local session could be cleared (expired token — /logout/all
  * rejects those with 401 — or the browser could not be opened).
  */
-export const startLogout = async (token) => {
+const runLogout = async (token) => {
   // Capture validity before clearing: an expired token cannot end the IdP
   // session, so there is no point opening a browser that will only 401.
   const canEndIdpSession = !!token && isTokenValid(token, 0);
@@ -214,17 +235,26 @@ export const startLogout = async (token) => {
     // completed single-logout. A cancel still leaves the local session cleared.
     return { remote: result?.type === "success" };
   } catch (err) {
-    logError(new Error(`SSO startLogout openAuth failed: ${err?.message || err}`));
     try {
       await Linking.openURL(url);
+      logMessage(`SSO startLogout used the system browser: ${err?.message || err}`);
       return { remote: true };
     } catch (fallbackErr) {
+      logError(new Error(`SSO startLogout openAuth failed: ${err?.message || err}`));
       logError(
         new Error(`SSO startLogout fallback failed: ${fallbackErr?.message || fallbackErr}`)
       );
       return { remote: false };
     }
   }
+};
+
+export const startLogout = (token) => {
+  if (logoutInFlight) return logoutInFlight;
+  logoutInFlight = runLogout(token).finally(() => {
+    logoutInFlight = null;
+  });
+  return logoutInFlight;
 };
 
 /**

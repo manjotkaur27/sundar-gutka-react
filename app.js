@@ -42,6 +42,7 @@ import useReminderRearm from "./src/common/hooks/useReminderRearm";
 import useSsoSession from "./src/common/hooks/useSsoSession";
 import useAudioCatalogSync from "./src/common/services/useAudioCatalogSync";
 import useDashboardSync from "./src/services/dashboard/useDashboardSync";
+import { reportRecentExits } from "./src/services/diagnostics/exitReasons";
 import usePushRegistration from "./src/services/push/usePushRegistration";
 import useRemindersSync from "./src/services/reminders/useRemindersSync";
 import useSettingsSync from "./src/services/settings/useSettingsSync";
@@ -135,6 +136,11 @@ const App = () => {
   useEffect(() => {
     const runSetup = async () => {
       await initializeCrashlytics();
+      // Straight after Crashlytics is up, and before anything heavy: asks the
+      // system why the LAST process died. A Low Memory Killer reclaim leaves no
+      // crash report at all, so without this a phone that keeps losing the app
+      // is indistinguishable from one that never opened it.
+      await reportRecentExits();
       await initializePerformanceMonitoring();
       await TrackPlayerSetup();
     };

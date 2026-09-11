@@ -11,6 +11,7 @@ class AppLauncherPackage : ReactPackage {
           AppLauncherModule(reactContext),
           SystemBarsModule(reactContext),
           WebViewAvailabilityModule(reactContext),
+          ExitReasonsModule(reactContext),
       )
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =

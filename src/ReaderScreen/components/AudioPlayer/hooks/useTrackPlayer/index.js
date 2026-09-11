@@ -14,7 +14,7 @@ import {
   handlePlayerError,
   subscribeTrackPlayerState,
 } from "@common/TrackPlayerUtils";
-import { logError, logMessage, useNetwork } from "@common";
+import { logError, logMessage, logNetworkError, useNetwork } from "@common";
 import { formatUrlForTrackPlayer, isLocalFile } from "../../utils/urlHelper";
 import {
   downloadAudioOnly,
@@ -319,7 +319,7 @@ const useTrackPlayer = () => {
 
         return fullLocalPath;
       } catch (error) {
-        logError("Prefetch for seek failed:", error);
+        logNetworkError(`Prefetch for seek failed: ${error?.message || error}`, error);
         return null;
       } finally {
         prefetchInFlightRef.current.delete(trackKey);
