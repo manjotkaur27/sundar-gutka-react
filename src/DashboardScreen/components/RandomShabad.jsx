@@ -29,7 +29,7 @@ const ChevronRight = ({ color }) => (
 ChevronRight.propTypes = { color: PropTypes.string.isRequired };
 
 const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoadingChange = () => {} }) => {
-  const { accentBlue, gold, mutedText, theme, palette } = useDashboardTheme();
+  const { accentBlue, gold, theme, palette } = useDashboardTheme();
   // The card under these is a deep navy panel in BOTH themes, so the text on
   // it is light in both. Following the theme's text roles here put near-black
   // Gurbani on a navy card in light mode.
@@ -120,7 +120,13 @@ const RandomShabad = ({ refreshKey = 0, embedded = false, reloadNonce = 0, onLoa
                 moment the OS text size grew — the row shares its width with the
                 Read link, which does not shrink. The footer has no fixed
                 height, so wrapping simply makes it taller. */}
-            <CustomText style={[styles.meta, { color: mutedText }]}>
+            {/* The card's OWN muted ink, not the screen's. `mutedText` is paired with
+                the light page behind this card, so on the card itself it fell to
+                2.42:1 in light mode — below AA, and the reason the Ang line was
+                hard to read. `onVaakCardMuted` is the same role measured against
+                this card, and the pair is re-derived together for every designed
+                theme, so no theme can drift back apart. */}
+            <CustomText style={[styles.meta, { color: translationColor }]}>
               {[shabad.ang ? `${STRINGS.ANG} ${shabad.ang}` : null, shabad.raag || null]
                 .filter(Boolean)
                 .join(" · ")}

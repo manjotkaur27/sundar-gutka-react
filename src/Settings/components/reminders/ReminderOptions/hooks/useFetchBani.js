@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { logError, FallBack, logMessage } from "@common";
+import { logError, logMessage } from "@common";
 import { getBaniList } from "@database";
 import setDefaultReminders from "../utils";
 
@@ -60,9 +60,11 @@ const useFetchBani = (setBaniListData, setReminderBaniData, setStateData, parsed
         await setDefaultReminders(data, dispatch, isReminders, reminderSound, isTransliteration);
       }
     } catch (error) {
+      // Logged only. FallBack is the error-boundary SCREEN; calling a component
+      // as a plain function runs its hooks outside React's render, so this catch
+      // threw "Invalid hook call" over the failure it was reporting.
       logError(error);
       logMessage("fetchBani: Failed to fetch bani list");
-      FallBack();
     }
   }, [transliterationLanguage, reminderBanis, isTransliteration]);
 

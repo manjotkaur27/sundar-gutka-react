@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { logError, orderedBani, actions, logMessage, FallBack } from "@common";
+import { logError, orderedBani, actions, logMessage } from "@common";
 import { getBaniList } from "@database";
 
 const useBaniList = () => {
@@ -36,8 +36,11 @@ const useBaniList = () => {
         setBaniListData(baniListRef.current);
       }
     } catch (error) {
+      // Logged only. FallBack is the error-boundary SCREEN, and calling a
+      // component as a plain function runs its hooks outside React's render —
+      // so this catch used to throw "Invalid hook call" over the read error it
+      // was reporting, hiding why the bani list came back empty.
       logError(error);
-      FallBack();
     } finally {
       inFlightKeyRef.current = null;
     }

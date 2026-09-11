@@ -9,7 +9,6 @@ import {
   actions,
   logError,
   logMessage,
-  FallBack,
   scheduleReminders,
 } from "@common";
 import { getBaniList } from "@database";
@@ -113,9 +112,11 @@ const RemindersComponent = ({ navigation }) => {
       }
       await enableReminders();
     } catch (error) {
+      // Logged only. FallBack is the error-boundary SCREEN; calling a component
+      // as a plain function runs its hooks outside React's render, so this catch
+      // threw "Invalid hook call" over the failure it was reporting.
       logError(error);
       logMessage("handleReminders: Failed to fetch banis");
-      FallBack();
     }
   };
 

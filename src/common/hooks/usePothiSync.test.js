@@ -22,6 +22,12 @@ jest.mock("react-redux", () => ({
 jest.mock("@common/pothi/defaults", () => ({ buildDefaultPothis: jest.fn(() => []) }));
 const { buildDefaultPothis } = jest.requireMock("@common/pothi/defaults");
 
+// The bani rows the seed falls back to. redux's copy is blacklisted from
+// persist and only HomeScreen fills it, so signing out from Settings can find
+// it empty.
+const mockGetBaniList = jest.fn(() => Promise.resolve([]));
+jest.mock("@database", () => ({ getBaniList: (...a) => mockGetBaniList(...a) }));
+
 jest.mock("@service/pothiApi", () => ({
   fetchFolders: (...args) => mockFetchFolders(...args),
   putFolders: (...args) => mockPutFolders(...args),
@@ -85,6 +91,18 @@ const signedOutWith = ({ folders = [], seededDefaults = false } = {}) => {
     auth: { status: "signedOut" },
     baniList: [{ id: 1 }],
     pothis: { folders, seededDefaults, lastSyncedAt: null, deletedIds: [] },
+  };
+};
+
+// Signed out the way the app really is a moment after sign-out: the pothi slice
+// reset AND no bani list in redux, because that slice never survives and only
+// HomeScreen fills it.
+const signedOutWithNoBaniList = () => {
+  mockState = {
+    auth: { status: "signedOut" },
+    baniList: [],
+    transliterationLanguage: 1,
+    pothis: { folders: [], seededDefaults: false, lastSyncedAt: null, deletedIds: [] },
   };
 };
 
@@ -304,5 +322,55 @@ describe("usePothiSync default-pothi reseeding", () => {
     expect(mockDispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "SEED_DEFAULT_POTHIS" })
     );
+  });
+});
+
+describe("seeding when redux has no bani list", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockDispatch.mockClear();
+    mockGetBaniList.mockReset().mockResolvedValue([]);
+    buildDefaultPothis.mockReset().mockReturnValue([]);
+    mockFetchFolders.mockReset().mockResolvedValue(okRead([]));
+  });
+  afterEach(() => jest.useRealTimers());
+
+  // The reported bug: sign out and the pothis were empty until the app was
+  // closed and reopened. buildDefaultPothis is all-or-nothing, so with no bani
+  // rows it returns [] and the effect seeds nothing; nothing then changes to
+  // make it try again. Reopening worked only because that put HomeScreen back
+  // on screen to fill the slice.
+  it("reads the bani list from the database and seeds", async () => {
+    mockGetBaniList.mockResolvedValueOnce([{ id: 1 }]);
+    buildDefaultPothis.mockReturnValue([{ id: "default_morning_nitnem" }]);
+    signedOutWithNoBaniList();
+
+    renderHook(() => usePothiSync());
+    await flush(0);
+
+    expect(mockGetBaniList).toHaveBeenCalled();
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: "SEED_DEFAULT_POTHIS",
+      folders: [{ id: "default_morning_nitnem" }],
+    });
+  });
+
+  it("does not go to the database when redux already has the list", async () => {
+    buildDefaultPothis.mockReturnValue([{ id: "default_morning_nitnem" }]);
+    signedOutWith({ seededDefaults: false });
+
+    renderHook(() => usePothiSync());
+    await flush(0);
+
+    expect(mockGetBaniList).not.toHaveBeenCalled();
+  });
+
+  it("does not read the database for a signed-in user", async () => {
+    signedInWith([]);
+
+    renderHook(() => usePothiSync());
+    await flush(0);
+
+    expect(mockGetBaniList).not.toHaveBeenCalled();
   });
 });

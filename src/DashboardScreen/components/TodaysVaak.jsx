@@ -67,7 +67,7 @@ const TodaysVaak = ({
   reloadNonce = 0,
   onLoadingChange = () => {},
 }) => {
-  const { gold, mutedText, theme, palette } = useDashboardTheme();
+  const { gold, theme, palette } = useDashboardTheme();
   // The card under these is a deep navy panel in BOTH themes, so the text on
   // it is light in both. Following the theme's text roles here put near-black
   // Gurbani on a navy card in light mode.
@@ -280,7 +280,13 @@ const TodaysVaak = ({
             {/* No line cap — same reason as Random Shabad's identical footer:
                 one line clipped "Ang 1234 · Raag Gauri" as soon as the OS text
                 size grew, and the Read link beside it does not shrink. */}
-            <CustomText style={[styles.meta, { color: mutedText }]}>
+            {/* The card's OWN muted ink, not the screen's. `mutedText` is paired with
+                the light page behind this card, so on the card itself it fell to
+                2.42:1 in light mode — below AA, and the reason the Ang line was
+                hard to read. `onVaakCardMuted` is the same role measured against
+                this card, and the pair is re-derived together for every designed
+                theme, so no theme can drift back apart. */}
+            <CustomText style={[styles.meta, { color: translationColor }]}>
               {[vaak.ang ? `${STRINGS.ANG} ${vaak.ang}` : null, vaak.raag || null]
                 .filter(Boolean)
                 .join(" · ")}

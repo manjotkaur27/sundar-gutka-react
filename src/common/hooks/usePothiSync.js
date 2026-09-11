@@ -11,6 +11,7 @@ import {
 import { buildDefaultPothis } from "@common/pothi/defaults";
 import { toUpsertBody } from "@common/pothi/model";
 import { actions, logMessage, STRINGS } from "@common";
+import { getBaniList } from "@database";
 
 // Keeps My Pothi in step with the account — and with every other device
 // signed into it — and seeds the two default pothis.
@@ -56,6 +57,14 @@ const usePothiSync = () => {
   const pothis = useSelector((state) => state.pothis);
   const isSignedIn = useSelector((state) => state.auth?.status === "signedIn");
   const baniList = useSelector((state) => state.baniList);
+  const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
+  // The bani rows to seed FROM, when redux has none. `baniList` is blacklisted
+  // from redux-persist and is only ever filled by HomeScreen's useBaniList, so
+  // signing out from Settings can find it empty — and buildDefaultPothis is
+  // all-or-nothing, so it returns [] and the effect quietly seeds nothing. That
+  // is why the pothis came back only after a restart: the restart is what put
+  // HomeScreen back on screen to fill it.
+  const [fallbackBanis, setFallbackBanis] = useState(null);
 
   // The `pothis` object already dispatched a seed for — not a boolean, so it
   // guards the gap between dispatching and the next render reflecting
@@ -82,11 +91,27 @@ const usePothiSync = () => {
   // Signed out there is no server to provide them, so the local pair is what a
   // signed-out user browses; `mergeRemote` retires it on the first pull after
   // sign-in, in favour of the server's own.
+  // Read the list straight from the database when redux has none, so the seed
+  // does not depend on which screen the user happened to be on.
+  useEffect(() => {
+    if (isSignedIn || baniList?.length || fallbackBanis) return undefined;
+    if (!pothis || pothis.seededDefaults || pothis.folders?.length) return undefined;
+    let alive = true;
+    getBaniList(transliterationLanguage)
+      .then((rows) => {
+        if (alive) setFallbackBanis(rows ?? []);
+      })
+      .catch((error) => logMessage(`usePothiSync: default seed read failed (${error})`));
+    return () => {
+      alive = false;
+    };
+  }, [isSignedIn, baniList, fallbackBanis, pothis, transliterationLanguage]);
+
   useEffect(() => {
     if (isSignedIn) return;
     if (!pothis || pothis.seededDefaults || seededFor.current === pothis) return;
     if (pothis.folders?.length) return;
-    const defaults = buildDefaultPothis(baniList, {
+    const defaults = buildDefaultPothis(baniList?.length ? baniList : fallbackBanis, {
       morning: STRINGS.POTHI_DEFAULT_MORNING,
       evening: STRINGS.POTHI_DEFAULT_EVENING,
     });
@@ -96,7 +121,7 @@ const usePothiSync = () => {
     if (defaults.length === 0) return;
     seededFor.current = pothis;
     dispatch(actions.seedDefaultPothis(defaults));
-  }, [isSignedIn, pothis, baniList, dispatch]);
+  }, [isSignedIn, pothis, baniList, fallbackBanis, dispatch]);
 
   // ── Pull: the account's folders, and what it deleted since we last looked ─
   const applyRead = useCallback(

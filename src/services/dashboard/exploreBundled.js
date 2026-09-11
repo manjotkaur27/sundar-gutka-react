@@ -34,7 +34,12 @@ const BUNDLED = [
     titleKey: "TILE_ASK_AI",
     subtitleKey: "TILE_GURBANI_QA",
     badgeKey: "BADGE_NEW",
-    url: "https://www.sikhitothemax.org/",
+    // The redesigned site, asking it to open on the Ask Khalis AI tab rather
+    // than Search Gurbani. The parameter is theirs to honour: as of writing the
+    // page still opens on Search Gurbani and ignores it, so this lands correctly
+    // once SikhiToTheMax ships that. Overriding the row in the database changes
+    // it for everyone without an app release.
+    url: "https://next.sikhitothemax.org/?mode=khalis-ai",
     icon: "khalis",
   },
   {

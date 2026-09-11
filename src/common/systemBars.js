@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { NativeModules, Platform } from "react-native";
+import { relativeLuminance } from "@theme/reader/contrast";
 
 // Which way round the system navigation bar's glyphs are drawn.
 //
@@ -49,6 +50,31 @@ const apply = () => {
 export const resetNavBarGlyphs = () => {
   claims.length = 0;
   applied = null;
+};
+
+// The luminance at which the platform's near-black glyphs start reading better
+// than its white ones. Derived, not chosen: WCAG contrast against black is
+// (L + 0.05) / 0.05 and against white is 1.05 / (L + 0.05), so they are equal
+// where (L + 0.05)^2 = 0.05 * 1.05. Everything above this wants dark glyphs.
+const GLYPH_CROSSOVER = Math.sqrt(0.05 * 1.05) - 0.05;
+
+/**
+ * Which way round the glyphs should be drawn over `color`.
+ *
+ * The platform gives one boolean, so the real choice is between its near-black
+ * glyphs and its white ones. Rather than guess from whether a theme calls
+ * itself dark, measure: whichever of the two actually contrasts better against
+ * the surface wins. That is what keeps a mid-tone ground - the case where the
+ * glyphs and the background are nearly the same lightness, and the buttons
+ * disappear - from resolving to the invisible option.
+ *
+ * @returns {boolean|null} true for dark glyphs (a light surface), false for
+ *   light ones, null when the colour cannot be read.
+ */
+export const glyphsForSurface = (color) => {
+  const luminance = relativeLuminance(color);
+  if (luminance === null) return null;
+  return luminance >= GLYPH_CROSSOVER;
 };
 
 /** Whether the glyphs would currently be dark (i.e. a light surface), or null. */

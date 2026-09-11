@@ -5,6 +5,7 @@ import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 import org.devio.rn.splashscreen.SplashScreen
+import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.content.Intent
@@ -65,6 +66,15 @@ class MainActivity : ReactActivity() {
       // here the screens decide — see systemBars.js and SystemBarsModule.
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           window.isNavigationBarContrastEnforced = false
+      }
+      // Dark glyphs arrived in API 26 (APPEARANCE_LIGHT_NAVIGATION_BARS, and the
+      // SYSTEM_UI flag it replaced). Below that they are permanently white, so a
+      // transparent bar over a light screen — which the theme asks for from API
+      // 24 — is white on white with no API able to fix it. Those two releases
+      // keep an opaque bar instead, which is what Android 7 looks like anyway,
+      // and the bottom inset still holds content clear of it.
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+          window.navigationBarColor = Color.BLACK
       }
       onBackPressedDispatcher.addCallback(this, backPressedCallback)
   }

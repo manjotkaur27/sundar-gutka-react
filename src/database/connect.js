@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import { openDatabase, enablePromise } from "react-native-sqlite-storage";
-import { FallBack, constant, logError, logMessage, ensureDbExists, LOCAL_DB_PATH } from "@common";
+import { constant, logError, logMessage, ensureDbExists, LOCAL_DB_PATH } from "@common";
 
 // Enable promise-based APIs
 enablePromise(true);
@@ -99,9 +99,13 @@ const initDB = async () => {
           databaseInstance.value = db;
         })
         .catch((error) => {
+          // Logged only. FallBack is the error-boundary SCREEN; calling a
+          // component as a plain function runs its hooks outside React's render,
+          // so this catch threw "Invalid hook call" over the failure it was
+          // reporting — and this one fires when the DATABASE will not open, the
+          // fault most worth seeing.
           logError("Error opening fallback database", error);
           logError(error);
-          FallBack();
         });
       initializingPromise = null;
       throw err;
