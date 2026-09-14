@@ -209,13 +209,31 @@ describe("usePothiSync edits and the outbox", () => {
     ]);
   });
 
-  it("a deletion is queued at once, once per id", async () => {
+  // Tombstones are the record of every pothi this device has ever deleted,
+  // including months of them made before signing in — the pull is what prunes
+  // that list down to the ids the account actually still holds (mergeRemote),
+  // so nothing is sent until it has landed.
+  it("holds a deletion back until the first pull has landed", async () => {
     mockFetchFolders.mockResolvedValue(okRead([]));
-    signedInWith([], { deletedIds: ["d1"] });
+    signedInWith([], { deletedIds: ["guest-only"] });
     const { rerender } = renderHook(() => usePothiSync());
     await flush(0);
     rerender();
     await flush(0);
+
+    expect(enqueued().filter((a) => a.op.kind === "delete")).toEqual([]);
+  });
+
+  it("queues a deletion once the pull has landed, once per id", async () => {
+    mockFetchFolders.mockResolvedValue(okRead([]));
+    signedInWith([], { deletedIds: ["d1"] });
+    const { rerender } = renderHook(() => usePothiSync());
+    await act(async () => {
+      await impl().reconcile();
+    });
+    rerender();
+    await flush(0);
+
     expect(enqueued().filter((a) => a.op.kind === "delete")).toEqual([
       { type: "ENQUEUE_SYNC_OP", op: { feature: FEATURE, kind: "delete", key: "d1" } },
     ]);

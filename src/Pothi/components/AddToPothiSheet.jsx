@@ -13,7 +13,7 @@ import {
 } from "@common/pothi/model";
 import { actions, showToast, STRINGS, trackPothiEvent } from "@common";
 import { ListSeparator, Sheet, Text } from "../../common/components/ui";
-import useRequireOnline from "../hooks/useRequireOnline";
+import usePothiTitle from "../hooks/usePothiTitle";
 import CreatePothiSheet from "./CreatePothiSheet";
 import NewPothiRow from "./NewPothiRow";
 import PothiRow from "./PothiRow";
@@ -42,22 +42,23 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
   // on an empty list.
   const baniListData = useSelector((state) => state.baniList) ?? NO_BANIS;
   const [creating, setCreating] = useState(false);
-  const requireOnline = useRequireOnline();
+  // Toasts name the pothi the way its row does — Morning and Evening Nitnem in
+  // the app's language, not the English they are stored in.
+  const { titleFor } = usePothiTitle();
 
   const rows = listPothis(pothis).filter((folder) => folder.source === SOURCE);
   const already = new Set(bani ? pothisContaining(pothis, bani.id) : []);
 
   const add = (pothi) => {
-    if (!requireOnline()) return;
     if (already.has(pothi.id)) {
-      showToast(STRINGS.formatString(STRINGS.POTHI_ALREADY_IN, { name: pothi.name }));
+      showToast(STRINGS.formatString(STRINGS.POTHI_ALREADY_IN, { name: titleFor(pothi) }));
       onClose();
       return;
     }
     const item = makeBaniItem({ baaniId: bani.id, title: bani.gurmukhiUni || bani.gurmukhi });
     dispatch(actions.addBaniToPothi(pothi.id, item));
     trackPothiEvent("bani_added", { bani_id: bani.id, size: pothi.items.length + 1 });
-    showToast(STRINGS.formatString(STRINGS.POTHI_ADDED, { name: pothi.name }), "success");
+    showToast(STRINGS.formatString(STRINGS.POTHI_ADDED, { name: titleFor(pothi) }), "success");
     onClose();
   };
 
@@ -93,11 +94,7 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
               here. This sheet had its own shorter row with a smaller glyph and
               no divider, so the one thing it lists — a pothi — looked different
               depending on which screen you were looking at it from. */}
-          <NewPothiRow
-            onPress={() => {
-              if (requireOnline()) setCreating(true);
-            }}
-          />
+          <NewPothiRow onPress={() => setCreating(true)} />
 
           {rows.length === 0 ? (
             <Text
@@ -139,7 +136,10 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
         seedBani={bani}
         baniListData={baniListData}
         onCreated={(pothi) => {
-          showToast(STRINGS.formatString(STRINGS.POTHI_ADDED, { name: pothi.name }), "success");
+          showToast(
+            STRINGS.formatString(STRINGS.POTHI_ADDED, { name: titleFor(pothi) }),
+            "success"
+          );
           onClose();
         }}
       />

@@ -6,7 +6,9 @@ import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import { SaveIcon } from "@common/icons";
 import { ConfirmDialogHost, showConfirm, STRINGS } from "@common";
 import { GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
+import usePothiTitle from "../hooks/usePothiTitle";
 import useSetPothiBanis from "../hooks/useSetPothiBanis";
+import reportPothiEmptied from "../reportPothiEmptied";
 import PickBanisStep from "./PickBanisStep";
 
 // Fill a pothi that already exists.
@@ -25,6 +27,7 @@ import PickBanisStep from "./PickBanisStep";
 // nothing to take back afterwards.
 const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   const setBanis = useSetPothiBanis();
+  const { titleFor } = usePothiTitle();
   // Read LIVE from the store, by id. Holding the row object the list handed
   // over froze the ticks: every add produced a new pothi in the store while
   // this still pointed at the snapshot taken when the sheet opened.
@@ -55,9 +58,16 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
 
   if (!pothi) return null;
 
+  // Done and dismissing both keep the edits, so both are the commit. Discard
+  // puts the opening selection back and closes without passing through here.
+  const commit = () => {
+    reportPothiEmptied((openedWith ?? pothi.items).length, pothi.items.length, "add_banis_sheet");
+    onClose();
+  };
+
   const discard = () =>
     showConfirm({
-      title: STRINGS.formatString(STRINGS.POTHI_DISCARD_EDITS_CONFIRM, { name: pothi.name }),
+      title: STRINGS.formatString(STRINGS.POTHI_DISCARD_EDITS_CONFIRM, { name: titleFor(pothi) }),
       cancelText: STRINGS.POTHI_KEEP_EDITING,
       confirmText: STRINGS.POTHI_DISCARD,
       destructive: true,
@@ -72,7 +82,7 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
     <ScreenRolesProvider screen="settings">
       <Sheet
         visible={visible}
-        onClose={onClose}
+        onClose={commit}
         title={STRINGS.POTHI_ADD_BANIS}
         // In the title row, where no keyboard can cover them and no amount of
         // list can scroll them away — see PickBanisActions.
@@ -82,7 +92,7 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
             cancelLabel={STRINGS.CANCEL}
             confirmIcon={SaveIcon}
             confirmLabel={STRINGS.POTHI_DONE}
-            onConfirm={onClose}
+            onConfirm={commit}
           />
         }
         // The sheet is the one and only scroller — the step's list renders

@@ -27,8 +27,9 @@ jest.mock("@common/hooks/useTokens", () => () => ({
   space: { sm: 8, md: 12, lg: 16 },
 }));
 
+let mockIsDefault = false;
 jest.mock("@common/pothi/model", () => ({
-  isDefaultPothi: () => false,
+  isDefaultPothi: () => mockIsDefault,
   isValidName: () => true,
   MAX_NAME_LENGTH: 40,
 }));
@@ -80,8 +81,6 @@ jest.mock("./PothiNameField", () => () => null);
 
 jest.mock("../hooks/useDeletePothi", () => () => mockConfirmDelete);
 
-jest.mock("../hooks/useRequireOnline", () => () => () => true);
-
 const pothi = { id: "p1", name: "Nitnem", count: 3 };
 
 const renderSheet = (onClose = jest.fn()) => ({
@@ -91,6 +90,7 @@ const renderSheet = (onClose = jest.fn()) => ({
 
 beforeEach(() => {
   mockConfirmDelete.mockClear();
+  mockIsDefault = false;
 });
 
 describe("the pothi actions sheet", () => {
@@ -133,5 +133,23 @@ describe("the pothi actions sheet", () => {
     onDeleted();
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers rename and delete on an ordinary pothi", () => {
+    const { queryByLabelText } = renderSheet();
+
+    expect(queryByLabelText("Rename")).toBeTruthy();
+    expect(queryByLabelText("Delete")).toBeTruthy();
+  });
+
+  // Morning and Evening Nitnem are what Today's Nitnem follows. A device with no
+  // recorded pointer finds them by their banis or their name, so a rename on
+  // top of an edit loses them there — see resolveDefaultId.
+  it("offers neither rename nor delete on Morning or Evening Nitnem", () => {
+    mockIsDefault = true;
+    const { queryByLabelText } = renderSheet();
+
+    expect(queryByLabelText("Rename")).toBeNull();
+    expect(queryByLabelText("Delete")).toBeNull();
   });
 });

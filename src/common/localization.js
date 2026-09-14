@@ -94,6 +94,7 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_bani_default: "Gurbani Akhar (default)",
     gurbani_akhar_heavy: "Gurbani Akhar Heavy",
     gurbani_akhar_think: "Gurbani Akhar Thick",
+    puratan_hathlikhat: "Puratan Hathlikhat",
     baloo_paaji: "Baloo Paaji (default)",
     baloo_paaji_plain: "Baloo Paaji",
     baloo_paaji_warning: "Some characters may not display correctly with this font.",
@@ -225,8 +226,6 @@ const STRINGS = new LocalizedStrings({
     POTHI_ADD_BANIS: "Add banis",
     POTHI_DONE: "Done",
     POTHI_SEARCH_BANIS: "Search banis",
-    POTHI_INTERNET_REQUIRED: "Internet required",
-    POTHI_OFFLINE_NOTICE: "You're offline. Pothis are available to read, but cannot be changed.",
     POTHI_DEFAULT_MORNING: "Morning Nitnem",
     POTHI_DEFAULT_EVENING: "Evening Nitnem",
     POTHI_DELETE: "Delete",
@@ -237,10 +236,10 @@ const STRINGS = new LocalizedStrings({
     POTHI_DISCARD_NEW_CONFIRM: "Discard {name} pothi?",
     POTHI_DISCARD_EDITS_CONFIRM: "Discard changes to {name} pothi?",
     POTHI_DEFAULT_FOLDERS: "Default Folders",
-    POTHI_SIGN_IN_HINT: "Sign in to ensure your pothis are saved and accessible across devices.",
+    POTHI_SIGN_IN_HINT:
+      "Your pothis are saved on this device. Sign in to back them up across devices.",
     SETTINGS_SIGN_IN_HINT:
       "Sign in to save your settings to the cloud and keep them on every device.",
-    POTHI_SIGN_IN_REQUIRED: "Sign in to add or remove banis, rename, or delete a pothi.",
     POTHI_DELETE_BANIS: "Delete Banis",
     POTHI_DELETE_POTHI: "Delete Pothi",
     POTHI_MORE_ACTIONS: "More actions",
@@ -599,6 +598,7 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_bani_default: "गुरबाणी अक्षर (मूल)",
     gurbani_akhar_heavy: "गुरबाणी अक्षर भारी ",
     gurbani_akhar_think: "गुरबाणी अक्षर मोटे",
+    puratan_hathlikhat: "पुरातन हत्थलिखत",
     baloo_paaji: "बालू पाजी (मूल)",
     baloo_paaji_plain: "बालू पाजी",
     baloo_paaji_warning: "इस फ़ॉन्ट के साथ कुछ वर्ण सही तरह से प्रदर्शित नहीं हो सकते हैं।",
@@ -730,8 +730,6 @@ const STRINGS = new LocalizedStrings({
     POTHI_ADD_BANIS: "बाणियाँ जोड़ें",
     POTHI_DONE: "हो गया",
     POTHI_SEARCH_BANIS: "बाणी खोजें",
-    POTHI_INTERNET_REQUIRED: "इंटरनेट आवश्यक है",
-    POTHI_OFFLINE_NOTICE: "आप ऑफ़लाइन हैं। पोथियाँ पढ़ी जा सकती हैं, पर बदली नहीं जा सकतीं।",
     POTHI_DEFAULT_MORNING: "प्रातः नितनेम",
     POTHI_DEFAULT_EVENING: "संध्या नितनेम",
     POTHI_DELETE: "हटाएँ",
@@ -742,10 +740,9 @@ const STRINGS = new LocalizedStrings({
     POTHI_DISCARD_NEW_CONFIRM: "{name} पोथी खारिज करें?",
     POTHI_DISCARD_EDITS_CONFIRM: "{name} पोथी में किए बदलाव खारिज करें?",
     POTHI_DEFAULT_FOLDERS: "डिफ़ॉल्ट फ़ोल्डर",
-    POTHI_SIGN_IN_HINT: "साइन इन करें ताकि आपकी पोथियाँ सुरक्षित रहें और सभी डिवाइस पर उपलब्ध हों।",
+    POTHI_SIGN_IN_HINT: "आपकी पोथियाँ इसी डिवाइस पर सहेजी जाती हैं। बैकअप के लिए साइन इन करें।",
     SETTINGS_SIGN_IN_HINT:
       "अपनी सेटिंग्स क्लाउड में सहेजने और हर डिवाइस पर रखने के लिए साइन इन करें।",
-    POTHI_SIGN_IN_REQUIRED: "बाणी जोड़ने/हटाने, नाम बदलने या पोथी मिटाने के लिए साइन इन करें।",
     POTHI_DELETE_BANIS: "बाणियाँ हटाएँ",
     POTHI_DELETE_POTHI: "पोथी हटाएँ",
     POTHI_MORE_ACTIONS: "और विकल्प",
@@ -1107,6 +1104,7 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_bani_default: "ਗੁਰਬਾਣੀ ਅੱਖਰ (ਮੂਲ)",
     gurbani_akhar_heavy: "ਗੁਰਬਾਣੀ ਅੱਖਰ ਭਾਰੇ",
     gurbani_akhar_think: "ਗੁਰਬਾਣੀ ਅੱਖਰ ਮੋਟੇ",
+    puratan_hathlikhat: "ਪੁਰਾਤਨ ਹੱਥਲਿਖਤ",
     baloo_paaji: "ਬਾਲੂ ਪਾਜੀ (ਮੂਲ)",
     baloo_paaji_plain: "ਬਾਲੂ ਪਾਜੀ",
     baloo_paaji_warning: "ਇਸ ਫੌਂਟ ਨਾਲ ਕੁਝ ਅੱਖਰ ਸਹੀ ਢੰਗ ਨਾਲ ਨਹੀਂ ਦਿਖਾਈ ਦੇ ਸਕਦੇ।",
@@ -1237,9 +1235,6 @@ const STRINGS = new LocalizedStrings({
     POTHI_ADD_BANIS: "ਬਾਣੀਆਂ ਸ਼ਾਮਲ ਕਰੋ",
     POTHI_DONE: "ਹੋ ਗਿਆ",
     POTHI_SEARCH_BANIS: "ਬਾਣੀ ਲੱਭੋ",
-    POTHI_INTERNET_REQUIRED: "ਇੰਟਰਨੈੱਟ ਲੋੜੀਂਦਾ ਹੈ",
-    POTHI_OFFLINE_NOTICE:
-      "ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ। ਪੋਥੀਆਂ ਪੜ੍ਹੀਆਂ ਜਾ ਸਕਦੀਆਂ ਹਨ, ਪਰ ਬਦਲੀਆਂ ਨਹੀਂ ਜਾ ਸਕਦੀਆਂ।",
     POTHI_DEFAULT_MORNING: "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ",
     POTHI_DEFAULT_EVENING: "ਸ਼ਾਮ ਦਾ ਨਿਤਨੇਮ",
     POTHI_DELETE: "ਹਟਾਓ",
@@ -1250,10 +1245,10 @@ const STRINGS = new LocalizedStrings({
     POTHI_DISCARD_NEW_CONFIRM: "{name} ਪੋਥੀ ਰੱਦ ਕਰੀਏ?",
     POTHI_DISCARD_EDITS_CONFIRM: "{name} ਪੋਥੀ ਵਿੱਚ ਕੀਤੀਆਂ ਤਬਦੀਲੀਆਂ ਰੱਦ ਕਰੀਏ?",
     POTHI_DEFAULT_FOLDERS: "ਡਿਫਾਲਟ ਫੋਲਡਰ",
-    POTHI_SIGN_IN_HINT: "ਸਾਈਨ ਇਨ ਕਰੋ ਤਾਂ ਜੋ ਤੁਹਾਡੀਆਂ ਪੋਥੀਆਂ ਸੰਭਾਲੀਆਂ ਜਾਣ ਅਤੇ ਹਰ ਡੀਵਾਈਸ ਉੱਤੇ ਮਿਲਣ।",
+    POTHI_SIGN_IN_HINT:
+      "ਤੁਹਾਡੀਆਂ ਪੋਥੀਆਂ ਇਸੇ ਡੀਵਾਈਸ ਉੱਤੇ ਸੰਭਾਲੀਆਂ ਜਾਂਦੀਆਂ ਹਨ। ਬੈਕਅੱਪ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
     SETTINGS_SIGN_IN_HINT:
       "ਆਪਣੀਆਂ ਸੈਟਿੰਗਾਂ ਕਲਾਊਡ ਵਿੱਚ ਸੰਭਾਲਣ ਅਤੇ ਹਰ ਡੀਵਾਈਸ ਉੱਤੇ ਰੱਖਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
-    POTHI_SIGN_IN_REQUIRED: "ਬਾਣੀ ਜੋੜਨ/ਹਟਾਉਣ, ਨਾਂ ਬਦਲਣ ਜਾਂ ਪੋਥੀ ਮਿਟਾਉਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
     POTHI_DELETE_BANIS: "ਬਾਣੀਆਂ ਹਟਾਓ",
     POTHI_DELETE_POTHI: "ਪੋਥੀ ਮਿਟਾਓ",
     POTHI_MORE_ACTIONS: "ਹੋਰ ਵਿਕਲਪ",
@@ -1617,6 +1612,7 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_bani_default: "Gourbani Akhar (défaut)",
     gurbani_akhar_heavy: "Gourbani Akhar Lourde",
     gurbani_akhar_think: "Gourbani Akhar Épaisse",
+    puratan_hathlikhat: "Pouratan Hathlikhat",
     baloo_paaji: "Baloo Paaji (défaut)",
     baloo_paaji_plain: "Baloo Paaji",
     baloo_paaji_warning:
@@ -1751,9 +1747,6 @@ const STRINGS = new LocalizedStrings({
     POTHI_ADD_BANIS: "Ajouter des banis",
     POTHI_DONE: "Terminé",
     POTHI_SEARCH_BANIS: "Rechercher une bani",
-    POTHI_INTERNET_REQUIRED: "Connexion Internet requise",
-    POTHI_OFFLINE_NOTICE:
-      "Vous êtes hors ligne. Les pothis restent lisibles, mais ne peuvent pas être modifiés.",
     POTHI_DEFAULT_MORNING: "Nitnem du matin",
     POTHI_DEFAULT_EVENING: "Nitnem du soir",
     POTHI_DELETE: "Supprimer",
@@ -1765,11 +1758,9 @@ const STRINGS = new LocalizedStrings({
     POTHI_DISCARD_EDITS_CONFIRM: "Abandonner les modifications du pothi {name} ?",
     POTHI_DEFAULT_FOLDERS: "Dossiers par défaut",
     POTHI_SIGN_IN_HINT:
-      "Connectez-vous pour que vos pothis soient sauvegardés et accessibles sur tous vos appareils.",
+      "Vos pothis sont enregistrés sur cet appareil. Connectez-vous pour les sauvegarder.",
     SETTINGS_SIGN_IN_HINT:
       "Connectez-vous pour enregistrer vos réglages dans le cloud et les retrouver sur chaque appareil.",
-    POTHI_SIGN_IN_REQUIRED:
-      "Connectez-vous pour ajouter ou retirer des banis, renommer ou supprimer un pothi.",
     POTHI_DELETE_BANIS: "Supprimer des banis",
     POTHI_DELETE_POTHI: "Supprimer le pothi",
     POTHI_MORE_ACTIONS: "Plus d'actions",
@@ -2140,6 +2131,7 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_bani_default: "Gurbani Akhar (default)",
     gurbani_akhar_heavy: "Gourbani Akhar Grasso",
     gurbani_akhar_think: "Gourbani Akhar Spesso",
+    puratan_hathlikhat: "Puratan Hathlikhat",
     baloo_paaji: "Baloo Paaji (default)",
     baloo_paaji_plain: "Baloo Paaji",
     baloo_paaji_warning:
@@ -2267,9 +2259,6 @@ const STRINGS = new LocalizedStrings({
     POTHI_ADD_BANIS: "Aggiungi bani",
     POTHI_DONE: "Fatto",
     POTHI_SEARCH_BANIS: "Cerca bani",
-    POTHI_INTERNET_REQUIRED: "Connessione Internet necessaria",
-    POTHI_OFFLINE_NOTICE:
-      "Sei offline. I pothi restano leggibili, ma non possono essere modificati.",
     POTHI_DEFAULT_MORNING: "Nitnem del mattino",
     POTHI_DEFAULT_EVENING: "Nitnem della sera",
     POTHI_DELETE: "Elimina",
@@ -2280,11 +2269,10 @@ const STRINGS = new LocalizedStrings({
     POTHI_DISCARD_NEW_CONFIRM: "Scartare il pothi {name}?",
     POTHI_DISCARD_EDITS_CONFIRM: "Scartare le modifiche al pothi {name}?",
     POTHI_DEFAULT_FOLDERS: "Cartelle predefinite",
-    POTHI_SIGN_IN_HINT: "Accedi per salvare i tuoi pothi e ritrovarli su tutti i dispositivi.",
+    POTHI_SIGN_IN_HINT:
+      "I tuoi pothi sono salvati su questo dispositivo. Accedi per farne il backup.",
     SETTINGS_SIGN_IN_HINT:
       "Accedi per salvare le impostazioni nel cloud e ritrovarle su ogni dispositivo.",
-    POTHI_SIGN_IN_REQUIRED:
-      "Accedi per aggiungere o rimuovere bani, rinominare o eliminare un pothi.",
     POTHI_DELETE_BANIS: "Elimina bani",
     POTHI_DELETE_POTHI: "Elimina pothi",
     POTHI_MORE_ACTIONS: "Altre azioni",
@@ -2658,6 +2646,7 @@ const STRINGS = new LocalizedStrings({
     gurbani_akhar_bani_default: "Gurbani Akhar (predeterminado)",
     gurbani_akhar_heavy: "Gurbani Akhar Fuerte",
     gurbani_akhar_think: "Gurbani Akhar Denso",
+    puratan_hathlikhat: "Puratan Hathlikhat",
     baloo_paaji: "Baloo Paaji (predeterminados)",
     baloo_paaji_plain: "Baloo Paaji",
     baloo_paaji_warning: "Algunos caracteres podrían no mostrarse correctamente con esta fuente.",
@@ -2790,8 +2779,6 @@ const STRINGS = new LocalizedStrings({
     POTHI_ADD_BANIS: "Añadir banis",
     POTHI_DONE: "Hecho",
     POTHI_SEARCH_BANIS: "Buscar banis",
-    POTHI_INTERNET_REQUIRED: "Se requiere conexión a Internet",
-    POTHI_OFFLINE_NOTICE: "Estás sin conexión. Los pothis se pueden leer, pero no modificar.",
     POTHI_DEFAULT_MORNING: "Nitnem de la mañana",
     POTHI_DEFAULT_EVENING: "Nitnem de la tarde",
     POTHI_DELETE: "Eliminar",
@@ -2803,11 +2790,9 @@ const STRINGS = new LocalizedStrings({
     POTHI_DISCARD_EDITS_CONFIRM: "¿Descartar los cambios en el pothi {name}?",
     POTHI_DEFAULT_FOLDERS: "Carpetas predeterminadas",
     POTHI_SIGN_IN_HINT:
-      "Inicia sesión para que tus pothis se guarden y estén disponibles en todos tus dispositivos.",
+      "Tus pothis se guardan en este dispositivo. Inicia sesión para hacer una copia de seguridad.",
     SETTINGS_SIGN_IN_HINT:
       "Inicia sesión para guardar tus ajustes en la nube y tenerlos en todos tus dispositivos.",
-    POTHI_SIGN_IN_REQUIRED:
-      "Inicia sesión para añadir o quitar banis, cambiar el nombre o eliminar un pothi.",
     POTHI_DELETE_BANIS: "Eliminar banis",
     POTHI_DELETE_POTHI: "Eliminar pothi",
     POTHI_MORE_ACTIONS: "Más acciones",

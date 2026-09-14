@@ -151,3 +151,71 @@ describe("the Edit Banis sheet follows the transliteration setting", () => {
     expect(modal()).not.toMatch(/=>\s*state\.language\b/);
   });
 });
+
+// Finishing the nitnem is the point of the card, and for a long time it was the
+// one action on it that reported nothing: both completion controls dispatched
+// and pushed with no analytics beside them. The data was safe in the local
+// store, but the behavioural funnel showed people opening banis and never
+// finishing one.
+//
+// Source-level again, for the same reason as everything above: what is being
+// protected is that no completion path exists WITHOUT an event, which is a fact
+// about the file rather than about one render.
+describe("completing a nitnem is reported", () => {
+  const card = () => here("TodaysNitnem.jsx");
+
+  it("tracks the bulk Mark done press", () => {
+    expect(card()).toMatch(
+      /trackDashboardEvent\("nitnem_marked_done", \{ source: "mark_all", count: remaining \}\)/
+    );
+  });
+
+  it("counts what was REMAINING, not the whole list", () => {
+    // `selectedBaniIds.length` would re-count every bani already ticked and
+    // inflate each bulk completion by whatever had been done beforehand.
+    expect(card()).not.toContain("count: selectedBaniIds.length");
+  });
+
+  it("tracks a single tick as a completion of one", () => {
+    expect(card()).toMatch(
+      /trackDashboardEvent\("nitnem_marked_done", \{ source: "tick", count: 1 \}\)/
+    );
+  });
+
+  // An un-tick is usually the 95%-scroll auto-detection being corrected. Filed
+  // under the same event it would be summed as a completion, and the correction
+  // itself — the signal worth having — would be invisible.
+  it("files an un-tick as its own event, never as a completion", () => {
+    expect(card()).toContain('if (isDone) trackDashboardEvent("nitnem_unmarked")');
+  });
+
+  it("leaves no completion dispatch without an event beside it", () => {
+    const text = card();
+    ["markNitnemDone", "toggleNitnemDone"].forEach((action) => {
+      const at = text.indexOf(`actions.${action}(`);
+      expect(at).toBeGreaterThan(-1);
+      // The press handler that owns this dispatch, back to its own `onPress`.
+      const handler = text.slice(text.lastIndexOf("onPress", at), at);
+      expect(handler).toContain("trackDashboardEvent");
+    });
+  });
+});
+
+// Both events send only parameters already registered in GA4, which is why
+// they needed no console work. A parameter GA4 has not been told about is still
+// collected but cannot be used in any report. Pinned exactly, so adding one has
+// to be a deliberate edit here — made after registering it.
+describe("the nitnem events send only their known parameters", () => {
+  const paramsSentWith = (event) => {
+    // Escaped for the RegExp, not for the template literal: `\\(` is what leaves
+    // a single backslash in the pattern string.
+    const pattern = new RegExp(`trackDashboardEvent\\("${event}", \\{([^}]*)\\}`, "g");
+    return [...here("TodaysNitnem.jsx").matchAll(pattern)].flatMap((match) =>
+      [...match[1].matchAll(/([a-z_]+):/g)].map((param) => param[1])
+    );
+  };
+
+  it("sends exactly source and count with nitnem_marked_done", () => {
+    expect([...new Set(paramsSentWith("nitnem_marked_done"))].sort()).toEqual(["count", "source"]);
+  });
+});

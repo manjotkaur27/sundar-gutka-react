@@ -27,6 +27,35 @@ const TYPE_TO_ROLE = {
 const GURMUKHI_HEADING_LEVELS = { 1: true };
 const TEXT_ALIGN_BY_HEADER = { 0: "left", 1: "center", 2: "center" };
 
+// The Gurmukhi fallback chain, built once, matching the one the stylesheet
+// gives `.gurmukhi`.
+//
+// It has to be repeated here because the inline font-family below OVERRIDES
+// that rule, so the chain never applied to the line it was written for: a
+// character the chosen font lacks fell through to the WebView's own default
+// instead of to another Gurmukhi face. That went unnoticed while every
+// choosable font covered the whole of the bundled text. Puratan Hathlikhat
+// does not — it has no glyph for the ❁ ornament that separates some sections,
+// which a system font draws as a low quote.
+const GURMUKHI_FALLBACKS = [
+  constant.GURBANI_AKHAR_HEAVY_TRUE,
+  constant.GURBANI_AKHAR_TRUE,
+  constant.GURBANI_AKHAR_THICK_TRUE,
+  constant.ANMOL_LIPI,
+]
+  .map((face) => `'${face}'`)
+  .join(", ");
+
+/**
+ * The inline font-family for one div.
+ *
+ * Only a Gurmukhi div is given a face (the caller passes one); transliteration
+ * and translation pass none and are left EXACTLY as they were, chain included,
+ * so this change cannot move a line it was not meant to touch.
+ */
+const fontFamilyFor = (fontFace) =>
+  fontFace ? `${fontFace}, ${GURMUKHI_FALLBACKS}` : `${fontFace}`;
+
 // `readerTheme` is a resolved READING-theme record (src/theme/reader), not the
 // app theme. The light and dark records are derived from the app's own palette,
 // so "Follow app theme" resolves to exactly the roles this used to read
@@ -118,7 +147,7 @@ export const createDiv = (
     header,
     type === TRANSLITERATION_LC || type === TRANSLATION_LC,
     readerTheme.typography.fontScale
-  )}px; font-size: var(--fs); font-family: ${fontFace}; color: ${fontColorForReader(
+  )}px; font-size: var(--fs); font-family: ${fontFamilyFor(fontFace)}; color: ${fontColorForReader(
     header,
     readerTheme,
     // The role this type maps to. `type.toUpperCase()` built a throwaway string

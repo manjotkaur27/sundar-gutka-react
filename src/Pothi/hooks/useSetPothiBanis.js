@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { actions, trackPothiEvent } from "@common";
-import useRequireOnline from "./useRequireOnline";
 
 /**
  * Replaces a pothi's banis with a given set, as the adds and removes between
@@ -17,20 +16,17 @@ import useRequireOnline from "./useRequireOnline";
  * where the selection is a list of ticks, and the Dashboard's Today's Nitnem
  * editor, which edits the Morning Nitnem pothi.
  *
- * Gated by `useRequireOnline`, so a signed-out or offline caller is told why
- * nothing happened rather than making an edit with nowhere to sync to.
+ * Ungated. The edit lands in redux first and reaches the account when there is
+ * one, so it is applied whether or not the user is signed in or online.
  *
- * @param {{ localEdit?: boolean }} [options] forwarded to `useRequireOnline`;
- *   set by the Today's Nitnem editor, whose list is valid without an account.
  * @returns {(pothi: object, next: Array) => boolean} true if it was applied.
  */
-const useSetPothiBanis = ({ localEdit = false } = {}) => {
+const useSetPothiBanis = () => {
   const dispatch = useDispatch();
-  const requireOnline = useRequireOnline({ localEdit });
 
   return useCallback(
     (pothi, next) => {
-      if (!pothi || !requireOnline()) return false;
+      if (!pothi) return false;
       const before = new Set(pothi.items.map((item) => item.baaniId));
       const after = new Set(next.map((item) => item.baaniId));
       next
@@ -47,7 +43,7 @@ const useSetPothiBanis = ({ localEdit = false } = {}) => {
         });
       return true;
     },
-    [dispatch, requireOnline]
+    [dispatch]
   );
 };
 

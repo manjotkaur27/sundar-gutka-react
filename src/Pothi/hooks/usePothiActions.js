@@ -2,8 +2,6 @@ import { useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import { MAX_PINNED } from "@common/pothi/model";
 import { actions, constant, showToast, STRINGS } from "@common";
-import useRequireOnline from "./useRequireOnline";
-import useRequireSignIn from "./useRequireSignIn";
 
 /**
  * Everything the Folders list needs from its host screen.
@@ -17,10 +15,6 @@ import useRequireSignIn from "./useRequireSignIn";
  */
 const usePothiActions = (navigate) => {
   const dispatch = useDispatch();
-  // Covers connectivity too, so Create keeps refusing offline exactly as
-  // before — this just adds the sign-in half of the same gate.
-  const requireOnline = useRequireOnline();
-  const requireSignIn = useRequireSignIn(navigate);
   const [creating, setCreating] = useState(false);
 
   // Opening a single shabad from inside a pothi is the same navigation the bani
@@ -53,15 +47,10 @@ const usePothiActions = (navigate) => {
     []
   );
 
-  // Signed out, tapping "+ New Pothi" does not open the create sheet at all: it
-  // sends the user to Settings to sign in. See useRequireSignIn, which the
-  // Reader's add-to-pothi action shares — the two entry points that would
-  // otherwise dead-end in a sheet the user cannot submit.
-  const openCreate = useCallback(() => {
-    if (!requireSignIn()) return;
-    if (!requireOnline()) return;
-    setCreating(true);
-  }, [requireSignIn, requireOnline]);
+  // "+ New Pothi" is open to everyone. A pothi lives on the device first and
+  // reaches the account when there is one (see usePothiSync), so nothing a
+  // signed-out or offline user starts here is thrown away.
+  const openCreate = useCallback(() => setCreating(true), []);
 
   return {
     openBani,

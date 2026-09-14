@@ -27,7 +27,6 @@ import {
   Sheet,
   SheetActions,
 } from "../../common/components/ui";
-import useRequireOnline from "../hooks/useRequireOnline";
 import PickBanisStep from "./PickBanisStep";
 import PothiNameField from "./PothiNameField";
 
@@ -46,7 +45,6 @@ import PothiNameField from "./PothiNameField";
 const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniListData = [] }) => {
   const { space } = useTokens();
   const dispatch = useDispatch();
-  const requireOnline = useRequireOnline();
   // Counted from the store rather than passed in: both entry points (the
   // Folders tab and the reader's add-to-pothi sheet) would otherwise need to
   // know about the cap.
@@ -79,7 +77,7 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   }, [visible]);
 
   const submit = () => {
-    if (!isValidName(name) || !requireOnline()) return;
+    if (!isValidName(name)) return;
     // The API 400s the whole PUT past MAX_FOLDERS, so `addPothi` refuses the
     // 51st and hands back the state untouched. Unchecked, the sheet went on to
     // report success and close for a pothi that was never created.

@@ -57,7 +57,6 @@ jest.mock("../Pothi/components/AddBanisSheet", () => () => null);
 jest.mock("../Pothi/components/BaniPickRow", () => () => null);
 jest.mock("../Pothi/components/PothiActionsSheet", () => () => null);
 jest.mock("../Pothi/hooks/useDeletePothi", () => () => jest.fn());
-jest.mock("../Pothi/hooks/useRequireOnline", () => () => () => true);
 
 const folder = (name) => ({ id: "p1", name, source: "mypothi", items: [], updatedAt: 1 });
 

@@ -16,17 +16,20 @@ import { getBaniList } from "@database";
 // Keeps My Pothi in step with the account — and with every other device
 // signed into it — and seeds the two default pothis.
 //
-// ── Signed out is read-only ────────────────────────────────────────────────
-// Signed-out browsing shows exactly Morning and Evening Nitnem — see the
-// seeding effect below — and every mutation (create, rename, delete, add/
-// remove a bani) is refused by `useRequireOnline`, which gates on sign-in as
-// well as connectivity. There is nowhere for a signed-out edit to go: it
-// cannot reach the account it isn't attached to, and letting it sit local-only
-// is how the app ended up with pothis that outlived the session that made
-// them. The slice is person-owned data, so it is listed in `reducer.js`'s
-// USER_DATA_SLICES and wiped when a DIFFERENT account signs in — see
-// sso/accountScope. NOT on sign-out: the same account coming back, offline,
-// keeps the pothis it already had.
+// ── Signed out is fully usable ─────────────────────────────────────────────
+// Creating, renaming, deleting, reordering, pinning and editing a pothi all
+// work with no account and no connection. The edit lands in redux,
+// redux-persist keeps it across launches, and the account CLAIMS it on the
+// first sign-in rather than replacing it: `applyAccountScope` deliberately
+// does not purge when there is no previous account on the device, so the
+// guest's folders are still in the slice when `reconcile` below pushes them
+// up, and `mergeRemote` keeps both sides folder by folder.
+//
+// A LATER change of account still purges — the slice is person-owned data,
+// listed in `reducer.js`'s USER_DATA_SLICES — so account B never inherits
+// account A's pothis. Signing out purges it too (useSsoActions.signOut) and
+// forgets the last account, which is what makes the sign-in after it a first
+// sign-in again: pothis made in between belong to whoever made them.
 //
 // ── Local-first, through the outbox ────────────────────────────────────────
 // Every edit lands in redux (and redux-persist) first. The change is then
@@ -221,16 +224,24 @@ const usePothiSync = () => {
     }
   }, [isSignedIn]);
 
-  // ── Deletions go to the outbox at once ────────────────────────────────────
+  // ── Deletions go to the outbox once the first pull has landed ─────────────
+  //
+  // Waiting for the pull is what keeps a guest's history off the wire. Signed
+  // out there is nothing to pull, so every pothi deleted before signing in
+  // leaves a tombstone behind, and a long spell as a guest would send the
+  // account a DELETE for each one — all of them ids it has never heard of. The
+  // first `mergeRemote` retires every tombstone the server does not actually
+  // hold (see `stillThere` there), so by the time this runs the list is exactly
+  // the deletions the account still has to be told about.
   const buried = pothis?.deletedIds;
   useEffect(() => {
-    if (!isSignedIn || !buried?.length) return;
+    if (!isSignedIn || !pullDone || !buried?.length) return;
     buried.forEach((id) => {
       if (queuedDeletes.current.has(id)) return;
       queuedDeletes.current.add(id);
       dispatch(actions.enqueueSyncOp({ feature: FEATURE, kind: "delete", key: id }));
     });
-  }, [isSignedIn, buried, dispatch]);
+  }, [isSignedIn, pullDone, buried, dispatch]);
 
   // ── Edits go to the outbox once they settle ───────────────────────────────
   //

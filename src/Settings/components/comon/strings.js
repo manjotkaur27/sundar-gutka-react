@@ -16,6 +16,7 @@ export const getBaniFontFaces = (strings) => [
   { key: constant.GURBANI_AKHAR_TRUE, title: strings.gurbani_akhar_bani_default },
   { key: constant.GURBANI_AKHAR_HEAVY_TRUE, title: strings.gurbani_akhar_heavy },
   { key: constant.GURBANI_AKHAR_THICK_TRUE, title: strings.gurbani_akhar_think },
+  { key: constant.PURATAN_HASTLIKHAT, title: strings.puratan_hathlikhat },
   { key: constant.BALOO_PAAJI, title: strings.baloo_paaji_plain },
 ];
 

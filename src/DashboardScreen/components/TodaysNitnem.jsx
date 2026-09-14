@@ -10,7 +10,6 @@ import nitnemSelection from "@common/nitnem/selection";
 import { defaultPothi } from "@common/pothi/model";
 import { CustomText, STRINGS, constant, actions, logError, trackDashboardEvent } from "@common";
 import { getDayDetail } from "../../database/analytics";
-import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
 import { requestPush } from "../../services/dashboard/syncSignal";
 import CheckCircle from "./CheckCircle";
 import DashboardCard from "./DashboardCard";
@@ -337,20 +336,14 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
   const { map: baniMap, nameOf } = useBaniLookup();
 
   const [editVisible, setEditVisible] = useState(false);
-  // This card edits the Morning Nitnem POTHI, so it goes through the same gate
-  // every other pothi edit does — but as a LOCAL edit. Signed in, the two are
-  // one list and the change syncs on the account. Signed out, the nitnem is
-  // still the user's to arrange; it simply stays on the device until there is
-  // an account to carry it. `localEdit` is what says so, and it is deliberately
-  // not tied to POTHI_ENABLED: this holds whether My Pothi ships or not.
-  const requireOnline = useRequireOnline({ localEdit: true });
+  // This card edits the Morning Nitnem POTHI. Signed in, the two are one list
+  // and the change syncs on the account; signed out the nitnem is still the
+  // user's to arrange, and stays on the device until there is an account to
+  // carry it.
   const openEditor = useCallback(() => {
-    // Reported only when it actually opens — offline it is refused, and a
-    // refusal is not someone choosing to edit their Nitnem.
-    if (!requireOnline()) return;
     trackDashboardEvent("nitnem_edit_opened");
     setEditVisible(true);
-  }, [requireOnline]);
+  }, []);
 
   const today = todayStr();
 
@@ -485,6 +478,10 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
         <Pressable
           style={[styles.secondaryBtn, { borderColor: separator }]}
           onPress={() => {
+            // `remaining`, not the list length: the banis already ticked are
+            // not completed again by this press, and counting them would
+            // inflate every bulk completion by whatever was done beforehand.
+            trackDashboardEvent("nitnem_marked_done", { source: "mark_all", count: remaining });
             dispatch(actions.markNitnemDone(today, selectedBaniIds));
             requestPush("nitnem-mark-all");
           }}
@@ -569,6 +566,10 @@ const TodaysNitnem = ({ refreshKey = 0 }) => {
                   <Pressable
                     hitSlop={8}
                     onPress={() => {
+                      // Read BEFORE the dispatch: `isDone` is this render's
+                      // state, so it says which way the toggle is about to go.
+                      if (isDone) trackDashboardEvent("nitnem_unmarked");
+                      else trackDashboardEvent("nitnem_marked_done", { source: "tick", count: 1 });
                       dispatch(actions.toggleNitnemDone(today, cell.id));
                       requestPush("nitnem-tick");
                     }}

@@ -13,8 +13,12 @@ export const resetSignedOutHint = () => {
 };
 
 /**
- * Tells a signed-out user, once, that signing in is what makes their pothis
- * follow the account.
+ * Tells a signed-out user, once, that their pothis are safe on this device and
+ * that signing in is what carries them to the account.
+ *
+ * Informational, never a gate: everything on the Folders tab works signed out
+ * (see usePothiSync), so this says what signing in ADDS rather than what it
+ * unlocks.
  *
  * A toast rather than the banner that used to sit above the list: the banner
  * was permanent furniture for a message that only needs saying once, and it

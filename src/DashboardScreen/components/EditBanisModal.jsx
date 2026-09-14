@@ -12,8 +12,8 @@ import {
   trackDashboardEvent,
 } from "@common";
 import { getBaniList } from "@database";
-import useRequireOnline from "../../Pothi/hooks/useRequireOnline";
 import useSetPothiBanis from "../../Pothi/hooks/useSetPothiBanis";
+import reportPothiEmptied from "../../Pothi/reportPothiEmptied";
 import CheckCircle from "./CheckCircle";
 import useDashboardTheme from "./dashboardTheme";
 import SheetModal from "./SheetModal";
@@ -99,8 +99,7 @@ const EditBanisModal = ({ visible, onClose }) => {
   const transliterationLanguage = useSelector((state) => state.transliterationLanguage);
   const baniListRedux = useSelector((state) => state.baniList);
   const morning = useSelector((state) => defaultPothi(state.pothis, "morning"));
-  const setBanis = useSetPothiBanis({ localEdit: true });
-  const requireOnline = useRequireOnline({ localEdit: true });
+  const setBanis = useSetPothiBanis();
 
   const [allBanis, setAllBanis] = useState([]);
   const [picked, setPicked] = useState([]);
@@ -154,12 +153,12 @@ const EditBanisModal = ({ visible, onClose }) => {
 
     if (morning) {
       if (!setBanis(morning, items)) return;
+      reportPothiEmptied(morning.items.length, items.length, "todays_nitnem");
     } else {
       // The pothi is gone — deleted from another client, since this app refuses
       // to delete it. Rebuild it under the same id the signed-out seed uses, so
       // it is recorded as Morning Nitnem again rather than becoming an ordinary
       // pothi the Dashboard cannot find.
-      if (!requireOnline()) return;
       dispatch(
         actions.seedDefaultPothis([
           createPothi({ id: MORNING_ID, name: STRINGS.POTHI_DEFAULT_MORNING, items }),
@@ -168,7 +167,7 @@ const EditBanisModal = ({ visible, onClose }) => {
     }
     trackDashboardEvent("nitnem_banis_saved", { count: items.length });
     onClose();
-  }, [allBanis, picked, morning, setBanis, requireOnline, dispatch, onClose]);
+  }, [allBanis, picked, morning, setBanis, dispatch, onClose]);
 
   return (
     <SheetModal visible={visible} onClose={onClose} heightRatio={0.75}>

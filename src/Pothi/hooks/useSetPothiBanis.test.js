@@ -1,26 +1,15 @@
 /* eslint-env jest */
-import { useSelector } from "react-redux";
 import { renderHook } from "@testing-library/react-native";
-import { useNetwork } from "@common/context/NetworkContext";
-import { actions, showToast } from "@common";
+import { actions } from "@common";
 import useSetPothiBanis from "./useSetPothiBanis";
 
 const mockDispatch = jest.fn();
 
-jest.mock("react-redux", () => ({
-  useDispatch: () => mockDispatch,
-  useSelector: jest.fn(),
-}));
-jest.mock("@common/context/NetworkContext", () => ({ useNetwork: jest.fn() }));
+jest.mock("react-redux", () => ({ useDispatch: () => mockDispatch }));
 jest.mock("@common", () => ({
   actions: {
     addBaniToPothi: jest.fn((id, item) => ({ type: "ADD", id, baaniId: item.baaniId })),
     removeBaniFromPothi: jest.fn((id, baaniId) => ({ type: "REMOVE", id, baaniId })),
-  },
-  showToast: jest.fn(),
-  STRINGS: {
-    POTHI_INTERNET_REQUIRED: "Internet required",
-    POTHI_SIGN_IN_REQUIRED: "Sign in required",
   },
   trackPothiEvent: jest.fn(),
 }));
@@ -36,11 +25,7 @@ const pothi = { id: "p1", items: [item(2), item(4)] };
 
 const dispatched = () => mockDispatch.mock.calls.map((call) => call[0]);
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  useSelector.mockImplementation((fn) => fn({ auth: { status: "signedIn" } }));
-  useNetwork.mockReturnValue({ isOffline: false });
-});
+beforeEach(() => jest.clearAllMocks());
 
 describe("useSetPothiBanis", () => {
   it("dispatches only the difference, leaving untouched banis alone", () => {
@@ -66,18 +51,16 @@ describe("useSetPothiBanis", () => {
     ]);
   });
 
-  it("refuses, and says why, when the edit cannot reach the account", () => {
-    useSelector.mockImplementation((fn) => fn({ auth: { status: "signedOut" } }));
-    expect(apply()(pothi, [item(9)])).toBe(false);
-    expect(mockDispatch).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith("Sign in required");
-  });
-
-  it("refuses when offline", () => {
-    useNetwork.mockReturnValue({ isOffline: true });
-    expect(apply()(pothi, [item(9)])).toBe(false);
-    expect(mockDispatch).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith("Internet required");
+  // The hook does not read the store or the network at all any more, so there
+  // is nothing to stub: an edit made signed out is applied exactly as one made
+  // signed in, and waits in the slice for an account to carry it.
+  it("applies the edit with no session mocked at all", () => {
+    expect(apply()(pothi, [item(9)])).toBe(true);
+    expect(dispatched()).toEqual([
+      { type: "ADD", id: "p1", baaniId: 9 },
+      { type: "REMOVE", id: "p1", baaniId: 2 },
+      { type: "REMOVE", id: "p1", baaniId: 4 },
+    ]);
   });
 
   it("does nothing without a pothi to write to", () => {

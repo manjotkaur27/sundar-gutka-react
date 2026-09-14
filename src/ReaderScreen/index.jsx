@@ -29,7 +29,6 @@ import {
   trackNavBar,
 } from "@common";
 import AddToPothiSheet from "../Pothi/components/AddToPothiSheet";
-import useRequireSignIn from "../Pothi/hooks/useRequireSignIn";
 import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./components";
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
@@ -60,11 +59,6 @@ const BOOKMARK_JUMP_GRACE_MS = 1500;
 // onPlayerTouch fires only for touches that land on the player, so a report
 // inside this window belongs to the same finger. It is the length of a press.
 const PLAYER_TOUCH_ECHO_MS = 500;
-
-// Route params for the sign-in redirect out of this screen. A module constant,
-// so its identity is stable and the callback that depends on it is not rebuilt
-// on every render.
-const READER_SETTINGS_PARAMS = { fromReader: true };
 
 // The WebView's own top margin, and therefore where the scrollable viewport
 // actually begins. ReaderScrollbar's track must start at the SAME line or its
@@ -604,15 +598,9 @@ const Reader = ({ navigation, route }) => {
     navigation.navigate(constant.BOOKMARKS, { id });
   }, [navigation, id]);
 
-  // The same gate "+ New Pothi" uses: signed out, this does not open a sheet
-  // the user cannot submit — it says why and takes them to Settings to sign in.
-  // `fromReader` keeps the reader's bottom bar there, as the nav's own Settings
-  // button does.
-  const requireSignIn = useRequireSignIn(navigation.navigate, READER_SETTINGS_PARAMS);
-
-  const handleAddToPothiPress = useCallback(() => {
-    if (requireSignIn()) setFiling(true);
-  }, [requireSignIn]);
+  // Open signed out: the pothi the shabad is filed into lives on the device
+  // until there is an account to carry it. See usePothiSync.
+  const handleAddToPothiPress = useCallback(() => setFiling(true), []);
 
   // The bani being read, in the shape the pothi model stores. `id` is coerced
   // because a route param can arrive as a string and every stored `baaniId` is

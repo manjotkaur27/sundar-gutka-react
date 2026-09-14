@@ -56,7 +56,7 @@ const html = (theme, opts = {}) =>
     SHABAD,
     opts.isTransliteration ?? true,
     "SMALL",
-    "GurbaniAkharTrue",
+    opts.fontFace ?? "GurbaniAkharTrue",
     opts.isEnglishTranslation ?? true,
     false,
     false,
@@ -288,6 +288,49 @@ describe("fontSizeForReader", () => {
     const base = fontSizeForReader("SMALL", 0, false);
     expect(fontSizeForReader("SMALL", 0, false)).toBe(base);
     expect(fontSizeForReader("SMALL", 0, false, 0)).toBe(base);
+  });
+});
+
+// Which column a font is fed, and what it falls back to. Both are decided in
+// the generated string, and getting either wrong renders the wrong script
+// rather than merely the wrong shape.
+describe("the Bani font", () => {
+  // Every font but Baloo Paaji is legacy ASCII-encoded — the glyphs sit at
+  // Latin codepoints — so they are handed the `gurmukhi` column. Baloo is the
+  // only Unicode one and is handed `gurmukhiUni`. A font fed the wrong column
+  // renders Latin letters.
+  it("hands a legacy font the ASCII column", () => {
+    const out = html(light, { fontFace: "Puratan_Hastlikhat" });
+    expect(out).toContain("siq nwmu");
+    expect(out).not.toContain("ਸਤਿ ਨਾਮੁ");
+  });
+
+  it("hands Baloo Paaji the Unicode column", () => {
+    const out = html(light, { fontFace: "BalooPaaji2-Regular" });
+    expect(out).toContain("ਸਤਿ ਨਾਮੁ");
+  });
+
+  it("declares an @font-face for the chosen font", () => {
+    expect(html(light, { fontFace: "Puratan_Hastlikhat" })).toContain(
+      "font-family: 'Puratan_Hastlikhat'"
+    );
+  });
+
+  // The inline font-family overrides the stylesheet, so the chain has to be on
+  // the line itself — otherwise a character the chosen font lacks falls through
+  // to the WebView's own default instead of to another Gurmukhi face.
+  it("follows the chosen font with the Gurmukhi fallbacks, in order", () => {
+    expect(html(light, { fontFace: "Puratan_Hastlikhat" })).toContain(
+      "font-family: Puratan_Hastlikhat, 'GurbaniAkharHeavyTrue', 'GurbaniAkharTrue', " +
+        "'GurbaniAkharThickTrue', 'AnmolLipiSG';"
+    );
+  });
+
+  // Only a Gurmukhi line takes a face from the caller. A translation must not
+  // pick up a Gurmukhi chain it never had.
+  it("leaves a line with no font of its own alone", () => {
+    const out = createDiv("Truth", 0, "translation", "center", "SMALL", light, false);
+    expect(out).not.toContain("GurbaniAkharHeavyTrue");
   });
 });
 

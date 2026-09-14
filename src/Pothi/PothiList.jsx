@@ -8,7 +8,7 @@ import PropTypes from "prop-types";
 import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { DragHandleIcon } from "@common/icons";
-import { emptyPothis, MAX_PINNED } from "@common/pothi/model";
+import { defaultPothiId, emptyPothis, MAX_PINNED } from "@common/pothi/model";
 import { folderTabRows, resolveBanis } from "@common/pothi/selectors";
 import { actions, STRINGS, trackPothiEvent, useCustomScrollbar } from "@common";
 import { ListSeparator, Text } from "../common/components/ui";
@@ -16,7 +16,6 @@ import NewPothiRow from "./components/NewPothiRow";
 import PothiActionsSheet from "./components/PothiActionsSheet";
 import PothiRow from "./components/PothiRow";
 import usePothiTitle from "./hooks/usePothiTitle";
-import useRequireOnline from "./hooks/useRequireOnline";
 import useSignedOutPothiHint from "./hooks/useSignedOutPothiHint";
 
 // The Folders tab.
@@ -38,20 +37,6 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
   // Falls back to an empty set: the slice is absent in a partial store and for
   // the instant before rehydration completes.
   const pothis = useSelector((state) => state.pothis) ?? emptyPothis();
-  // Reading a pothi works offline; changing one does not. See useRequireOnline.
-  const requireOnline = useRequireOnline();
-  // Pinning and reordering are the exceptions, and refusing them signed out was
-  // worse than pointless: the drag handle is offered, the row animates and
-  // visually swaps, and only THEN is the write refused — so the list is left
-  // drawing an order the store does not have, which is where the rows landing
-  // on the header and the gaps between them came from.
-  //
-  // They are also meaningful without an account, in the way `localEdit` already
-  // means: signed out there are only the two seeded pothis, and putting them in
-  // the reader's own order is their arrangement of their own list. Signed in it
-  // lands in the same folders and syncs like any other edit — `pinned` is part
-  // of what goes up the wire, and a reorder stamps every folder that moved.
-  const requireLocal = useRequireOnline({ localEdit: true });
   // The app-wide themed scrollbar, not a standalone one.
   const { ownedScrollProps, Indicator } = useCustomScrollbar();
   const { titleFor, variantFor } = usePothiTitle();
@@ -108,6 +93,12 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
   // back. Keeping the identity stable leaves that moment alone.
   const pinnedCountRef = useRef(pinned.length);
   pinnedCountRef.current = pinned.length;
+  // Morning and Evening Nitnem can be neither renamed nor deleted, so their
+  // actions sheet would open with nothing in it. Held as the two id STRINGS
+  // rather than the slice, so `renderPothi` keeps its identity across reorders
+  // for the same reason the pin count above is a ref.
+  const morningId = defaultPothiId(pothis, "morning");
+  const eveningId = defaultPothiId(pothis, "evening");
 
   // A pothi's banis open on their own screen, in the ordinary All Banis list,
   // so a bani inside a pothi behaves exactly as it does anywhere else — the
@@ -130,7 +121,6 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
 
   const togglePin = useCallback(
     (row) => {
-      if (!requireLocal()) return;
       // The model refuses a fourth pin by returning the same state, so the
       // ceiling is checked here to say WHY nothing happened.
       if (!row.pinned && pinnedCountRef.current >= MAX_PINNED) {
@@ -140,7 +130,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
       trackPothiEvent(row.pinned ? "unpinned" : "pinned", { pothi_size: row.count });
       dispatch(actions.togglePothiPin(row.id));
     },
-    [dispatch, onPinLimit, requireLocal]
+    [dispatch, onPinLimit]
   );
 
   const renderPothi = useCallback(
@@ -150,11 +140,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         onOpen={() => openPothi(row)}
         onTogglePin={row.system ? null : () => togglePin(row)}
         onLongPress={
-          row.system
-            ? null
-            : () => {
-                if (requireOnline()) setActing(row);
-              }
+          row.system || row.id === morningId || row.id === eveningId ? null : () => setActing(row)
         }
         dragHandle={
           drag && !row.pinned ? (
@@ -171,23 +157,16 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         }
       />
     ),
-    [openPothi, togglePin, requireOnline, layout, c]
+    [openPothi, togglePin, morningId, eveningId, layout, c]
   );
 
-  // Both standing notices are gone from the list itself.
-  //
-  // The offline one was permanent furniture restating what the toast already
-  // says at the moment it matters — `useRequireOnline` toasts when an edit is
-  // actually blocked. The sign-in hint is a toast now too (see MyPothisScreen),
-  // for the same reason: a banner above the list is read once and then becomes
-  // noise the user scrolls past forever.
+  // No standing notice above the list. The sign-in hint is a toast instead (see
+  // useSignedOutPothiHint): a banner is read once and then becomes noise the
+  // user scrolls past forever.
   const header = (
     // No paddingBottom: the New Pothi row carries a list row's own vertical
     // padding, so any here doubles the gap before the first pothi.
     <View style={{ paddingTop: space.md_12 }}>
-      {/* No local requireOnline() wrapper: onCreatePress (usePothiActions'
-          openCreate) already does its own complete gating — sign-in first
-          (redirecting to Settings), then connectivity. */}
       <NewPothiRow onPress={onCreatePress} />
 
       {/* The pinned block, above the draggable list and outside it. Rendered
@@ -264,7 +243,6 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
         onDragBegin={() => setDragging(true)}
         onDragEnd={({ data }) => {
           setDragging(false);
-          if (!requireLocal()) return;
           const next = data.map((row) => row.id);
           trackPothiEvent("reordered", { count: next.length });
           dispatch(actions.setPothiOrder(next));

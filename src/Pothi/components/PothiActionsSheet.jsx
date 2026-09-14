@@ -16,7 +16,6 @@ import {
   SheetActions,
 } from "../../common/components/ui";
 import useDeletePothi from "../hooks/useDeletePothi";
-import useRequireOnline from "../hooks/useRequireOnline";
 import PothiNameField from "./PothiNameField";
 
 // Rename and delete, reached by long-pressing a pothi.
@@ -34,12 +33,12 @@ import PothiNameField from "./PothiNameField";
 const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = false }) => {
   const { space } = useTokens();
   const dispatch = useDispatch();
-  const requireOnline = useRequireOnline();
   const confirmDelete = useDeletePothi();
-  // Morning and Evening Nitnem cannot be deleted: Morning Nitnem IS Today's
-  // Nitnem on the Dashboard, and the API seeds the pair exactly once per user,
-  // so a deletion is permanent — there is no way back to them from the app.
-  // They rename and edit like any other pothi.
+  // Morning and Evening Nitnem cannot be deleted or renamed. Morning Nitnem IS
+  // Today's Nitnem on the Dashboard, and the API seeds the pair exactly once per
+  // user, so a deletion is permanent. A rename breaks the link on any other
+  // device, which has to find the pair by its banis or its name — see
+  // resolveDefaultId. Their banis still edit like any other pothi's.
   const isDefault = useSelector((state) => isDefaultPothi(state.pothis, pothi?.id));
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
@@ -58,7 +57,7 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
   if (!pothi) return null;
 
   const submitRename = () => {
-    if (!isValidName(name) || !requireOnline()) return;
+    if (!isValidName(name) || isDefault) return;
     dispatch(actions.renamePothi(pothi.id, name));
     trackPothiEvent("renamed");
     onClose();
@@ -184,11 +183,13 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
                     style={grow}
                   />
                 )}
-                <Button
-                  title={STRINGS.POTHI_RENAME}
-                  onPress={() => setRenaming(true)}
-                  style={grow}
-                />
+                {isDefault ? null : (
+                  <Button
+                    title={STRINGS.POTHI_RENAME}
+                    onPress={() => setRenaming(true)}
+                    style={grow}
+                  />
+                )}
               </>
             )
           )}

@@ -1,17 +1,11 @@
 /* eslint-env jest */
-import { useSelector } from "react-redux";
 import { renderHook } from "@testing-library/react-native";
-import { useNetwork } from "@common/context/NetworkContext";
 import { actions, showConfirm, showToast } from "@common";
 import useDeletePothi from "./useDeletePothi";
 
 const mockDispatch = jest.fn();
 
-jest.mock("react-redux", () => ({
-  useDispatch: () => mockDispatch,
-  useSelector: jest.fn(),
-}));
-jest.mock("@common/context/NetworkContext", () => ({ useNetwork: jest.fn() }));
+jest.mock("react-redux", () => ({ useDispatch: () => mockDispatch }));
 jest.mock("@common", () => ({
   actions: { deletePothi: jest.fn((id) => ({ type: "DELETE_POTHI", id })) },
   showConfirm: jest.fn(),
@@ -21,27 +15,21 @@ jest.mock("@common", () => ({
     POTHI_DELETE: "Delete",
     POTHI_DELETE_CONFIRM: "Delete {name} pothi?",
     POTHI_DELETED: "Pothi deleted",
-    POTHI_INTERNET_REQUIRED: "Internet required",
-    POTHI_SIGN_IN_REQUIRED: "Sign in required",
     formatString: (s, vars) => s.replace("{name}", vars.name),
   },
   trackPothiEvent: jest.fn(),
 }));
 
 // One confirm-then-delete for both places that offer it. What matters is that
-// deleting is never silent, never immediate, and never happens when the write
-// cannot reach the account.
+// deleting is never silent and never immediate — the deletion itself is local
+// and reaches the account through the outbox when there is one.
 
 const remove = () => renderHook(() => useDeletePothi()).result.current;
 
 /** Runs whatever the confirm dialog would run if the user tapped Delete. */
 const confirmIt = () => showConfirm.mock.calls[0][0].onConfirm();
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  useSelector.mockImplementation((fn) => fn({ auth: { status: "signedIn" } }));
-  useNetwork.mockReturnValue({ isOffline: false });
-});
+beforeEach(() => jest.clearAllMocks());
 
 describe("useDeletePothi", () => {
   it("asks first and deletes nothing until the confirm is answered", () => {
@@ -73,16 +61,15 @@ describe("useDeletePothi", () => {
     expect(onDeleted).toHaveBeenCalled();
   });
 
-  it("refuses on confirm when the write cannot reach the account", () => {
-    // Checked at CONFIRM, not at open: the answer that matters is the one at
-    // the moment the write would happen.
-    useNetwork.mockReturnValue({ isOffline: true });
+  // Nothing here reads the session or the network. A guest's delete is a real
+  // delete: the folder leaves the slice and leaves a tombstone, which the sync
+  // layer sends only once there is an account that has heard of the folder.
+  it("deletes with no session mocked at all", () => {
     const onDeleted = jest.fn();
     remove()({ id: "p1", name: "Nitnem", count: 3 }, onDeleted);
     confirmIt();
 
-    expect(mockDispatch).not.toHaveBeenCalled();
-    expect(onDeleted).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith("Internet required");
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "DELETE_POTHI", id: "p1" });
+    expect(onDeleted).toHaveBeenCalled();
   });
 });

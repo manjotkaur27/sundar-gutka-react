@@ -1,24 +1,25 @@
 import fs from "fs";
 import path from "path";
 
-// A pothi mutation is never dispatched without asking the gate first.
+// A pothi mutation is never refused for want of an account or a connection.
 //
-// A pothi is cached for READING offline and signed out; changing one needs an
-// account to sync to and a connection to reach it (see useRequireOnline). Each
-// screen that writes has to remember to ask, and FolderScreen — the screen where
-// a pothi is actually edited — did not. Its "Delete Banis" reached
-// `removeBaniFromPothi` with no check at all, so a signed-out user could empty
-// their Morning Nitnem and watch it come back on the next sync.
+// My Pothi is local-first: an edit lands in redux, redux-persist keeps it, and
+// the outbox carries it to the account whenever there is one to carry it to
+// (see usePothiSync). So a guest builds a real collection, and it is claimed on
+// the first sign-in rather than being blocked until then.
 //
-// A unit test per screen would not have found that: the defect was a call that
-// was never written, in a screen that had no test. This reads the source
-// instead, which is the same thing sheetVariant.test.js does for the screen
-// palettes and for the same reason — the property being protected is "nobody
-// anywhere does this", and only the whole tree can answer that.
+// The rule it replaced is the reason this file still exists. Every write site
+// used to have to REMEMBER to call the gate, and FolderScreen — the screen where
+// a pothi is actually edited — forgot, which is how a signed-out user could
+// empty their Morning Nitnem. Removing the gate everywhere has the mirror-image
+// failure: one screen keeping its check, so a pothi is editable from the Folders
+// tab and silently refused from the folder screen. A unit test per screen would
+// not find that either; the property is "nobody anywhere does this", and only
+// the whole tree can answer it.
 //
-// It is a coarse check by design. It proves the gate is REFERENCED in a file
-// that writes, not that it guards every branch; that much is worth having,
-// because forgetting it entirely is the failure that actually happened.
+// It is a coarse check by design. It proves no writer CONSULTS the session or
+// the network, not that every branch is reachable — which is exactly the
+// failure that actually happens when a gate is added back by hand.
 
 const SRC = path.join(__dirname, "..");
 
@@ -36,7 +37,10 @@ const MUTATIONS = [
 // `actions.x(` — the DISPATCH, not the action creator's own definition in
 // common/actions, which is written as a bare export.
 const DISPATCHES = new RegExp(`actions\\.(${MUTATIONS.join("|")})\\(`);
-const ASKS_THE_GATE = /requireOnline\(\)/;
+
+// What a re-introduced gate would look like: reading the sign-in status, or
+// asking the network whether it is there.
+const CONSULTS_THE_SESSION = /auth\??\.status|isSignedIn|useNetwork\(|isOffline/;
 
 const sourceFiles = () => {
   const out = [];
@@ -60,22 +64,25 @@ const sourceFiles = () => {
 
 const writers = () => sourceFiles().filter(({ text }) => DISPATCHES.test(text));
 
-describe("every pothi mutation is gated", () => {
-  it("no file dispatches one without asking useRequireOnline", () => {
-    const ungated = writers()
-      .filter(({ text }) => !ASKS_THE_GATE.test(text))
+describe("every pothi mutation is ungated", () => {
+  it("no file that writes a pothi consults the session or the network", () => {
+    const gated = writers()
+      .filter(({ text }) => CONSULTS_THE_SESSION.test(text))
       .map(({ rel }) => rel)
       .sort();
-    expect(ungated).toEqual([]);
+    // PothiList is the one allowed reader: it hides PULL-TO-REFRESH while
+    // signed out, because there is genuinely no account to pull from. It does
+    // not gate a single write.
+    expect(gated).toEqual(["Pothi/PothiList.jsx"]);
   });
 
   it("is dispatched only from the places that are meant to write", () => {
     // A registry, so a NEW write site has to be added here deliberately and
-    // its gating looked at rather than being waved through by the check above.
+    // looked at rather than being waved through by the check above.
     //
     // Two hooks and four components. `useSetPothiBanis` and `useDeletePothi`
-    // exist precisely so the callers that share those jobs cannot word or gate
-    // them differently; FolderScreen writes directly only for the multi-select
+    // exist precisely so the callers that share those jobs cannot word them
+    // differently; FolderScreen writes directly only for the multi-select
     // remove, which has no other caller.
     expect(
       writers()

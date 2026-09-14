@@ -77,7 +77,6 @@ jest.mock("./hooks/usePothiTitle", () => () => ({
   titleFor: (row) => row.name,
   variantFor: () => "body",
 }));
-jest.mock("./hooks/useRequireOnline", () => () => () => true);
 jest.mock("./hooks/useSignedOutPothiHint", () => () => {});
 jest.mock("./components/NewPothiRow", () => () => null);
 jest.mock("./components/PothiActionsSheet", () => () => null);

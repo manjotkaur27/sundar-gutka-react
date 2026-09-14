@@ -343,6 +343,10 @@ const POTHI_EVENT_NAMES = {
   reordered: "pothi_reordered",
   pinned: "pothi_pinned",
   unpinned: "pothi_unpinned",
+  // A pothi left with no banis in it, reported where the edit is committed —
+  // see Pothi/reportPothiEmptied. `size` is what it held before, `surface`
+  // where it happened. Both are already registered in GA4.
+  emptied: "pothi_emptied",
 };
 
 const trackPothiEvent = async (action, params = {}) => {
@@ -398,6 +402,18 @@ const DASHBOARD_EVENT_NAMES = {
   nitnem_bani_open: "dashboard_nitnem_bani_open",
   nitnem_edit_opened: "dashboard_nitnem_edit_opened",
   nitnem_banis_saved: "dashboard_nitnem_banis_saved",
+  // Finishing the nitnem, which is the point of the card and was the one
+  // action on it that reported nothing. `source` separates the two routes —
+  // the Mark done button against a single tick — and `count` is how many banis
+  // the press actually completed, so the button's bulk press is not one event
+  // indistinguishable from a tick.
+  //
+  // Un-ticking is its OWN event rather than a status on this one, per the
+  // convention below: an undo must never be counted as a completion, and a
+  // filter is easy to forget. It is also a real signal — it usually means the
+  // 95%-scroll auto-detection marked something the reader had not finished.
+  nitnem_marked_done: "dashboard_nitnem_marked_done",
+  nitnem_unmarked: "dashboard_nitnem_unmarked",
   // A day cell carries `outcome`, so the taps that open nothing are counted
   // too: a run of `empty` on the calendar is a UI problem, not a quiet one.
   day_tapped: "dashboard_day_tapped",

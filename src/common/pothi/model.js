@@ -64,6 +64,13 @@ const SERVER_DEFAULT_NAMES = { morning: "Morning Nitnem", evening: "Evening Nitn
 /** A folder's banis as one comparable string. */
 const baniSignature = (folder) => (folder?.items ?? []).map((item) => item.baaniId).join(",");
 
+/**
+ * A folder's CONTENT as one comparable string — what makes two folders the
+ * same pothi made twice rather than two pothis. The id is deliberately not in
+ * it: the whole point is to match copies that were minted separately.
+ */
+const folderSignature = (folder) => `${folder.source}|${folder.name}|${baniSignature(folder)}`;
+
 const DEFAULT_SIGNATURES = {
   morning: MORNING_NITNEM_IDS.join(","),
   evening: EVENING_NITNEM_IDS.join(","),
@@ -79,14 +86,25 @@ const DEFAULT_SIGNATURES = {
  *
  *   1. The recorded id, if that folder is still there. Survives rename and
  *      any edit to the contents, which is the whole point.
- *   2. The folder holding exactly the default banis in the default order. This
+ *   2. Our own well-known id. When the account holds a folder under it, that id
+ *      IS the role and no guessing is needed — it survives a rename and an edit
+ *      together, which nothing below does.
+ *   3. The folder holding exactly the default banis in the default order. This
  *      is what re-points a device at the server's copy after `mergeRemote`
  *      retires its local one, and what recovers the pair for a user who signed
  *      in before this pointer existed.
- *   3. The server's own English name, for a pair whose contents were edited
+ *   4. The server's own English name, for a pair whose contents were edited
  *      before this build could record them.
  *
  * Null when the pothi genuinely is not there — deleted from another client.
+ *
+ * WHY THE POINTER IS NOT ENOUGH ON ITS OWN. It is local — never sent up, and
+ * reset with the slice on an account change — so a SECOND device signing in has
+ * none, and must re-derive the pair from the folders alone. There steps 2-4 are
+ * all it has, and the account's pair carries random uuids, so the fallbacks
+ * have to hold: an edit costs step 3, and a rename would cost step 4 and leave
+ * nothing. That is why renaming a default is not offered (see
+ * PothiActionsSheet), and why deleting one never was.
  */
 const LOCAL_DEFAULT_ID = { morning: MORNING_ID, evening: EVENING_ID };
 
@@ -106,6 +124,8 @@ const isPristineSeed = (folder, kind) =>
 
 const resolveDefaultId = (kind, folders, recorded) => {
   if (recorded && folders.some((folder) => folder.id === recorded)) return recorded;
+  const byWellKnownId = folders.find((folder) => folder.id === LOCAL_DEFAULT_ID[kind]);
+  if (byWellKnownId) return byWellKnownId.id;
   const bySignature = folders.find((folder) => baniSignature(folder) === DEFAULT_SIGNATURES[kind]);
   if (bySignature) return bySignature.id;
   const byName = folders.find((folder) => folder.name === SERVER_DEFAULT_NAMES[kind]);
@@ -213,8 +233,16 @@ export const addPothi = (state, pothi) => {
   return { ...state, folders: [pothi, ...state.folders.filter((f) => f.id !== pothi.id)] };
 };
 
+/**
+ * Renames a pothi. Morning and Evening Nitnem are refused: a device with no
+ * recorded pointer finds them by their banis or, once those are edited, by the
+ * account's English name — so a renamed, edited default is lost to that device
+ * and Today's Nitnem falls back to the stock list. See resolveDefaultId.
+ */
 export const renamePothi = (state, id, name, now = Date.now()) =>
-  isValidName(name) ? patch(state, id, { name: normaliseName(name) }, now) : state;
+  isValidName(name) && !isDefaultPothi(state, id)
+    ? patch(state, id, { name: normaliseName(name) }, now)
+    : state;
 
 export const deletePothi = (state, id) => {
   if (indexOf(state, id) < 0) return state;
@@ -322,9 +350,7 @@ export const pothisContaining = (state, baaniId) =>
 const dropExactDuplicates = (folders) => {
   const seen = new Set();
   return folders.filter((folder) => {
-    const signature = `${folder.source}|${folder.name}|${folder.items
-      .map((item) => item.baaniId)
-      .join(",")}`;
+    const signature = folderSignature(folder);
     if (seen.has(signature)) return false;
     seen.add(signature);
     return true;
@@ -493,6 +519,15 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
   // seeded, which is easily newer than a server copy edited days ago, so time
   // alone would let a stock list overwrite a real one.
   //
+  // The reverse trap is why `updatedAt` is not the only test. The API seeds the
+  // account's pair on its FIRST read, stamping both clocks with the moment of
+  // that read — which is the sign-in itself, and therefore newer than every
+  // edit the guest made beforehand. Compared on time alone the account's stock
+  // list always wins, so a nitnem arranged over weeks was replaced by the
+  // factory one the instant the user signed in. A STOCK list holds no work to
+  // lose, so when the server's copy is still the seeded set the local edit
+  // wins outright; time only decides between two lists that were both edited.
+  //
   // The Morning/Evening pointer is NOT rewritten here: dropping the local
   // folder leaves the pointer dangling, and `reconcile` below re-resolves it by
   // bani signature — which lands on the server's copy, the very folder that
@@ -501,12 +536,21 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
   DEFAULT_KINDS.forEach((kind) => {
     const mine = local.get(LOCAL_DEFAULT_ID[kind]);
     if (!mine) return;
-    const theirId = resolveDefaultId(kind, remoteFolders, null);
+    // Only folders that survive this merge can be the account's copy. A stray
+    // seed is about to be dropped, and now that the well-known id resolves
+    // first it would otherwise be picked — leaving an edited local default
+    // nowhere to move its banis.
+    const theirId = resolveDefaultId(
+      kind,
+      remoteFolders.filter((folder) => !buried.has(folder.id)),
+      null
+    );
     if (!theirId) return;
     local.delete(LOCAL_DEFAULT_ID[kind]);
     const theirs = merged.find((folder) => folder.id === theirId);
     const edited = baniSignature(mine) !== DEFAULT_SIGNATURES[kind];
-    if (theirs && edited && mine.updatedAt > theirs.updatedAt) {
+    const theirsIsStock = Boolean(theirs) && baniSignature(theirs) === DEFAULT_SIGNATURES[kind];
+    if (theirs && edited && (theirsIsStock || mine.updatedAt > theirs.updatedAt)) {
       adoptedItems.set(theirId, mine.items);
     }
   });
@@ -539,6 +583,21 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
           return ia === -1 || ib === -1 ? 0 : ia - ib;
         })
       : resolved;
+
+  // A local-only folder that is an EXACT copy of one the account already holds
+  // — same name, same banis, same order — is one pothi made twice: once here
+  // while signed out, once on another client. The server's copy is the one
+  // kept, because its id is the one every other device already knows; keeping
+  // the local one would upload a second folder that nothing else could
+  // recognise as the same pothi, and the account would show it twice.
+  //
+  // `reconcile` collapses exact copies too, but it keeps the FIRST it meets
+  // and the local-only folders are prepended below — so without this the LOCAL
+  // id won, which is the wrong half of the pair to keep.
+  const remoteSignatures = new Set(ordered.map(folderSignature));
+  [...local.values()].forEach((folder) => {
+    if (remoteSignatures.has(folderSignature(folder))) local.delete(folder.id);
+  });
 
   // A tombstone retires ONLY when a pull proves the server no longer has that
   // id — not when DELETE returns 204.
