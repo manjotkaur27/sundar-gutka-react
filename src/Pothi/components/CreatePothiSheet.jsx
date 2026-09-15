@@ -42,6 +42,10 @@ import PothiNameField from "./PothiNameField";
 // which is why the id is minted here rather than by the reducer. It is the
 // whole bani row, not just an id, because the API requires each item to carry
 // its own display title and stores it verbatim.
+/** The reader's bani in the item shape the picker and the API use. */
+const seedItemFor = (seedBani) =>
+  makeBaniItem({ baaniId: seedBani.id, title: seedBani.gurmukhiUni || seedBani.gurmukhi });
+
 const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniListData = [] }) => {
   const { space } = useTokens();
   const dispatch = useDispatch();
@@ -65,16 +69,20 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   // question to answer any more: step 1 types the name, step 2 the search.
   const [step, setStep] = useState(1);
 
-  // A reopened sheet starts clean rather than showing the last name typed.
+  // A reopened sheet starts clean rather than showing the last name typed —
+  // except for the bani the sheet was opened FROM. Arriving from the reader's
+  // add-to-pothi action, that bani is the reason the pothi is being made, so it
+  // starts ticked in the picker instead of being added unseen on save. Being a
+  // visible tick also means unticking it now actually leaves it out.
   useEffect(() => {
     if (visible) {
       setName("");
-      setPicked([]);
+      setPicked(seedBani ? [seedItemFor(seedBani)] : []);
       setQuery("");
       setGurmukhi(false);
       setStep(1);
     }
-  }, [visible]);
+  }, [visible, seedBani]);
 
   const submit = () => {
     if (!isValidName(name)) return;
@@ -86,22 +94,14 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
       onClose();
       return;
     }
-    const pothi = createPothi({
-      name,
-      items: [
-        ...(seedBani
-          ? [
-              makeBaniItem({
-                baaniId: seedBani.id,
-                title: seedBani.gurmukhiUni || seedBani.gurmukhi,
-              }),
-            ]
-          : []),
-        ...picked.filter((item) => item.baaniId !== seedBani?.id),
-      ],
-    });
+    // The selection as shown. The seed bani is already in it when the sheet
+    // came from the reader, so nothing is added that the user did not see ticked.
+    const pothi = createPothi({ name, items: picked });
     dispatch(actions.createPothi(pothi));
-    trackPothiEvent("created", { seeded: seedBani != null, size: picked.length });
+    trackPothiEvent("created", {
+      seeded: picked.some((item) => item.baaniId === seedBani?.id),
+      size: picked.length,
+    });
     onCreated(pothi);
     onClose();
   };
@@ -113,7 +113,12 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   // Except on an untouched step 1, where there is nothing to lose and being
   // asked to confirm closing an empty form is just an extra tap.
   const discard = () => {
-    if (!name && !picked.length) {
+    // The pre-ticked seed bani is not an edit: an untouched sheet from the
+    // reader closes without asking, the same as one from the Folders tab.
+    const untouchedSelection = seedBani
+      ? picked.length === 1 && picked[0].baaniId === seedBani.id
+      : picked.length === 0;
+    if (!name && untouchedSelection) {
       onClose();
       return;
     }

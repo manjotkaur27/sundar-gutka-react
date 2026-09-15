@@ -194,8 +194,10 @@ jest.mock("react-native-track-player", () => ({
   State: {
     Playing: "playing",
     Paused: "paused",
+    Buffering: "buffering",
   },
   useProgress: jest.fn(() => ({ position: 0, duration: 0, buffered: 0 })),
+  usePlaybackState: jest.fn(() => ({ state: undefined })),
 }));
 
 // Mock AsyncStorage
