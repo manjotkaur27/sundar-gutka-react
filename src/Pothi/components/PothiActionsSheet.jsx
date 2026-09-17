@@ -161,8 +161,12 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
                     <Button
                       title={STRINGS.POTHI_DELETE}
                       onPress={askDelete}
-                      // Red, like every other delete in the pothi screens.
-                      variant="danger"
+                      // A red button, not red text: it sits beside Rename and
+                      // has to read as the other button in the pair, not as a
+                      // link. The fill is the theme's error role, so it follows
+                      // the palette and keeps its label legible — `onError`
+                      // flips between themes for exactly that.
+                      variant="destructive"
                       style={grow}
                     />
                   )}

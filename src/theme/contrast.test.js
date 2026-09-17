@@ -120,6 +120,22 @@ describe.each([
     });
   });
 
+  // The delete button in the pothi sheets is an error FILL with its label on
+  // top — a red button, not red text. Both halves have to hold: the label
+  // against the fill, and the fill against the surface it sits on, or the
+  // button loses its shape.
+  it("keeps the destructive fill and its label visible on every surface", () => {
+    expect(contrast(t.onError, t.error)).toBeGreaterThanOrEqual(AA_TEXT);
+    SURFACES.forEach((surface) => {
+      expect({ mode, surface, ratio: Number(contrast(t.error, t[surface]).toFixed(2)) }).toEqual({
+        mode,
+        surface,
+        ratio: expect.any(Number),
+      });
+      expect(contrast(t.error, t[surface])).toBeGreaterThanOrEqual(AA_NON_TEXT);
+    });
+  });
+
   it("keeps text on a brand fill legible", () => {
     expect(contrast(t.onPrimary, t.primary)).toBeGreaterThanOrEqual(AA_TEXT);
     expect(contrast(t.textOnBrand, t.primary)).toBeGreaterThanOrEqual(AA_TEXT);

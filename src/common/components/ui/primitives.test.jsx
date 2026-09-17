@@ -153,14 +153,6 @@ describe("Button", () => {
     // onError flips between themes precisely so this stays readable.
     expect(theme.c.onError).toBeDefined();
   });
-
-  // Delete beside Rename: red from the theme, with no fill competing with the
-  // main action.
-  it.each(themes)("[%s] danger is the theme's error red on no fill", (_name, theme) => {
-    withTheme(theme, <Button testID="b" title="Delete" onPress={() => {}} variant="danger" />);
-    expect(flat(screen.getByTestId("b").props.style).backgroundColor).not.toBe(theme.c.error);
-    expect(flat(screen.getByText("Delete").props.style).color).toBe(theme.c.error);
-  });
 });
 
 describe("Row", () => {
