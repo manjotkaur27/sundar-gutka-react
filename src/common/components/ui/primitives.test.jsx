@@ -147,11 +147,13 @@ describe("Button", () => {
     expect(screen.queryByText("Save")).toBeNull();
   });
 
+  // The fill is its OWN role, not the error text colour: text has to clear
+  // 4.5:1 on every surface, which made light mode's red darker than a whole
+  // button should look.
   it.each(themes)("[%s] destructive fill keeps its label legible", (_name, theme) => {
     withTheme(theme, <Button testID="b" title="Delete" onPress={() => {}} variant="destructive" />);
-    expect(flat(screen.getByTestId("b").props.style).backgroundColor).toBe(theme.c.error);
-    // onError flips between themes precisely so this stays readable.
-    expect(theme.c.onError).toBeDefined();
+    expect(flat(screen.getByTestId("b").props.style).backgroundColor).toBe(theme.c.errorFill);
+    expect(flat(screen.getByText("Delete").props.style).color).toBe(theme.c.onErrorFill);
   });
 });
 

@@ -33,8 +33,21 @@ const VARIANTS = {
   secondary: { bg: null, bgPressed: "surfaceSelected", fg: "accent", border: "borderStrong" },
   /** Tertiary / low-emphasis action. */
   ghost: { bg: null, bgPressed: "surfaceSelected", fg: "accent", border: null },
-  /** Irreversible action — delete a download, clear data. */
-  destructive: { bg: "error", bgPressed: "error", fg: "onError", border: null },
+  /**
+   * Irreversible action — delete a pothi, delete a download, clear data.
+   *
+   * It reads `errorFill`, not `error`. Error TEXT has to clear 4.5:1 on every
+   * surface, which makes it the darkest red in the ramp; a button painted that
+   * colour reads as heavier than the choice it offers. The fill is its own role
+   * so the two can move apart, and it falls back to `error` where a palette
+   * does not define it.
+   */
+  destructive: {
+    bg: ["errorFill", "error"],
+    bgPressed: ["errorFill", "error"],
+    fg: ["onErrorFill", "onError"],
+    border: null,
+  },
 };
 
 const Button = ({

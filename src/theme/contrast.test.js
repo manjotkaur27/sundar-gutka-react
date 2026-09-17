@@ -125,14 +125,14 @@ describe.each([
   // against the fill, and the fill against the surface it sits on, or the
   // button loses its shape.
   it("keeps the destructive fill and its label visible on every surface", () => {
-    expect(contrast(t.onError, t.error)).toBeGreaterThanOrEqual(AA_TEXT);
+    expect(contrast(t.onErrorFill, t.errorFill)).toBeGreaterThanOrEqual(AA_TEXT);
     SURFACES.forEach((surface) => {
-      expect({ mode, surface, ratio: Number(contrast(t.error, t[surface]).toFixed(2)) }).toEqual({
+      expect({
         mode,
         surface,
-        ratio: expect.any(Number),
-      });
-      expect(contrast(t.error, t[surface])).toBeGreaterThanOrEqual(AA_NON_TEXT);
+        ratio: Number(contrast(t.errorFill, t[surface]).toFixed(2)),
+      }).toEqual({ mode, surface, ratio: expect.any(Number) });
+      expect(contrast(t.errorFill, t[surface])).toBeGreaterThanOrEqual(AA_NON_TEXT);
     });
   });
 

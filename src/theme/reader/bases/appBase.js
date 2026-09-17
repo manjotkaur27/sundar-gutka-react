@@ -115,6 +115,12 @@ export const APP_ROLES_FIXED = [
   "scrim",
   "shadow",
   "error",
+  // The destructive button's fill and its label, fixed for the same reason the
+  // error text is: red says "this removes something" and is not a theme's to
+  // restyle. A separate role from `error` only because a fill and text have
+  // different contrast floors, not because a theme may set it.
+  "errorFill",
+  "onErrorFill",
   "errorSurface",
   "onError",
   "success",

@@ -55,8 +55,10 @@ export const ROLES = [
   "controlTrackOff",
   "focusRing",
   "error",
+  "errorFill",
   "errorSurface",
   "onError",
+  "onErrorFill",
   "success",
   "successSurface",
   "gold",
@@ -149,12 +151,20 @@ const light = {
   focusRing: navy[800],
 
   error: red[600],
+  // The FILL of a destructive button, which is not the same job as error TEXT.
+  // Text has to clear 4.5:1 on every surface, which pushes it to the dark end
+  // of the ramp; a whole button painted that dark reads as heavy and severe.
+  // A fill only has to hold its own shape (3:1) and carry its label (4.5:1), so
+  // it can be the lighter, less sombre red one step up the ramp.
+  errorFill: red[500],
   errorSurface: "#fdecea",
   // Text sitting ON an error fill (a destructive button). Light mode's error is
   // dark enough to take white; dark mode's is a light tint and needs the
   // opposite, which is exactly the kind of flip a component must never make
   // for itself.
   onError: neutral[0],
+  // The label on that fill. White on the lighter red is 5.08:1.
+  onErrorFill: neutral[0],
   success: green[600],
   successSurface: "#e8f5ee",
   gold: gold[700],
@@ -268,8 +278,12 @@ const dark = {
   focusRing: BLUE,
 
   error: red[300],
+  // Dark mode's red is already a light tint — the fill is not the heavy block
+  // light mode's was, so text and fill share it.
+  errorFill: red[300],
   errorSurface: "#3a1512",
   onError: neutral[950],
+  onErrorFill: neutral[950],
   success: green[300],
   successSurface: "#0f2e1d",
   gold: gold[400],
