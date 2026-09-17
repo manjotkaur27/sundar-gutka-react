@@ -1,59 +1,61 @@
 import React from "react";
 import { View } from "react-native";
 import PropTypes from "prop-types";
-import { CloseIcon } from "@common/icons";
 import useTokens from "../../hooks/useTokens";
-import IconAction from "./IconAction";
+import Button from "./Button";
 
-// A sheet's cancel and confirm, for its title row.
+// A sheet's cancel and confirm, as two labelled buttons fixed at its bottom.
 //
-// They used to be a pair of buttons under the body, which is fine until the
-// body is a list or a keyboard is up. Then they sit behind everything — reaching
-// Create meant scrolling past every bani — and either keyboard covers them
-// outright. Pinning them above the keys was worse: the sheet is capped at a
-// share of the display and the keys take up to 55% of it, so a pinned row left
-// the list with no rows at all at a raised text size.
+// They used to be a cross and an icon in the title row. The icons were
+// confusing for older readers — a cross, an arrow and a floppy disk said
+// nothing about Cancel, Next, Create or Save — so they are words again, and
+// in the place a phone's dialogs put them.
 //
-// The title row is the one part of a sheet that no keyboard can cover and
-// nothing can scroll away, and its height does not follow the text setting, so
-// the body pays nothing for them.
+// Fixed, not in the body: the caller passes this as the sheet's `footer`, above
+// any keyboard, so neither a long list nor a keyboard can put them out of
+// reach. What gives way on a short screen is the list — see Sheet's `header`.
 //
-// Cancel is always the cross. What confirming MEANS differs — save the rename,
-// create the pothi, go to the next step — so its icon and its label come from
-// the caller. Both take the header foreground, the same colour the Dashboard's
-// and Seva's crosses are drawn in, so a sheet's controls read as the app's own
-// rather than as a pair this screen invented. Disabled is the only difference
-// either of them shows.
+// Side by side while their labels fit, stacked once they do not. Each button's
+// basis is its own content — its label on one line plus its padding — so the
+// row wraps only when the two labels really cannot share it: a narrow phone, a
+// long translation or a raised text size, never a guessed width. A guess stacked
+// "Cancel" and "Create" at a large display size with room to spare, and the
+// second button's height was what the sheet's list could not afford. Cancel
+// stays first, so a stacked Confirm sits nearest the thumb.
+//
+// Cancel is quiet and Confirm is the call to action, both from the theme — what
+// confirming means differs (save, create, next), so its label is the caller's.
+
 const SheetActions = ({
   onCancel,
   cancelLabel,
-  confirmIcon,
   confirmLabel,
   onConfirm,
   confirmDisabled = false,
 }) => {
   const { space } = useTokens();
+  const button = { flexGrow: 1, flexBasis: "auto" };
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
-      <IconAction icon={CloseIcon} label={cancelLabel} onPress={onCancel} />
-      <IconAction
-        icon={confirmIcon}
-        label={confirmLabel}
-        onPress={onConfirm}
-        disabled={confirmDisabled}
-      />
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: space.sm,
+        paddingTop: space.md,
+      }}
+    >
+      <Button title={cancelLabel} onPress={onCancel} variant="secondary" style={button} />
+      <Button title={confirmLabel} onPress={onConfirm} disabled={confirmDisabled} style={button} />
     </View>
   );
 };
 
 SheetActions.propTypes = {
   onCancel: PropTypes.func.isRequired,
-  /** Localised name for the cancelling action. */
+  /** Localised label for the cancelling button. */
   cancelLabel: PropTypes.string.isRequired,
-  /** An icon component from `@common/icons` — what confirming does here. */
-  confirmIcon: PropTypes.elementType.isRequired,
-  /** Localised name for the confirming action — "Save", "Create", "Next". */
+  /** Localised label for the confirming button — "Save", "Create", "Next". */
   confirmLabel: PropTypes.string.isRequired,
   onConfirm: PropTypes.func.isRequired,
   confirmDisabled: PropTypes.bool,

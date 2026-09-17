@@ -110,6 +110,70 @@ export const fontSizeForReader = (
   }
 };
 
+// ── Puratan Hathlikhat headroom ─────────────────────────────────────────────
+//
+// This face draws a few glyphs far taller than it declares, so a line holding
+// one overlaps the line above it. Measured from the shipped file,
+// android/app/src/main/assets/fonts/Puratan_Hastlikhat.ttf:
+//
+//   760 upem, hhea ascent 1369 / descent -455, USE_TYPO_METRICS off
+//   -> the face asks for a 2.400em line box
+//
+// Puratan's theme pins `lineHeightRatio: 1.72`, which leaves 1111 units above
+// the baseline. Seven mapped characters rise past that — and the worst of them
+// is the one that matters, the Ik Onkar:
+//
+//   >  Â  ∆   yMax 2217   2.92em above the baseline
+//   å         yMax 2199
+//   O         yMax 1346
+//   9         yMax 1333
+//   E         yMax 1154
+//
+// (The text is the legacy ASCII encoding these faces are drawn for, not
+// Unicode, so those are the codes a bani actually contains.)
+//
+// Ik Onkar needs a 4.63 line-height to clear, which is well past even the
+// face's own 2.400 box — `line-height: normal` would still overlap. And raising
+// the line-height of the div it starts would space out every wrapped line
+// inside it, which is not what is wrong.
+//
+// So the shortfall is added as padding ABOVE the div instead: only the gap that
+// is missing, only on a line that has a glyph needing it, and only for this
+// face. A div with none of these characters is emitted exactly as before.
+const PURATAN_UPEM = 760;
+const PURATAN_ASCENT = 1369;
+const PURATAN_DESCENT = 455;
+/** The line box this face asks for, used when a theme pins no ratio. */
+const PURATAN_NATURAL_RATIO = (PURATAN_ASCENT + PURATAN_DESCENT) / PURATAN_UPEM;
+/** yMax of every glyph that rises above the ascent the face declares. */
+const PURATAN_TALL = { ">": 2217, Â: 2217, "∆": 2217, å: 2199, O: 1346, 9: 1333, E: 1154 };
+// One pass in native code rather than a char-by-char loop: a long bani emits
+// thousands of divs and almost none of them contain any of these.
+const PURATAN_TALL_RE = /[>Â∆åO9E]/g;
+
+/**
+ * The padding, in em, a Puratan line needs so its tallest glyph clears the line
+ * above. Zero when nothing in it rises past the baseline room it already has.
+ */
+export const puratanHeadroom = (content, lineHeightRatio) => {
+  let tallest = 0;
+  // `lastIndex` is reset because the regex is global and shared.
+  PURATAN_TALL_RE.lastIndex = 0;
+  let hit = PURATAN_TALL_RE.exec(content);
+  while (hit !== null) {
+    const y = PURATAN_TALL[hit[0]];
+    if (y > tallest) tallest = y;
+    hit = PURATAN_TALL_RE.exec(content);
+  }
+  if (!tallest) return 0;
+  const ratio = lineHeightRatio || PURATAN_NATURAL_RATIO;
+  // Leading is split evenly above and below, so this is the room above the
+  // baseline the line already has.
+  const above = PURATAN_ASCENT + (ratio * PURATAN_UPEM - (PURATAN_ASCENT + PURATAN_DESCENT)) / 2;
+  const shortfall = tallest - above;
+  return shortfall > 0 ? shortfall / PURATAN_UPEM : 0;
+};
+
 export const createDiv = (
   content,
   header,
@@ -134,6 +198,11 @@ export const createDiv = (
   let extraStyle = "";
   if (lineHeightRatio) extraStyle += `line-height: ${lineHeightRatio};`;
   if (letterSpacing) extraStyle += `letter-spacing: ${letterSpacing}px;`;
+  // Only this face, and only a line whose glyphs actually overflow.
+  if (fontFace === constant.PURATAN_HASTLIKHAT) {
+    const headroom = puratanHeadroom(content, lineHeightRatio);
+    if (headroom) extraStyle += `padding-top: ${headroom.toFixed(3)}em;`;
+  }
   if (shadow) extraStyle += `text-shadow: ${shadow};`;
   // data-type carries the semantic role: the Punjabi translation div shares the
   // gurmukhi CSS CLASS (for its font), so class alone can't identify the main

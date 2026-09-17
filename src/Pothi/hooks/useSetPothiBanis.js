@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
+import { baniItems } from "@common/pothi/model";
 import { actions, trackPothiEvent } from "@common";
 
 /**
@@ -27,7 +28,10 @@ const useSetPothiBanis = () => {
   return useCallback(
     (pothi, next) => {
       if (!pothi) return false;
-      const before = new Set(pothi.items.map((item) => item.baaniId));
+      // Banis on both sides. Diffing every item made each non-bani look
+      // unticked, and it was removed. See isBaniItem.
+      const current = baniItems(pothi);
+      const before = new Set(current.map((item) => item.baaniId));
       const after = new Set(next.map((item) => item.baaniId));
       next
         .filter((item) => !before.has(item.baaniId))
@@ -35,7 +39,7 @@ const useSetPothiBanis = () => {
           trackPothiEvent("bani_added", { bani_id: item.baaniId, size: after.size });
           dispatch(actions.addBaniToPothi(pothi.id, item));
         });
-      pothi.items
+      current
         .filter((item) => !after.has(item.baaniId))
         .forEach((item) => {
           trackPothiEvent("bani_removed", { bani_id: item.baaniId });

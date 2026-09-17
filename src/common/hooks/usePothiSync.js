@@ -9,7 +9,7 @@ import {
   registerSyncFeature,
 } from "@service/sync/syncRegistry";
 import { buildDefaultPothis } from "@common/pothi/defaults";
-import { toUpsertBody } from "@common/pothi/model";
+import { SOURCE, toUpsertBody } from "@common/pothi/model";
 import { actions, logMessage, STRINGS } from "@common";
 import { getBaniList } from "@database";
 
@@ -46,7 +46,7 @@ import { getBaniList } from "@database";
 // `rejectedFolderIds` — pothis whose upload lost to a newer copy from another
 // device (so this device adopts that copy instead of believing its own).
 export const FEATURE = "pothis";
-const PUT_KEY = "mypothi";
+const PUT_KEY = SOURCE;
 
 // The API replaces a whole source per PUT, so a rename typed one letter at a
 // time would otherwise re-upload every folder per keystroke. The outbox
@@ -83,22 +83,24 @@ const usePothiSync = () => {
   const signedInRef = useRef(isSignedIn);
   signedInRef.current = isSignedIn;
 
-  // ── Seed the two default pothis, once per signed-out period ─────────────
+  // ── Seed the two default pothis ───────────────────────────────────────────
   //
-  // The API seeds Morning and Evening Nitnem itself on a user's first
-  // GET /folders — same bani ids, gated by `defaultFoldersSeeded` so deleting
-  // one does not bring it back. Seeding locally as well produced a second pair
-  // with different ids (and different names under a non-English locale), which
-  // is the duplicate Morning/Evening people saw.
+  // This app is what gives the account its Sundar Gutka Morning and Evening
+  // Nitnem: the API seeds a pair only under the MyPothi source, which this app
+  // does not read. The pair is seeded under fixed ids and uploaded like any
+  // other pothi, so every device holds the one pair.
   //
-  // Signed out there is no server to provide them, so the local pair is what a
-  // signed-out user browses; `mergeRemote` retires it on the first pull after
-  // sign-in, in favour of the server's own.
+  // Signed out, once per signed-out period, into an empty list. Signed in, only
+  // once the first pull has landed — before it, the account's pair may simply
+  // not have arrived — and only when that pull showed the account never had
+  // one (`mergeRemote` marks `seededDefaults` when it did, even if deleted).
+  const mayNeedSeed =
+    Boolean(pothis) && !pothis.seededDefaults && (isSignedIn ? pullDone : !pothis.folders?.length);
+
   // Read the list straight from the database when redux has none, so the seed
   // does not depend on which screen the user happened to be on.
   useEffect(() => {
-    if (isSignedIn || baniList?.length || fallbackBanis) return undefined;
-    if (!pothis || pothis.seededDefaults || pothis.folders?.length) return undefined;
+    if (!mayNeedSeed || baniList?.length || fallbackBanis) return undefined;
     let alive = true;
     getBaniList(transliterationLanguage)
       .then((rows) => {
@@ -108,7 +110,7 @@ const usePothiSync = () => {
     return () => {
       alive = false;
     };
-  }, [isSignedIn, baniList, fallbackBanis, pothis, transliterationLanguage]);
+  }, [mayNeedSeed, baniList, fallbackBanis, transliterationLanguage]);
 
   useEffect(() => {
     // Release the latch the moment the store has moved on from the object it
@@ -119,9 +121,7 @@ const usePothiSync = () => {
     // second sign-out found the very object the first had seeded for and the
     // defaults never came back.
     if (seededFor.current && seededFor.current !== pothis) seededFor.current = null;
-    if (isSignedIn) return;
-    if (!pothis || pothis.seededDefaults || seededFor.current === pothis) return;
-    if (pothis.folders?.length) return;
+    if (!mayNeedSeed || seededFor.current === pothis) return;
     const defaults = buildDefaultPothis(baniList?.length ? baniList : fallbackBanis, {
       morning: STRINGS.POTHI_DEFAULT_MORNING,
       evening: STRINGS.POTHI_DEFAULT_EVENING,
@@ -132,7 +132,7 @@ const usePothiSync = () => {
     if (defaults.length === 0) return;
     seededFor.current = pothis;
     dispatch(actions.seedDefaultPothis(defaults));
-  }, [isSignedIn, pothis, baniList, fallbackBanis, dispatch]);
+  }, [mayNeedSeed, pothis, baniList, fallbackBanis, dispatch]);
 
   // ── Pull: the account's folders, and what it deleted since we last looked ─
   const applyRead = useCallback(

@@ -5,7 +5,7 @@ import { Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import { PlusIcon } from "@common/icons";
-import { isDefaultPothi } from "@common/pothi/model";
+import { baniItems, isDefaultPothi } from "@common/pothi/model";
 import { resolveBanis } from "@common/pothi/selectors";
 import {
   actions,
@@ -116,7 +116,7 @@ const FolderScreen = ({ navigation, route }) => {
     () =>
       pothi
         ? resolveBanis(
-            pothi.items.map((item) => item.baaniId),
+            baniItems(pothi).map((item) => item.baaniId),
             baniListData
           )
         : data,
@@ -154,7 +154,7 @@ const FolderScreen = ({ navigation, route }) => {
         // Counted from the pothi's items, not the rows on screen: a bani the
         // database cannot resolve is in the pothi but not in the list.
         const removing = new Set(ids);
-        const items = pothi?.items ?? [];
+        const items = baniItems(pothi);
         const left = items.filter((item) => !removing.has(item.baaniId)).length;
         ids.forEach((id) => dispatch(actions.removeBaniFromPothi(pothiId, id)));
         reportPothiEmptied(items.length, left, "folder_screen");

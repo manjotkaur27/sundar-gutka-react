@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import STRINGS from "@common/localization";
-import { setBaniFontFace } from "@common/actions";
+import { chooseBaniFontFace } from "@common/actions";
 import { constant, showInfoToast } from "@common";
 import { BottomSheetComponent, ListItemComponent } from "./comon";
 import { getBaniFontFaces } from "./comon/strings";
@@ -37,7 +37,9 @@ const BaniFontFaceComponent = () => {
       {isVisible && (
         <BottomSheetComponent
           isVisible={isVisible}
-          action={setBaniFontFace}
+          // Remembered as the reader's own face, which a theme with none of its
+          // own puts back when the reader leaves one that set it.
+          action={chooseBaniFontFace}
           actionConstant={FONT_FACES}
           value={baniFontFace}
           toggleVisible={toggleVisible}

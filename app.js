@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import ErrorBoundary from "react-native-error-boundary";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
 import Toast from "react-native-toast-message";
@@ -203,25 +204,33 @@ const App = () => {
   }, []);
 
   return (
-    <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor} onBeforeLift={handleBeforeLift}>
-        <NetworkProvider>
-          <GlobalServices />
-          <ThemeProvider>
-            <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
-              <SafeAreaProvider>
-                <Navigation />
-                <Toast config={toastConfig} />
-                <ConfirmDialogHost />
-                {/* Mounted last so the full-screen onboarding carousel stacks
-                    above every screen when shown (first run + Revisit Tutorial). */}
-                <OnboardingCarousel />
-              </SafeAreaProvider>
-            </ErrorBoundary>
-          </ThemeProvider>
-        </NetworkProvider>
-      </PersistGate>
-    </Provider>
+    // The gesture root the library asks for, at the top of the tree exactly once.
+    //
+    // It was missing, so every gesture outside a screen that mounted its OWN
+    // root was dead — and a nested root is its own isolated tree, which is why
+    // a swipe on Home could never reach a list that carried one. One root here
+    // lets a gesture declared on a screen compose with the scrolling inside it.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor} onBeforeLift={handleBeforeLift}>
+          <NetworkProvider>
+            <GlobalServices />
+            <ThemeProvider>
+              <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
+                <SafeAreaProvider>
+                  <Navigation />
+                  <Toast config={toastConfig} />
+                  <ConfirmDialogHost />
+                  {/* Mounted last so the full-screen onboarding carousel stacks
+                      above every screen when shown (first run + Revisit Tutorial). */}
+                  <OnboardingCarousel />
+                </SafeAreaProvider>
+              </ErrorBoundary>
+            </ThemeProvider>
+          </NetworkProvider>
+        </PersistGate>
+      </Provider>
+    </GestureHandlerRootView>
   );
 };
 

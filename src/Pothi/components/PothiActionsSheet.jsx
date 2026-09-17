@@ -5,16 +5,9 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
-import { SaveIcon } from "@common/icons";
 import { isDefaultPothi, isValidName, MAX_NAME_LENGTH } from "@common/pothi/model";
 import { actions, ConfirmDialogHost, showConfirm, STRINGS, trackPothiEvent } from "@common";
-import {
-  Button,
-  GurmukhiKeyboard,
-  GurmukhiKeyboardToggle,
-  Sheet,
-  SheetActions,
-} from "../../common/components/ui";
+import { Button, GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
 import useDeletePothi from "../hooks/useDeletePothi";
 import PothiNameField from "./PothiNameField";
 
@@ -70,24 +63,18 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
   // host, which is the one rendered at the bottom of this sheet, so a confirm
   // raised in the same tick as `onClose` was handed to a host React unmounted in
   // that very commit. The dialog never appeared and nothing was deleted, on both
-  // platforms. Cancelling now leaves the sheet up, which is where the user was.
-  const askDelete = () => confirmDelete(pothi, onClose);
-
-  // Back out of the sheet, not into a menu the user never came through.
-  // Opened from the folder screen's overflow, rename IS the sheet —
-  // `startRenaming` skips the choice row on the way in, so falling back to it
-  // on the way out stranded the user on a panel whose only content was a
-  // second Rename button (and not even a Delete beside it, for a default
-  // pothi). Long-pressed from the Folders tab, where that row is where rename
-  // was chosen, it still returns to it.
-  const leaveRename = () => (startRenaming ? onClose() : setRenaming(false));
+  // platforms. Cancelling closes the sheet too: the choice was made, and backing
+  // out of it means backing out, not landing on the same Delete/Rename row.
+  const askDelete = () => confirmDelete(pothi, onClose, onClose);
 
   // Asked only when there is something to lose. Backing out of a name the
   // user never changed is not a discard, and being questioned about it is one
   // more tap for nothing.
   const cancelRename = () => {
+    // Cancelling a rename closes the sheet — from the Folders tab as from the
+    // folder screen — rather than going back to the Delete/Rename row.
     if (name === pothi.name) {
-      leaveRename();
+      onClose();
       return;
     }
     showConfirm({
@@ -95,7 +82,7 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
       cancelText: STRINGS.POTHI_KEEP_EDITING,
       confirmText: STRINGS.POTHI_DISCARD,
       destructive: true,
-      onConfirm: leaveRename,
+      onConfirm: onClose,
     });
   };
 
@@ -122,77 +109,71 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
         visible={visible}
         onClose={onClose}
         title={pothi.name}
-        // While renaming, in the title row rather than under the field: the
-        // Punjabi keyboard is pinned below and covers anything down there at a
-        // raised text size — see SheetActions. The choice row is left as
-        // buttons, because Delete and Rename are choices, not a confirmation.
-        actions={
+        // While renaming, the field is fixed at the top and Cancel and Save are
+        // fixed at the bottom, above the keys — see SheetActions. The choice
+        // row stays in the body as buttons, because Delete and Rename are
+        // choices, not a confirmation.
+        header={
+          renaming ? (
+            <PothiNameField
+              value={name}
+              onChange={setName}
+              onSubmit={submitRename}
+              gurmukhiOpen={gurmukhi}
+              receivingKeys={gurmukhi}
+              onFocus={() => {}}
+              onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+            />
+          ) : null
+        }
+        // Scrollable, so on a short screen the choice row can still be reached.
+        scrollable
+        // Pinned while renaming: Cancel and Save as words, then the keys under
+        // them, so neither can be pushed past the bottom edge.
+        footer={
           renaming ? (
             <SheetActions
               onCancel={cancelRename}
               cancelLabel={STRINGS.CANCEL}
-              confirmIcon={SaveIcon}
               confirmLabel={STRINGS.SAVE}
               onConfirm={submitRename}
               confirmDisabled={!isValidName(name)}
             />
           ) : null
         }
-        // Scrollable, because renaming pins the Punjabi keyboard below this.
-        // As a plain View the body could only be squeezed by it, so at a raised
-        // text size the name field and Save were clipped away rather than being
-        // reachable — on the sheet whose entire purpose is typing a name.
-        scrollable
-        // Pinned, so the keys cannot be pushed past the bottom edge.
-        footer={
+        keyboard={
           renaming && gurmukhi ? (
             <GurmukhiKeyboard
+              lettersLabel={STRINGS.POTHI_KEYBOARD_LETTERS}
+              signsLabel={STRINGS.POTHI_KEYBOARD_SIGNS}
               value={name}
-              onKey={(key) => setName((name + key).slice(0, MAX_NAME_LENGTH))}
-              onBackspace={() => setName(name.slice(0, -1))}
+              onChange={(next) => setName(next.slice(0, MAX_NAME_LENGTH))}
             />
           ) : null
         }
       >
         <View style={{ gap: space.lg }}>
-          {renaming ? (
-            <>
-              {/* Above the field it serves — see GurmukhiKeyboardToggle. */}
-              <GurmukhiKeyboardToggle
-                label={STRINGS.POTHI_KEYBOARD_TOGGLE}
-                active={gurmukhi}
-                onToggle={() => setGurmukhi((on) => !on)}
-              />
-              <PothiNameField
-                value={name}
-                onChange={setName}
-                onSubmit={submitRename}
-                gurmukhiOpen={gurmukhi}
-                receivingKeys={gurmukhi}
-                onFocus={() => {}}
-              />
-            </>
-          ) : (
-            actionRow(
-              <>
-                {isDefault ? null : (
-                  <Button
-                    title={STRINGS.POTHI_DELETE}
-                    onPress={askDelete}
-                    variant="ghost"
-                    style={grow}
-                  />
-                )}
-                {isDefault ? null : (
-                  <Button
-                    title={STRINGS.POTHI_RENAME}
-                    onPress={() => setRenaming(true)}
-                    style={grow}
-                  />
-                )}
-              </>
-            )
-          )}
+          {renaming
+            ? null
+            : actionRow(
+                <>
+                  {isDefault ? null : (
+                    <Button
+                      title={STRINGS.POTHI_DELETE}
+                      onPress={askDelete}
+                      variant="ghost"
+                      style={grow}
+                    />
+                  )}
+                  {isDefault ? null : (
+                    <Button
+                      title={STRINGS.POTHI_RENAME}
+                      onPress={() => setRenaming(true)}
+                      style={grow}
+                    />
+                  )}
+                </>
+              )}
         </View>
 
         {/* Confirms raised from in here are presented BY this sheet.

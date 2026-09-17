@@ -1,12 +1,14 @@
-import React from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import React, { useState } from "react";
+import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "@react-native-community/blur";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useKeyboardHeight from "../../hooks/useKeyboardHeight";
 import useTokens from "../../hooks/useTokens";
+import { useCustomScrollbar } from "../ScrollIndicator";
 import Overlay from "./Overlay";
+import SheetKeyboardSpace from "./sheetKeyboardSpace";
 import Text from "./Text";
 import useSheetPresentation from "./useSheetPresentation";
 
@@ -31,7 +33,9 @@ const SheetContent = ({
   testID = undefined,
   variant = "floating",
   actions = null,
+  header = null,
   footer = null,
+  keyboard = null,
 }) => {
   // Two presentations, both driven entirely by tokens.
   //
@@ -62,8 +66,44 @@ const SheetContent = ({
   // lift AND the cap use it, so a tall sheet scrolls inside what remains
   // instead of growing off the top of the screen.
   const availableHeight = height - keyboardHeight;
+  const maxHeight = availableHeight * layout.sheet.maxHeightRatio;
+  // The bottom safe-area inset is for the home indicator. With the keyboard up
+  // the keyboard covers it, so adding it again would leave a dead band between
+  // the sheet and the keys.
+  const paddingBottom = layout.sheet.paddingBottom + (keyboardHeight > 0 ? 0 : insets.bottom);
 
-  const Body = scrollable ? ScrollView : View;
+  // ── Room for a pinned `keyboard` ──────────────────────────────────────────
+  // Everything but the body is fixed height, so on a small display, or at a
+  // large display or text size, the title, the field, the buttons and a
+  // keyboard sized to the WINDOW added up to more than the sheet can be. The
+  // body shrank to nothing — the list vanished — and the rest ran out of the
+  // sheet's bottom, putting the keyboard's last row behind the navigation bar.
+  //
+  // So the keyboard is sized to what is actually left: the parts above it are
+  // measured, and it gets the max height less those and a list's worth of room
+  // for the body. The body's share is the most its content has ever needed, up
+  // to `listMinHeight` — a sheet with no list keeps no empty band for one, and
+  // a search that narrows to one result does not resize the keys mid-word.
+  const [parts, setParts] = useState({});
+  const [bodyRoom, setBodyRoom] = useState(0);
+  const measure = (part) => (event) => {
+    const { height: partHeight } = event.nativeEvent.layout;
+    setParts((known) => (known[part] === partHeight ? known : { ...known, [part]: partHeight }));
+  };
+  const keepBodyRoom = (contentHeight) =>
+    setBodyRoom((room) => Math.max(room, Math.min(layout.sheet.listMinHeight, contentHeight)));
+
+  // The app's one scrollbar, the same one every list screen draws. A sheet's
+  // body is where its content scrolls — the pothi pickers have no scroller of
+  // their own — so without this every sheet showed the plain native bar while
+  // the screens behind it followed the theme.
+  const { scrollViewProps, Indicator } = useCustomScrollbar();
+  // Whether the hook draws its own thumb here: always on iOS, and on Android
+  // under a designed theme. Everywhere else it hands back nothing and the
+  // native bar stays, so the body is left exactly as it was.
+  const drawsThumb = scrollable && Boolean(scrollViewProps.onScroll);
+  // Animated, because the thumb follows a native-driven scroll event.
+  const Body = scrollable ? Animated.ScrollView : View;
   // Flush rows carry their own dividers and butt up against each other, so the
   // body neither gaps them nor pads the last one away from the edge.
   const bodyGap = flush ? 0 : space.sm;
@@ -78,7 +118,13 @@ const SheetContent = ({
   // whole sheet, leaving the title above a clipped field and no buttons at all.
   // A floor keeps the body on screen and scrolling; the keyboard caps its own
   // height so the two meet in the middle rather than fighting.
-  const bodyFloor = footer ? layout.sheet.listMinHeight : undefined;
+  //
+  // Not with a `header`, though. There the controls are all fixed — the header
+  // above, the footer below — and the body is only what they frame, a list.
+  // Holding a floor under it would push the footer's buttons or keys past the
+  // bottom of a short screen; letting the list give way keeps every control
+  // reachable, and the list comes back as soon as the keys close.
+  const bodyFloor = footer && !header ? layout.sheet.listMinHeight : undefined;
   const bodyProps = scrollable
     ? {
         style: { flexShrink: 1, minHeight: bodyFloor },
@@ -88,8 +134,25 @@ const SheetContent = ({
         // FIRST press. The default swallows it to dismiss the keyboard, so
         // ticking a bani while searching took two taps and looked broken.
         keyboardShouldPersistTaps: "handled",
+        ...scrollViewProps,
+        onContentSizeChange: (width, contentHeight) => {
+          scrollViewProps.onContentSizeChange?.(width, contentHeight);
+          keepBodyRoom(contentHeight);
+        },
+        // Inside the wrapper below, which carries the shrink and the floor.
+        ...(drawsThumb ? { style: { flexShrink: 1 } } : {}),
       }
     : { style: { gap: bodyGap, flexShrink: 1, minHeight: bodyFloor } };
+
+  const titleMargin = flush ? 0 : space.sm;
+  const keyboardSpace =
+    maxHeight -
+    (flush ? 0 : layout.sheet.paddingTop) -
+    paddingBottom -
+    (title ? (parts.title ?? 0) + titleMargin : 0) -
+    (header ? (parts.header ?? 0) + bodyGap : 0) -
+    (footer ? parts.footer ?? 0 : 0) -
+    bodyRoom;
 
   // Unmount only once the closing slide has finished.
   if (!mounted) return null;
@@ -173,11 +236,8 @@ const SheetContent = ({
               borderTopRightRadius: radii.xl,
               paddingHorizontal: flush ? 0 : layout.sheet.paddingHorizontal,
               paddingTop: flush ? 0 : layout.sheet.paddingTop,
-              // The bottom safe-area inset is for the home indicator. With the
-              // keyboard up the keyboard covers it, so adding it again would
-              // leave a dead band between the sheet and the keys.
-              paddingBottom: layout.sheet.paddingBottom + (keyboardHeight > 0 ? 0 : insets.bottom),
-              maxHeight: availableHeight * layout.sheet.maxHeightRatio,
+              paddingBottom,
+              maxHeight,
             }}
           >
             {/* No drag handle. It suggested a gesture the sheet does not
@@ -190,11 +250,12 @@ const SheetContent = ({
               // leave and WRAPS into it — so a long pothi name grows the row
               // rather than running under an icon or pushing one off the edge.
               <View
+                onLayout={measure("title")}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   gap: space.sm,
-                  marginBottom: flush ? 0 : space.sm,
+                  marginBottom: titleMargin,
                 }}
               >
                 <Text
@@ -225,17 +286,43 @@ const SheetContent = ({
               <View style={{ height: 1, backgroundColor: sheetC.divider }} />
             ) : null}
 
+            {/* Fixed between the title and the body: what the body serves and
+                must never scroll away from it, like the search over a list. */}
+            {header ? (
+              <View onLayout={measure("header")} style={{ marginBottom: bodyGap }}>
+                {header}
+              </View>
+            ) : null}
+
             {/* Body is a ScrollView or a plain View depending on `scrollable`,
                 so its props differ by type. */}
-            {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-            <Body {...bodyProps}>{children}</Body>
+            {drawsThumb ? (
+              // The thumb is positioned against its parent, so the body gets
+              // one of its own the same size as what scrolls.
+              <View style={{ flexShrink: 1, minHeight: bodyFloor }}>
+                {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+                <Body {...bodyProps}>{children}</Body>
+                {Indicator}
+              </View>
+            ) : (
+              // eslint-disable-next-line react/jsx-props-no-spreading
+              <Body {...bodyProps}>{children}</Body>
+            )}
 
             {/* Pinned: OUTSIDE the body, so it never scrolls away and never
                 gets pushed past the bottom edge. This is the standard bottom
                 sheet footer arrangement (gorhom's BottomSheetFooter does the
                 same) and it is what an on-screen keyboard needs — the keys stay
                 put at the bottom while the content above them scrolls. */}
-            {footer}
+            {footer ? <View onLayout={measure("footer")}>{footer}</View> : null}
+
+            {/* Pinned under the footer, and sized to the room the sheet has
+                left — see "Room for a pinned keyboard" above. */}
+            {keyboard ? (
+              <SheetKeyboardSpace.Provider value={keyboardSpace}>
+                {keyboard}
+              </SheetKeyboardSpace.Provider>
+            ) : null}
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -266,8 +353,20 @@ const sheetPropTypes = {
    * up and without scrolling a long list to the end.
    */
   actions: PropTypes.node,
+  /**
+   * Fixed between the title and the scrolling body — a search field over the
+   * list it filters. With one, the body gives way to the footer on a short
+   * screen rather than holding a floor that would push the footer off it.
+   */
+  header: PropTypes.node,
   /** Pinned below the scrolling body — an on-screen keyboard, a sticky action. */
   footer: PropTypes.node,
+  /**
+   * An on-screen keyboard, pinned under the footer. Its keys are sized to the
+   * room the rest of the sheet leaves, so it can never push the list to nothing
+   * or its own last row off the bottom of the sheet.
+   */
+  keyboard: PropTypes.node,
   testID: PropTypes.string,
   /** "floating" everywhere; "flush" only for the Settings chooser. */
   variant: PropTypes.oneOf(["floating", "flush"]),

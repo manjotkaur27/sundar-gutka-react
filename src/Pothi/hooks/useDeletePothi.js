@@ -13,18 +13,20 @@ import { actions, showConfirm, showToast, STRINGS, trackPothiEvent } from "@comm
  * body text: "Delete Nitnem pothi?" already says which one and what happens, and
  * a dialog with a title alone is one line to read instead of three.
  *
- * @returns {(pothi: {id: string, name: string, count: number}, onDeleted?: Function) => void}
+ * @returns {(pothi: {id: string, name: string, count: number}, onDeleted?: Function,
+ *   onCancelled?: Function) => void}
  */
 const useDeletePothi = () => {
   const dispatch = useDispatch();
 
   return useCallback(
-    ({ id, name, count }, onDeleted = null) => {
+    ({ id, name, count }, onDeleted = null, onCancelled = null) => {
       showConfirm({
         title: STRINGS.formatString(STRINGS.POTHI_DELETE_CONFIRM, { name }),
         cancelText: STRINGS.CANCEL,
         confirmText: STRINGS.POTHI_DELETE,
         destructive: true,
+        onCancel: onCancelled,
         onConfirm: () => {
           dispatch(actions.deletePothi(id));
           trackPothiEvent("deleted", { size: count });

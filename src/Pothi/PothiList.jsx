@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import DraggableFlatList, { ScaleDecorator } from "react-native-draggable-flatlist";
-import { GestureHandlerRootView, RefreshControl } from "react-native-gesture-handler";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useDispatch, useSelector } from "react-redux";
 import { requestPull } from "@service/dashboard/syncSignal";
 import PropTypes from "prop-types";
@@ -11,7 +11,7 @@ import { DragHandleIcon } from "@common/icons";
 import { defaultPothiId, emptyPothis, MAX_PINNED } from "@common/pothi/model";
 import { folderTabRows, resolveBanis } from "@common/pothi/selectors";
 import { actions, STRINGS, trackPothiEvent, useCustomScrollbar } from "@common";
-import { ListSeparator, Text } from "../common/components/ui";
+import { ListSeparator, PullToRefresh, Text } from "../common/components/ui";
 import NewPothiRow from "./components/NewPothiRow";
 import PothiActionsSheet from "./components/PothiActionsSheet";
 import PothiRow from "./components/PothiRow";
@@ -29,7 +29,7 @@ import useSignedOutPothiHint from "./hooks/useSignedOutPothiHint";
 // (see `pothi/selectors`), and only the user's lane is handed to
 // DraggableFlatList — dragging a bundled folder would imply an order that is
 // not the user's to change and that nothing would persist.
-const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => {
+const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, active = true }) => {
   const { c, space, layout } = useTokens();
   // The same ground the bani list draws on, so the two tabs are one surface.
   const ground = useScreenPalette("baniList").surface;
@@ -40,37 +40,36 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
   // The app-wide themed scrollbar, not a standalone one.
   const { ownedScrollProps, Indicator } = useCustomScrollbar();
   const { titleFor, variantFor } = usePothiTitle();
-  useSignedOutPothiHint();
+  useSignedOutPothiHint(active);
   // The pothi whose rename/delete sheet is open, or null.
   const [acting, setActing] = useState(null);
 
   // Pull to refresh, for someone who has just changed a pothi on their other
   // phone and wants it here now. It fires the same request the Dashboard's
   // pull-down does, so one gesture runs the whole account sync — dashboard,
-  // reminders and pothis — and the spinner ends when that sync has actually
-  // finished. Only offered signed in: signed out there is no account to pull.
-  //
-  // The gesture-handler RefreshControl, not React Native's: the draggable list
-  // wraps its rows in a pan gesture that, on Android, cancels a plain
-  // RefreshControl's pull before it can fire. This one is a native gesture the
-  // pan may not interrupt, and the list is told to scroll simultaneously with
-  // it (`simultaneousHandlers`), the same wiring gesture-handler's own
-  // ScrollView uses for its refresh control.
+  // reminders and pothis. Only offered signed in: signed out there is no
+  // account to pull from.
   const signedIn = useSelector((state) => state.auth?.status === "signedIn");
-  const refreshRef = useRef(null);
-  const [refreshing, setRefreshing] = useState(false);
-  // Off for the whole of a reorder. The two gestures are allowed to run at
-  // once (above), so a row dragged downwards near the top of the list would
-  // otherwise also count as a pull, and letting go of it started a sync.
+  // The list's own scroll offset, as the one bit of it the pull needs.
+  const [atTop, setAtTop] = useState(true);
+  // Off for the whole of a reorder, so a row dragged downwards from the top of
+  // the list cannot also read as a pull and start a sync when it is dropped.
   const [dragging, setDragging] = useState(false);
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await requestPull("pull-to-refresh");
-    } finally {
-      setRefreshing(false);
-    }
+  const onRefresh = useCallback(() => requestPull("pull-to-refresh"), []);
+
+  // The scrollbar owns this callback as well — it is the only way the list
+  // reports its offset — so both readers are given every one.
+  const trackScrollbar = useRef(null);
+  trackScrollbar.current = ownedScrollProps.onScrollOffsetChange;
+  const onScrollOffsetChange = useCallback((offset) => {
+    trackScrollbar.current?.(offset);
+    // React drops a set to the value already held, so this re-renders only on
+    // the two frames where the list reaches, or leaves, the top.
+    setAtTop(offset <= 0);
   }, []);
+
+  // Named, so the list can be told to scroll simultaneously with the pull.
+  const pullRef = useRef(null);
 
   const rows = useMemo(() => folderTabRows(pothis, baniListData), [pothis, baniListData]);
   const bundled = useMemo(() => rows.filter((row) => row.system), [rows]);
@@ -235,54 +234,55 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit }) => 
     // DraggableFlatList needs a gesture root with a real height. Without one the
     // list renders but neither scrolls nor drags — exactly how this behaved.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: ground }}>
-      <DraggableFlatList
-        data={mine}
-        keyExtractor={(row) => row.id}
-        // `data` is the unpinned lane only, so the result needs no filtering:
-        // a pinned pothi is never in this list to be moved in the first place.
-        onDragBegin={() => setDragging(true)}
-        onDragEnd={({ data }) => {
-          setDragging(false);
-          const next = data.map((row) => row.id);
-          trackPothiEvent("reordered", { count: next.length });
-          dispatch(actions.setPothiOrder(next));
-        }}
-        activationDistance={12}
-        renderItem={({ item, drag }) => (
-          <ScaleDecorator>{renderPothi(item, { drag })}</ScaleDecorator>
-        )}
-        ItemSeparatorComponent={ListSeparator}
-        ListHeaderComponent={header}
-        // Measured against EVERY user pothi, not against this list's data.
-        // Its data is the unpinned lane alone — a pinned pothi is lifted out
-        // into the header so the drag cannot reach it — so pinning the last
-        // one emptied the lane and the list announced "no pothis yet" over a
-        // header still showing them.
-        ListEmptyComponent={pinned.length ? null : empty}
-        ListFooterComponent={footer}
-        refreshControl={
-          signedIn ? (
-            <RefreshControl
-              ref={refreshRef}
-              enabled={!dragging}
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={c.textPrimary}
-            />
-          ) : undefined
-        }
-        simultaneousHandlers={signedIn ? refreshRef : undefined}
-        // No `style` prop: DraggableFlatList forwards it to an inner animated
-        // wrapper, and a flex there fights the gesture root above, collapsing
-        // the list to zero height — which rendered a blank page. The root
-        // carries the flex, exactly as EditBaniOrder does.
-        contentContainerStyle={{ paddingBottom: layout.screenPaddingBottom }}
-        // The app's own themed scrollbar, the same one the bani list and
-        // Settings draw. DraggableFlatList keeps its own `onScroll`, so this is
-        // the offset-reporting form of the shared hook — see useCustomScrollbar.
-        // eslint-disable-next-line react/jsx-props-no-spreading
-        {...ownedScrollProps}
-      />
+      <PullToRefresh
+        atTop={atTop}
+        enabled={signedIn && !dragging}
+        gestureRef={pullRef}
+        onRefresh={onRefresh}
+        surface={ground}
+      >
+        <DraggableFlatList
+          data={mine}
+          keyExtractor={(row) => row.id}
+          // `data` is the unpinned lane only, so the result needs no filtering:
+          // a pinned pothi is never in this list to be moved in the first place.
+          onDragBegin={() => setDragging(true)}
+          onDragEnd={({ data }) => {
+            setDragging(false);
+            const next = data.map((row) => row.id);
+            trackPothiEvent("reordered", { count: next.length });
+            dispatch(actions.setPothiOrder(next));
+          }}
+          activationDistance={12}
+          // The scroll view runs alongside the pull rather than cancelling it.
+          // It costs the list nothing: the pull only ever claims a downward
+          // drag at the very top, where there is nothing left to scroll to.
+          simultaneousHandlers={pullRef}
+          renderItem={({ item, drag }) => (
+            <ScaleDecorator>{renderPothi(item, { drag })}</ScaleDecorator>
+          )}
+          ItemSeparatorComponent={ListSeparator}
+          ListHeaderComponent={header}
+          // Measured against EVERY user pothi, not against this list's data.
+          // Its data is the unpinned lane alone — a pinned pothi is lifted out
+          // into the header so the drag cannot reach it — so pinning the last
+          // one emptied the lane and the list announced "no pothis yet" over a
+          // header still showing them.
+          ListEmptyComponent={pinned.length ? null : empty}
+          ListFooterComponent={footer}
+          // No `style` prop: DraggableFlatList forwards it to an inner animated
+          // wrapper, and a flex there fights the gesture root above, collapsing
+          // the list to zero height — which rendered a blank page. The root
+          // carries the flex, exactly as EditBaniOrder does.
+          contentContainerStyle={{ paddingBottom: layout.screenPaddingBottom }}
+          // The app's own themed scrollbar, the same one the bani list and
+          // Settings draw. DraggableFlatList keeps its own `onScroll`, so this is
+          // the offset-reporting form of the shared hook — see useCustomScrollbar.
+          // eslint-disable-next-line react/jsx-props-no-spreading
+          {...ownedScrollProps}
+          onScrollOffsetChange={onScrollOffsetChange}
+        />
+      </PullToRefresh>
       {Indicator}
       {/* Adding banis is NOT offered here. A pothi's contents are edited from
           its own screen's overflow, where the list you are changing is in front
@@ -300,6 +300,8 @@ PothiList.propTypes = {
   onCreatePress: PropTypes.func.isRequired,
   /** Called instead of pinning when the user is already at the ceiling. */
   onPinLimit: PropTypes.func.isRequired,
+  /** False while this list is mounted beside the bani list but not on screen. */
+  active: PropTypes.bool,
 };
 
 export default PothiList;

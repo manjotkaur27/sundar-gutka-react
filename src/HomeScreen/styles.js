@@ -4,6 +4,10 @@ const createStyles = (theme) => ({
   container: {
     flex: 1,
   },
+  // The two tabs, laid out end to end so a swipe can slide between them.
+  pager: {
+    flexDirection: "row",
+  },
   // NB: nine style blocks were removed from here — `header`, `fateh`,
   // `headerDesign`, `headerTitle`, `titleContainer`, `settingIcon`,
   // `headerFatehStyle`, `fatehContainer` and `ikongkar`. They belonged to the

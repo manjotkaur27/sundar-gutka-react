@@ -1,25 +1,32 @@
 import React from "react";
-import { Pressable } from "react-native";
+import { Pressable, View } from "react-native";
 import PropTypes from "prop-types";
 import useTokens from "../../hooks/useTokens";
+import { CloseIcon } from "../../icons";
 import Text from "./Text";
 
-// The one switch for a sheet's in-app Punjabi keyboard, placed ABOVE the
-// fields it serves.
+// The switch for a sheet's in-app Punjabi keyboard: a chip that sits at the
+// trailing edge INSIDE the field it types into. See GurmukhiTextField, which
+// places it and decides whether its label fits.
 //
-// One switch, not one per field: there is a single keyboard on the sheet, so a
-// copy inside every field would be several controls claiming the same thing.
-//
-// The SHAPE is identical on and off — same box, same height, same position —
-// and only the chip fills. An earlier version swapped a bare text link for a
-// filled button when it turned on, so one control looked like two different
-// ones depending on its state, and the row it lived in changed height as it
-// toggled.
-const GurmukhiKeyboardToggle = ({ label, active, onToggle }) => {
-  const { c, space, radii, layout } = useTokens();
+// The SHAPE is identical on and off — same box, same size — and only the chip
+// fills. An earlier version swapped a bare text link for a filled button when it
+// turned on, so one control looked like two different ones depending on state.
+const GurmukhiKeyboardToggle = ({
+  label,
+  accessibilityLabel,
+  active,
+  onToggle,
+  showLabel = true,
+}) => {
+  const { c, space, radii, layout, type, scale } = useTokens();
+  // The same height as the ਅ beside it. An icon is not text, so the OS text
+  // size does not reach it on its own — it takes the clamped scale Text uses,
+  // or at a large text size it would shrink to a speck beside a grown letter.
+  const closeSize = Math.round(type.body.fontSize * scale.fontScale);
 
-  // Filled only when ON, so the off state is quiet and the switch is not
-  // competing with the fields it serves.
+  // Filled only when ON, so the off state is quiet and the chip does not compete
+  // with the text being typed beside it.
   const fillFor = (pressed) => {
     if (active) return c.accentSubtle;
     return pressed ? c.surfaceSelected : "transparent";
@@ -30,20 +37,17 @@ const GurmukhiKeyboardToggle = ({ label, active, onToggle }) => {
       onPress={onToggle}
       accessibilityRole="switch"
       accessibilityState={{ checked: active }}
-      accessibilityLabel={label}
-      // Sized to its content and pushed to the trailing edge — NOT a full-width
-      // block. A bordered row spanning the sheet read as a primary field, which
-      // is the wrong weight for an optional input-method switch and made the
-      // sheet look like it had three text boxes. `hitSlop` keeps the tap target
-      // at the 44pt minimum while the chip itself stays small.
+      // The full name always, whether or not the short label is on screen.
+      accessibilityLabel={accessibilityLabel}
+      // The chip is drawn small to sit inside a field; `hitSlop` keeps the tap
+      // target at the 44pt minimum.
       hitSlop={layout.hitSlop}
       style={({ pressed }) => ({
-        alignSelf: "flex-end",
         flexDirection: "row",
         alignItems: "center",
-        gap: space.sm,
-        paddingVertical: space.sm,
-        paddingHorizontal: space.md,
+        gap: space.xs,
+        paddingVertical: space.xs,
+        paddingHorizontal: space.sm,
         borderRadius: radii.pill,
         borderWidth: layout.borderWidth.hairline,
         borderColor: active ? c.accent : c.border,
@@ -51,25 +55,42 @@ const GurmukhiKeyboardToggle = ({ label, active, onToggle }) => {
       })}
     >
       {/* The Gurmukhi letter names the script it switches to, in that script,
-          so it needs no translation of its own. */}
+          so it needs no translation of its own. It is also what is left when
+          the field is too narrow for the label. */}
       <Text variant="body" color={active ? "accent" : "textSecondary"}>
         ਅ
       </Text>
-      {/* No "ON"/"OFF" text: it would be a string to translate into six
+      {/* No "On"/"Off" text: it would be a string to translate into six
           languages for what the fill, the accent and `accessibilityState`
           already say. */}
-      <Text variant="caption" color={active ? "accent" : "textSecondary"}>
-        {label}
-      </Text>
+      {showLabel ? (
+        <Text variant="caption" color={active ? "accent" : "textSecondary"} numberOfLines={1}>
+          {label}
+        </Text>
+      ) : null}
+      {/* While ON, the chip also says how to get out: the app's close icon,
+          the way a field's clear button reads. Tapping anywhere on the chip
+          turns the keyboard off, as before. Kept when the label is dropped for
+          room, so a narrow field still shows the way out. Decorative to a
+          screen reader, which already hears a switch that is on. */}
+      {active ? (
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <CloseIcon size={closeSize} color={c.accent} />
+        </View>
+      ) : null}
     </Pressable>
   );
 };
 
 GurmukhiKeyboardToggle.propTypes = {
-  /** Localised name for the control — this primitive holds no strings. */
+  /** The short visible name — this primitive holds no strings. */
   label: PropTypes.string.isRequired,
+  /** The full name read by a screen reader. */
+  accessibilityLabel: PropTypes.string.isRequired,
   active: PropTypes.bool.isRequired,
   onToggle: PropTypes.func.isRequired,
+  /** False when the field is too narrow for the label; only ਅ is drawn. */
+  showLabel: PropTypes.bool,
 };
 
 export default GurmukhiKeyboardToggle;

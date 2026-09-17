@@ -23,17 +23,22 @@ export const resetSignedOutHint = () => {
  * A toast rather than the banner that used to sit above the list: the banner
  * was permanent furniture for a message that only needs saying once, and it
  * pushed the list down on every visit for a user who had already read it.
+ *
+ * @param enabled whether the list is the one the user is actually looking at.
+ * The Folders tab is mounted alongside the bani list so the two can slide past
+ * each other, so being mounted no longer means being on screen — and a toast
+ * about pothis while reading the bani list would come out of nowhere.
  */
-const useSignedOutPothiHint = () => {
+const useSignedOutPothiHint = (enabled = true) => {
   const status = useSelector((state) => state.auth?.status);
   useEffect(() => {
     // Only the settled "signedOut" state. On a cold start the status is
     // "unknown" until the Keychain read resolves, and toasting then would tell
     // an already signed-in user to sign in.
-    if (status !== "signedOut" || hinted) return;
+    if (!enabled || status !== "signedOut" || hinted) return;
     hinted = true;
     showToast(STRINGS.POTHI_SIGN_IN_HINT);
-  }, [status]);
+  }, [enabled, status]);
 };
 
 export default useSignedOutPothiHint;

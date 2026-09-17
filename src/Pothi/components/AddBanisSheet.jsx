@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
-import { SaveIcon } from "@common/icons";
+import { baniItems } from "@common/pothi/model";
 import { ConfirmDialogHost, showConfirm, STRINGS } from "@common";
 import { GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
 import usePothiTitle from "../hooks/usePothiTitle";
@@ -52,7 +52,7 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   // the pothi changes on every tick — the sentinel is what stops the snapshot
   // following those edits and making discard a no-op.
   useEffect(() => {
-    if (visible && pothi && openedWith === null) setOpenedWith(pothi.items);
+    if (visible && pothi && openedWith === null) setOpenedWith(baniItems(pothi));
     if (!visible && openedWith !== null) setOpenedWith(null);
   }, [visible, pothi, openedWith]);
 
@@ -61,7 +61,8 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   // Done and dismissing both keep the edits, so both are the commit. Discard
   // puts the opening selection back and closes without passing through here.
   const commit = () => {
-    reportPothiEmptied((openedWith ?? pothi.items).length, pothi.items.length, "add_banis_sheet");
+    const banis = baniItems(pothi).length;
+    reportPothiEmptied(openedWith ? openedWith.length : banis, banis, "add_banis_sheet");
     onClose();
   };
 
@@ -84,29 +85,36 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
         visible={visible}
         onClose={commit}
         title={STRINGS.POTHI_ADD_BANIS}
-        // In the title row, where no keyboard can cover them and no amount of
-        // list can scroll them away — see PickBanisActions.
-        actions={
+        // Fixed above the list, so browsing never scrolls the search away.
+        header={
+          <PickBanisStep.Search
+            pickedCount={baniItems(pothi).length}
+            query={query}
+            onQueryChange={setQuery}
+            gurmukhiOpen={gurmukhi}
+            onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+          />
+        }
+        // The list is the one and only scroller. Nested scrollers fought for
+        // every drag.
+        scrollable
+        // Pinned: Cancel and Done as words, then the keys under them, so
+        // neither can be pushed past the bottom edge however long the list is.
+        footer={
           <SheetActions
             onCancel={discard}
             cancelLabel={STRINGS.CANCEL}
-            confirmIcon={SaveIcon}
             confirmLabel={STRINGS.POTHI_DONE}
             onConfirm={commit}
           />
         }
-        // The sheet is the one and only scroller — the step's list renders
-        // inline inside it. Nested scrollers fought for every drag, and a
-        // still sheet left the search field unreachable once the keys were up.
-        scrollable
-        // Pinned below the body, so the keys can never be pushed past the
-        // bottom edge however long the list gets.
-        footer={
+        keyboard={
           gurmukhi ? (
             <GurmukhiKeyboard
+              lettersLabel={STRINGS.POTHI_KEYBOARD_LETTERS}
+              signsLabel={STRINGS.POTHI_KEYBOARD_SIGNS}
               value={query}
-              onKey={(key) => setQuery(query + key)}
-              onBackspace={() => setQuery(query.slice(0, -1))}
+              onChange={setQuery}
             />
           ) : null
         }
@@ -115,13 +123,10 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
             wants; `setBanis` turns it into the adds and removes an existing
             pothi is edited with. */}
         <PickBanisStep
-          picked={pothi.items}
+          picked={baniItems(pothi)}
           onChange={(next) => setBanis(pothi, next)}
           baniListData={baniListData}
           query={query}
-          onQueryChange={setQuery}
-          gurmukhiOpen={gurmukhi}
-          onToggleGurmukhi={() => setGurmukhi((on) => !on)}
         />
         {/* The sheet stays open behind the discard question, so the question has
             to be presented BY the sheet — see modalHosts.test.js. Outside the

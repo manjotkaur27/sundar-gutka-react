@@ -63,6 +63,15 @@ describe("useSetPothiBanis", () => {
     ]);
   });
 
+  // A shabad added to the pothi on the web has no baaniId. It must not look
+  // "unticked" to the diff: that dispatched a remove for an undefined id, which
+  // stripped every shabad from the pothi and then from the account.
+  it("leaves items that are not banis out of the difference", () => {
+    const shabad = { id: "s1", type: "shabad", shabadId: 123, title: "S" };
+    apply()({ id: "p1", items: [item(2), shabad, item(4)] }, [item(2)]);
+    expect(dispatched()).toEqual([{ type: "REMOVE", id: "p1", baaniId: 4 }]);
+  });
+
   it("does nothing without a pothi to write to", () => {
     expect(apply()(null, [item(9)])).toBe(false);
     expect(actions.addBaniToPothi).not.toHaveBeenCalled();

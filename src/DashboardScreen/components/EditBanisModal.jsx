@@ -2,7 +2,13 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { View, ScrollView, Pressable, StyleSheet } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { createPothi, defaultPothi, makeBaniItem, MORNING_ID } from "@common/pothi/model";
+import {
+  baniItems,
+  createPothi,
+  defaultPothi,
+  makeBaniItem,
+  MORNING_ID,
+} from "@common/pothi/model";
 import {
   convertToUnicode,
   CustomText,
@@ -113,7 +119,7 @@ const EditBanisModal = ({ visible, onClose }) => {
   const morningRef = useRef(morning);
   morningRef.current = morning;
   useEffect(() => {
-    if (visible) setPicked((morningRef.current?.items ?? []).map((item) => item.baaniId));
+    if (visible) setPicked(baniItems(morningRef.current).map((item) => item.baaniId));
   }, [visible]);
 
   useEffect(() => {
@@ -153,7 +159,7 @@ const EditBanisModal = ({ visible, onClose }) => {
 
     if (morning) {
       if (!setBanis(morning, items)) return;
-      reportPothiEmptied(morning.items.length, items.length, "todays_nitnem");
+      reportPothiEmptied(baniItems(morning).length, items.length, "todays_nitnem");
     } else {
       // The pothi is gone — deleted from another client, since this app refuses
       // to delete it. Rebuild it under the same id the signed-out seed uses, so

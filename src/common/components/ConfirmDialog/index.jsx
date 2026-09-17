@@ -15,7 +15,10 @@ import CustomText from "../CustomText";
  * stand-in for Alert.alert for confirm/destructive flows.
  *
  * Usage:
- *   showConfirm({ title, message, confirmText, cancelText, destructive, onConfirm });
+ *   showConfirm({ title, message, confirmText, cancelText, destructive, onConfirm, onCancel });
+ *
+ * `onCancel` is optional and runs however the dialog is backed out of: its
+ * cancel button, a tap on the backdrop or the Android back button.
  *
  * Mount <ConfirmDialogHost /> exactly once near the app root (inside ThemeProvider).
  */
@@ -126,7 +129,13 @@ const ConfirmDialogHost = () => {
     destructive = false,
     onConfirm,
     onNeutral,
+    onCancel,
   } = options;
+  // Every way out that is not a choice is a cancel.
+  const cancel = () => {
+    close();
+    onCancel?.();
+  };
   const surface = theme.c.surfaceElevated;
   const textColor = theme.c.textPrimary;
   // `accent`, not `primary`: primary is the fixed brand navy in BOTH themes, so
@@ -135,8 +144,8 @@ const ConfirmDialogHost = () => {
   const confirmColor = destructive ? theme.c.error : theme.c.accent;
 
   return (
-    <Overlay animationType="fade" onRequestClose={close}>
-      <Pressable style={[styles.backdrop, { backgroundColor: theme.c.scrim }]} onPress={close}>
+    <Overlay animationType="fade" onRequestClose={cancel}>
+      <Pressable style={[styles.backdrop, { backgroundColor: theme.c.scrim }]} onPress={cancel}>
         {/* Inner Pressable swallows taps so they don't dismiss via the backdrop. */}
         <Pressable
           style={[styles.card, { backgroundColor: surface, shadowColor: theme.c.shadow }]}
@@ -155,7 +164,7 @@ const ConfirmDialogHost = () => {
             {!!cancelText && (
               <Pressable
                 style={[styles.btn, stacked && styles.btnStacked]}
-                onPress={close}
+                onPress={cancel}
                 hitSlop={8}
                 onLayout={onBtnLayout("cancel")}
               >

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { ScrollView, View, StyleSheet, InteractionManager, RefreshControl } from "react-native";
+import { ScrollView, View, StyleSheet, InteractionManager } from "react-native";
 import { useSelector } from "react-redux";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { themeForScreen } from "@theme/screenPalettes";
@@ -12,6 +12,7 @@ import {
   trackDashboardEvent,
   trackJourneyView,
 } from "@common";
+import { PullToRefresh } from "../common/components/ui";
 import { getOrCreateSummary } from "../database/analytics";
 import { useRestoreTick } from "../services/dashboard/restoreSignal";
 import { requestPull } from "../services/dashboard/syncSignal";
@@ -78,15 +79,11 @@ const DashboardScreen = () => {
   // walked to their other device and wants their reading to appear. This is the
   // manual override; `requestPull` resolves when the pull has actually
   // finished, so the spinner reflects the request rather than a fixed delay.
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(async () => {
+  // Only at the top does a downward drag mean a refresh rather than a scroll.
+  const [atTop, setAtTop] = useState(true);
+  const onRefresh = useCallback(() => {
     trackDashboardEvent("refreshed");
-    setRefreshing(true);
-    try {
-      await requestPull("pull-to-refresh");
-    } finally {
-      setRefreshing(false);
-    }
+    return requestPull("pull-to-refresh");
   }, []);
 
   // Sections that fetch their own data on mount (YourPractice, MonthCalendar)
@@ -134,39 +131,45 @@ const DashboardScreen = () => {
     <SafeArea backgroundColor={bg} edges={["left", "right"]}>
       <StatusBarComponent backgroundColor="transparent" />
 
-      <ScrollView
-        ref={scrollRef}
-        style={{ flex: 1, backgroundColor: bg }}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.textPrimary} />
-        }
-      >
-        <DashboardHeader
-          onMenuPress={() => {
-            trackDashboardEvent("sections_sheet_opened");
-            setSectionsVisible(true);
-          }}
-          onClosePress={() => navigation.navigate("Home")}
-          onAvatarPress={handleAvatarPress}
-        />
+      {/* The app's one pull control, the same component the Folders tab uses,
+          so the two screens cannot drift apart and both follow the theme. The
+          platform control this replaces could not: on Android `tintColor` is
+          ignored, and it drew Android's own white disc and accent arc whatever
+          the theme was. */}
+      <PullToRefresh atTop={atTop} onRefresh={onRefresh} surface={bg}>
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1, backgroundColor: bg }}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(event) => setAtTop(event.nativeEvent.contentOffset.y <= 0)}
+        >
+          <DashboardHeader
+            onMenuPress={() => {
+              trackDashboardEvent("sections_sheet_opened");
+              setSectionsVisible(true);
+            }}
+            onClosePress={() => navigation.navigate("Home")}
+            onAvatarPress={handleAvatarPress}
+          />
 
-        {visibleSections.map((key) => {
-          const { Component } = SECTION_REGISTRY[key];
-          return (
-            <View
-              key={key}
-              style={styles.section}
-              // y is relative to the scroll content, which is exactly what
-              // scrollTo takes — no measure() round trip needed.
-              onLayout={(e) => noteSectionTop(key, e.nativeEvent.layout.y)}
-            >
-              <Component refreshKey={refreshKey} />
-            </View>
-          );
-        })}
-      </ScrollView>
+          {visibleSections.map((key) => {
+            const { Component } = SECTION_REGISTRY[key];
+            return (
+              <View
+                key={key}
+                style={styles.section}
+                // y is relative to the scroll content, which is exactly what
+                // scrollTo takes — no measure() round trip needed.
+                onLayout={(e) => noteSectionTop(key, e.nativeEvent.layout.y)}
+              >
+                <Component refreshKey={refreshKey} />
+              </View>
+            );
+          })}
+        </ScrollView>
+      </PullToRefresh>
 
       <SectionsModal
         visible={sectionsVisible}

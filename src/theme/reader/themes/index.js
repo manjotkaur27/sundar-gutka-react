@@ -18,8 +18,13 @@
 
 import dark from "./dark";
 import light from "./light";
+// TEMPORARY, REMOVE BEFORE SHIPPING: bundled only so a client build can show
+// these three without waiting on the catalogue.
+import puratan from "./puratan";
+import sanjh from "./sanjh";
+import white from "./white";
 
-export const READER_THEMES = [light, dark].sort((a, b) => a.order - b.order);
+export const READER_THEMES = [light, dark, puratan, white, sanjh].sort((a, b) => a.order - b.order);
 
 export const READER_THEMES_BY_ID = READER_THEMES.reduce((acc, theme) => {
   acc[theme.id] = theme;

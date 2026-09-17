@@ -63,31 +63,37 @@ describe("the bani picker has one implementation", () => {
   });
 });
 
-// The cancel and confirm controls used to be two buttons under the list, which
-// put them behind every bani: reaching Create meant scrolling to the end, and
-// with either keyboard up they were off the bottom of the sheet entirely.
-// Pinning them there instead was worse — the sheet is capped at a share of the
-// display and the keys take up to 55% of it, so a pinned row left the list with
-// no rows at all at a raised text size.
+// Cancel and Confirm are labelled buttons FIXED at the bottom of the sheet, and
+// the search is FIXED at the top; only the list scrolls between them.
 //
-// What the icons DO is covered by rendering them, in pothiComponents.test.jsx.
+// They were a cross and an icon in the title row, which older readers could
+// not read as Cancel, Next, Create or Save. And under the list, where they were
+// before that, they sat behind every bani. Fixed in the sheet's footer, neither
+// the list nor a keyboard can put them out of reach.
+//
+// What the buttons DO is covered by rendering them, in pothiComponents.test.jsx.
 // These hold the arrangement: one implementation, placed the same way by both
-// sheets, and never back in the body.
-describe("the picker's actions live in the sheet's title row", () => {
+// sheets, and never inside the scrolling list.
+describe("the picker's actions and search are fixed around its list", () => {
   const step = read("PickBanisStep.jsx");
   const CALLERS = ["CreatePothiSheet.jsx", "AddBanisSheet.jsx"];
 
-  it("keeps them out of the scrolling body", () => {
-    // A Button here is the old row coming back.
-    const body = step.slice(0, step.indexOf("const TitleAction"));
-    expect(body).not.toMatch(/<Button/);
+  it("keeps them out of the scrolling list", () => {
+    // A Button in the picker is an action row coming back into the body.
+    expect(step).not.toMatch(/<Button/);
   });
 
-  it("is placed by both sheets, from the one implementation", () => {
+  it("is placed by both sheets in the fixed footer, from the one implementation", () => {
     CALLERS.forEach((file) => {
       const text = read(file);
-      expect(text).toContain("SheetActions");
-      expect(text).toMatch(/actions=[{]/);
+      expect(text).toMatch(/footer=\{\s*<SheetActions/);
+      expect(text).not.toMatch(/actions=[{]/);
+    });
+  });
+
+  it("fixes the search above the list in both sheets", () => {
+    CALLERS.forEach((file) => {
+      expect(read(file)).toMatch(/header=\{[\s\S]*<PickBanisStep\.Search/);
     });
   });
 

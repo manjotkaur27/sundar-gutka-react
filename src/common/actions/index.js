@@ -22,6 +22,14 @@ export const setBaniFontFace = (value) => {
   return { type: actionTypes.SET_BANI_FONT_FACE, value };
 };
 
+// The reader picking a Bani font for themselves, from Settings. Applied now,
+// and remembered as THEIR face — the one a theme with no face of its own puts
+// back. See applyTheme.
+export const chooseBaniFontFace = (value) => (dispatch) => {
+  dispatch(setBaniFontFace(value));
+  dispatch({ type: actionTypes.SET_OWN_BANI_FONT_FACE, value });
+};
+
 export const setLanguage = (value) => {
   trackSettingEvent(constant.LANGUAGE, value);
   STRINGS.setLanguage(value);
@@ -457,12 +465,16 @@ const readerThemeSeedableToggles = () => ({
 // Light, Dark and Default have no `defaults`, so for them this is exactly
 // `setTheme` with one extra no-op dispatch.
 export const applyTheme = (value) => (dispatch, getState) => {
+  // Read before the switch: which theme is being LEFT decides whether the
+  // face on screen is the reader's own.
+  const leaving = getState().theme;
   dispatch(setTheme(value));
 
   const state = getState();
   // The MERGED registry: a theme served by the backend behaves exactly as a
   // bundled one does.
-  const record = mergeThemeRegistry(state.remoteThemes).byId[value];
+  const registry = mergeThemeRegistry(state.remoteThemes).byId;
+  const record = registry[value];
 
   // The Bani font is re-applied on EVERY selection, and deliberately not
   // through the once-only path below.
@@ -476,7 +488,19 @@ export const applyTheme = (value) => (dispatch, getState) => {
   // The user is not overruled: while the theme is selected their own choice
   // stands, because nothing here runs again until a theme is selected. Leaving
   // and coming back is a fresh choice of the theme, and brings its face back.
-  const face = record?.typography?.preferredFontFace;
+  //
+  // Leaving a theme like that puts the reader's OWN face back, instead of
+  // keeping the theme's after the theme has gone. Their own face is the last
+  // one they picked in Settings (chooseBaniFontFace). A reader who has never
+  // picked one there has not had one recorded yet, so the face they are
+  // reading in is taken as theirs the moment they leave a theme that did not
+  // set it — it can only have been their choice, or the app's default.
+  let own = state.ownBaniFontFace;
+  if (!own && state.baniFontFace && !registry[leaving]?.typography?.preferredFontFace) {
+    own = state.baniFontFace;
+    dispatch({ type: actionTypes.SET_OWN_BANI_FONT_FACE, value: own });
+  }
+  const face = record?.typography?.preferredFontFace || own;
   if (face && state.baniFontFace !== face) dispatch(setBaniFontFace(face));
 
   // Everything below is once per theme, for the life of the install.

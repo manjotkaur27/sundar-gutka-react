@@ -16,9 +16,16 @@ import { GurmukhiTextField, Text } from "../../common/components/ui";
 // The platform's own Gurmukhi IME still handles this field by default — it has
 // correct input rules and everyone who types Punjabi already knows it. The
 // in-app keyboard is the fallback for a device with no Gurmukhi IME installed;
-// it is switched on ONCE for the whole sheet, above the fields, and rendered at
-// the bottom of it.
-const PothiNameField = ({ value, onChange, onSubmit, gurmukhiOpen, receivingKeys, onFocus }) => {
+// its switch sits inside the field, and the keys at the bottom of the sheet.
+const PothiNameField = ({
+  value,
+  onChange,
+  onSubmit,
+  gurmukhiOpen,
+  receivingKeys,
+  onFocus,
+  onToggleGurmukhi,
+}) => {
   const { layout } = useTokens();
 
   return (
@@ -37,6 +44,11 @@ const PothiNameField = ({ value, onChange, onSubmit, gurmukhiOpen, receivingKeys
         maxLength={MAX_NAME_LENGTH}
         gurmukhiOpen={gurmukhiOpen}
         receivingKeys={receivingKeys}
+        keyboardToggle={{
+          label: STRINGS.POTHI_KEYBOARD_CHIP,
+          accessibilityLabel: STRINGS.POTHI_KEYBOARD_TOGGLE,
+          onToggle: onToggleGurmukhi,
+        }}
       />
     </View>
   );
@@ -51,6 +63,8 @@ PothiNameField.propTypes = {
   /** Whether this field is the one receiving its keys. */
   receivingKeys: PropTypes.bool.isRequired,
   onFocus: PropTypes.func.isRequired,
+  /** Turns the in-app keyboard on or off, from the switch in the field. */
+  onToggleGurmukhi: PropTypes.func.isRequired,
 };
 
 export default PothiNameField;

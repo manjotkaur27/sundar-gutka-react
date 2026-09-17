@@ -1,5 +1,13 @@
-import { addBani, addPothi, createPothi, emptyPothis, makeBaniItem, togglePin } from "./model";
-import { folderTabRows, resolveBanis, systemPothis, userPothis } from "./selectors";
+import {
+  addBani,
+  addPothi,
+  createPothi,
+  emptyPothis,
+  makeBaniItem,
+  SOURCE,
+  togglePin,
+} from "./model";
+import { BUNDLED_SOURCE, folderTabRows, resolveBanis, systemPothis, userPothis } from "./selectors";
 
 // The Folders tab merges two sources that must stay distinguishable: the user's
 // own pothis, which they can rename/reorder/pin/delete, and Sundar Gutka's
@@ -27,6 +35,14 @@ describe("systemPothis", () => {
 
   it("marks them system, so a row can withhold rename/pin/delete", () => {
     expect(systemPothis(baniList)[0].system).toBe(true);
+  });
+
+  // User pothis are stored under `sundar-gutka`, the API source sttm-next's
+  // Sundar Gutka screen reads. Sharing that label, every user pothi read as
+  // bundled and lost its pin, rename and delete.
+  it("labels them apart from the source user pothis are stored under", () => {
+    expect(systemPothis(baniList)[0].source).toBe(BUNDLED_SOURCE);
+    expect(BUNDLED_SOURCE).not.toBe(SOURCE);
   });
 
   it("namespaces the id so it cannot collide with a user pothi", () => {

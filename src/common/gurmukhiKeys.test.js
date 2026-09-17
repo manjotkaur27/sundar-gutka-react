@@ -1,4 +1,14 @@
-import { AKHAR, ALL_KEYS, KEY_ROWS, MATRAS, NUKTA_LETTERS, packageCharacters } from "./gurmukhiKeys";
+import {
+  AKHAR,
+  ALL_KEYS,
+  DIGITS,
+  KEY_PAGES,
+  KEY_ROWS,
+  MATRAS,
+  NUKTA_LETTERS,
+  packageCharacters,
+  PUNCTUATION,
+} from "./gurmukhiKeys";
 
 // The keyboard shows the whole alphabet. The InScript layout the package ships
 // is a typist's layout that hides half the letters behind shift, so only about
@@ -17,13 +27,9 @@ describe("the alphabet is complete", () => {
     expect(AKHAR[6][4]).toBe("ੜ");
   });
 
-  it("adds the six nukta letters, in the package's own encoding", () => {
-    expect(NUKTA_LETTERS).toHaveLength(6);
-    // Sassa- and Lalla-pair are precomposed; the rest are base + nukta. Mixing
-    // the two spellings would store the same name two different ways.
-    expect(NUKTA_LETTERS[0]).toBe("\u0A36");
-    expect(NUKTA_LETTERS[5]).toBe("\u0A33");
-    expect(NUKTA_LETTERS[1]).toBe("\u0A16\u0A3C");
+  it("adds the six nukta letters, each as the one code point the bani database uses", () => {
+    expect(NUKTA_LETTERS).toEqual(["\u0A36", "\u0A59", "\u0A5A", "\u0A5B", "\u0A5E", "\u0A33"]);
+    NUKTA_LETTERS.forEach((letter) => expect([...letter]).toHaveLength(1));
   });
 
   it("offers all nine matras", () => {
@@ -37,6 +43,16 @@ describe("the alphabet is complete", () => {
   it("repeats no character", () => {
     expect(new Set(ALL_KEYS).size).toBe(ALL_KEYS.length);
   });
+
+  it("offers the ten Gurmukhi digits, 1 to 0 as on a number row", () => {
+    expect(DIGITS).toEqual([..."\u0A67\u0A68\u0A69\u0A6A\u0A6B\u0A6C\u0A6D\u0A6E\u0A6F\u0A66"]);
+    DIGITS.forEach((digit) => expect(ALL_KEYS).toContain(digit));
+  });
+
+  it("offers the danda and the double danda, with the letters", () => {
+    expect(PUNCTUATION).toEqual(["\u0964", "\u0965"]);
+    PUNCTUATION.forEach((mark) => expect(KEY_PAGES[0].flat()).toContain(mark));
+  });
 });
 
 describe("the inventory comes from the package, not from memory", () => {
@@ -47,13 +63,23 @@ describe("the inventory comes from the package, not from memory", () => {
     // Per CODEPOINT: a key can be two (base + nukta), and both halves have to
     // be characters the package actually contains.
     const known = packageCharacters();
-    // Ura is the ONE justified addition. It is one of the 35 akhar and the
-    // package's InScript layout simply omits it — it carries Aira (U+0A72) and
-    // the independent vowel Oora-with-aunkar (U+0A09) but not the bare carrier
-    // U+0A73. Leaving it out would mean an alphabet missing its first letter.
-    const EXCEPTIONS = new Set(["ੳ"]);
+    // The justified additions, each named:
+    // - Ura (U+0A73), one of the 35 akhar. The InScript layout carries Aira
+    //   (U+0A72) and the independent vowel Oora-with-aunkar (U+0A09) but not the
+    //   bare carrier, and an alphabet cannot be missing its first letter.
+    // - The Gurmukhi digits U+0A66–U+0A6F. InScript's number row is 1–0 in
+    //   European digits; bani titles are numbered in Gurmukhi ones.
+    // - Double danda (U+0965), the verse end of Gurbani. InScript has the danda
+    //   only.
+    const EXCEPTIONS = new Set(["\u0A73", ...DIGITS, "\u0965"]);
+    // A nukta letter the package lacks is still no invention if its canonical
+    // decomposition is made of characters the package has.
+    const fromKnownParts = (ch) => {
+      const parts = [...ch.normalize("NFD")];
+      return parts.length > 1 && parts.every((part) => known.has(part));
+    };
     const invented = ALL_KEYS.filter((key) =>
-      [...key].some((ch) => !known.has(ch) && !EXCEPTIONS.has(ch))
+      [...key].some((ch) => !known.has(ch) && !EXCEPTIONS.has(ch) && !fromKnownParts(ch))
     );
     expect(invented).toEqual([]);
   });
@@ -68,5 +94,9 @@ describe("rows fit a phone", () => {
 
   it("loses nothing in the split into rows", () => {
     expect(KEY_ROWS.flat()).toEqual(ALL_KEYS);
+  });
+
+  it("gives both pages the same number of rows", () => {
+    expect(KEY_PAGES[1]).toHaveLength(KEY_PAGES[0].length);
   });
 });

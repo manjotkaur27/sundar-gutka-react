@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
-import useTokens from "@common/hooks/useTokens";
-import { ArrowRightIcon, SaveIcon } from "@common/icons";
 import {
   createPothi,
   isValidName,
@@ -21,12 +18,7 @@ import {
   STRINGS,
   trackPothiEvent,
 } from "@common";
-import {
-  GurmukhiKeyboard,
-  GurmukhiKeyboardToggle,
-  Sheet,
-  SheetActions,
-} from "../../common/components/ui";
+import { GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
 import PickBanisStep from "./PickBanisStep";
 import PothiNameField from "./PothiNameField";
 
@@ -47,7 +39,6 @@ const seedItemFor = (seedBani) =>
   makeBaniItem({ baaniId: seedBani.id, title: seedBani.gurmukhiUni || seedBani.gurmukhi });
 
 const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniListData = [] }) => {
-  const { space } = useTokens();
   const dispatch = useDispatch();
   // Counted from the store rather than passed in: both entry points (the
   // Folders tab and the reader's add-to-pothi sheet) would otherwise need to
@@ -143,59 +134,10 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
         onClose={onClose}
         // Step 2 is about THIS pothi, so it wears the name just typed.
         title={step === 1 ? STRINGS.POTHI_NEW : name}
-        // Both steps carry their actions here rather than under the body,
-        // where a keyboard covers them and step 2's list puts them behind
-        // every bani — see SheetActions. Step 1 confirms by going on to the
-        // banis, step 2 by creating the pothi, which is the whole difference
-        // between them.
-        actions={
-          <SheetActions
-            onCancel={discard}
-            cancelLabel={STRINGS.CANCEL}
-            confirmIcon={step === 1 ? ArrowRightIcon : SaveIcon}
-            confirmLabel={step === 1 ? STRINGS.NEXT : STRINGS.POTHI_CREATE}
-            onConfirm={step === 1 ? () => setStep(2) : submit}
-            confirmDisabled={!isValidName(name)}
-          />
-        }
-        // BOTH steps scroll. Step 2 used to hold still while its list scrolled
-        // inside a capped box, so that the search field and the actions could
-        // not slide away while browsing. With the keys up at a raised text size
-        // there was no room for them to hold still IN: they were pushed off a
-        // sheet that then had no way to scroll down to them. Reachable beats
-        // stationary, and one scroller beats two — see PickBanisStep.
-        scrollable
-        // Scrollable, and the keyboard is a PINNED footer: with the bani list
-        // open there is more content than a capped sheet can show, so the body
-        // has to give way rather than push the keys off the bottom.
-        footer={
-          gurmukhi ? (
-            <GurmukhiKeyboard
-              value={step === 1 ? name : query}
-              onKey={(key) =>
-                step === 1
-                  ? // Capped, never trimmed: trimming per keystroke would
-                    // swallow the space key the moment it was pressed.
-                    setName((name + key).slice(0, MAX_NAME_LENGTH))
-                  : setQuery(query + key)
-              }
-              onBackspace={() =>
-                step === 1 ? setName(name.slice(0, -1)) : setQuery(query.slice(0, -1))
-              }
-            />
-          ) : null
-        }
-      >
-        {step === 1 ? (
-          <View style={{ gap: space.lg, flexShrink: 1 }}>
-            {/* Above the field it serves, because it switches the one keyboard
-                the sheet has. See GurmukhiKeyboardToggle, which aligns itself
-                to the trailing edge exactly as it does on step 2. */}
-            <GurmukhiKeyboardToggle
-              label={STRINGS.POTHI_KEYBOARD_TOGGLE}
-              active={gurmukhi}
-              onToggle={() => setGurmukhi((on) => !on)}
-            />
+        // Fixed at the top: the field each step types into. Step 2's search
+        // stays put while its list scrolls underneath.
+        header={
+          step === 1 ? (
             <PothiNameField
               value={name}
               onChange={setName}
@@ -203,10 +145,53 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
               gurmukhiOpen={gurmukhi}
               receivingKeys={gurmukhi}
               onFocus={() => {}}
+              onToggleGurmukhi={() => setGurmukhi((on) => !on)}
             />
-          </View>
-        ) : (
-          // The SAME step Add Banis renders on an existing pothi — one
+          ) : (
+            <PickBanisStep.Search
+              pickedCount={picked.length}
+              query={query}
+              onQueryChange={setQuery}
+              gurmukhiOpen={gurmukhi}
+              onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+            />
+          )
+        }
+        // One scroller — the list. The field above and the buttons and keys
+        // below are fixed, and on a short screen it is the list that gives
+        // way, never a control. See Sheet's `header`.
+        scrollable
+        // Pinned: Cancel and Confirm as words, then the keys under them.
+        // Step 1 confirms by going on to the banis, step 2 by creating the
+        // pothi, which is the whole difference between them.
+        footer={
+          <SheetActions
+            onCancel={discard}
+            cancelLabel={STRINGS.CANCEL}
+            confirmLabel={step === 1 ? STRINGS.NEXT : STRINGS.POTHI_CREATE}
+            onConfirm={step === 1 ? () => setStep(2) : submit}
+            confirmDisabled={!isValidName(name)}
+          />
+        }
+        keyboard={
+          gurmukhi ? (
+            <GurmukhiKeyboard
+              lettersLabel={STRINGS.POTHI_KEYBOARD_LETTERS}
+              signsLabel={STRINGS.POTHI_KEYBOARD_SIGNS}
+              value={step === 1 ? name : query}
+              onChange={(next) =>
+                step === 1
+                  ? // Capped, never trimmed: trimming per keystroke would
+                    // swallow the space key the moment it was pressed.
+                    setName(next.slice(0, MAX_NAME_LENGTH))
+                  : setQuery(next)
+              }
+            />
+          ) : null
+        }
+      >
+        {step === 2 ? (
+          // The SAME list Add Banis renders on an existing pothi — one
           // component, so the two cannot drift. The only difference is what
           // confirming means: create the pothi here, close there.
           <PickBanisStep
@@ -214,11 +199,8 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
             onChange={setPicked}
             baniListData={baniListData}
             query={query}
-            onQueryChange={setQuery}
-            gurmukhiOpen={gurmukhi}
-            onToggleGurmukhi={() => setGurmukhi((on) => !on)}
           />
-        )}
+        ) : null}
         {/* The sheet stays open behind the discard question, so the question
             has to be presented BY the sheet — see modalHosts.test.js. Outside
             the settings scope, so the dialog keeps the surface it wears

@@ -30,10 +30,9 @@ export const MAX_ID_LENGTH = 64;
 
 // ── The two default pothis ────────────────────────────────────────────────
 //
-// Bani ids are taken from the bundled database's `Banis` table and match what
-// khalis-users-api seeds in `DEFAULT_MYPOTHI_FOLDERS`, so a locally seeded pair
-// and the server's own pair hold the same banis in the same order — which is
-// what lets one stand down for the other in `mergeRemote`.
+// Bani ids are taken from the bundled database's `Banis` table. The ids of the
+// two pothis are fixed, so every device seeds the same pair and the account
+// holds it once — see isPristineSeed for how two copies of it meet.
 //
 //    2  jpujI swihb            Japji Sahib
 //    4  jwpu swihb             Jaap Sahib
@@ -55,21 +54,45 @@ export const EVENING_NITNEM_IDS = [21, 23];
 export const DEFAULT_KINDS = ["morning", "evening"];
 
 /**
- * The names khalis-users-api gives the pair it seeds. Always English: the
- * server does not know the user's locale. Used only to recover the pointer
- * below when nothing better identifies them.
+ * Whether an item is a bani — the only kind this app shows.
+ *
+ * A pothi on the account can hold other kinds too: a shabad added from the
+ * web is `{ type: "shabad", shabadId, verseId }`. Those are the account's,
+ * not this app's to judge, so they are never removed or rewritten here —
+ * only skipped wherever the app reads, counts or edits banis, and sent back
+ * unchanged on every sync. Stripping them used to delete them from the
+ * account the next time any pothi was saved.
  */
-const SERVER_DEFAULT_NAMES = { morning: "Morning Nitnem", evening: "Evening Nitnem" };
+export const isBaniItem = (item) =>
+  Boolean(item) && Number.isInteger(item.baaniId) && item.baaniId > 0;
+
+/** A pothi's bani items, in order — what every screen shows and counts. */
+export const baniItems = (folder) => (folder?.items ?? []).filter(isBaniItem);
+
+/** An item this app does not show, kept exactly as it arrived. */
+const isKeptItem = (item) =>
+  Boolean(item) && typeof item === "object" && typeof item.id === "string" && item.id.length > 0;
 
 /** A folder's banis as one comparable string. */
-const baniSignature = (folder) => (folder?.items ?? []).map((item) => item.baaniId).join(",");
+const baniSignature = (folder) =>
+  baniItems(folder)
+    .map((item) => item.baaniId)
+    .join(",");
 
 /**
  * A folder's CONTENT as one comparable string — what makes two folders the
  * same pothi made twice rather than two pothis. The id is deliberately not in
  * it: the whole point is to match copies that were minted separately.
  */
-const folderSignature = (folder) => `${folder.source}|${folder.name}|${baniSignature(folder)}`;
+//
+// Every item counts, not just the banis: two folders with the same banis but
+// different shabads are different pothis, and treating them as copies would
+// drop one of them. An item's own id is left out, for the same reason as
+// above — copies minted separately carry different ids.
+const itemKey = (item) =>
+  isBaniItem(item) ? `b:${item.baaniId}` : JSON.stringify({ ...item, id: undefined });
+const folderSignature = (folder) =>
+  `${folder.source}|${folder.name}|${(folder.items ?? []).map(itemKey).join(",")}`;
 
 const DEFAULT_SIGNATURES = {
   morning: MORNING_NITNEM_IDS.join(","),
@@ -79,57 +102,50 @@ const DEFAULT_SIGNATURES = {
 /**
  * Which folder is the Morning (or Evening) Nitnem pothi.
  *
- * A pointer rather than a name check, because the name is not stable: the local
- * seed uses the user's language, the server's is always English, and either can
- * be renamed. Nor is the id stable — the API mints its own uuids — so the
- * pointer is re-resolved rather than assumed:
+ * A pointer rather than a name check, because the name is not stable: the seed
+ * uses the language of the device that made it. The pointer is re-resolved
+ * rather than assumed:
  *
  *   1. The recorded id, if that folder is still there. Survives rename and
  *      any edit to the contents, which is the whole point.
- *   2. Our own well-known id. When the account holds a folder under it, that id
- *      IS the role and no guessing is needed — it survives a rename and an edit
- *      together, which nothing below does.
- *   3. The folder holding exactly the default banis in the default order. This
- *      is what re-points a device at the server's copy after `mergeRemote`
- *      retires its local one, and what recovers the pair for a user who signed
- *      in before this pointer existed.
- *   4. The server's own English name, for a pair whose contents were edited
- *      before this build could record them.
+ *   2. Our own well-known id. Every device seeds the pair under it and uploads
+ *      it, so when the account holds a folder under it, that id IS the role and
+ *      no guessing is needed — it survives a rename and an edit together.
+ *   3. The folder holding exactly the default banis in the default order, which
+ *      recovers the pair for a device that has no pointer and no well-known id.
  *
  * Null when the pothi genuinely is not there — deleted from another client.
  *
  * WHY THE POINTER IS NOT ENOUGH ON ITS OWN. It is local — never sent up, and
  * reset with the slice on an account change — so a SECOND device signing in has
- * none, and must re-derive the pair from the folders alone. There steps 2-4 are
- * all it has, and the account's pair carries random uuids, so the fallbacks
- * have to hold: an edit costs step 3, and a rename would cost step 4 and leave
- * nothing. That is why renaming a default is not offered (see
- * PothiActionsSheet), and why deleting one never was.
+ * none, and must re-derive the pair from the folders alone. That is why
+ * renaming a default is not offered (see PothiActionsSheet), and why deleting
+ * one never was.
  */
 const LOCAL_DEFAULT_ID = { morning: MORNING_ID, evening: EVENING_ID };
 
 /**
- * A seeded default exactly as the app seeded it: our fixed id, the stock
+ * A seeded default exactly as a device seeded it: our fixed id, the stock
  * banis, and never touched since — an edit or a rename moves `updatedAt`.
  *
- * Such a pothi is a stand-in for the account's own, which the API seeds on
- * the account's first read. It is shown while signed out, or while the
- * account has nothing playing that role, and never sent up: pushed, it became
- * a second "Morning Nitnem" on every device signed into the account.
+ * Every device seeds the pair under the same ids, so two copies of one default
+ * meet in `mergeRemote`, and a stock copy holds no work: it must never beat a
+ * copy someone edited, however its clock compares.
  */
-const isPristineSeed = (folder, kind) =>
-  folder?.id === LOCAL_DEFAULT_ID[kind] &&
-  baniSignature(folder) === DEFAULT_SIGNATURES[kind] &&
-  folder.updatedAt === folder.createdAt;
+const isPristineSeed = (folder) =>
+  DEFAULT_KINDS.some(
+    (kind) =>
+      folder?.id === LOCAL_DEFAULT_ID[kind] &&
+      baniSignature(folder) === DEFAULT_SIGNATURES[kind] &&
+      folder.updatedAt === folder.createdAt
+  );
 
 const resolveDefaultId = (kind, folders, recorded) => {
   if (recorded && folders.some((folder) => folder.id === recorded)) return recorded;
   const byWellKnownId = folders.find((folder) => folder.id === LOCAL_DEFAULT_ID[kind]);
   if (byWellKnownId) return byWellKnownId.id;
   const bySignature = folders.find((folder) => baniSignature(folder) === DEFAULT_SIGNATURES[kind]);
-  if (bySignature) return bySignature.id;
-  const byName = folders.find((folder) => folder.name === SERVER_DEFAULT_NAMES[kind]);
-  return byName ? byName.id : null;
+  return bySignature ? bySignature.id : null;
 };
 
 /** The id of a default pothi, or null. `kind` is "morning" or "evening". */
@@ -148,8 +164,13 @@ export const isDefaultPothi = (state, id) =>
 /** Client-side only: the product cap on pinned pothis. The API does not police it. */
 export const MAX_PINNED = 3;
 
-/** The only source this app writes. `sundar-gutka` is the bundled-folder namespace. */
-export const SOURCE = "mypothi";
+/**
+ * The one source this app reads and writes — the one sttm-next's Sundar Gutka
+ * screen uses, so a pothi made on either shows on both. Folders of any other
+ * source on the account (sttm-next's MyPothi, which can hold shabads) are not
+ * this app's: they are never pulled, shown or sent.
+ */
+export const SOURCE = "sundar-gutka";
 
 export const emptyPothis = () => ({
   folders: [],
@@ -276,6 +297,9 @@ export const addBani = (state, id, item, now = Date.now()) => {
 };
 
 export const removeBani = (state, id, baaniId, now = Date.now()) => {
+  // Without this, an undefined id matched every item that is not a bani —
+  // `item.baaniId !== undefined` is false for a shabad — and removed them all.
+  if (!isBaniItem({ baaniId })) return state;
   const folder = state.folders[indexOf(state, id)];
   if (!folder || !folder.items.some((item) => item.baaniId === baaniId)) return state;
   return patch(state, id, { items: folder.items.filter((i) => i.baaniId !== baaniId) }, now);
@@ -373,27 +397,37 @@ export const reconcile = (persisted) => {
     .filter((folder) => folder && typeof folder.id === "string" && folder.id.length > 0)
     .slice(0, MAX_FOLDERS)
     .map((folder) => {
-      const items = (Array.isArray(folder.items) ? folder.items : [])
-        .filter((item) => item && Number.isInteger(item.baaniId) && item.baaniId > 0)
-        .filter(
-          // De-duplicate on the bani, keeping the first — a double-write must
-          // not render the same shabad twice in the continuous reader.
-          (item, at, all) => all.findIndex((other) => other.baaniId === item.baaniId) === at
+      const all = Array.isArray(folder.items) ? folder.items : [];
+      const items = all
+        // A bani is de-duplicated, keeping the first — a double-write must not
+        // render the same shabad twice in the continuous reader. Anything else is
+        // kept exactly as it arrived; see isBaniItem.
+        .filter((item, at) =>
+          isBaniItem(item)
+            ? all.findIndex((other) => isBaniItem(other) && other.baaniId === item.baaniId) === at
+            : isKeptItem(item)
         )
         .slice(0, MAX_ITEMS_PER_FOLDER)
-        .map((item) => ({
-          id: typeof item.id === "string" && item.id ? item.id : makeItemId(),
-          type: "bani",
-          baaniId: item.baaniId,
-          title: clamp(item.title || String(item.baaniId), MAX_ITEM_TITLE_LENGTH),
-          ...(item.preview ? { preview: clamp(item.preview, MAX_ITEM_TITLE_LENGTH) } : {}),
-        }));
+        .map((item) =>
+          isBaniItem(item)
+            ? {
+                id: typeof item.id === "string" && item.id ? item.id : makeItemId(),
+                type: "bani",
+                baaniId: item.baaniId,
+                title: clamp(item.title || String(item.baaniId), MAX_ITEM_TITLE_LENGTH),
+                ...(item.preview ? { preview: clamp(item.preview, MAX_ITEM_TITLE_LENGTH) } : {}),
+              }
+            : item
+        );
       const keepPin = Boolean(folder.pinned) && pinned < MAX_PINNED;
       if (keepPin) pinned += 1;
       return {
         id: clamp(folder.id, MAX_ID_LENGTH),
         name: normaliseName(folder.name) || folder.id,
-        source: folder.source === "sundar-gutka" ? "sundar-gutka" : SOURCE,
+        // Server folders are filtered to SOURCE before they get here (see
+        // mergeRemote), so this only relabels a folder an earlier build stored
+        // under a different name.
+        source: SOURCE,
         items,
         createdAt: Number.isFinite(folder.createdAt) ? folder.createdAt : Date.now(),
         updatedAt: Number.isFinite(folder.updatedAt) ? folder.updatedAt : Date.now(),
@@ -450,16 +484,39 @@ export const clearTombstone = (state, id) => ({
 });
 
 /**
- * The payload for `PUT /folders` — the local-only fields stripped, and a
- * pristine seed left out (see isPristineSeed): the account seeds its own.
+ * The payload for `PUT /folders` — every pothi, the local-only fields stripped.
+ *
+ * The defaults go up too, untouched or not. The API seeds its own pair only
+ * under the MyPothi source, which this app does not read, so the pair this app
+ * seeds is the account's Sundar Gutka pair — and uploading it is what lets
+ * sttm-next's Sundar Gutka screen find folders instead of seeding its own.
  */
 export const toUpsertBody = (state) => ({
   source: SOURCE,
-  folders: listPothis(state).filter(
-    (folder) =>
-      folder.source === SOURCE && !DEFAULT_KINDS.some((kind) => isPristineSeed(folder, kind))
-  ),
+  folders: listPothis(state),
 });
+
+/**
+ * Which of two copies of one folder stands after a pull: the newer, except
+ * that a pristine default never beats an edited one (see isPristineSeed).
+ *
+ * The exception runs both ways. A stock pair seeded on this phone today is
+ * newer than a nitnem another phone arranged last week, and must not replace
+ * it. And an account's stock pair uploaded by another phone just now is newer
+ * than the nitnem arranged here before signing in, and must not replace that
+ * either — so the local edit wins, stamped `now`, because the API keeps
+ * whichever copy is strictly newer and would refuse the older clock.
+ */
+const newerCopy = (mine, remote, now) => {
+  if (!mine) return remote;
+  const minePristine = isPristineSeed(mine);
+  const remotePristine = isPristineSeed(remote);
+  if (minePristine !== remotePristine) {
+    if (minePristine) return remote;
+    return mine.updatedAt > remote.updatedAt ? mine : { ...mine, updatedAt: now };
+  }
+  return mine.updatedAt > remote.updatedAt ? mine : remote;
+};
 
 /**
  * Merges the server's folders over local, per folder, by `updatedAt`.
@@ -469,19 +526,11 @@ export const toUpsertBody = (state) => ({
  * comparison would not. A folder only local (never synced) is kept; a folder
  * only remote is adopted.
  */
-export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deletedFolderIds = []) => {
-  // A pristine seed that an earlier build pushed up, sitting beside the
-  // account's own Morning or Evening Nitnem. It is not the account's — it is
-  // the duplicate people saw — so it is dropped here and deleted from the
-  // account (via `deletedIds`, which the outbox sends), and every device
-  // converges on the one. A seed with no counterpart is left alone: then it
-  // IS the account's copy.
-  const strays = DEFAULT_KINDS.map((kind) => {
-    const seed = remoteFolders.find((folder) => folder.id === LOCAL_DEFAULT_ID[kind]);
-    if (!seed || !isPristineSeed(seed, kind)) return null;
-    const others = remoteFolders.filter((folder) => folder.id !== seed.id);
-    return resolveDefaultId(kind, others, null) ? seed.id : null;
-  }).filter(Boolean);
+export const mergeRemote = (state, allRemote = [], now = Date.now(), deletedFolderIds = []) => {
+  // Only this app's source. The account also holds sttm-next's MyPothi folders,
+  // which can carry shabads the API refuses under SOURCE; taking them in would
+  // relabel them (see reconcile) and fail every later upload.
+  const remoteFolders = allRemote.filter((folder) => folder?.source === SOURCE);
 
   const local = new Map(state.folders.map((folder) => [folder.id, folder]));
   // A folder the server reports as deleted since this device last read — by
@@ -490,75 +539,14 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
   // the server, so absence there is the account's decision.
   deletedFolderIds.forEach((id) => local.delete(id));
   // A folder this device deleted is NOT a new one from the server.
-  const buried = new Set([...(state.deletedIds ?? []), ...strays]);
+  const buried = new Set(state.deletedIds ?? []);
   const remoteIds = new Set(remoteFolders.map((folder) => folder.id));
   const merged = [];
   remoteFolders.forEach((remote) => {
     if (buried.has(remote.id)) return;
-    const mine = local.get(remote.id);
-    merged.push(mine && mine.updatedAt > remote.updatedAt ? mine : remote);
+    merged.push(newerCopy(local.get(remote.id), remote, now));
     local.delete(remote.id);
   });
-  // A local default gives way to the server’s own copy of it — but its
-  // EDITS do not.
-  //
-  // The API seeds Morning/Evening Nitnem with random uuids; a device that
-  // seeded its pair while signed out then has two of each, and they cannot be
-  // collapsed by name because the local ones are localised. They ARE the same
-  // pothi, so the local one always stands down — an account must never end up
-  // with two Morning Nitnems.
-  //
-  // What standing down must NOT discard is the edit. A nitnem arranged before
-  // signing in is real work, and on a first sign-in it is the only copy that
-  // exists. So when the local default was actually edited — its banis differ
-  // from the seeded set — and is newer than the server’s, its items move onto
-  // the server’s folder, keeping the server’s id and stamped so the next push
-  // carries them up.
-  //
-  // An untouched seed is never adopted. Its `updatedAt` is the moment it was
-  // seeded, which is easily newer than a server copy edited days ago, so time
-  // alone would let a stock list overwrite a real one.
-  //
-  // The reverse trap is why `updatedAt` is not the only test. The API seeds the
-  // account's pair on its FIRST read, stamping both clocks with the moment of
-  // that read — which is the sign-in itself, and therefore newer than every
-  // edit the guest made beforehand. Compared on time alone the account's stock
-  // list always wins, so a nitnem arranged over weeks was replaced by the
-  // factory one the instant the user signed in. A STOCK list holds no work to
-  // lose, so when the server's copy is still the seeded set the local edit
-  // wins outright; time only decides between two lists that were both edited.
-  //
-  // The Morning/Evening pointer is NOT rewritten here: dropping the local
-  // folder leaves the pointer dangling, and `reconcile` below re-resolves it by
-  // bani signature — which lands on the server's copy, the very folder that
-  // superseded it.
-  const adoptedItems = new Map();
-  DEFAULT_KINDS.forEach((kind) => {
-    const mine = local.get(LOCAL_DEFAULT_ID[kind]);
-    if (!mine) return;
-    // Only folders that survive this merge can be the account's copy. A stray
-    // seed is about to be dropped, and now that the well-known id resolves
-    // first it would otherwise be picked — leaving an edited local default
-    // nowhere to move its banis.
-    const theirId = resolveDefaultId(
-      kind,
-      remoteFolders.filter((folder) => !buried.has(folder.id)),
-      null
-    );
-    if (!theirId) return;
-    local.delete(LOCAL_DEFAULT_ID[kind]);
-    const theirs = merged.find((folder) => folder.id === theirId);
-    const edited = baniSignature(mine) !== DEFAULT_SIGNATURES[kind];
-    const theirsIsStock = Boolean(theirs) && baniSignature(theirs) === DEFAULT_SIGNATURES[kind];
-    if (theirs && edited && (theirsIsStock || mine.updatedAt > theirs.updatedAt)) {
-      adoptedItems.set(theirId, mine.items);
-    }
-  });
-  const resolved = merged.map((folder) =>
-    adoptedItems.has(folder.id)
-      ? { ...folder, items: adoptedItems.get(folder.id), updatedAt: now }
-      : folder
-  );
 
   // Whose ORDER stands. Positions live on the folders, so the side that
   // touched its list last owns the order: a reorder here that has not reached
@@ -568,7 +556,7 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
   const mineById = new Map(state.folders.map((folder) => [folder.id, folder]));
   const newestLocal = Math.max(
     0,
-    ...resolved.filter((f) => mineById.has(f.id)).map((f) => mineById.get(f.id).updatedAt ?? 0)
+    ...merged.filter((f) => mineById.has(f.id)).map((f) => mineById.get(f.id).updatedAt ?? 0)
   );
   const newestRemote = Math.max(
     0,
@@ -577,12 +565,12 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
   const localIndex = (id) => state.folders.findIndex((folder) => folder.id === id);
   const ordered =
     newestLocal > newestRemote
-      ? [...resolved].sort((a, b) => {
+      ? [...merged].sort((a, b) => {
           const ia = localIndex(a.id);
           const ib = localIndex(b.id);
           return ia === -1 || ib === -1 ? 0 : ia - ib;
         })
-      : resolved;
+      : merged;
 
   // A local-only folder that is an EXACT copy of one the account already holds
   // — same name, same banis, same order — is one pothi made twice: once here
@@ -615,7 +603,16 @@ export const mergeRemote = (state, remoteFolders = [], now = Date.now(), deleted
   return reconcile({
     ...state,
     folders: [...local.values(), ...ordered],
-    deletedIds: [...new Set([...stillThere, ...strays])],
+    deletedIds: stillThere,
+    // An account that already has a default — live, or deleted from another
+    // client — has had its pair. Seeding again would add a second one, or
+    // bring back the one that was deleted.
+    seededDefaults:
+      Boolean(state.seededDefaults) ||
+      DEFAULT_KINDS.some(
+        (kind) =>
+          remoteIds.has(LOCAL_DEFAULT_ID[kind]) || deletedFolderIds.includes(LOCAL_DEFAULT_ID[kind])
+      ),
   });
 };
 

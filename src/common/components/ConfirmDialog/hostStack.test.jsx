@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import React from "react";
 
-import { act, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 
 import ConfirmDialogHost, { showConfirm } from "./index";
 
@@ -79,5 +79,41 @@ describe("showConfirm's host", () => {
     act(() => showConfirm(options));
 
     expect(titleOf(root)).toBeTruthy();
+  });
+});
+
+// A caller that has to react to being backed out of — a sheet that closes when
+// its question is cancelled — hears about it. One that does not pass `onCancel`
+// is unaffected, and confirming never counts as cancelling.
+describe("showConfirm's onCancel", () => {
+  it("runs when the dialog is cancelled", () => {
+    const onCancel = jest.fn();
+    const onConfirm = jest.fn();
+    const root = render(<ConfirmDialogHost />);
+
+    act(() => showConfirm({ ...options, onCancel, onConfirm }));
+    fireEvent.press(root.getByText("Cancel"));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(titleOf(root)).toBeNull();
+  });
+
+  it("does not run when the dialog is confirmed", () => {
+    const onCancel = jest.fn();
+    const root = render(<ConfirmDialogHost />);
+
+    act(() => showConfirm({ ...options, onCancel }));
+    fireEvent.press(root.getByText("Delete"));
+
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("is optional", () => {
+    const root = render(<ConfirmDialogHost />);
+
+    act(() => showConfirm(options));
+    expect(() => fireEvent.press(root.getByText("Cancel"))).not.toThrow();
+    expect(titleOf(root)).toBeNull();
   });
 });

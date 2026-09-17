@@ -2,6 +2,11 @@
 // Jest setup file - runs before all tests
 // This centralizes common mocks so you don't have to repeat them in every test file
 
+// gesture-handler's own setup, which the library requires under jest: its
+// entry point reaches for a TurboModule at import time, so any test that
+// merely pulls in a component using it fails to run without this.
+require("react-native-gesture-handler/jestSetup");
+
 // anvaad-js (Gurmukhi ASCII -> Unicode, used by convertToUnicode) ships a UMD
 // bundle that assigns to `self`. Node has no such global, so merely importing
 // it throws "self is not defined" and takes the whole suite with it. Pointing

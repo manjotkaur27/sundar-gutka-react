@@ -1,3 +1,4 @@
+import { baniItems } from "../pothi/model";
 import { DEFAULT_NITNEM_BANI_IDS } from "./defaults";
 
 /**
@@ -20,7 +21,7 @@ import { DEFAULT_NITNEM_BANI_IDS } from "./defaults";
  */
 export const nitnemSelection = (morning) => {
   if (!morning) return { ids: DEFAULT_NITNEM_BANI_IDS, emptied: false };
-  const ids = (morning.items ?? []).map((item) => item.baaniId);
+  const ids = baniItems(morning).map((item) => item.baaniId);
   return { ids, emptied: ids.length === 0 };
 };
 

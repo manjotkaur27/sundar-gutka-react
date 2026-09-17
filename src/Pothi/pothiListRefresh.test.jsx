@@ -1,5 +1,4 @@
 import React from "react";
-import { RefreshControl } from "react-native-gesture-handler";
 
 import { act, render } from "@testing-library/react-native";
 
@@ -7,6 +6,11 @@ import PothiList from "./PothiList";
 
 // Pulling down on the Pothis tab must run the same account sync as pulling
 // down on the Dashboard — one request, one spinner that ends when it ends.
+//
+// The pull itself is the shared PullToRefresh control (its own test covers the
+// gesture). What this file holds to is what the Folders tab tells that control:
+// when a pull is allowed at all, and that the list is wired to scroll
+// alongside it rather than fight it.
 
 const mockRequestPull = jest.fn(() => Promise.resolve());
 jest.mock("@service/dashboard/syncSignal", () => ({
@@ -19,28 +23,32 @@ jest.mock("react-redux", () => ({
   useDispatch: () => jest.fn(),
 }));
 
-// The draggable list is a native-gesture component; here it only has to hand
-// the refresh control through, the way the FlatList it wraps does.
+jest.mock("react-native-gesture-handler", () => ({
+  GestureHandlerRootView: require("react-native").View,
+}));
+
+// The draggable list is a native-gesture component; here it only has to report
+// its scroll offset back, the way the real one does through this callback.
 jest.mock("react-native-draggable-flatlist", () => {
   const ReactModule = require("react");
   const { View } = require("react-native");
   const DraggableFlatList = ({
     data,
-    refreshControl,
     ListHeaderComponent,
     ListEmptyComponent,
     simultaneousHandlers,
+    onScrollOffsetChange,
     onDragBegin,
     onDragEnd,
   }) =>
     ReactModule.createElement(
       View,
-      { testID: simultaneousHandlers ? "scrolls-with-refresh" : "scrolls-alone" },
-      refreshControl,
+      { testID: "list", simultaneousHandlers },
       ListHeaderComponent,
       // A FlatList shows its empty component only when the data is empty.
       data && data.length ? null : ListEmptyComponent,
-      // Stand-ins for the list's own drag lifecycle, so a test can reorder.
+      // Stand-ins for the list's own lifecycle, so a test can scroll or reorder.
+      ReactModule.createElement(View, { testID: "scroll", onPress: onScrollOffsetChange }),
       ReactModule.createElement(View, { testID: "drag-begin", onPress: () => onDragBegin(0) }),
       ReactModule.createElement(View, {
         testID: "drag-end",
@@ -49,12 +57,6 @@ jest.mock("react-native-draggable-flatlist", () => {
     );
   return { __esModule: true, default: DraggableFlatList, ScaleDecorator: View };
 });
-// The gesture-handler RefreshControl is a native wrapper around React
-// Native's; under jest it stands in for itself and only has to be findable.
-jest.mock("react-native-gesture-handler", () => ({
-  GestureHandlerRootView: require("react-native").View,
-  RefreshControl: require("react-native").RefreshControl,
-}));
 
 jest.mock("@common/hooks/useScreenPalette", () => () => ({ surface: "#fff" }));
 jest.mock("@common/hooks/useTokens", () => () => ({
@@ -81,15 +83,22 @@ jest.mock("./hooks/useSignedOutPothiHint", () => () => {});
 jest.mock("./components/NewPothiRow", () => () => null);
 jest.mock("./components/PothiActionsSheet", () => () => null);
 jest.mock("./components/PothiRow", () => () => null);
+
+// Records what the Folders tab asks of the shared pull control.
+let mockPull;
 jest.mock("../common/components/ui", () => ({
   ListSeparator: () => null,
   Text: require("react-native").Text,
+  PullToRefresh: (props) => {
+    mockPull = props;
+    return props.children;
+  },
 }));
 
 const folder = (over) => ({
   id: over.id,
   name: over.name,
-  source: "mypothi",
+  source: "sundar-gutka",
   items: [],
   createdAt: 1,
   updatedAt: 1,
@@ -108,48 +117,48 @@ const open = () =>
 
 beforeEach(() => {
   mockRequestPull.mockClear();
+  mockPull = null;
 });
 
-it("pulling down runs the account sync and spins until it has finished", async () => {
+it("pulling down runs the account sync", async () => {
   mockState = { auth: { status: "signedIn" }, pothis };
-  let settle;
-  mockRequestPull.mockReturnValue(
-    new Promise((resolve) => {
-      settle = resolve;
-    })
-  );
   const rendered = open();
-  const control = rendered.UNSAFE_getByType(RefreshControl);
-  expect(control.props.refreshing).toBe(false);
-  // The list must scroll simultaneously with the refresh gesture, or the
-  // drag gesture swallows the pull on Android.
-  expect(rendered.getByTestId("scrolls-with-refresh")).toBeTruthy();
+  expect(mockPull.enabled).toBe(true);
+  // The list has to scroll ALONGSIDE the pull rather than cancelling it — its
+  // own scroll view claims the touch first otherwise, and the pull never fires.
+  expect(rendered.getByTestId("list").props.simultaneousHandlers).toBe(mockPull.gestureRef);
 
-  await act(async () => {
-    control.props.onRefresh();
-  });
+  await act(async () => mockPull.onRefresh());
   expect(mockRequestPull).toHaveBeenCalledWith("pull-to-refresh");
-  expect(rendered.UNSAFE_getByType(RefreshControl).props.refreshing).toBe(true);
+});
 
-  await act(async () => {
-    settle();
-  });
-  expect(rendered.UNSAFE_getByType(RefreshControl).props.refreshing).toBe(false);
+// The rule that lets a pull sit over a scrolling list at all.
+it("reports being at the top only while the list is there", () => {
+  mockState = { auth: { status: "signedIn" }, pothis };
+  const rendered = open();
+  expect(mockPull.atTop).toBe(true);
+
+  act(() => rendered.getByTestId("scroll").props.onPress(320));
+  expect(mockPull.atTop).toBe(false);
+
+  act(() => rendered.getByTestId("scroll").props.onPress(0));
+  expect(mockPull.atTop).toBe(true);
 });
 
 it("switches the pull-down off for the whole of a reorder", () => {
   mockState = { auth: { status: "signedIn" }, pothis };
   const rendered = open();
-  expect(rendered.UNSAFE_getByType(RefreshControl).props.enabled).toBe(true);
+  expect(mockPull.enabled).toBe(true);
   act(() => rendered.getByTestId("drag-begin").props.onPress());
-  expect(rendered.UNSAFE_getByType(RefreshControl).props.enabled).toBe(false);
+  expect(mockPull.enabled).toBe(false);
   act(() => rendered.getByTestId("drag-end").props.onPress());
-  expect(rendered.UNSAFE_getByType(RefreshControl).props.enabled).toBe(true);
+  expect(mockPull.enabled).toBe(true);
 });
 
 it("offers no pull-down while signed out — there is no account to pull", () => {
   mockState = { auth: { status: "signedOut" }, pothis };
-  expect(open().UNSAFE_queryByType(RefreshControl)).toBeNull();
+  open();
+  expect(mockPull.enabled).toBe(false);
 });
 
 // Pinning lifts a pothi OUT of the draggable list and into the header, so the

@@ -48,10 +48,12 @@ jest.mock("@common", () => ({
 jest.mock("../../common/components/ui", () => {
   const { Pressable, Text, View } = require("react-native");
   return {
-    Sheet: ({ children, actions: sheetActions }) => (
+    Sheet: ({ children, header, footer, keyboard }) => (
       <View>
-        {sheetActions}
+        {header}
         {children}
+        {footer}
+        {keyboard}
       </View>
     ),
     SheetActions: ({ onCancel, onConfirm }) => (
@@ -65,7 +67,6 @@ jest.mock("../../common/components/ui", () => {
       </View>
     ),
     GurmukhiKeyboard: () => null,
-    GurmukhiKeyboardToggle: () => null,
   };
 });
 
@@ -78,10 +79,15 @@ jest.mock("./PothiNameField", () => {
 });
 
 // Records exactly what the picker is shown as ticked, and lets a test untick.
-jest.mock("./PickBanisStep", () => (props) => {
-  mockPicked = props.picked;
-  mockOnChange = props.onChange;
-  return null;
+// The search above the list is its own part, fixed in the sheet's header.
+jest.mock("./PickBanisStep", () => {
+  const Step = ({ picked, onChange }) => {
+    mockPicked = picked;
+    mockOnChange = onChange;
+    return null;
+  };
+  Step.Search = () => null;
+  return Step;
 });
 
 const japji = { id: 2, gurmukhi: "jpujI swihb", gurmukhiUni: "ਜਪੁਜੀ ਸਾਹਿਬ" };

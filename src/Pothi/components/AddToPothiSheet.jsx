@@ -5,6 +5,7 @@ import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTokens from "@common/hooks/useTokens";
 import {
+  baniItems,
   emptyPothis,
   listPothis,
   makeBaniItem,
@@ -57,7 +58,7 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
     }
     const item = makeBaniItem({ baaniId: bani.id, title: bani.gurmukhiUni || bani.gurmukhi });
     dispatch(actions.addBaniToPothi(pothi.id, item));
-    trackPothiEvent("bani_added", { bani_id: bani.id, size: pothi.items.length + 1 });
+    trackPothiEvent("bani_added", { bani_id: bani.id, size: baniItems(pothi).length + 1 });
     showToast(STRINGS.formatString(STRINGS.POTHI_ADDED, { name: titleFor(pothi) }), "success");
     onClose();
   };
@@ -114,7 +115,7 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
                   <PothiRow
                     // `listPothis` returns the stored pothi, which carries its
                     // items but not the derived count the row shows.
-                    pothi={{ ...pothi, count: pothi.items.length }}
+                    pothi={{ ...pothi, count: baniItems(pothi).length }}
                     onOpen={() => add(pothi)}
                     // Filing, not opening — so the row says so to a screen
                     // reader and wears the tick instead of the "Open Pothi"

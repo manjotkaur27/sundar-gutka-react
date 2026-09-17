@@ -263,7 +263,7 @@ describe("reading an absent slice", () => {
 });
 
 describe("toUpsertBody", () => {
-  it("sends only mypothi folders, under the right source", () => {
+  it("sends every pothi, under the app's source", () => {
     const s = addBani(seed(["a"]), "a", item(2));
     const body = toUpsertBody(s);
     expect(body.source).toBe(SOURCE);
@@ -271,19 +271,16 @@ describe("toUpsertBody", () => {
     expect(body.folders[0].items[0].baaniId).toBe(2);
   });
 
-  // The account seeds its own Morning/Evening Nitnem on first read, so an
-  // untouched local seed has nothing to add — and pushed, it became a second
-  // "Morning Nitnem" on every device signed into the account.
-  it("leaves an untouched seeded default out, but sends one that was edited or renamed", () => {
+  // The API seeds a pair only under the MyPothi source, which this app does not
+  // read, so the pair this app seeds IS the account's Sundar Gutka pair. Left
+  // off the wire, it never reached the account or sttm-next's Sundar Gutka
+  // screen, which then seeded folders of its own.
+  it("sends the seeded defaults too, untouched or not", () => {
     const stock = MORNING_NITNEM_IDS.map((id) => makeBaniItem({ baaniId: id, title: `B${id}` }));
     const pristine = createPothi({ id: MORNING_ID, name: "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ", items: stock, now: 7 });
-    expect(toUpsertBody(addPothi(emptyPothis(), pristine)).folders).toEqual([]);
-
-    const edited = { ...pristine, items: stock.slice(1), updatedAt: 8 };
-    expect(toUpsertBody(addPothi(emptyPothis(), edited)).folders).toHaveLength(1);
-
-    const renamed = { ...pristine, name: "Mine", updatedAt: 8 };
-    expect(toUpsertBody(addPothi(emptyPothis(), renamed)).folders).toHaveLength(1);
+    expect(toUpsertBody(addPothi(emptyPothis(), pristine)).folders.map((f) => f.id)).toEqual([
+      MORNING_ID,
+    ]);
   });
 
   it("omits the local-only bookkeeping the API does not accept", () => {
@@ -366,6 +363,17 @@ describe("mergeRemote", () => {
     expect(ids(mergeRemote(mine, [theirs]))).toEqual(["srv-uuid"]);
   });
 
+  // The account also holds sttm-next's MyPothi folders, which can carry shabads
+  // the API refuses under this app's source. Taken in, they would be relabelled
+  // and fail every later upload.
+  it("takes in only folders of the app's own source", () => {
+    const merged = mergeRemote(emptyPothis(), [
+      remote("sg", 10),
+      { ...remote("web", 10), source: "mypothi" },
+    ]);
+    expect(ids(merged)).toEqual(["sg"]);
+  });
+
   it("keeps a local-only pothi that merely SHARES A NAME with one on the account", () => {
     const mine = addPothi(
       emptyPothis(),
@@ -377,105 +385,57 @@ describe("mergeRemote", () => {
   });
 });
 
-// A nitnem arranged BEFORE signing in is real work, and on a first sign-in it is
-// the only copy that exists. It has to reach the account — without becoming a
-// second Morning Nitnem inside it.
-describe("adopting a signed-out default pothi", () => {
+// Every device seeds the defaults under the same ids, so two copies of one
+// default meet on a pull. A stock copy holds no work and must never replace an
+// edited one, whichever clock is newer.
+describe("two copies of a default pothi", () => {
   const items = (baniIds) => baniIds.map((id) => makeBaniItem({ baaniId: id, title: `B${id}` }));
-  const mineMorning = (baniIds, updatedAt) => ({
+  const morning = (baniIds, createdAt, updatedAt = createdAt) => ({
     id: MORNING_ID,
-    // Localised, as the local seed makes it — which is why name cannot match.
     name: "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ",
     source: SOURCE,
     items: items(baniIds),
-    createdAt: 1,
+    createdAt,
     updatedAt,
     isPublic: false,
     pinned: false,
   });
-  const theirMorning = (baniIds, updatedAt) => ({
-    id: "srv-morning-uuid",
-    name: "Morning Nitnem",
-    source: SOURCE,
-    items: items(baniIds),
-    createdAt: 1,
-    updatedAt,
-    isPublic: false,
-    pinned: false,
-  });
+  const merge = (mine, theirs, now = 12345) =>
+    mergeRemote({ ...emptyPothis(), folders: [mine] }, [theirs], now);
 
-  it("moves an EDITED local nitnem onto the account's folder, keeping its id", () => {
-    const state = { ...emptyPothis(), folders: [mineMorning([2, 4], 9000)] };
-    const merged = mergeRemote(state, [theirMorning(MORNING_NITNEM_IDS, 5000)], 12345);
+  // A guest arranges their nitnem, then signs in to an account whose stock pair
+  // another phone uploaded just now. Time alone would hand them the stock list.
+  it("keeps an edited local nitnem against a newer stock copy, stamped to win the upload", () => {
+    const merged = merge(morning([2, 4, 6, 9, 10, 11], 1, 2000), morning(MORNING_NITNEM_IDS, 9000));
     expect(merged.folders).toHaveLength(1);
-    const [folder] = merged.folders;
-    expect(folder.id).toBe("srv-morning-uuid");
-    expect(folder.items.map((i) => i.baaniId)).toEqual([2, 4]);
-    // Stamped, so the next push actually carries the adopted list up.
-    expect(folder.updatedAt).toBe(12345);
+    expect(merged.folders[0].items.map((i) => i.baaniId)).toEqual([2, 4, 6, 9, 10, 11]);
+    // The API keeps only a strictly newer copy, so the old clock would be refused.
+    expect(merged.folders[0].updatedAt).toBe(12345);
   });
 
-  // The account's pair is seeded by the API on its FIRST read, which is the
-  // sign-in itself — so its clock is newer than every edit the guest made
-  // beforehand, and on time alone the factory list won every time. A guest who
-  // had spent weeks arranging their nitnem watched it revert the moment they
-  // signed in. A stock list has no work in it to lose, so it never wins.
-  it("keeps a guest's edited nitnem against a pair the account seeded just now", () => {
-    const signInAt = 9000;
-    // Edited long before signing in; the account's copy is stock and stamped
-    // with the moment of the first read.
-    const state = { ...emptyPothis(), folders: [mineMorning([2, 4, 6, 9, 10, 11], 2000)] };
-    const merged = mergeRemote(state, [theirMorning(MORNING_NITNEM_IDS, signInAt)], signInAt);
-
-    expect(merged.folders).toHaveLength(1);
-    const [folder] = merged.folders;
-    // The account's id — one Morning Nitnem, not two — carrying the guest's list.
-    expect(folder.id).toBe("srv-morning-uuid");
-    expect(folder.items.map((i) => i.baaniId)).toEqual([2, 4, 6, 9, 10, 11]);
-  });
-
-  // Two lists that were both genuinely edited is the case `updatedAt` is FOR,
-  // and it still decides: the account's newer edit is not thrown away just
-  // because this device also has one.
-  it("still lets the newer edit win when BOTH sides were edited", () => {
-    const state = { ...emptyPothis(), folders: [mineMorning([2, 4], 2000)] };
-    const merged = mergeRemote(state, [theirMorning([2, 4, 6], 5000)], 12345);
-    expect(merged.folders[0].items.map((i) => i.baaniId)).toEqual([2, 4, 6]);
-  });
-
-  // The local seed's updatedAt is the moment it was seeded, easily newer than
-  // an account copy edited days ago — so time alone would let a stock list
-  // overwrite a real one. Only an EDITED local default is ever adopted.
-  it("leaves the account's list alone when the local one was never edited", () => {
-    const state = { ...emptyPothis(), folders: [mineMorning(MORNING_NITNEM_IDS, 9000)] };
-    const merged = mergeRemote(state, [theirMorning([2, 4], 5000)], 12345);
-    expect(merged.folders).toHaveLength(1);
+  // The reverse: a stock pair seeded on this phone today is newer than a nitnem
+  // another phone arranged last week.
+  it("takes an edited copy from the account over a newer stock copy here", () => {
+    const merged = merge(morning(MORNING_NITNEM_IDS, 9000), morning([2, 4], 1, 5000));
     expect(merged.folders[0].items.map((i) => i.baaniId)).toEqual([2, 4]);
     expect(merged.folders[0].updatedAt).toBe(5000);
   });
 
-  it("never leaves two Morning Nitnems behind", () => {
-    const state = { ...emptyPothis(), folders: [mineMorning([2], 9000)] };
-    const merged = mergeRemote(state, [theirMorning(MORNING_NITNEM_IDS, 5000)]);
-    expect(merged.folders.filter((f) => f.id === MORNING_ID)).toHaveLength(0);
-    expect(merged.folders).toHaveLength(1);
+  it("lets the newer edit win when both copies were edited", () => {
+    const merged = merge(morning([2, 4], 1, 2000), morning([2, 4, 6], 1, 5000));
+    expect(merged.folders[0].items.map((i) => i.baaniId)).toEqual([2, 4, 6]);
   });
 
-  // Nothing to adopt into: the account has no default of its own, so the local
-  // pair stays and is uploaded as it is.
-  it("keeps the local pothi when the account has no default to adopt into", () => {
-    const state = { ...emptyPothis(), folders: [mineMorning([2, 4], 9000)] };
-    const merged = mergeRemote(state, []);
-    expect(merged.folders).toHaveLength(1);
-    expect(merged.folders[0].id).toBe(MORNING_ID);
+  it("never leaves two Morning Nitnems behind", () => {
+    const merged = merge(morning(MORNING_NITNEM_IDS, 9000), morning(MORNING_NITNEM_IDS, 5000));
+    expect(merged.folders.filter((f) => f.id === MORNING_ID)).toHaveLength(1);
   });
 });
 
 // Which folder is Morning Nitnem and which is Evening.
 //
-// Neither the id nor the name is stable — the app seeds one pair with fixed ids
-// and localised names while the API seeds its own with uuids and English names,
-// and the user can rename either — so this pointer is the only thing that keeps
+// The name is not stable — each device seeds the pair in its own language, and
+// another client can rename it — so this pointer is the only thing that keeps
 // the Dashboard's Today's Nitnem attached to the right pothi.
 describe("the default pothi pointer", () => {
   const withItems = (id, name, baniIds, extra = {}) => ({
@@ -502,10 +462,8 @@ describe("the default pothi pointer", () => {
     expect(s.seededDefaults).toBe(true);
   });
 
-  // A device with no recorded pointer finds the pair by its banis or, once
-  // those are edited, by the account's English name. A rename on top of an
-  // edit left it nothing, so Today's Nitnem fell back to the stock list and the
-  // next save from the Dashboard minted a second Morning Nitnem.
+  // A device with no recorded pointer finds the pair by its id or its banis.
+  // Renaming a default is refused so the pair stays recognisable everywhere.
   it("refuses to rename a default, leaving the pothi exactly as it was", () => {
     const before = seededPair();
     expect(renamePothi(before, MORNING_ID, "My Morning Path")).toBe(before);
@@ -535,22 +493,8 @@ describe("the default pothi pointer", () => {
     expect(defaultPothiId(s, "morning")).toBe(MORNING_ID);
   });
 
-  // The API seeds its own pair with uuids. `mergeRemote` retires the local copy
-  // in favour of the server's; the pointer has to follow it there, or Today's
-  // Nitnem would go blank the first time the user signed in.
-  it("follows the server's copy when the local seed stands down", () => {
-    const merged = mergeRemote(seededPair(), [
-      withItems("uuid-morning", "Morning Nitnem", MORNING_NITNEM_IDS, { updatedAt: 9999 }),
-      withItems("uuid-evening", "Evening Nitnem", EVENING_NITNEM_IDS, { updatedAt: 9999 }),
-    ]);
-    expect(ids(merged)).toEqual(["uuid-morning", "uuid-evening"]);
-    expect(defaultPothiId(merged, "morning")).toBe("uuid-morning");
-    expect(defaultPothiId(merged, "evening")).toBe("uuid-evening");
-  });
-
-  // A user already signed in before this pointer existed has only the server's
-  // pair and no record of which is which. Their contents are still the ones the
-  // API seeded, so the pair is recoverable exactly once.
+  // A pair on the account under ids this device does not know, and no record
+  // of which is which: their contents still identify them.
   it("recovers an unrecorded pair from the server by its banis", () => {
     const merged = mergeRemote(emptyPothis(), [
       withItems("uuid-morning", "Morning Nitnem", MORNING_NITNEM_IDS),
@@ -558,13 +502,6 @@ describe("the default pothi pointer", () => {
     ]);
     expect(defaultPothiId(merged, "morning")).toBe("uuid-morning");
     expect(defaultPothiId(merged, "evening")).toBe("uuid-evening");
-  });
-
-  it("falls back to the server's own English name when the banis were edited", () => {
-    const merged = mergeRemote(emptyPothis(), [
-      withItems("uuid-morning", "Morning Nitnem", [2, 4]),
-    ]);
-    expect(defaultPothiId(merged, "morning")).toBe("uuid-morning");
   });
 
   it("points at nothing when neither pothi is there", () => {
@@ -644,30 +581,6 @@ describe("deleting sticks", () => {
     // A pull whose payload no longer contains "a" is the proof it is gone.
     s = mergeRemote(s, []);
     expect(s.deletedIds).toEqual([]);
-  });
-
-  it("stands the local default down when the server sends its own", () => {
-    // The API seeds Morning/Evening itself with random uuids. A device that
-    // seeded while signed out would otherwise show two of each — the duplicate
-    // Morning/Evening Nitnem people saw.
-    const items = [{ id: "i1", type: "bani", baaniId: 2, title: "Japji" }];
-    let s = addPothi(
-      emptyPothis(),
-      createPothi({ id: "default_morning_nitnem", name: "ਸਵੇਰ ਦਾ ਨਿਤਨੇਮ", items })
-    );
-    const fromServer = {
-      id: "b3f1c0de-0000-4000-8000-000000000001",
-      name: "Morning Nitnem",
-      source: SOURCE,
-      items,
-      createdAt: 1,
-      updatedAt: 2,
-      isPublic: false,
-      pinned: false,
-    };
-    s = mergeRemote(s, [fromServer]);
-    expect(s.folders).toHaveLength(1);
-    expect(s.folders[0].id).toBe(fromServer.id);
   });
 
   it("keeps a local pothi that only LOOKS like a default", () => {
@@ -754,14 +667,16 @@ describe("reconcile", () => {
     expect(reconcile({ folders: [{ id: "a", items: [] }] }).folders[0].name).toBe("a");
   });
 
-  it("keeps the sundar-gutka source but defaults anything unknown to mypothi", () => {
+  // Server folders are filtered to the app's source before this, so only a
+  // folder an earlier build stored under another name is relabelled.
+  it("stores every folder under the app's source", () => {
     const s = reconcile({
       folders: [
-        { id: "a", name: "a", items: [], source: "sundar-gutka" },
+        { id: "a", name: "a", items: [], source: "mypothi" },
         { id: "b", name: "b", items: [], source: "nonsense" },
       ],
     });
-    expect(s.folders.map((f) => f.source)).toEqual(["sundar-gutka", SOURCE]);
+    expect(s.folders.map((f) => f.source)).toEqual([SOURCE, SOURCE]);
   });
 
   it("carries the local-only bookkeeping through", () => {
@@ -775,41 +690,36 @@ describe("reconcile", () => {
   });
 });
 
-describe("a pushed seed sitting beside the account's own default", () => {
-  const stock = MORNING_NITNEM_IDS.map((id) => makeBaniItem({ baaniId: id, title: `B${id}` }));
+// The account's pair is the one this app seeds under fixed ids. Once a pull
+// shows the account has had it — live, or deleted from another client — seeding
+// again would add a second pair or bring a deleted one back.
+describe("whether the account already has its default pair", () => {
   const remote = (over) => ({
+    name: "x",
     source: SOURCE,
+    items: [],
     createdAt: 1,
     updatedAt: 1,
     isPublic: false,
     pinned: false,
     ...over,
   });
-  const pushedSeed = remote({ id: MORNING_ID, name: "Morning Nitnem", items: stock });
-  const theirs = remote({
-    id: "srv-morning-uuid",
-    name: "Morning Nitnem",
-    items: stock.slice(0, 2),
-    updatedAt: 2,
+
+  it("is yes when the account holds a default", () => {
+    expect(mergeRemote(emptyPothis(), [remote({ id: MORNING_ID })]).seededDefaults).toBe(true);
   });
 
-  it("drops the stray seed and marks it for deletion from the account", () => {
-    const merged = mergeRemote(emptyPothis(), [theirs, pushedSeed]);
-    expect(merged.folders.map((f) => f.id)).toEqual(["srv-morning-uuid"]);
-    expect(merged.deletedIds).toEqual([MORNING_ID]);
+  it("is yes when another client deleted one", () => {
+    expect(mergeRemote(emptyPothis(), [], 1, [EVENING_ID]).seededDefaults).toBe(true);
   });
 
-  it("keeps the seed when it is the only Morning Nitnem the account has", () => {
-    const merged = mergeRemote(emptyPothis(), [pushedSeed]);
-    expect(merged.folders.map((f) => f.id)).toEqual([MORNING_ID]);
-    expect(merged.deletedIds).toEqual([]);
+  it("is no when the account has only other pothis", () => {
+    expect(mergeRemote(emptyPothis(), [remote({ id: "p1" })]).seededDefaults).toBe(false);
   });
 
-  it("keeps a seed-id pothi the user has since edited — it is theirs now", () => {
-    const edited = { ...pushedSeed, items: stock.slice(1), updatedAt: 9 };
-    const merged = mergeRemote(emptyPothis(), [theirs, edited]);
-    expect(merged.folders).toHaveLength(2);
-    expect(merged.deletedIds).toEqual([]);
+  it("does not count a default kept under another source", () => {
+    const web = remote({ id: MORNING_ID, source: "mypothi" });
+    expect(mergeRemote(emptyPothis(), [web]).seededDefaults).toBe(false);
   });
 });
 

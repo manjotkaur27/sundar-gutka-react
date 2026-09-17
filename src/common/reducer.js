@@ -36,6 +36,13 @@ const fontFace = createReducer(constant.BALOO_PAAJI, {
 const baniFontFace = createReducer(constant.GURBANI_AKHAR_TRUE, {
   [actionTypes.SET_BANI_FONT_FACE]: (state, action) => action.value,
 });
+
+// The Bani font the reader picked for THEMSELVES, as opposed to one a theme
+// applied. A theme with no face of its own restores it — see applyTheme. Null
+// until one is known. Persisted, so a trip through a theme cannot lose it.
+const ownBaniFontFace = createReducer(null, {
+  [actionTypes.SET_OWN_BANI_FONT_FACE]: (state, action) => action.value,
+});
 const language = createReducer(constant.Default.toUpperCase(), {
   [actionTypes.SET_LANGUAGE]: (state, action) => action.value,
 });
@@ -897,6 +904,7 @@ const appReducer = combineReducers({
   fontSize,
   fontFace,
   baniFontFace,
+  ownBaniFontFace,
   language,
   transliterationLanguage,
   isTransliteration,

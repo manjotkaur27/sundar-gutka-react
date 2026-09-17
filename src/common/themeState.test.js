@@ -1,6 +1,6 @@
 import { ALL_THEMES_BY_ID as READER_THEMES_BY_ID } from "@theme/reader/__fixtures__/allThemes";
 import { remoteThemeRows } from "@theme/reader/__fixtures__/remoteThemes";
-import { applyTheme } from "./actions";
+import { applyTheme, chooseBaniFontFace } from "./actions";
 import * as actionTypes from "./actions/actionTypes";
 import constant from "./constant";
 import { trackSettingEvent } from "./firebase/analytics";
@@ -171,6 +171,68 @@ describe("applyTheme", () => {
     expect(acts.some((a) => a.type === actionTypes.SET_BANI_FONT_FACE)).toBe(false);
   });
 
+  // A theme that set a face does not keep it after the reader leaves: a theme
+  // with no face of its own puts the reader's OWN face back.
+  describe("leaving a theme that set the Bani font", () => {
+    const faceSet = (acts) =>
+      acts.filter((a) => a.type === actionTypes.SET_BANI_FONT_FACE).map((a) => a.value);
+    const ownSet = (acts) =>
+      acts.filter((a) => a.type === actionTypes.SET_OWN_BANI_FONT_FACE).map((a) => a.value);
+
+    it("restores the face the reader picked for themselves", () => {
+      const acts = run("sanjh", {
+        theme: "puratan",
+        baniFontFace: "AnmolLipiSG",
+        ownBaniFontFace: "GurbaniAkharTrue",
+        readerThemeSeeded: { sanjh: true },
+      });
+      expect(faceSet(acts)).toEqual(["GurbaniAkharTrue"]);
+    });
+
+    it("restores it for a plain appearance too", () => {
+      const acts = run(constant.Light, {
+        theme: "puratan",
+        baniFontFace: "AnmolLipiSG",
+        ownBaniFontFace: "GurbaniAkharTrue",
+        readerThemeSeeded: {},
+      });
+      expect(faceSet(acts)).toEqual(["GurbaniAkharTrue"]);
+    });
+
+    // A reader who never picked a font in Settings has none recorded. The face
+    // they read in outside a font-setting theme can only be theirs, so it is
+    // remembered on the way in — and a later exit has something to restore.
+    it("remembers the face in use when entering from a theme that set none", () => {
+      const acts = run("puratan", {
+        theme: "sanjh",
+        baniFontFace: "GurbaniAkharThickTrue",
+        readerThemeSeeded: { puratan: true },
+      });
+      expect(ownSet(acts)).toEqual(["GurbaniAkharThickTrue"]);
+      expect(faceSet(acts)).toEqual(["AnmolLipiSG"]);
+    });
+
+    it("never mistakes a theme's face for the reader's own", () => {
+      const acts = run("sanjh", {
+        theme: "puratan",
+        baniFontFace: "AnmolLipiSG",
+        readerThemeSeeded: { sanjh: true },
+      });
+      expect(ownSet(acts)).toEqual([]);
+      expect(faceSet(acts)).toEqual([]);
+    });
+
+    it("does not overwrite a face the reader already picked", () => {
+      const acts = run("puratan", {
+        theme: "sanjh",
+        baniFontFace: "GurbaniAkharTrue",
+        ownBaniFontFace: "GurbaniAkharTrue",
+        readerThemeSeeded: { puratan: true },
+      });
+      expect(ownSet(acts)).toEqual([]);
+    });
+  });
+
   it("marks a theme with no defaults as seeded, so the check short-circuits after", () => {
     const acts = run("blue", { readerThemeSeeded: {} });
     expect(acts.map((a) => a.type)).toEqual([
@@ -192,5 +254,25 @@ describe("applyTheme", () => {
     // A theme withdrawn in a later release. Resolution falls back at read time;
     // this must not throw on the way in.
     expect(() => run("khalsa-gold", { readerThemeSeeded: {} })).not.toThrow();
+  });
+});
+
+describe("chooseBaniFontFace", () => {
+  it("applies the face and remembers it as the reader's own", () => {
+    const dispatched = [];
+    chooseBaniFontFace("AnmolLipiSG")((action) => dispatched.push(action));
+    expect(dispatched.map((a) => [a.type, a.value])).toEqual([
+      [actionTypes.SET_BANI_FONT_FACE, "AnmolLipiSG"],
+      [actionTypes.SET_OWN_BANI_FONT_FACE, "AnmolLipiSG"],
+    ]);
+  });
+
+  it("starts with no face of the reader's own, and keeps the one recorded", () => {
+    expect(initial().ownBaniFontFace).toBeNull();
+    const next = rootReducer(initial(), {
+      type: actionTypes.SET_OWN_BANI_FONT_FACE,
+      value: "GurbaniAkharTrue",
+    });
+    expect(next.ownBaniFontFace).toBe("GurbaniAkharTrue");
   });
 });

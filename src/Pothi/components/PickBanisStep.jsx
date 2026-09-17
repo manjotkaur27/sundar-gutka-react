@@ -5,12 +5,13 @@ import useBaniTitle from "@common/hooks/useBaniTitle";
 import useTokens from "@common/hooks/useTokens";
 import { makeBaniItem } from "@common/pothi/model";
 import { STRINGS } from "@common";
-import { GurmukhiKeyboardToggle, GurmukhiTextField, Text } from "../../common/components/ui";
+import { GurmukhiTextField, Text } from "../../common/components/ui";
 import BaniPickRow from "./BaniPickRow";
 import { baniCountLabel } from "./PothiRow";
 
-// "Choose banis" as a whole sheet step: the count, the keyboard switch, the
-// search field and the scrolling list.
+// "Choose banis" as a whole sheet step, in its two parts: the count and search
+// field fixed at the top (`PickBanisStep.Search`), and the list that scrolls
+// under them (`PickBanisStep`).
 //
 // ONE implementation, used by both places that offer it — the second step of
 // creating a pothi, and Add Banis on a pothi that already exists. Those were two
@@ -21,19 +22,53 @@ import { baniCountLabel } from "./PothiRow";
 // The picker is always expanded. It is the entire step, so there is nothing to
 // collapse back into and nothing else on the sheet competing for the height.
 //
-// Two things are deliberately NOT here, because only the host `Sheet` can place
-// them outside its own scrolling body: the in-app keyboard, which each caller
-// puts in the sheet's `footer`, and the cancel and confirm controls, which go in
-// its title row — see `SheetActions`.
-const PickBanisStep = ({
-  picked,
-  onChange,
-  baniListData,
-  query,
-  onQueryChange,
-  gurmukhiOpen,
-  onToggleGurmukhi,
-}) => {
+// Two parts because only the host `Sheet` can hold something still while its
+// body scrolls: the search goes in the sheet's `header`, so browsing a long list
+// never scrolls the field away from it, and the list is the body. The in-app
+// keyboard and the Cancel and Confirm buttons are the sheet's `footer` — see
+// `SheetActions`.
+
+/** The count and the search field, fixed above the list. */
+const PickBanisSearch = ({ pickedCount, query, onQueryChange, gurmukhiOpen, onToggleGurmukhi }) => {
+  const { space } = useTokens();
+
+  return (
+    <View style={{ gap: space.md }}>
+      {/* A readout, not an action. */}
+      <Text variant="bodySmall" color={pickedCount ? "accent" : "textSecondary"}>
+        {baniCountLabel(pickedCount)}
+      </Text>
+
+      <GurmukhiTextField
+        value={query}
+        onChange={onQueryChange}
+        placeholder={STRINGS.POTHI_SEARCH_BANIS}
+        accessibilityLabel={STRINGS.POTHI_SEARCH_BANIS}
+        returnKeyType="search"
+        search
+        gurmukhiOpen={gurmukhiOpen}
+        receivingKeys={gurmukhiOpen}
+        keyboardToggle={{
+          label: STRINGS.POTHI_KEYBOARD_CHIP,
+          accessibilityLabel: STRINGS.POTHI_KEYBOARD_TOGGLE,
+          onToggle: onToggleGurmukhi,
+        }}
+      />
+    </View>
+  );
+};
+
+PickBanisSearch.propTypes = {
+  pickedCount: PropTypes.number.isRequired,
+  query: PropTypes.string.isRequired,
+  onQueryChange: PropTypes.func.isRequired,
+  /** Whether the sheet's in-app keyboard is up; the caller renders the keys. */
+  gurmukhiOpen: PropTypes.bool.isRequired,
+  onToggleGurmukhi: PropTypes.func.isRequired,
+};
+
+/** The list of banis to tick, filtered by the search above it. */
+const PickBanisStep = ({ picked, onChange, baniListData, query }) => {
   const { space } = useTokens();
   const { titleFor, titleFontFamily } = useBaniTitle();
 
@@ -61,44 +96,7 @@ const PickBanisStep = ({
   };
 
   return (
-    // `flexShrink` has to run the whole way down: the sheet body shrinks, so
-    // this column must too, or the list below never gives up its height to the
-    // keys underneath it.
-    <View style={{ gap: space.lg, flexShrink: 1 }}>
-      {/* The count is a readout, not an action, so it rides the switch's row
-          rather than owning one — no extra height, no tap target. */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: space.md,
-        }}
-      >
-        <Text
-          variant="bodySmall"
-          color={picked.length ? "accent" : "textSecondary"}
-          style={{ flexShrink: 1 }}
-        >
-          {baniCountLabel(picked.length)}
-        </Text>
-        <GurmukhiKeyboardToggle
-          label={STRINGS.POTHI_KEYBOARD_TOGGLE}
-          active={gurmukhiOpen}
-          onToggle={onToggleGurmukhi}
-        />
-      </View>
-
-      <GurmukhiTextField
-        value={query}
-        onChange={onQueryChange}
-        placeholder={STRINGS.POTHI_SEARCH_BANIS}
-        accessibilityLabel={STRINGS.POTHI_SEARCH_BANIS}
-        returnKeyType="search"
-        gurmukhiOpen={gurmukhiOpen}
-        receivingKeys={gurmukhiOpen}
-      />
-
+    <>
       {/* The list does NOT scroll itself. The host Sheet does, and one scroller
           is the whole point.
 
@@ -127,7 +125,7 @@ const PickBanisStep = ({
           />
         ))}
       </View>
-    </View>
+    </>
   );
 };
 
@@ -138,10 +136,8 @@ PickBanisStep.propTypes = {
   onChange: PropTypes.func.isRequired,
   baniListData: PropTypes.arrayOf(PropTypes.shape()).isRequired,
   query: PropTypes.string.isRequired,
-  onQueryChange: PropTypes.func.isRequired,
-  /** Whether the sheet's in-app keyboard is up; the caller renders the keys. */
-  gurmukhiOpen: PropTypes.bool.isRequired,
-  onToggleGurmukhi: PropTypes.func.isRequired,
 };
+
+PickBanisStep.Search = PickBanisSearch;
 
 export default PickBanisStep;

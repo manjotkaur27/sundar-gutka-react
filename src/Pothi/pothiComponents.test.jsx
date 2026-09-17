@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleSheet } from "react-native";
 
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
@@ -215,7 +216,6 @@ describe("SheetActions", () => {
       <SheetActions
         onCancel={over.onCancel ?? jest.fn()}
         cancelLabel="Cancel"
-        confirmIcon={() => null}
         confirmLabel="Create"
         onConfirm={over.onConfirm ?? jest.fn()}
         confirmDisabled={over.confirmDisabled ?? false}
@@ -239,7 +239,7 @@ describe("SheetActions", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
-  it("runs each action when its own icon is pressed", () => {
+  it("runs each action when its own button is pressed", () => {
     const onCancel = jest.fn();
     const onConfirm = jest.fn();
     renderActions({ onCancel, onConfirm });
@@ -250,16 +250,36 @@ describe("SheetActions", () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it("reaches the accessible tap floor without reserving the layout for it", () => {
-    // hitSlop rather than a 44pt box: the box would push the pothi name off
-    // its own row, and the slop costs the title nothing. 22pt icon plus 2pt
-    // padding plus 12 either side clears 44.
+  // Words, not a cross and an icon: the icons said nothing to older readers
+  // about Cancel, Next, Create or Save.
+  it("says what each action does in words", () => {
     renderActions();
+    expect(screen.getByText("Cancel")).toBeTruthy();
+    expect(screen.getByText("Create")).toBeTruthy();
+  });
 
+  it("keeps both buttons at least a full tap target tall", () => {
+    renderActions();
     ["Cancel", "Create"].forEach((label) => {
-      const { hitSlop, style } = screen.getByLabelText(label).props;
-      expect(hitSlop).toBeGreaterThanOrEqual(9);
-      expect(style.width).toBeUndefined();
+      const style = StyleSheet.flatten(screen.getByLabelText(label).props.style);
+      expect(style.minHeight).toBeGreaterThanOrEqual(44);
+      expect(style.height).toBeUndefined();
     });
+  });
+
+  // Side by side while the two LABELS fit, stacked full width once they do not
+  // — a narrow phone, a long translation or a raised text size. The basis is
+  // each button's own content, not a guessed width, so the pair never stacks
+  // with room to spare.
+  it("lets the pair stack only when their labels do not fit side by side", () => {
+    renderActions();
+    const cancel = StyleSheet.flatten(screen.getByLabelText("Cancel").props.style);
+    expect(cancel.flexGrow).toBe(1);
+    expect(cancel.flexBasis).toBe("auto");
+    const wrapping = screen.UNSAFE_root.findAll(
+      (node) =>
+        typeof node.type === "string" && StyleSheet.flatten(node.props.style)?.flexWrap === "wrap"
+    );
+    expect(wrapping.length).toBeGreaterThan(0);
   });
 });

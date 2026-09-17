@@ -63,7 +63,7 @@ jest.mock("@common", () => ({
 const pothi = (id) => ({
   id,
   name: id,
-  source: "mypothi",
+  source: "sundar-gutka",
   items: [],
   createdAt: 1,
   updatedAt: 1,
@@ -186,7 +186,7 @@ describe("usePothiSync edits and the outbox", () => {
     });
     expect(mockDispatch).toHaveBeenCalledWith({ type: "SET_POTHI_SYNC_WATERMARK", at: 777 });
     expect(mockPutFolders).toHaveBeenCalledWith({
-      source: "mypothi",
+      source: "sundar-gutka",
       folders: [expect.objectContaining({ id: "mine" })],
     });
   });
@@ -205,7 +205,7 @@ describe("usePothiSync edits and the outbox", () => {
     expect(enqueued()).toEqual([]);
     await flush(2000);
     expect(enqueued()).toEqual([
-      { type: "ENQUEUE_SYNC_OP", op: { feature: FEATURE, kind: "put", key: "mypothi" } },
+      { type: "ENQUEUE_SYNC_OP", op: { feature: FEATURE, kind: "put", key: "sundar-gutka" } },
     ]);
   });
 
@@ -269,10 +269,10 @@ describe("usePothiSync drain outcomes", () => {
     mockPutFolders.mockResolvedValue(
       okRead([pothi("mine"), pothi("theirs")], { rejectedFolderIds: ["mine"], syncedAt: 42 })
     );
-    const outcome = await impl().drain({ kind: "put", key: "mypothi" });
+    const outcome = await impl().drain({ kind: "put", key: "sundar-gutka" });
     expect(outcome).toBe("done");
     expect(mockPutFolders).toHaveBeenCalledWith({
-      source: "mypothi",
+      source: "sundar-gutka",
       folders: [expect.objectContaining({ id: "mine" })],
     });
     expect(mockDispatch).toHaveBeenCalledWith(
@@ -379,6 +379,26 @@ describe("usePothiSync default-pothi reseeding", () => {
       mockDispatch.mockClear();
     }
   });
+  // The API seeds a pair only under MyPothi, which this app does not read, so a
+  // signed-in account with no Sundar Gutka pair gets this app's — but only once
+  // the pull has shown it has none, or a pair still on its way would be doubled.
+  it("seeds a signed-in account only after its first pull shows no pair", async () => {
+    signedInWith([], { seededDefaults: false });
+    mockState.baniList = [{ id: 1 }];
+    const seededNow = () =>
+      mockDispatch.mock.calls.some(([action]) => action.type === "SEED_DEFAULT_POTHIS");
+    const { rerender } = renderHook(() => usePothiSync());
+    await flush(0);
+    expect(seededNow()).toBe(false);
+
+    await act(async () => {
+      await impl().reconcile();
+    });
+    rerender();
+    await flush(0);
+    expect(seededNow()).toBe(true);
+  });
+
   it("does not reseed while already seeded", () => {
     signedOutWith({ folders: [{ id: "default_morning_nitnem" }], seededDefaults: true });
     renderHook(() => usePothiSync());
@@ -428,7 +448,7 @@ describe("seeding when redux has no bani list", () => {
     expect(mockGetBaniList).not.toHaveBeenCalled();
   });
 
-  it("does not read the database for a signed-in user", async () => {
+  it("does not read the database for a signed-in account that has its pair", async () => {
     signedInWith([]);
 
     renderHook(() => usePothiSync());

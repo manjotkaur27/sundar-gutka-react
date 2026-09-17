@@ -61,11 +61,19 @@ jest.mock("../../common/components/ui", () => {
   const { View, Pressable, Text } = require("react-native");
   const { useScreenRolesScope } = require("@theme/ScreenRolesProvider");
   return {
-    Sheet: ({ children }) => (
+    Sheet: ({ children, header, footer, keyboard }) => (
       <View testID="sheet">
         <Text testID="sheet-scope">{String(useScreenRolesScope())}</Text>
+        {header}
         {children}
+        {footer}
+        {keyboard}
       </View>
+    ),
+    SheetActions: ({ onCancel, cancelLabel }) => (
+      <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={onCancel}>
+        <Text>{cancelLabel}</Text>
+      </Pressable>
     ),
     Button: ({ title, onPress }) => (
       <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}>
@@ -131,6 +139,29 @@ describe("the pothi actions sheet", () => {
     expect(onClose).not.toHaveBeenCalled();
 
     onDeleted();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Backing out of the choice made from the row means backing out of the sheet,
+  // not landing on the same Delete/Rename row again.
+  it("closes the sheet when the delete is cancelled", () => {
+    const { getByLabelText, onClose } = renderSheet();
+
+    fireEvent.press(getByLabelText("Delete"));
+    const [, , onCancelled] = mockConfirmDelete.mock.calls[0];
+    expect(onClose).not.toHaveBeenCalled();
+
+    onCancelled();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the sheet when an untouched rename is cancelled", () => {
+    const { getByLabelText, onClose } = renderSheet();
+
+    fireEvent.press(getByLabelText("Rename"));
+    fireEvent.press(getByLabelText("Cancel"));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });

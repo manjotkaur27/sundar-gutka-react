@@ -1,4 +1,4 @@
-import { listPothis, SOURCE } from "./model";
+import { isBaniItem, listPothis, SOURCE } from "./model";
 
 // What the Folders tab renders, assembled from the two sources it merges.
 //
@@ -7,8 +7,14 @@ import { listPothis, SOURCE } from "./model";
 // reordered, pinned, shared or deleted. Copying them into the user's slice on
 // first launch would make all of those look possible, would fork the moment the
 // bundled list changed in an update, and would waste the server's 50-folder
-// budget on content every client already has. They are merged at read time and
-// carry `source: "sundar-gutka"`, which is also the API's own name for them.
+// budget on content every client already has. They are merged at read time.
+
+/**
+ * The label on the bundled folders. Deliberately NOT an API source: user
+ * pothis are stored under `sundar-gutka` (see model's SOURCE), and a bundled
+ * folder sharing that label would make every user pothi read as bundled.
+ */
+export const BUNDLED_SOURCE = "sundar-gutka-folders";
 
 /** The shape every row in the Folders tab shares, whoever it came from. */
 const toRow = ({ id, name, titleUni, items, source, pinned, origin }) => ({
@@ -19,11 +25,13 @@ const toRow = ({ id, name, titleUni, items, source, pinned, origin }) => ({
   // only the one.
   titleUni: titleUni ?? null,
   items,
-  count: items.length,
+  // Banis only: an item this app cannot show is kept on the pothi but is not
+  // counted or read. See isBaniItem.
+  count: items.filter(isBaniItem).length,
   /** Bani ids in order — what the continuous reader and the resolver need. */
-  baniIds: items.map((item) => item.baaniId),
+  baniIds: items.filter(isBaniItem).map((item) => item.baaniId),
   source,
-  system: source === "sundar-gutka",
+  system: source === BUNDLED_SOURCE,
   pinned: Boolean(pinned),
   origin,
 });
@@ -52,7 +60,7 @@ export const systemPothis = (baniListData = []) =>
           baaniId: entry.id,
           title: String(entry.id),
         })),
-        source: "sundar-gutka",
+        source: BUNDLED_SOURCE,
         origin: bani,
       })
     );

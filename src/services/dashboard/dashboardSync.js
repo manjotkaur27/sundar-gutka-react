@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { defaultPothi } from "@common/pothi/model";
+import { baniItems, defaultPothi } from "@common/pothi/model";
 import { to24h } from "@common/reminders/time";
 import { constant, actions, logError } from "@common";
 import { readToken } from "../../common/sso/tokenStore";
@@ -568,7 +568,7 @@ export const buildCachePayload = async ({ state, version, deviceId, userId = nul
       // Kept in the payload — it is part of the contract other clients read —
       // but sourced from the Morning Nitnem pothi, which is the one list the
       // app has. See TodaysNitnem.
-      selectedBaaniIds: (defaultPothi(state.pothis, "morning")?.items ?? []).map(
+      selectedBaaniIds: baniItems(defaultPothi(state.pothis, "morning")).map(
         (item) => item.baaniId
       ),
       completed: trimmedCompleted,

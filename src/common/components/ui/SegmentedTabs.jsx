@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import PropTypes from "prop-types";
 import useTokens from "../../hooks/useTokens";
 import Text from "./Text";
@@ -20,8 +21,21 @@ import Text from "./Text";
 // Sized entirely by its content: each segment is `flex: 1` with no fixed
 // height, so a label 3–4× longer in Punjabi or Spanish, or a raised OS text
 // size, makes the bar taller rather than clipping. `touchTarget` is a floor.
-const SegmentedTabs = ({ tabs, value, onChange, style = null }) => {
+// `progress` is optional and is what makes the bar follow a swipe: a shared
+// value carrying the CONTINUOUS position between tabs (0 … tabs.length - 1).
+// Given one, the indicator becomes a single sliding rule driven straight from
+// the gesture on the UI thread, so it tracks the finger instead of jumping when
+// the page finally settles. Without one the bar keeps its per-tab underline and
+// behaves exactly as it always has.
+const SegmentedTabs = ({ tabs, value, onChange, style = null, progress = null }) => {
   const { c, space, layout } = useTokens();
+  const [barWidth, setBarWidth] = useState(0);
+  const sliding = progress !== null;
+  const segmentWidth = barWidth / tabs.length;
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: (progress?.value ?? 0) * segmentWidth }],
+  }));
 
   return (
     <View
@@ -34,6 +48,7 @@ const SegmentedTabs = ({ tabs, value, onChange, style = null }) => {
         },
         style,
       ]}
+      onLayout={sliding ? (e) => setBarWidth(e.nativeEvent.layout.width) : undefined}
     >
       {tabs.map((tab) => {
         const selected = tab.key === value;
@@ -55,7 +70,9 @@ const SegmentedTabs = ({ tabs, value, onChange, style = null }) => {
               // rule rather than above it leaving a seam.
               borderBottomWidth: 2,
               marginBottom: -StyleSheet.hairlineWidth,
-              borderBottomColor: selected ? c.accent : "transparent",
+              // The sliding rule below draws the indicator when this bar is
+              // following a swipe, so the per-tab underline stands down.
+              borderBottomColor: !sliding && selected ? c.accent : "transparent",
               // A tint of the theme's ACCENT, not the ink-based
               // surfaceSelected — an ink wash composites to grey on a light
               // ground and reads as a system highlight rather than the app's.
@@ -70,6 +87,22 @@ const SegmentedTabs = ({ tabs, value, onChange, style = null }) => {
           </Pressable>
         );
       })}
+      {sliding && barWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              bottom: -StyleSheet.hairlineWidth,
+              width: segmentWidth,
+              height: 2,
+              backgroundColor: c.accent,
+            },
+            indicatorStyle,
+          ]}
+        />
+      ) : null}
     </View>
   );
 };
@@ -81,6 +114,8 @@ SegmentedTabs.propTypes = {
   value: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
   style: PropTypes.oneOfType([PropTypes.object, PropTypes.array, PropTypes.number]),
+  /** A Reanimated shared value holding the continuous position between tabs. */
+  progress: PropTypes.shape({ value: PropTypes.number }),
 };
 
 export default SegmentedTabs;
