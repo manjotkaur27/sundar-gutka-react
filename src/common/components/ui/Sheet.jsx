@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Animated, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "@react-native-community/blur";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
@@ -67,10 +67,20 @@ const SheetContent = ({
   // instead of growing off the top of the screen.
   const availableHeight = height - keyboardHeight;
   const maxHeight = availableHeight * layout.sheet.maxHeightRatio;
-  // The bottom safe-area inset is for the home indicator. With the keyboard up
-  // the keyboard covers it, so adding it again would leave a dead band between
-  // the sheet and the keys.
-  const paddingBottom = layout.sheet.paddingBottom + (keyboardHeight > 0 ? 0 : insets.bottom);
+  // The bottom safe-area inset: the home indicator on iOS, the navigation bar
+  // on Android. Whether it still applies with the keyboard up differs:
+  //
+  //   iOS      the reported keyboard height covers the home indicator, so the
+  //            inset is dropped — keeping it would leave a dead band above the
+  //            keys.
+  //   Android  React Native reports the keyboard height LESS the system bars
+  //            (ReactRootView.checkForKeyboardEvents: ime.bottom -
+  //            systemBars.bottom), while this window is drawn under the
+  //            navigation bar (Overlay: navigationBarTranslucent). Dropping the
+  //            inset there sank the sheet by the bar's height, and Cancel and
+  //            Save sat behind the keyboard. So it stays.
+  const coveredByKeyboard = keyboardHeight > 0 && Platform.OS === "ios";
+  const paddingBottom = layout.sheet.paddingBottom + (coveredByKeyboard ? 0 : insets.bottom);
 
   // ── Room for a pinned `keyboard` ──────────────────────────────────────────
   // Everything but the body is fixed height, so on a small display, or at a

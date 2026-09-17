@@ -7,6 +7,7 @@ import PropTypes from "prop-types";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import useTokens from "@common/hooks/useTokens";
 import { reminderTitle } from "@common/reminders/title";
+import { glyphsForSurface, useNavBarSurface } from "@common/systemBars";
 import {
   constant,
   convertToUnicode,
@@ -27,6 +28,13 @@ const ReminderOptions = ({ navigation }) => {
   logMessage(constant.REMINDER_OPTIONS);
   const { c, layout } = useTokens();
   const styles = useThemedStyles(createStyles);
+  // This screen runs to the bottom of the display under the system navigation
+  // bar, but it is not built on the app's SafeArea — the thing that tells the
+  // bar what it is drawn over. Saying nothing left the claim to the tab bar
+  // still mounted beneath it, which is navy, so the glyphs came out white over
+  // this white list. Claimed here exactly as SafeArea would, from the same
+  // background the screen paints.
+  useNavBarSurface(glyphsForSurface(c.background));
   const reminderBanis = useSelector((state) => state.reminderBanis);
   const isReminders = useSelector((state) => state.isReminders);
   const reminderSound = useSelector((state) => state.reminderSound);

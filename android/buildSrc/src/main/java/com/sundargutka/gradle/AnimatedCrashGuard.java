@@ -13,7 +13,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.TryCatchBlockSorter;
 
 /**
- * Rewrites three React Native runtime classes as they are packaged into the APK.
+ * Rewrites four React Native runtime classes as they are packaged into the APK.
  *
  * <p>React Native's Android runtime arrives as the prebuilt {@code
  * com.facebook.react:react-android} AAR from Maven Central. Nothing under {@code
@@ -21,7 +21,7 @@ import org.objectweb.asm.commons.TryCatchBlockSorter;
  * is inert: it edits a copy of the code no build step reads. The only place left to change these
  * classes is the bytecode, which is what the Android Gradle Plugin's instrumentation API is for.
  *
- * <p>Two crashes are addressed, both long-standing upstream races that still throw on React Native
+ * <p>Three crashes are addressed, all long-standing upstream races that still throw on React Native
  * main:
  *
  * <ul>
@@ -37,6 +37,13 @@ import org.objectweb.asm.commons.TryCatchBlockSorter;
  *       guard React Native already has because {@code updateNodes} catches only
  *       JSApplicationCausedNativeException while {@code updateView} raises a plain
  *       IllegalArgumentException.
+ *   <li>{@code IllegalArgumentException: Invalid parent node provided} from {@code
+ *       InterpolationAnimatedNode.onDetachedFromNode}. The same race again, reached through {@code
+ *       disconnectAnimatedNodes}: the node was already detached, or re-attached elsewhere, before the
+ *       queued disconnect ran. Kotlin's {@code require} throws a plain IllegalArgumentException, so
+ *       the class-wide guard on NativeAnimatedNodesManager, which catches only the JS-caused type,
+ *       lets it through. Guarding the method itself keeps the rest of {@code removeChild} running,
+ *       so the parent still drops the child and only the stale detach is skipped.
  * </ul>
  *
  * <p>And one serialization crash: {@code folly::toJson: JSON object value was a NaN} when the
@@ -54,6 +61,8 @@ public abstract class AnimatedCrashGuard
   private static final String NODES_MANAGER =
       "com.facebook.react.animated.NativeAnimatedNodesManager";
   private static final String PROPS_NODE = "com.facebook.react.animated.PropsAnimatedNode";
+  private static final String INTERPOLATION_NODE =
+      "com.facebook.react.animated.InterpolationAnimatedNode";
   private static final String SCROLL_EVENT = "com.facebook.react.views.scroll.ScrollEvent";
   private static final String UI_IMPLEMENTATION = "com.facebook.react.uimanager.UIImplementation";
 
@@ -75,6 +84,7 @@ public abstract class AnimatedCrashGuard
     String name = classData.getClassName();
     return NODES_MANAGER.equals(name)
         || PROPS_NODE.equals(name)
+        || INTERPOLATION_NODE.equals(name)
         || SCROLL_EVENT.equals(name)
         || UI_IMPLEMENTATION.equals(name);
   }
@@ -87,6 +97,14 @@ public abstract class AnimatedCrashGuard
     }
     if (PROPS_NODE.equals(name)) {
       return new GuardOneMethod(next, "updateView", "()V", ILLEGAL_ARGUMENT, "PropsAnimatedNode");
+    }
+    if (INTERPOLATION_NODE.equals(name)) {
+      return new GuardOneMethod(
+          next,
+          "onDetachedFromNode",
+          "(Lcom/facebook/react/animated/AnimatedNode;)V",
+          ILLEGAL_ARGUMENT,
+          "InterpolationAnimatedNode");
     }
     if (UI_IMPLEMENTATION.equals(name)) {
       return new MakeSetChildrenAtomic(next);

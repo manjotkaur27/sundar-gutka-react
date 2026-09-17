@@ -161,7 +161,8 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
                     <Button
                       title={STRINGS.POTHI_DELETE}
                       onPress={askDelete}
-                      variant="ghost"
+                      // Red, like every other delete in the pothi screens.
+                      variant="danger"
                       style={grow}
                     />
                   )}

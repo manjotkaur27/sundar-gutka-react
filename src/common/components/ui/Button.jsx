@@ -35,6 +35,14 @@ const VARIANTS = {
   ghost: { bg: null, bgPressed: "surfaceSelected", fg: "accent", border: null },
   /** Irreversible action — delete a download, clear data. */
   destructive: { bg: "error", bgPressed: "error", fg: "onError", border: null },
+  /**
+   * A destructive choice offered quietly beside the main one — Delete next to
+   * Rename. The ghost's weight in the theme's error red, so it reads as the
+   * action that removes without shouting over the one most people want. The
+   * role resolves per theme and per screen palette, and is held to AA text
+   * contrast on every surface (theme/contrast.test.js).
+   */
+  danger: { bg: null, bgPressed: "surfaceSelected", fg: "error", border: null },
 };
 
 const Button = ({
@@ -132,7 +140,7 @@ const Button = ({
 Button.propTypes = {
   title: PropTypes.string.isRequired,
   onPress: PropTypes.func.isRequired,
-  variant: PropTypes.oneOf(["primary", "secondary", "ghost", "destructive"]),
+  variant: PropTypes.oneOf(["primary", "secondary", "ghost", "destructive", "danger"]),
   size: PropTypes.oneOf(["sm", "md"]),
   disabled: PropTypes.bool,
   loading: PropTypes.bool,
