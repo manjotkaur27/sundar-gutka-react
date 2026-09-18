@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
+import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
 import useTokens from "@common/hooks/useTokens";
 import {
   baniItems,
@@ -79,6 +80,25 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
     </View>
   );
 
+  // Written once and placed in one of two positions — see
+  // NEST_OVERLAYS_IN_SHEET. On iOS a sibling Modal resolves to the root
+  // controller, which is already presenting this sheet, so UIKit refused the
+  // second presentation and the New Pothi row did nothing at all. Nesting is
+  // wrong on Android, where a Modal inside a Modal is a second React root torn
+  // down mid-commit when this sheet closes.
+  const createSheet = (
+    <CreatePothiSheet
+      visible={creating}
+      onClose={() => setCreating(false)}
+      seedBani={bani}
+      baniListData={baniListData}
+      onCreated={(pothi) => {
+        showToast(STRINGS.formatString(STRINGS.POTHI_ADDED, { name: titleFor(pothi) }), "success");
+        onClose();
+      }}
+    />
+  );
+
   return (
     // Settings-scoped, like the other two pothi sheets — see CreatePothiSheet.
     <ScreenRolesProvider screen="settings">
@@ -129,21 +149,11 @@ const AddToPothiSheet = ({ visible, onClose, bani = null }) => {
             })
           )}
         </View>
+
+        {NEST_OVERLAYS_IN_SHEET && createSheet}
       </Sheet>
 
-      <CreatePothiSheet
-        visible={creating}
-        onClose={() => setCreating(false)}
-        seedBani={bani}
-        baniListData={baniListData}
-        onCreated={(pothi) => {
-          showToast(
-            STRINGS.formatString(STRINGS.POTHI_ADDED, { name: titleFor(pothi) }),
-            "success"
-          );
-          onClose();
-        }}
-      />
+      {!NEST_OVERLAYS_IN_SHEET && createSheet}
     </ScreenRolesProvider>
   );
 };
