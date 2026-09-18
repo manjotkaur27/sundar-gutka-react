@@ -40,6 +40,7 @@ import {
   trackNavBar,
   trackPlayerForm,
   trackTourEvent,
+  trackPunjabiKeyboardEvent,
   trackJourneyView,
   trackKhalisAppClicked,
   trackBaniCompleted,
@@ -102,7 +103,6 @@ import {
 import convertToUnicode from "./utils";
 
 export {
-
   constant,
   actions,
   STRINGS,
@@ -144,6 +144,7 @@ export {
   ConfirmDialogHost,
   showConfirm,
   trackTourEvent,
+  trackPunjabiKeyboardEvent,
   useCustomScrollbar,
   baseFontSize,
   resetBadgeCount,

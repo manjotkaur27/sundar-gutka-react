@@ -260,7 +260,9 @@ const trackNavBar = async (visible, trigger, mode) => {
       mode: safeStr(mode, "reading"),
     });
   } catch (error) {
-    logError(new Error(`nav_bar visibility tracking failed - ${error?.message || "Unknown error"}`));
+    logError(
+      new Error(`nav_bar visibility tracking failed - ${error?.message || "Unknown error"}`)
+    );
   }
 };
 
@@ -326,7 +328,9 @@ const trackSevaEvent = async (action, params = {}) => {
     const eventName = SEVA_EVENT_NAMES[action] || sanitize(`seva_${action}`, "seva_event");
     await logEvent(analytics, eventName, sanitizeParams(params));
   } catch (error) {
-    logError(new Error(`Seva analytics failed for ${action} - ${error?.message || "Unknown error"}`));
+    logError(
+      new Error(`Seva analytics failed for ${action} - ${error?.message || "Unknown error"}`)
+    );
   }
 };
 
@@ -477,6 +481,18 @@ const TOUR_EVENT_NAMES = {
 };
 const trackTourEvent = namespacedTracker(TOUR_EVENT_NAMES, "tour");
 
+// The in-app Punjabi keyboard. `opened` fires each time someone switches it on;
+// GA4's Users metric on it is how many people use the keyboard. `surface` is
+// the field it was opened on: create_pothi_name | create_pothi_search |
+// add_banis_search | rename_pothi.
+const PUNJABI_KEYBOARD_EVENT_NAMES = {
+  opened: "punjabi_keyboard_opened",
+};
+const trackPunjabiKeyboardEvent = namespacedTracker(
+  PUNJABI_KEYBOARD_EVENT_NAMES,
+  "punjabi_keyboard"
+);
+
 // ─── Journey dashboard events ─────────────────────────────────────────────────
 
 const trackJourneyView = async (currentStreak, totalActiveDays) => {
@@ -496,7 +512,9 @@ const trackKhalisAppClicked = async (appName) => {
       app_name: safeStr(appName),
     });
   } catch (error) {
-    logError(new Error(`khalis_app_clicked tracking failed - ${error?.message || "Unknown error"}`));
+    logError(
+      new Error(`khalis_app_clicked tracking failed - ${error?.message || "Unknown error"}`)
+    );
   }
 };
 
@@ -560,6 +578,7 @@ export {
   trackNavBar,
   trackPlayerForm,
   trackTourEvent,
+  trackPunjabiKeyboardEvent,
   // Journey + session lifecycle events
   trackJourneyView,
   trackKhalisAppClicked,

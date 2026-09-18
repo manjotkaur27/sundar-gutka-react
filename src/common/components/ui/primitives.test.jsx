@@ -393,7 +393,12 @@ describe("Sheet", () => {
       lightTheme,
       <Sheet visible onClose={() => {}} title="Choose" closeAccessibilityLabel="Close" />
     );
-    const scrim = flat(screen.getByLabelText("Close").props.style);
+    // The grab bar carries the same label — it closes the sheet for a screen
+    // reader too — so the scrim is the one that fills the window.
+    const scrim = screen
+      .getAllByLabelText("Close")
+      .map((node) => flat(node.props.style))
+      .find((style) => style.position === "absolute");
     expect(scrim.minHeight).toBeUndefined();
     expect(scrim.height).toBeUndefined();
     expect(scrim.position).toBe("absolute");

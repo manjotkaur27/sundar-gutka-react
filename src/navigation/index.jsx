@@ -8,6 +8,7 @@ import { withScreenRoles } from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import { setReaderFocused } from "@common/readerFocus";
+import { flushPendingNotificationRoute } from "@common/rootNavigation";
 import {
   navigationRef,
   constant,
@@ -166,8 +167,8 @@ const Navigation = () => {
         new Error(
           `Performance trace failed for route: ${state.routes[state.index]?.name || "unknown"} - ${
             error?.message || "Unknown error"
-          }`,
-        ),
+          }`
+        )
       );
       trace.current = resetTrace();
     }
@@ -196,7 +197,7 @@ const Navigation = () => {
       trackScreenView(
         currentRouteName,
         currentRoute?.params?.key,
-        currentRoute?.params?.params?.title,
+        currentRoute?.params?.params?.title
       ).catch(() => {});
     }
   };
@@ -218,6 +219,8 @@ const Navigation = () => {
           const route = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
           routeNameRef.current = route?.name;
           setReaderFocused(route?.name === constant.READER);
+          // A notification that launched the app is taken only now.
+          flushPendingNotificationRoute();
         }}
         onStateChange={handleStateChange}
       >

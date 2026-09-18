@@ -24,6 +24,30 @@ export const navigate = (name, params) => {
   }
 };
 
+// A notification tapped while the app is fully closed is reported before the
+// navigator exists: the app has to load its saved state before the first
+// screen mounts. `navigate` drops a call made then, so a reminder opened the
+// app on its default screen instead of its bani. Where a notification sends
+// the user is therefore held until the navigator is ready, and taken then.
+// Only the latest is kept — the one the user tapped last is the one they want.
+let pendingNotificationRoute = null;
+
+const navigateWhenReady = (name, params) => {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate(name, params);
+  } else {
+    pendingNotificationRoute = { name, params };
+  }
+};
+
+/** Takes a notification's held destination. Called once the navigator is ready. */
+export const flushPendingNotificationRoute = () => {
+  if (!pendingNotificationRoute || !navigationRef.isReady()) return;
+  const { name, params } = pendingNotificationRoute;
+  pendingNotificationRoute = null;
+  navigationRef.navigate(name, params);
+};
+
 // Opens the bani a reminder or a campaign points at.
 const openBani = async ({ id, title }) => {
   // The Reader wants the Unicode title too; a campaign will not carry one,
@@ -34,7 +58,7 @@ const openBani = async ({ id, title }) => {
   } catch (_) {
     titleUni = undefined;
   }
-  navigate(constant.READER, {
+  navigateWhenReady(constant.READER, {
     key: `Reader-${id}`,
     params: { id, title, ...(titleUni && { titleUni }) },
   });
@@ -72,16 +96,16 @@ export const navigateTo = async (incoming) => {
       await openBani(target);
       return;
     case ROUTE_SEVA:
-      navigate(constant.SEVA);
+      navigateWhenReady(constant.SEVA);
       return;
     case ROUTE_UPDATE:
-      navigate(constant.DATABASE_UPDATE);
+      navigateWhenReady(constant.DATABASE_UPDATE);
       return;
     case ROUTE_DASHBOARD:
-      navigate(constant.DASHBOARD);
+      navigateWhenReady(constant.DASHBOARD);
       return;
     case ROUTE_SETTINGS:
-      navigate(constant.SETTINGS);
+      navigateWhenReady(constant.SETTINGS);
       return;
     case ROUTE_URL:
       await openInAppBrowser(target.url);

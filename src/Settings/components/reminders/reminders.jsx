@@ -146,17 +146,15 @@ const RemindersComponent = ({ navigation }) => {
           onPressAction={() => toggleReminderSound(true)}
         />
       )}
-      {isReminderSound && (
-        <BottomSheetComponent
-          isVisible={isReminderSound}
-          actionConstant={REMINDER_SOUNDS}
-          value={reminderSound}
-          toggleVisible={toggleReminderSound}
-          title={STRINGS.reminder_sound}
-          action={actions.setReminderSound}
-          onChange={handleSoundChange}
-        />
-      )}
+      <BottomSheetComponent
+        isVisible={isReminderSound}
+        actionConstant={REMINDER_SOUNDS}
+        value={reminderSound}
+        toggleVisible={toggleReminderSound}
+        title={STRINGS.reminder_sound}
+        action={actions.setReminderSound}
+        onChange={handleSoundChange}
+      />
     </>
   );
 };

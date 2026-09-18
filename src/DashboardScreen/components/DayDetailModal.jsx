@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import Reanimated from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { androidLineHeight } from "@theme/lineHeight";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
-import Overlay from "@common/components/ui/Overlay";
-import { formatDayMonth } from "@common/dateLocale";
 import PropTypes from "prop-types";
+import Overlay from "@common/components/ui/Overlay";
+import { SheetGestureRoot, SheetHandle, useSheetMotion } from "@common/components/ui/sheetDrag";
+import { formatDayMonth } from "@common/dateLocale";
 import { CustomText, useTheme, logError } from "@common";
 import { getDayDetail, getDayActivity } from "../../database/analytics";
 
@@ -20,13 +23,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 36,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 16,
   },
   dateText: {
     fontSize: 24,
@@ -126,6 +122,9 @@ const DayDetailModal = ({ visible, date = null, onClose }) => {
   const [detail, setDetail] = useState(null);
   const [dayActivity, setDayActivity] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Opens, drags and closes like every other sheet — see sheetDrag. Dragged
+  // from anywhere on it: nothing inside scrolls.
+  const motion = useSheetMotion({ visible, onClose, grabEverywhere: true });
 
   useEffect(() => {
     if (!visible || !date) return;
@@ -156,81 +155,90 @@ const DayDetailModal = ({ visible, date = null, onClose }) => {
   const showAggregateRead = !hasRead && aggregateReadSecs > 0;
   const showAggregateListen = !hasListen && aggregateListenSecs > 0;
 
+  if (!motion.mounted) return null;
+
   return (
-    <Overlay
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    // The slide up starts on `onShow` — see sheetDrag.
+    <Overlay animationType="none" onRequestClose={onClose} onShow={motion.onShow}>
       {/* The same plain scrim every other overlay in the app uses. This was the
           last native BlurView left: it rendered differently on iOS and Android,
           and it was the only backdrop on the Dashboard that did not match the
           sheets beside it. */}
-      <View style={styles.root}>
-        {/* Tap anywhere outside the card to dismiss. */}
-        <Pressable
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: c.scrim }]}
-          onPress={onClose}
-        />
-        <View
-          style={[styles.sheet, { backgroundColor: bg }]}
-          onStartShouldSetResponder={() => true}
-        >
-          <View style={[styles.handle, { backgroundColor: c.border }]} />
+      {/* A Modal is its own window on Android, outside the app's gesture root.
+          See sheetDrag. */}
+      <SheetGestureRoot>
+        <View style={styles.root}>
+          {/* Thins as the card is dragged away. */}
+          <Reanimated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: c.scrim }, motion.scrimStyle]}
+          />
+          {/* Tap anywhere outside the card to dismiss. */}
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+          <GestureDetector gesture={motion.gesture}>
+            <Reanimated.View style={motion.panelStyle} onLayout={motion.onPanelLayout}>
+              <View
+                style={[styles.sheet, { backgroundColor: bg }]}
+                onStartShouldSetResponder={() => true}
+              >
+                <SheetHandle onClose={onClose} />
 
-          <CustomText style={[styles.dateText, { color: c.textPrimary }]}>
-            {formatDate(date)}
-          </CustomText>
-
-          {loading && (
-            <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
-              Loading...
-            </CustomText>
-          )}
-
-          {!loading && (
-            <>
-              {(hasRead || showAggregateRead) && (
-                <View style={styles.actRow}>
-                  <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                    <BookIcon color={accentBlue} />
-                  </View>
-                  <View style={styles.actMid}>
-                    <CustomText style={[styles.actTitle, { color: c.textPrimary }]}>
-                      Reading
-                    </CustomText>
-                    <CustomText style={[styles.actDuration, { color: c.textSecondary }]}>
-                      {Math.floor((hasRead ? totalReadSecs : aggregateReadSecs) / 60)}m
-                    </CustomText>
-                  </View>
-                </View>
-              )}
-
-              {(hasListen || showAggregateListen) && (
-                <View style={styles.actRow}>
-                  <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                    <HeadphoneIcon color={accentBlue} />
-                  </View>
-                  <View style={styles.actMid}>
-                    <CustomText style={[styles.actTitle, { color: c.textPrimary }]}>
-                      Listening
-                    </CustomText>
-                    <CustomText style={[styles.actDuration, { color: c.textSecondary }]}>
-                      {Math.floor((hasListen ? totalListenSecs : aggregateListenSecs) / 60)}m
-                    </CustomText>
-                  </View>
-                </View>
-              )}
-
-              {!hasRead && !hasListen && !showAggregateRead && !showAggregateListen && (
-                <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
-                  No activity recorded for this day
+                <CustomText style={[styles.dateText, { color: c.textPrimary }]}>
+                  {formatDate(date)}
                 </CustomText>
-              )}
-            </>
-          )}
+
+                {loading && (
+                  <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
+                    Loading...
+                  </CustomText>
+                )}
+
+                {!loading && (
+                  <>
+                    {(hasRead || showAggregateRead) && (
+                      <View style={styles.actRow}>
+                        <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+                          <BookIcon color={accentBlue} />
+                        </View>
+                        <View style={styles.actMid}>
+                          <CustomText style={[styles.actTitle, { color: c.textPrimary }]}>
+                            Reading
+                          </CustomText>
+                          <CustomText style={[styles.actDuration, { color: c.textSecondary }]}>
+                            {Math.floor((hasRead ? totalReadSecs : aggregateReadSecs) / 60)}m
+                          </CustomText>
+                        </View>
+                      </View>
+                    )}
+
+                    {(hasListen || showAggregateListen) && (
+                      <View style={styles.actRow}>
+                        <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+                          <HeadphoneIcon color={accentBlue} />
+                        </View>
+                        <View style={styles.actMid}>
+                          <CustomText style={[styles.actTitle, { color: c.textPrimary }]}>
+                            Listening
+                          </CustomText>
+                          <CustomText style={[styles.actDuration, { color: c.textSecondary }]}>
+                            {Math.floor((hasListen ? totalListenSecs : aggregateListenSecs) / 60)}m
+                          </CustomText>
+                        </View>
+                      </View>
+                    )}
+
+                    {!hasRead && !hasListen && !showAggregateRead && !showAggregateListen && (
+                      <CustomText style={[styles.emptyText, { color: c.textSecondary }]}>
+                        No activity recorded for this day
+                      </CustomText>
+                    )}
+                  </>
+                )}
+              </View>
+            </Reanimated.View>
+          </GestureDetector>
         </View>
-      </View>
+      </SheetGestureRoot>
     </Overlay>
   );
 };

@@ -41,8 +41,15 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
   const { ownedScrollProps, Indicator } = useCustomScrollbar();
   const { titleFor, variantFor } = usePothiTitle();
   useSignedOutPothiHint(active);
-  // The pothi whose rename/delete sheet is open, or null.
+  // The pothi the rename/delete sheet is for. Kept after the sheet closes, so it
+  // slides away still showing that pothi — clearing it on close unmounted the
+  // sheet at once and cut its slide off. `actionsOpen` is whether it is open.
   const [acting, setActing] = useState(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const openActions = useCallback((row) => {
+    setActing(row);
+    setActionsOpen(true);
+  }, []);
 
   // Pull to refresh, for someone who has just changed a pothi on their other
   // phone and wants it here now. It fires the same request the Dashboard's
@@ -139,7 +146,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
         onOpen={() => openPothi(row)}
         onTogglePin={row.system ? null : () => togglePin(row)}
         onLongPress={
-          row.system || row.id === morningId || row.id === eveningId ? null : () => setActing(row)
+          row.system || row.id === morningId || row.id === eveningId ? null : () => openActions(row)
         }
         dragHandle={
           drag && !row.pinned ? (
@@ -156,7 +163,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
         }
       />
     ),
-    [openPothi, togglePin, morningId, eveningId, layout, c]
+    [openPothi, openActions, togglePin, morningId, eveningId, layout, c]
   );
 
   // No standing notice above the list. The sign-in hint is a toast instead (see
@@ -287,7 +294,11 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
       {/* Adding banis is NOT offered here. A pothi's contents are edited from
           its own screen's overflow, where the list you are changing is in front
           of you — see FolderScreen. */}
-      <PothiActionsSheet pothi={acting} visible={acting !== null} onClose={() => setActing(null)} />
+      <PothiActionsSheet
+        pothi={acting}
+        visible={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+      />
     </GestureHandlerRootView>
   );
 };

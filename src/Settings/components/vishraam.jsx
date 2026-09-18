@@ -48,27 +48,23 @@ const VishraamComponent = () => {
         </>
       )}
 
-      {isVishraamOptionVisible && (
-        <BottomSheetComponent
-          isVisible={isVishraamOptionVisible}
-          actionConstant={VISHRAAM_OPTIONS}
-          value={vishraamOption}
-          toggleVisible={toggleVishraamOptionVisible}
-          title={STRINGS.vishraam_options}
-          action={setVishraamOption}
-        />
-      )}
+      <BottomSheetComponent
+        isVisible={isVishraamOptionVisible}
+        actionConstant={VISHRAAM_OPTIONS}
+        value={vishraamOption}
+        toggleVisible={toggleVishraamOptionVisible}
+        title={STRINGS.vishraam_options}
+        action={setVishraamOption}
+      />
 
-      {isVishraamSourceVisible && (
-        <BottomSheetComponent
-          isVisible={isVishraamSourceVisible}
-          actionConstant={VISHRAAM_SOURCES}
-          value={vishraamSource}
-          toggleVisible={toggleVishraamSourceVisible}
-          title={STRINGS.vishraam_source}
-          action={setVishraamSource}
-        />
-      )}
+      <BottomSheetComponent
+        isVisible={isVishraamSourceVisible}
+        actionConstant={VISHRAAM_SOURCES}
+        value={vishraamSource}
+        toggleVisible={toggleVishraamSourceVisible}
+        title={STRINGS.vishraam_source}
+        action={setVishraamSource}
+      />
     </>
   );
 };

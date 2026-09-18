@@ -7,6 +7,7 @@ import { baniItems } from "@common/pothi/model";
 import { ConfirmDialogHost, showConfirm, STRINGS } from "@common";
 import { GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
 import usePothiTitle from "../hooks/usePothiTitle";
+import usePunjabiKeyboard from "../hooks/usePunjabiKeyboard";
 import useSetPothiBanis from "../hooks/useSetPothiBanis";
 import reportPothiEmptied from "../reportPothiEmptied";
 import PickBanisStep from "./PickBanisStep";
@@ -33,7 +34,7 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
   // this still pointed at the snapshot taken when the sheet opened.
   const pothi = useSelector((state) => (state.pothis?.folders ?? []).find((f) => f.id === pothiId));
   const [query, setQuery] = useState("");
-  const [gurmukhi, setGurmukhi] = useState(false);
+  const [gurmukhi, setGurmukhi, toggleGurmukhi] = usePunjabiKeyboard();
   // What discarding restores. Taken once per opening and null until then —
   // a sentinel rather than an empty array, because a pothi opened with no
   // banis in it would otherwise be re-snapshotted after the first tick and
@@ -92,7 +93,7 @@ const AddBanisSheet = ({ visible, onClose, pothiId = null, baniListData }) => {
             query={query}
             onQueryChange={setQuery}
             gurmukhiOpen={gurmukhi}
-            onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+            onToggleGurmukhi={() => toggleGurmukhi("add_banis_search")}
           />
         }
         // The list is the one and only scroller. Nested scrollers fought for

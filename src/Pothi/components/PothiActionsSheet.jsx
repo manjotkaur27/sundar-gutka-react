@@ -9,6 +9,7 @@ import { isDefaultPothi, isValidName, MAX_NAME_LENGTH } from "@common/pothi/mode
 import { actions, ConfirmDialogHost, showConfirm, STRINGS, trackPothiEvent } from "@common";
 import { Button, GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
 import useDeletePothi from "../hooks/useDeletePothi";
+import usePunjabiKeyboard from "../hooks/usePunjabiKeyboard";
 import PothiNameField from "./PothiNameField";
 
 // Rename and delete, reached by long-pressing a pothi.
@@ -35,7 +36,7 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
   const isDefault = useSelector((state) => isDefaultPothi(state.pothis, pothi?.id));
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
-  const [gurmukhi, setGurmukhi] = useState(false);
+  const [gurmukhi, setGurmukhi, toggleGurmukhi] = usePunjabiKeyboard();
   // The sheet closes FIRST, and only then is the confirm raised.
   //
   // Left open behind the dialog, it is a second window underneath: the system
@@ -152,7 +153,7 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
               gurmukhiOpen={gurmukhi}
               receivingKeys={gurmukhi}
               onFocus={() => {}}
-              onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+              onToggleGurmukhi={() => toggleGurmukhi("rename_pothi")}
             />
           ) : null
         }

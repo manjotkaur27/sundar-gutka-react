@@ -49,7 +49,13 @@ const styles = StyleSheet.create({
  *     {Indicator}
  *   </View>
  */
-export const useCustomScrollbar = (color = null) => {
+export const useCustomScrollbar = (color = null, { onOffset = null } = {}) => {
+  // A caller that also needs the scroll offset in JS — a sheet deciding whether
+  // its list is at the top — hears it from the SAME scroll event. The event is
+  // native-driven and built once, so it cannot be wrapped; it calls through a
+  // ref instead, which always holds the latest callback.
+  const onOffsetRef = useRef(onOffset);
+  onOffsetRef.current = onOffset;
   // Under a DESIGNED theme every list in the app gets a themed thumb, drawn on
   // both platforms — Android's native bar takes a static app resource and so
   // cannot follow one. Under Light, Dark and Default nothing changes: the
@@ -103,7 +109,10 @@ export const useCustomScrollbar = (color = null) => {
   const onScroll = useRef(
     Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
       useNativeDriver: true,
-      listener: () => showThenFade(),
+      listener: (event) => {
+        showThenFade();
+        onOffsetRef.current?.(event.nativeEvent.contentOffset.y);
+      },
     })
   ).current;
 

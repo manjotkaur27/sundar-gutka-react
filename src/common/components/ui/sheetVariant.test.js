@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 
-// The Settings chooser is the one sheet on the old, flush presentation: no drag
-// handle, a centred title over a rule, rows edge to edge. Every other sheet in
+// The Settings chooser is the one sheet on the old, flush presentation: a
+// centred title over a rule, rows edge to edge. Every other sheet in
 // the app — the Dashboard's, the audio settings, the time picker — stays on the
 // floating default.
 //
@@ -65,6 +65,9 @@ describe("the flush sheet presentation is scoped to Settings", () => {
     // first-run screen carries no palette either, so its OK button fell back
     // from `ctaFill` to `primary` — the bottom nav bar's navy — and measured
     // 1.3:1 on the dialog's near-black card in dark mode.
+    //
+    // The sheet grab bar is the opposite case: it clears the scope, so every
+    // sheet's bar is the app theme's one colour whatever palette it sits in.
     expect(users.sort()).toEqual([
       "Pothi/components/AddBanisSheet.jsx",
       "Pothi/components/AddToPothiSheet.jsx",
@@ -72,6 +75,7 @@ describe("the flush sheet presentation is scoped to Settings", () => {
       "Pothi/components/PothiActionsSheet.jsx",
       "common/components/BaniLengthSelector/BaniLengthSelector.jsx",
       "common/components/ui/Sheet.jsx",
+      "common/components/ui/sheetDrag.jsx",
     ]);
   });
 

@@ -19,6 +19,7 @@ import {
   trackPothiEvent,
 } from "@common";
 import { GurmukhiKeyboard, Sheet, SheetActions } from "../../common/components/ui";
+import usePunjabiKeyboard from "../hooks/usePunjabiKeyboard";
 import PickBanisStep from "./PickBanisStep";
 import PothiNameField from "./PothiNameField";
 
@@ -53,7 +54,7 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
   // which field its keys go into. Tapping a field moves the keys to it, which
   // is how a real keyboard behaves — the alternative was a switch per field,
   // several controls all claiming the same single keyboard.
-  const [gurmukhi, setGurmukhi] = useState(false);
+  const [gurmukhi, setGurmukhi, toggleGurmukhi] = usePunjabiKeyboard();
   // Two steps: name the pothi, then fill it. Splitting them is what gives the
   // bani list room to browse in — sharing one sheet with the name field left it
   // a sliver. Each step owns the single keyboard, so there is no `focused`
@@ -145,7 +146,7 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
               gurmukhiOpen={gurmukhi}
               receivingKeys={gurmukhi}
               onFocus={() => {}}
-              onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+              onToggleGurmukhi={() => toggleGurmukhi("create_pothi_name")}
             />
           ) : (
             <PickBanisStep.Search
@@ -153,7 +154,7 @@ const CreatePothiSheet = ({ visible, onClose, onCreated, seedBani = null, baniLi
               query={query}
               onQueryChange={setQuery}
               gurmukhiOpen={gurmukhi}
-              onToggleGurmukhi={() => setGurmukhi((on) => !on)}
+              onToggleGurmukhi={() => toggleGurmukhi("create_pothi_search")}
             />
           )
         }

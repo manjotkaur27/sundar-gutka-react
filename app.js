@@ -1,14 +1,13 @@
 import React, { useEffect } from "react";
 import { AppState, Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import ErrorBoundary from "react-native-error-boundary";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
 import Toast from "react-native-toast-message";
-import toastConfig from "./src/common/toastConfig";
 import { Provider } from "react-redux";
 import notifee, { EventType } from "@notifee/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getInitialNotification,
   getMessaging,
@@ -28,20 +27,21 @@ import {
   ConfirmDialogHost,
   OnboardingCarousel,
 } from "@common";
-import ThemeProvider from "./src/common/context/ThemeProvider";
 import NetworkProvider from "./src/common/context/NetworkProvider";
-import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
-import Navigation from "./src/navigation";
-import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
-import useStorageMigration from "./src/common/hooks/useStorageMigration";
+import ThemeProvider from "./src/common/context/ThemeProvider";
 import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
 import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
-import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import useOnboardingTrigger from "./src/common/hooks/useOnboardingTrigger";
+import usePauseAudioOnExit from "./src/common/hooks/usePauseAudioOnExit";
 import usePothiSync from "./src/common/hooks/usePothiSync";
 import useReminderRearm from "./src/common/hooks/useReminderRearm";
 import useSsoSession from "./src/common/hooks/useSsoSession";
+import useStorageMigration from "./src/common/hooks/useStorageMigration";
+import useGlobalDownloadManager from "./src/common/services/globalDownloadManager";
 import useAudioCatalogSync from "./src/common/services/useAudioCatalogSync";
+import toastConfig from "./src/common/toastConfig";
+import { TrackPlayerSetup } from "./src/common/TrackPlayerUtils";
+import Navigation from "./src/navigation";
 import useDashboardSync from "./src/services/dashboard/useDashboardSync";
 import { reportRecentExits } from "./src/services/diagnostics/exitReasons";
 import usePushRegistration from "./src/services/push/usePushRegistration";
@@ -162,9 +162,25 @@ const App = () => {
     }
 
     runSetup().catch(logError);
+    return undefined;
   }, []);
 
   useEffect(() => {
+    // A reminder tapped while the app was fully closed is what launched it.
+    // On Android notifee hands that tap over here; on iOS it arrives as a PRESS
+    // on the foreground handler below, which is why notifee deprecates this
+    // call there. navigateTo holds the destination until the navigator is ready.
+    if (Platform.OS === "android") {
+      notifee
+        .getInitialNotification()
+        .then((initial) => {
+          if (!initial) return undefined;
+          resetBadgeCount();
+          return navigateTo(initial);
+        })
+        .catch(logError);
+    }
+
     const unsubscribe = notifee.onForegroundEvent(async ({ type, detail }) => {
       resetBadgeCount();
       if (type === EventType.PRESS) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import STRINGS from "@common/localization";
 import { chooseBaniFontFace } from "@common/actions";
+import STRINGS from "@common/localization";
 import { constant, showInfoToast } from "@common";
 import { BottomSheetComponent, ListItemComponent } from "./comon";
 import { getBaniFontFaces } from "./comon/strings";
@@ -17,7 +17,10 @@ const BaniFontFaceComponent = () => {
   // Baloo Paaji renders a limited Gurmukhi character set; warn when it's picked
   // for the Bani text so missing glyphs aren't a surprise.
   useEffect(() => {
-    if (baniFontFace === constant.BALOO_PAAJI && prevBaniFontFaceRef.current !== constant.BALOO_PAAJI) {
+    if (
+      baniFontFace === constant.BALOO_PAAJI &&
+      prevBaniFontFaceRef.current !== constant.BALOO_PAAJI
+    ) {
       showInfoToast(STRINGS.baloo_paaji_warning);
     }
     prevBaniFontFaceRef.current = baniFontFace;
@@ -34,18 +37,16 @@ const BaniFontFaceComponent = () => {
         actionConstant={FONT_FACES}
         onPressAction={() => toggleVisible(true)}
       />
-      {isVisible && (
-        <BottomSheetComponent
-          isVisible={isVisible}
-          // Remembered as the reader's own face, which a theme with none of its
-          // own puts back when the reader leaves one that set it.
-          action={chooseBaniFontFace}
-          actionConstant={FONT_FACES}
-          value={baniFontFace}
-          toggleVisible={toggleVisible}
-          title={STRINGS.bani_font_face}
-        />
-      )}
+      <BottomSheetComponent
+        isVisible={isVisible}
+        // Remembered as the reader's own face, which a theme with none of its
+        // own puts back when the reader leaves one that set it.
+        action={chooseBaniFontFace}
+        actionConstant={FONT_FACES}
+        value={baniFontFace}
+        toggleVisible={toggleVisible}
+        title={STRINGS.bani_font_face}
+      />
     </>
   );
 };

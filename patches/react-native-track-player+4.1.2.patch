@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-index b2409a0..ea8db8b 100644
+index b2409a0..af97fa9 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
 @@ -34,6 +34,13 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
@@ -16,9 +16,30 @@ index b2409a0..ea8db8b 100644
      private val scope = MainScope()
      private lateinit var musicService: MusicService
      private val context = reactContext
-@@ -54,7 +61,34 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -52,9 +59,54 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+         scope.launch {
+             // If a binder already exists, don't get a new one
              if (!::musicService.isInitialized) {
-                 val binder: MusicService.MusicBinder = service as MusicService.MusicBinder
+-                val binder: MusicService.MusicBinder = service as MusicService.MusicBinder
++                // The binder is our own MusicBinder only when the service runs in
++                // this process. Seen once on a vivo (Android 16) a second after
++                // launch: the connection handed back a BinderProxy — the service
++                // belonged to another process — and the hard cast killed the app:
++                //   ClassCastException: android.os.BinderProxy cannot be cast to MusicBinder
++                // A proxy can never reach a local service, so audio is unavailable
++                // for this process; fail setup the same way as below. The service
++                // is left unbound (isServiceBound stays false), so every other call
++                // rejects with player_not_initialized instead of touching it.
++                val binder = service as? MusicService.MusicBinder
++                if (binder == null) {
++                    playerSetUpFailed = true
++                    playerSetUpPromise?.reject(
++                        "android_cannot_setup_player",
++                        "Could not set up the player: the playback service is in another process (${service.javaClass.name})"
++                    )
++                    playerSetUpPromise = null
++                    return@launch
++                }
                  musicService = binder.service
 -                musicService.setupPlayer(playerOptions)
 +                try {
@@ -52,7 +73,7 @@ index b2409a0..ea8db8b 100644
                  playerSetUpPromise?.resolve(null)
              }
  
-@@ -161,6 +195,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -161,6 +213,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
  
      @ReactMethod
      fun setupPlayer(data: ReadableMap?, promise: Promise) {
@@ -67,7 +88,7 @@ index b2409a0..ea8db8b 100644
          if (isServiceBound) {
              promise.reject(
                  "player_already_initialized",
-@@ -235,12 +277,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -235,12 +295,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          )
  
          Intent(context, MusicService::class.java).also { intent ->
