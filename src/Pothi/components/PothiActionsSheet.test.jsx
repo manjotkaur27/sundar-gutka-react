@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import React from "react";
+import { Platform } from "react-native";
 
 import { render, fireEvent, within } from "@testing-library/react-native";
 
@@ -7,13 +8,17 @@ import PothiActionsSheet from "./PothiActionsSheet";
 
 // Deleting a pothi asks first, and the ASK has to survive the tap.
 //
-// showConfirm delivers to the innermost mounted ConfirmDialogHost — the one
-// this sheet renders, so that on iOS the dialog is presented by the sheet
-// rather than by the root controller that is already presenting the sheet.
-// That makes the ORDER load-bearing: close the sheet before raising the
-// confirm and React unmounts that host in the same commit, taking the pending
-// dialog with it. No dialog, no delete, on either platform. These pin the
-// order rather than the wording.
+// The sheet closes BEFORE the confirm is raised, so the dialog has nothing
+// underneath it: left open, the system back gesture dismisses the dialog alone
+// and lands the user back on a sheet whose Delete is dead (Android 16 tells the
+// app nothing, so it still believes a dialog is open).
+//
+// The order is delicate because of WHICH host answers. showConfirm delivers to
+// the innermost mounted ConfirmDialogHost, and on iOS that is the one this
+// sheet renders — it unmounts with the sheet, so a confirm raised in the same
+// commit reaches a host that no longer exists and nothing appears. There the
+// ask waits for `onDismiss`. Android has no inner host and asks immediately.
+// These pin that order rather than the wording.
 
 const mockConfirmDelete = jest.fn();
 
@@ -61,9 +66,16 @@ jest.mock("../../common/components/ui", () => {
   const { View, Pressable, Text } = require("react-native");
   const { useScreenRolesScope } = require("@theme/ScreenRolesProvider");
   return {
-    Sheet: ({ children, header, footer, keyboard }) => (
+    Sheet: ({ children, header, footer, keyboard, onDismiss }) => (
       <View testID="sheet">
         <Text testID="sheet-scope">{String(useScreenRolesScope())}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="dismissed"
+          onPress={() => onDismiss?.()}
+        >
+          <Text>dismissed</Text>
+        </Pressable>
         {header}
         {children}
         {footer}
@@ -96,9 +108,16 @@ const renderSheet = (onClose = jest.fn()) => ({
   ...render(<PothiActionsSheet pothi={pothi} visible onClose={onClose} />),
 });
 
+const originalOS = Platform.OS;
+
 beforeEach(() => {
   mockConfirmDelete.mockClear();
   mockIsDefault = false;
+  Platform.OS = "android";
+});
+
+afterEach(() => {
+  Platform.OS = originalOS;
 });
 
 describe("the pothi actions sheet", () => {
@@ -118,43 +137,46 @@ describe("the pothi actions sheet", () => {
     expect(getByTestId("confirm-scope")).toHaveTextContent("null");
   });
 
-  it("raises the confirm without closing the sheet first", () => {
+  // Nothing may be left under the dialog: the system back gesture dismisses the
+  // dialog's window alone, and a sheet still open behind it is what the user
+  // lands on — with a Delete that no longer does anything.
+  it("closes the sheet before asking, on Android", () => {
+    Platform.OS = "android";
     const { getByLabelText, onClose } = renderSheet();
 
     fireEvent.press(getByLabelText("Delete"));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockConfirmDelete).toHaveBeenCalledTimes(1);
+    expect(mockConfirmDelete.mock.calls[0][0]).toEqual(pothi);
+  });
+
+  // iOS answers from the host inside this sheet, which unmounts with it, so the
+  // ask has to wait for the window to be gone and the root host to take over.
+  it("waits for the sheet to be gone before asking, on iOS", () => {
+    Platform.OS = "ios";
+    const { getByLabelText, onClose } = renderSheet();
+
+    fireEvent.press(getByLabelText("Delete"));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockConfirmDelete).not.toHaveBeenCalled();
+
+    fireEvent.press(getByLabelText("dismissed"));
 
     expect(mockConfirmDelete).toHaveBeenCalledTimes(1);
-    // The host that answers belongs to this sheet. Closing here would unmount
-    // it in the same commit and the dialog would never render.
-    expect(onClose).not.toHaveBeenCalled();
+    expect(mockConfirmDelete.mock.calls[0][0]).toEqual(pothi);
   });
 
-  it("passes the targeted pothi, and closes only once the delete is through", () => {
-    const { getByLabelText, onClose } = renderSheet();
+  // A dismissal with no delete pending — the scrim, the back gesture — asks
+  // nothing.
+  it("asks nothing when the sheet is dismissed on its own", () => {
+    Platform.OS = "ios";
+    const { getByLabelText } = renderSheet();
 
-    fireEvent.press(getByLabelText("Delete"));
-    const [target, onDeleted] = mockConfirmDelete.mock.calls[0];
+    fireEvent.press(getByLabelText("dismissed"));
 
-    expect(target).toEqual(pothi);
-    expect(onClose).not.toHaveBeenCalled();
-
-    onDeleted();
-
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  // Backing out of the choice made from the row means backing out of the sheet,
-  // not landing on the same Delete/Rename row again.
-  it("closes the sheet when the delete is cancelled", () => {
-    const { getByLabelText, onClose } = renderSheet();
-
-    fireEvent.press(getByLabelText("Delete"));
-    const [, , onCancelled] = mockConfirmDelete.mock.calls[0];
-    expect(onClose).not.toHaveBeenCalled();
-
-    onCancelled();
-
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockConfirmDelete).not.toHaveBeenCalled();
   });
 
   it("closes the sheet when an untouched rename is cancelled", () => {
@@ -182,5 +204,15 @@ describe("the pothi actions sheet", () => {
 
     expect(queryByLabelText("Rename")).toBeNull();
     expect(queryByLabelText("Delete")).toBeNull();
+  });
+
+  it("renders safely when pothi transitions from null without hook order violation", () => {
+    const { rerender, queryByLabelText } = render(
+      <PothiActionsSheet pothi={null} visible={false} onClose={jest.fn()} />
+    );
+    expect(queryByLabelText("Delete")).toBeNull();
+
+    rerender(<PothiActionsSheet pothi={pothi} visible onClose={jest.fn()} />);
+    expect(queryByLabelText("Delete")).toBeTruthy();
   });
 });

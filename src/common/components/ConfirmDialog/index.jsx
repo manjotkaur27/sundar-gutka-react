@@ -52,167 +52,6 @@ export const showConfirm = (options) => {
   if (innermost) innermost(options);
 };
 
-const ConfirmDialogHost = () => {
-  // Raised from the audio player ("Remove downloaded audio?") as often as from
-  // anywhere else, and then it appears ON the reading page — so over the Reader
-  // it wears the reading theme's surface instead of the app's. Off the Reader
-  // this resolves to the app theme untouched.
-  const { theme } = useReaderScopedTheme("audio", useReaderFocused());
-  const [options, setOptions] = useState(null);
-
-  useEffect(() => {
-    // `setOptions` is stable, so it is its own registration token.
-    hostListeners.push(setOptions);
-    return () => {
-      const at = hostListeners.indexOf(setOptions);
-      if (at !== -1) hostListeners.splice(at, 1);
-    };
-  }, []);
-
-  const close = useCallback(() => setOptions(null), []);
-
-  // Lay the action buttons in a row when they fit; switch to a full-width
-  // vertical stack when they don't. The decision is driven by the *measured*
-  // widths of the actual rendered buttons vs. the available row width, so it
-  // adapts to any system font scale, locale (German/Punjabi labels run long),
-  // or screen size — instead of a hardcoded row that clips "Cancel" off the
-  // card on narrow/large-font devices.
-  const [stacked, setStacked] = useState(false);
-  const rowWidthRef = useRef(0);
-  const btnWidthsRef = useRef({});
-
-  // Re-measure from scratch whenever a new dialog opens (its buttons differ).
-  useEffect(() => {
-    setStacked(false);
-    rowWidthRef.current = 0;
-    btnWidthsRef.current = {};
-  }, [options]);
-
-  const ACTION_GAP = 8;
-  const evaluateLayout = useCallback(() => {
-    if (stacked) return;
-    const widths = Object.values(btnWidthsRef.current);
-    if (!rowWidthRef.current || widths.length === 0) return;
-    const total =
-      widths.reduce((sum, w) => sum + w, 0) + ACTION_GAP * (widths.length - 1);
-    // 1px slack avoids a spurious stack from sub-pixel rounding.
-    if (total > rowWidthRef.current + 1) setStacked(true);
-  }, [stacked]);
-
-  const onRowLayout = useCallback(
-    (e) => {
-      rowWidthRef.current = e.nativeEvent.layout.width;
-      evaluateLayout();
-    },
-    [evaluateLayout]
-  );
-
-  const onBtnLayout = useCallback(
-    (key) => (e) => {
-      // In row mode each button reports its natural (content) width.
-      if (!stacked) {
-        btnWidthsRef.current[key] = e.nativeEvent.layout.width;
-        evaluateLayout();
-      }
-    },
-    [stacked, evaluateLayout]
-  );
-
-  if (!options) return null;
-
-  const {
-    title,
-    message,
-    confirmText = "OK",
-    cancelText,
-    neutralText,
-    destructive = false,
-    onConfirm,
-    onNeutral,
-    onCancel,
-  } = options;
-  // Every way out that is not a choice is a cancel.
-  const cancel = () => {
-    close();
-    onCancel?.();
-  };
-  const surface = theme.c.surfaceElevated;
-  const textColor = theme.c.textPrimary;
-  // `accent`, not `primary`: primary is the fixed brand navy in BOTH themes, so
-  // the confirm label was drawing deep navy on a dark card while the cancel
-  // button beside it used the theme-aware `textBrand`. One pairing for both.
-  const confirmColor = destructive ? theme.c.error : theme.c.accent;
-
-  return (
-    <Overlay animationType="fade" onRequestClose={cancel}>
-      <Pressable style={[styles.backdrop, { backgroundColor: theme.c.scrim }]} onPress={cancel}>
-        {/* Inner Pressable swallows taps so they don't dismiss via the backdrop. */}
-        <Pressable
-          style={[styles.card, { backgroundColor: surface, shadowColor: theme.c.shadow }]}
-          onPress={() => {}}
-        >
-          {!!title && (
-            <CustomText style={[styles.title, { color: textColor }]}>{title}</CustomText>
-          )}
-          {!!message && (
-            <CustomText style={[styles.message, { color: textColor }]}>{message}</CustomText>
-          )}
-          <View
-            style={[styles.actions, stacked && styles.actionsStacked]}
-            onLayout={onRowLayout}
-          >
-            {!!cancelText && (
-              <Pressable
-                style={[styles.btn, stacked && styles.btnStacked]}
-                onPress={cancel}
-                hitSlop={8}
-                onLayout={onBtnLayout("cancel")}
-              >
-                <CustomText style={[styles.btnText, { color: theme.c.textBrand }]}>
-                  {cancelText}
-                </CustomText>
-              </Pressable>
-            )}
-            {!!neutralText && (
-              <Pressable
-                style={[styles.btn, stacked && styles.btnStacked]}
-                hitSlop={8}
-                onLayout={onBtnLayout("neutral")}
-                onPress={() => {
-                  close();
-                  onNeutral?.();
-                }}
-              >
-                <CustomText
-                  style={[
-                    styles.btnText,
-                    // Primary (navy) on a dark grey surface is hard to read, so
-                    // use white in dark mode.
-                    { color: theme.c.textBrand },
-                  ]}
-                >
-                  {neutralText}
-                </CustomText>
-              </Pressable>
-            )}
-            <Pressable
-              style={[styles.btn, stacked && styles.btnStacked]}
-              hitSlop={8}
-              onLayout={onBtnLayout("confirm")}
-              onPress={() => {
-                close();
-                onConfirm?.();
-              }}
-            >
-              <CustomText style={[styles.btnText, { color: confirmColor }]}>{confirmText}</CustomText>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Overlay>
-  );
-};
-
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -284,5 +123,176 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
+
+const ConfirmDialogHost = () => {
+  // Raised from the audio player ("Remove downloaded audio?") as often as from
+  // anywhere else, and then it appears ON the reading page — so over the Reader
+  // it wears the reading theme's surface instead of the app's. Off the Reader
+  // this resolves to the app theme untouched.
+  const { theme } = useReaderScopedTheme("audio", useReaderFocused());
+  // Each request carries its own id, and the window below is keyed by it.
+  //
+  // A dialog can be taken off screen without this host ever hearing: Android 16
+  // dispatches no back key to a Modal, so `onRequestClose` does not fire and the
+  // options stay set while the window is gone. The next `showConfirm` then only
+  // swaps the options of a Modal React still believes is showing, and nothing
+  // appears — the control that raised it reads as dead. A new id remounts the
+  // window, so every request gets a dialog whatever became of the last one.
+  const [request, setRequest] = useState(null);
+  const nextId = useRef(0);
+  const setOptions = useCallback((next) => {
+    nextId.current += 1;
+    setRequest(next ? { id: nextId.current, options: next } : null);
+  }, []);
+  const options = request?.options ?? null;
+
+  useEffect(() => {
+    // `setOptions` is stable, so it is its own registration token.
+    hostListeners.push(setOptions);
+    return () => {
+      const at = hostListeners.indexOf(setOptions);
+      if (at !== -1) hostListeners.splice(at, 1);
+    };
+  }, []);
+
+  const close = useCallback(() => setOptions(null), []);
+
+  // Lay the action buttons in a row when they fit; switch to a full-width
+  // vertical stack when they don't. The decision is driven by the *measured*
+  // widths of the actual rendered buttons vs. the available row width, so it
+  // adapts to any system font scale, locale (German/Punjabi labels run long),
+  // or screen size — instead of a hardcoded row that clips "Cancel" off the
+  // card on narrow/large-font devices.
+  const [stacked, setStacked] = useState(false);
+  const rowWidthRef = useRef(0);
+  const btnWidthsRef = useRef({});
+
+  // Re-measure from scratch whenever a new dialog opens (its buttons differ).
+  useEffect(() => {
+    setStacked(false);
+    rowWidthRef.current = 0;
+    btnWidthsRef.current = {};
+  }, [options]);
+
+  const ACTION_GAP = 8;
+  const evaluateLayout = useCallback(() => {
+    if (stacked) return;
+    const widths = Object.values(btnWidthsRef.current);
+    if (!rowWidthRef.current || widths.length === 0) return;
+    const total = widths.reduce((sum, w) => sum + w, 0) + ACTION_GAP * (widths.length - 1);
+    // 1px slack avoids a spurious stack from sub-pixel rounding.
+    if (total > rowWidthRef.current + 1) setStacked(true);
+  }, [stacked]);
+
+  const onRowLayout = useCallback(
+    (e) => {
+      rowWidthRef.current = e.nativeEvent.layout.width;
+      evaluateLayout();
+    },
+    [evaluateLayout]
+  );
+
+  const onBtnLayout = useCallback(
+    (key) => (e) => {
+      // In row mode each button reports its natural (content) width.
+      if (!stacked) {
+        btnWidthsRef.current[key] = e.nativeEvent.layout.width;
+        evaluateLayout();
+      }
+    },
+    [stacked, evaluateLayout]
+  );
+
+  if (!options) return null;
+
+  const {
+    title,
+    message,
+    confirmText = "OK",
+    cancelText,
+    neutralText,
+    destructive = false,
+    onConfirm,
+    onNeutral,
+    onCancel,
+  } = options;
+  // Every way out that is not a choice is a cancel.
+  const cancel = () => {
+    close();
+    onCancel?.();
+  };
+  const surface = theme.c.surfaceElevated;
+  const textColor = theme.c.textPrimary;
+  // `accent`, not `primary`: primary is the fixed brand navy in BOTH themes, so
+  // the confirm label was drawing deep navy on a dark card while the cancel
+  // button beside it used the theme-aware `textBrand`. One pairing for both.
+  const confirmColor = destructive ? theme.c.error : theme.c.accent;
+
+  return (
+    <Overlay key={request.id} animationType="fade" onRequestClose={cancel}>
+      <Pressable style={[styles.backdrop, { backgroundColor: theme.c.scrim }]} onPress={cancel}>
+        {/* Inner Pressable swallows taps so they don't dismiss via the backdrop. */}
+        <Pressable
+          style={[styles.card, { backgroundColor: surface, shadowColor: theme.c.shadow }]}
+          onPress={() => {}}
+        >
+          {!!title && <CustomText style={[styles.title, { color: textColor }]}>{title}</CustomText>}
+          {!!message && (
+            <CustomText style={[styles.message, { color: textColor }]}>{message}</CustomText>
+          )}
+          <View style={[styles.actions, stacked && styles.actionsStacked]} onLayout={onRowLayout}>
+            {!!cancelText && (
+              <Pressable
+                style={[styles.btn, stacked && styles.btnStacked]}
+                onPress={cancel}
+                hitSlop={8}
+                onLayout={onBtnLayout("cancel")}
+              >
+                <CustomText style={[styles.btnText, { color: theme.c.textBrand }]}>
+                  {cancelText}
+                </CustomText>
+              </Pressable>
+            )}
+            {!!neutralText && (
+              <Pressable
+                style={[styles.btn, stacked && styles.btnStacked]}
+                hitSlop={8}
+                onLayout={onBtnLayout("neutral")}
+                onPress={() => {
+                  close();
+                  onNeutral?.();
+                }}
+              >
+                <CustomText
+                  style={[
+                    styles.btnText,
+                    // Primary (navy) on a dark grey surface is hard to read, so
+                    // use white in dark mode.
+                    { color: theme.c.textBrand },
+                  ]}
+                >
+                  {neutralText}
+                </CustomText>
+              </Pressable>
+            )}
+            <Pressable
+              style={[styles.btn, stacked && styles.btnStacked]}
+              hitSlop={8}
+              onLayout={onBtnLayout("confirm")}
+              onPress={() => {
+                close();
+                onConfirm?.();
+              }}
+            >
+              <CustomText style={[styles.btnText, { color: confirmColor }]}>
+                {confirmText}
+              </CustomText>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Overlay>
+  );
+};
 
 export default ConfirmDialogHost;

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Platform, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
@@ -36,6 +36,33 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
   const [gurmukhi, setGurmukhi] = useState(false);
+  // The sheet closes FIRST, and only then is the confirm raised.
+  //
+  // Left open behind the dialog, it is a second window underneath: the system
+  // back gesture dismisses the dialog's window alone and the sheet is simply
+  // there again — with its Delete now dead, because the app is never told the
+  // dialog went (Android 16 dispatches no back key to it, so `onRequestClose`
+  // never fires) and still believes one is open. With nothing underneath,
+  // backing out of the dialog leaves the screen, which is what it should do.
+  //
+  // WHICH host answers is what makes the order delicate. On iOS the innermost
+  // host is the one this sheet renders (see NEST_OVERLAYS_IN_SHEET), and it
+  // unmounts with the sheet — a confirm raised in the same commit would be
+  // handed to a host that no longer exists, and nothing would appear. So there
+  // the ask waits until the window is actually gone and the root host has taken
+  // over; `onDismiss` is iOS-only and fires exactly then. Android has no inner
+  // host and the root one can always open a Dialog, so it asks straight away.
+  // The same shape the folder screen's overflow uses.
+  const pendingAsk = useRef(null);
+
+  const runPendingAsk = useCallback(() => {
+    const ask = pendingAsk.current;
+    pendingAsk.current = null;
+    // Nothing pending whenever the sheet was closed any other way, which is the
+    // common case.
+    if (ask) ask();
+  }, []);
+
   // Reopening on a different pothi starts from that pothi's current name.
   useEffect(() => {
     if (visible) {
@@ -56,16 +83,16 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
     onClose();
   };
 
-  // The sheet stays OPEN behind the confirm and closes only once the delete is
-  // through — the shape ReminderEditSheet already uses.
-  //
-  // Closing first is what broke it: `showConfirm` goes to the innermost mounted
-  // host, which is the one rendered at the bottom of this sheet, so a confirm
-  // raised in the same tick as `onClose` was handed to a host React unmounted in
-  // that very commit. The dialog never appeared and nothing was deleted, on both
-  // platforms. Cancelling closes the sheet too: the choice was made, and backing
-  // out of it means backing out, not landing on the same Delete/Rename row.
-  const askDelete = () => confirmDelete(pothi, onClose, onClose);
+  const askDelete = () => {
+    const target = pothi;
+    const ask = () => confirmDelete(target);
+    onClose();
+    if (Platform.OS === "ios") {
+      pendingAsk.current = ask;
+      return;
+    }
+    ask();
+  };
 
   // Asked only when there is something to lose. Backing out of a name the
   // user never changed is not a discard, and being questioned about it is one
@@ -108,6 +135,9 @@ const PothiActionsSheet = ({ pothi = null, visible, onClose, startRenaming = fal
       <Sheet
         visible={visible}
         onClose={onClose}
+        // iOS only — where a delete waits for this window to be gone before it
+        // asks. See askDelete.
+        onDismiss={runPendingAsk}
         title={pothi.name}
         // While renaming, the field is fixed at the top and Cancel and Save are
         // fixed at the bottom, above the keys — see SheetActions. The choice
