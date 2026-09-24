@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { navigationRef } from "@common";
+import { navigationRef, logError, startPerformanceTrace, stopTrace, resetTrace } from "@common";
 import AboutScreen from "../AboutScreen";
 import Bookmarks from "../Bookmarks";
 import { trackScreenView } from "../common/firebase/analytics";
@@ -17,30 +17,65 @@ const Stack = createNativeStackNavigator();
 
 const Navigation = () => {
   const routeNameRef = useRef();
+  // Holds the in-flight Firebase Performance trace for the current screen.
+  const trace = useRef(null);
 
-  const handleStateChange = async () => {
+  // Firebase Performance: time each screen. Stop the previous route's trace and
+  // start one for the new route. Best-effort — any failure is logged and
+  // swallowed so perf monitoring never affects navigation.
+  const handlePerformanceTrace = async (state) => {
+    try {
+      if (trace.current) {
+        await stopTrace(trace.current);
+        trace.current = resetTrace();
+      }
+      const currentRouteName = state.routes[state.index].name;
+      trace.current = await startPerformanceTrace(currentRouteName);
+    } catch (error) {
+      // Silently fail - performance monitoring should never crash the app
+      logError(
+        new Error(
+          `Performance trace failed for route: ${state.routes[state.index]?.name || "unknown"} - ${
+            error?.message || "Unknown error"
+          }`
+        )
+      );
+      trace.current = resetTrace();
+    }
+  };
+
+  const handleStateChange = (state) => {
+    // Fire-and-forget — never await Firebase on the navigation state change path
+    handlePerformanceTrace(state).catch(() => {});
+
     const previousRouteName = routeNameRef.current;
-    const currentRouteName = navigationRef.current.getCurrentRoute().name;
-    const currentRoute = navigationRef.current.getCurrentRoute();
+    // Through `isReady()`, never `navigationRef.current` directly. The ref is
+    // only attached between the container mounting and unmounting, and these
+    // callbacks run from the container's own layout effects — so one firing
+    // while the tree is being rebuilt (a rehydration settling, a theme swap)
+    // found `current` null, threw, and the error boundary above replaced the
+    // whole app with its fallback screen.
+    const currentRoute = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
+    if (!currentRoute) return;
+    const currentRouteName = currentRoute.name;
+    routeNameRef.current = currentRouteName;
     if (previousRouteName !== currentRouteName) {
-      await trackScreenView(
+      trackScreenView(
         currentRouteName,
         currentRoute?.params?.key,
         currentRoute?.params?.params?.title
-      );
+      ).catch(() => {});
     }
-    routeNameRef.current = currentRouteName;
   };
 
   return (
     <NavigationContainer
       ref={navigationRef}
       onReady={() => {
-        routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+        const route = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
+        routeNameRef.current = route?.name;
       }}
-      onStateChange={async () => {
-        await handleStateChange();
-      }}
+      onStateChange={handleStateChange}
     >
       <Stack.Navigator
         screenOptions={{
