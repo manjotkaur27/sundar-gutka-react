@@ -111,8 +111,8 @@ android {
         applicationId = "com.WahegurooNetwork.SundarGutka"
         minSdkVersion = rootProject.ext.minSdkVersion
         targetSdkVersion = rootProject.ext.targetSdkVersion
-        versionCode = 180
-        versionName = "6.0.0"
+        versionCode = 190
+        versionName = "7.0.0 "
         ndk {
             abiFilters.addAll(reactNativeArchitectures())
         }
