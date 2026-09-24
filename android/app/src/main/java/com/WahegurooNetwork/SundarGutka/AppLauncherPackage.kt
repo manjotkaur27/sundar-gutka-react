@@ -8,7 +8,6 @@ import com.facebook.react.uimanager.ViewManager
 class AppLauncherPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
       listOf(
-          WebViewAvailabilityModule(reactContext),
           ExitReasonsModule(reactContext),
       )
 

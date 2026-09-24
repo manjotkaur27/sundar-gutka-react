@@ -42,6 +42,8 @@ const handleBeforeLift = () => {
   // Here, not on mount: this is the first point the persisted language is in
   // the store. Read any earlier and every session reports the reducer default.
   setCustomKey("app_language", language || "en-US");
+  // Same reason: only now does the store hold the user's Statistics choice.
+  initializePerformanceMonitoring(store.getState().isStatistics);
 };
 
 const App = () => {
@@ -78,7 +80,6 @@ const App = () => {
       // crash report at all, so without this a phone that keeps losing the app
       // is indistinguishable from one that never opened it.
       await reportRecentExits();
-      await initializePerformanceMonitoring();
       await TrackPlayerSetup();
     };
 

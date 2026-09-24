@@ -147,10 +147,10 @@ index b2409a0..dbe6e7b 100644
      }
  
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index afa6b0f..6fe93c5 100644
+index afa6b0f..407fd02 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -94,8 +94,20 @@ class MusicService : HeadlessJsTaskService() {
+@@ -94,8 +94,22 @@ class MusicService : HeadlessJsTaskService() {
      private var compactCapabilities: List<Capability> = emptyList()
  
      override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -161,9 +161,11 @@ index afa6b0f..6fe93c5 100644
 +            stopSelf(startId)
 +            return START_NOT_STICKY
 +        }
-+        try {
-+            startAndStopEmptyNotificationToAvoidANR()
-+        } catch (e: Exception) {
++        // The helper handles its own exception, so a failed startForeground()
++        // has to be reported back: without this the service went on to start its
++        // headless task and return START_STICKY, the restart this guard is here
++        // to prevent.
++        if (!startAndStopEmptyNotificationToAvoidANR()) {
 +            stopSelf(startId)
 +            return START_NOT_STICKY
 +        }
@@ -172,17 +174,19 @@ index afa6b0f..6fe93c5 100644
          return START_STICKY
      }
  
-@@ -105,24 +117,31 @@ class MusicService : HeadlessJsTaskService() {
+@@ -104,25 +118,34 @@ class MusicService : HeadlessJsTaskService() {
+      * within 5s" ANR and crash by creating an empty notification and stopping it right after. For more
       * information see https://github.com/doublesymmetry/react-native-track-player/issues/1666
       */
-     private fun startAndStopEmptyNotificationToAvoidANR() {
+-    private fun startAndStopEmptyNotificationToAvoidANR() {
 -        val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 -        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 -            notificationManager.createNotificationChannel(
 -                NotificationChannel(getString(TrackPlayerR.string.rntp_temporary_channel_id), getString(TrackPlayerR.string.rntp_temporary_channel_name), NotificationManager.IMPORTANCE_LOW)
 -            )
 -        }
-+        try {
++    private fun startAndStopEmptyNotificationToAvoidANR(): Boolean {
++        return try {
 +            val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 +            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 +                notificationManager.createNotificationChannel(
@@ -207,11 +211,13 @@ index afa6b0f..6fe93c5 100644
 +            startForeground(EMPTY_NOTIFICATION_ID, notification)
 +            @Suppress("DEPRECATION")
 +            stopForeground(true)
++            true
 +        } catch (e: Exception) {
 +            // ForegroundServiceStartNotAllowedException (Android 12+) or any other FGS
 +            // restriction — the OS state does not permit starting a foreground service here.
 +            // Abort the service cleanly instead of crashing.
 +            stopSelf()
++            false
          }
 -        val notification = notificationBuilder.build()
 -        startForeground(EMPTY_NOTIFICATION_ID, notification)

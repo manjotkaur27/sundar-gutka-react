@@ -8,11 +8,14 @@
 import perf from "@react-native-firebase/perf";
 import { logError } from "./crashlytics";
 
-// Enable Performance Monitoring data collection. Call once at app startup
-// (see app.js runSetup, alongside initializeCrashlytics).
-export const initializePerformanceMonitoring = async () => {
+// Turn Performance Monitoring collection on or off to match the user's
+// Statistics setting. Applied once the persisted settings have loaded (app.js
+// handleBeforeLift) and again whenever the setting changes (allowTracking), so
+// someone who opted out gets no screen traces or network timing uploaded. The
+// SDK persists the choice, so it also holds from the start of later launches.
+export const initializePerformanceMonitoring = async (enabled) => {
   try {
-    await perf().setPerformanceCollectionEnabled(true);
+    await perf().setPerformanceCollectionEnabled(Boolean(enabled));
   } catch (error) {
     logError(new Error(`Performance init failed - ${error?.message || "Unknown error"}`));
   }
