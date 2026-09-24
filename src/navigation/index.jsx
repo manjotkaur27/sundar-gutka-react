@@ -74,6 +74,11 @@ const Navigation = () => {
       onReady={() => {
         const route = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
         routeNameRef.current = route?.name;
+        // onStateChange doesn't fire for the initial screen, so start its trace
+        // here; otherwise the first screen of every session has no timing.
+        if (navigationRef.isReady()) {
+          handlePerformanceTrace(navigationRef.getRootState()).catch(() => {});
+        }
       }}
       onStateChange={handleStateChange}
     >

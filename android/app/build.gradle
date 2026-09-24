@@ -182,8 +182,19 @@ android {
 // compiled and a patch-package patch of it can never reach the APK. The guard
 // rewrites the packaged bytecode instead; its javadoc in android/buildSrc says
 // which crashes it addresses and why each one is safe to swallow.
+//
+// Escape hatch for React Native upgrades: -PskipAnimatedCrashGuard (or the same
+// key in gradle.properties) builds without the rewrite and without the version
+// pin below, so an upgrade is not blocked while the guard is re-verified. A build
+// made this way ships WITHOUT the crash fixes - never cut a release with it.
+def skipAnimatedCrashGuard = project.hasProperty("skipAnimatedCrashGuard")
+if (skipAnimatedCrashGuard) {
+    logger.warn("AnimatedCrashGuard is DISABLED (-PskipAnimatedCrashGuard). Do not release this build.")
+}
+
 androidComponents {
     onVariants(selector().all()) { variant ->
+        if (skipAnimatedCrashGuard) return
         variant.instrumentation.transformClassesWith(
             com.sundargutka.gradle.AnimatedCrashGuard.class,
             com.android.build.api.instrumentation.InstrumentationScope.ALL
@@ -219,11 +230,12 @@ tasks.configureEach { task ->
 def guardedReactNativeVersion = "0.78.2"
 def installedReactNativeVersion = new groovy.json.JsonSlurper()
         .parse(file("../../node_modules/react-native/package.json")).version
-if (installedReactNativeVersion != guardedReactNativeVersion) {
+if (!skipAnimatedCrashGuard && installedReactNativeVersion != guardedReactNativeVersion) {
     throw new GradleException(
         "AnimatedCrashGuard was verified against React Native ${guardedReactNativeVersion} " +
         "but ${installedReactNativeVersion} is installed. Re-verify the guard against the " +
-        "new runtime, then update guardedReactNativeVersion in android/app/build.gradle.")
+        "new runtime, then update guardedReactNativeVersion in android/app/build.gradle " +
+        "(or build with -PskipAnimatedCrashGuard until then; not for release).")
 }
 
 dependencies {

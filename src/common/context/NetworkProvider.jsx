@@ -48,9 +48,13 @@ const NetworkProvider = ({ children }) => {
 
     // Seed immediately so the first paint isn't stuck on the default longer
     // than necessary, then keep it live via the subscription.
-    NetInfo.fetch().then((initial) => {
-      if (isMounted) setState(normalize(initial));
-    });
+    NetInfo.fetch()
+      .then((initial) => {
+        if (isMounted) setState(normalize(initial));
+      })
+      // The listener below delivers the state anyway; a failed seed only means
+      // the default holds a moment longer, so don't surface an unhandled rejection.
+      .catch(() => {});
 
     const unsubscribe = NetInfo.addEventListener((next) => {
       if (isMounted) setState(normalize(next));

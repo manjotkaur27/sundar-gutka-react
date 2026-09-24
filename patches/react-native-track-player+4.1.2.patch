@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-index b2409a0..af97fa9 100644
+index b2409a0..c9418a6 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-@@ -34,6 +34,13 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -34,6 +34,17 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
      private var playerOptions: Bundle? = null
      private var isServiceBound = false
      private var playerSetUpPromise: Promise? = null
@@ -12,11 +12,15 @@ index b2409a0..af97fa9 100644
 +    // setupPlayer() sees isServiceBound and answers player_already_initialized,
 +    // which the JS side reads as success — leaving an audio player on screen
 +    // that can never play anything.
++    //
++    // Deliberately never cleared, including by reset/destroy: the causes it
++    // records (a cross-process binder, a cloned install) last for the life of
++    // the process, so the only recovery is a process restart.
 +    private var playerSetUpFailed = false
      private val scope = MainScope()
      private lateinit var musicService: MusicService
      private val context = reactContext
-@@ -52,9 +59,54 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -52,9 +63,54 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          scope.launch {
              // If a binder already exists, don't get a new one
              if (!::musicService.isInitialized) {
@@ -73,7 +77,7 @@ index b2409a0..af97fa9 100644
                  playerSetUpPromise?.resolve(null)
              }
  
-@@ -161,6 +213,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -161,6 +217,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
  
      @ReactMethod
      fun setupPlayer(data: ReadableMap?, promise: Promise) {
@@ -88,7 +92,7 @@ index b2409a0..af97fa9 100644
          if (isServiceBound) {
              promise.reject(
                  "player_already_initialized",
-@@ -235,12 +295,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -235,12 +299,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          )
  
          Intent(context, MusicService::class.java).also { intent ->
