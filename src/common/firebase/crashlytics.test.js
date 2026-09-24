@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { recordError } from "@react-native-firebase/crashlytics";
+import { log, recordError } from "@react-native-firebase/crashlytics";
 import { logError } from "./crashlytics";
 
 jest.mock("@react-native-firebase/crashlytics", () => ({
@@ -14,6 +14,7 @@ jest.mock("@react-native-firebase/crashlytics", () => ({
 describe("logError", () => {
   beforeEach(() => {
     recordError.mockClear();
+    log.mockClear();
   });
 
   it("records a real Error as-is", () => {
@@ -28,16 +29,44 @@ describe("logError", () => {
     expect(recorded.message).toBe("Non-Error exception: useDatabaseUpdateCheck");
   });
 
-  it("regression: logError(context, error) must not swallow the real error", () => {
+  it("logError(context, error) records the real error itself, context as a breadcrumb", () => {
     // Many call sites use this two-arg form, e.g.
-    // logError("useDatabaseUpdateCheck", error). Before the fix, the second
-    // argument was dropped entirely and the context string was recorded as
-    // if it were the whole error, losing the real failure's message.
-    const realError = new Error("network request failed");
+    // logError("useDatabaseUpdateCheck", error). The real error keeps its own
+    // stack (so the issue groups where it failed); the context rides along.
+    const realError = new Error("database disk image is malformed");
     logError("useDatabaseUpdateCheck", realError);
+    expect(recordError).toHaveBeenCalledWith(expect.anything(), realError);
+    expect(log).toHaveBeenCalledWith(expect.anything(), "useDatabaseUpdateCheck");
+  });
+
+  it("logError(context, offlineError) leaves a breadcrumb instead of an issue", () => {
+    logError("useDatabaseUpdateCheck", new TypeError("Network request failed"));
+    expect(recordError).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(
+      expect.anything(),
+      "useDatabaseUpdateCheck: Network request failed"
+    );
+  });
+
+  it("a native-module rejection is recorded per call site, context in the title", () => {
+    const rejection = new Error("The player is not initialized.");
+    rejection.code = "player_not_initialized";
+    rejection.nativeStackAndroid = [];
+    logError("useTrackPlayer seek failed", rejection);
     const recorded = recordError.mock.calls[0][1];
-    expect(recorded.message).toContain("network request failed");
-    expect(recorded.message).toContain("useDatabaseUpdateCheck");
+    expect(recorded).not.toBe(rejection);
+    expect(recorded.message).toBe(
+      "useTrackPlayer seek failed: The player is not initialized. (code: player_not_initialized)"
+    );
+    expect(recorded.cause).toBe(rejection);
+  });
+
+  it("error boundary: onError(error, componentStack) records the error, not the stack text", () => {
+    const renderError = new Error("Cannot read property 'x' of undefined");
+    const componentStack = "\n    in Reader\n    in Stack\n    in App";
+    logError(renderError, componentStack);
+    expect(recordError).toHaveBeenCalledWith(expect.anything(), renderError);
+    expect(log).toHaveBeenCalledWith(expect.anything(), componentStack);
   });
 
   it("combines a string context with a non-Error extra value", () => {

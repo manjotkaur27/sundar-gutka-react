@@ -116,12 +116,68 @@ export const logMessage = (message) => {
 // "context, error" pair (many call sites do `logError("X failed:", err)`) —
 // without this second form the context string was recorded as the whole
 // error and the real `err` (and its message/stack) was silently dropped.
+//
+// Whichever argument is a real Error is recorded AS ITSELF, so its own stack
+// decides where the issue groups; the other argument becomes a breadcrumb.
+// This matters for the error boundary, which calls onError(error,
+// componentStack): folding that ever-changing component stack into a new
+// Error's message pointed every render crash at this file and split each one
+// into many issues.
+const MAX_BREADCRUMB_LENGTH = 1000;
+const breadcrumb = (value) => {
+  try {
+    const text = value instanceof Error ? value.message : describeNonError(value);
+    log(crashlytics, text.slice(0, MAX_BREADCRUMB_LENGTH));
+  } catch {
+    // A breadcrumb is best-effort.
+  }
+};
+
+// A rejection from a native module (React Native gives these a native stack
+// and userInfo). Its JS stack is the bridge's, the same whichever call failed,
+// so recorded as-is, failures from different callers (play, pause, seek, ...)
+// would all merge into one issue.
+const isNativeRejection = (err) =>
+  err instanceof Error &&
+  (Array.isArray(err.nativeStackAndroid) ||
+    Array.isArray(err.nativeStackIOS) ||
+    err.userInfo !== undefined);
+
 export const logError = (error, extra) => {
   try {
     if (extra !== undefined) {
-      const detail = extra instanceof Error ? extra.message : describeNonError(extra);
-      const prefix = error instanceof Error ? error.message : describeNonError(error);
-      recordError(crashlytics, new Error(`${prefix} ${detail}`));
+      // A phone with no connection is not a bug (see logNetworkError). Callers
+      // written as logError("X failed", err) get the same treatment: a
+      // breadcrumb, not an issue, so an offline launch doesn't file one per
+      // call site that fetches.
+      if (isNetworkFailure(extra)) {
+        breadcrumb(
+          `${describeNonError(error)}: ${
+            extra instanceof Error ? extra.message : describeNonError(extra)
+          }`
+        );
+        return;
+      }
+      if (extra instanceof Error) {
+        if (isNativeRejection(extra) && !(error instanceof Error)) {
+          // Made here, so its stack is the caller's and each call site groups on
+          // its own; the context names the call and the original rides as cause.
+          const code = extra.code !== undefined ? ` (code: ${extra.code})` : "";
+          const recorded = new Error(`${describeNonError(error)}: ${extra.message}${code}`);
+          recorded.cause = extra;
+          recordError(crashlytics, recorded);
+          return;
+        }
+        breadcrumb(error);
+        recordError(crashlytics, extra);
+        return;
+      }
+      if (error instanceof Error) {
+        breadcrumb(extra);
+        recordError(crashlytics, error);
+        return;
+      }
+      recordError(crashlytics, new Error(`${describeNonError(error)} ${describeNonError(extra)}`));
       return;
     }
     if (error instanceof Error) {

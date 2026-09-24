@@ -187,14 +187,18 @@ android {
 // key in gradle.properties) builds without the rewrite and without the version
 // pin below, so an upgrade is not blocked while the guard is re-verified. A build
 // made this way ships WITHOUT the crash fixes, so release tasks refuse it.
-def skipAnimatedCrashGuard = project.hasProperty("skipAnimatedCrashGuard")
+// On for -PskipAnimatedCrashGuard or =true; skipAnimatedCrashGuard=false (e.g.
+// left in gradle.properties) keeps the guard on.
+def skipAnimatedCrashGuardValue = project.findProperty("skipAnimatedCrashGuard")?.toString()?.trim()?.toLowerCase()
+def skipAnimatedCrashGuard = skipAnimatedCrashGuardValue != null && (skipAnimatedCrashGuardValue == "" || skipAnimatedCrashGuardValue == "true")
 if (skipAnimatedCrashGuard) {
-    // Refused for anything that builds the release variant (assembleRelease,
-    // bundleRelease, but also plain `assemble`/`build`), so the flag cannot ship a
-    // build that lacks the crash fixes this guard exists for.
+    // Refused for anything that packages or installs the release variant
+    // (assembleRelease, bundleRelease, packageRelease, installRelease, and the
+    // same for any future flavor; plain `assemble`/`build` pull these in too), so
+    // the flag cannot ship a build that lacks the crash fixes this guard exists for.
     gradle.taskGraph.whenReady { graph ->
         def releaseTasks = graph.allTasks.findAll {
-            it.project == project && (it.name == "assembleRelease" || it.name == "bundleRelease")
+            it.project == project && it.name ==~ /(assemble|bundle|package|install)\w*Release/
         }
         if (!releaseTasks.isEmpty()) {
             throw new GradleException(
