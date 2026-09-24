@@ -10,6 +10,9 @@ import {
   copyFile,
   copyFileAssets,
   unlink,
+  moveFile,
+  stat,
+  hash as fileHash,
 } from "react-native-fs";
 import { constant, logError, logMessage, logNetworkError } from "@common";
 
@@ -80,19 +83,42 @@ const readHashFile = async (path) => {
  * written last, so the copy simply retried and failed the same way on every
  * later launch.
  */
-const replace = async (destination, copy) => {
+//
+// The new file is copied to a staging path first and only swapped in once the
+// copy has completed (and, for the DB, matches the bundled checksum). A failed
+// or short copy — no space left, an interrupted write — then leaves the
+// existing database untouched instead of deleting it and leaving nothing.
+const replace = async (destination, copyTo, expectedMd5) => {
+  const staged = `${destination}.incoming`;
+  if (await exists(staged)) await unlink(staged);
+  try {
+    await copyTo(staged);
+    const { size } = await stat(staged);
+    if (!(Number(size) > 0)) throw new Error(`staged copy of ${destination} is empty`);
+    if (expectedMd5) {
+      const actual = await fileHash(staged, "md5");
+      if (actual !== expectedMd5) {
+        throw new Error(`staged copy of ${destination} failed its checksum`);
+      }
+    }
+  } catch (err) {
+    if (await exists(staged)) await unlink(staged).catch(() => {});
+    throw err;
+  }
   if (await exists(destination)) await unlink(destination);
-  await copy();
+  await moveFile(staged, destination);
 };
 
 const copyBundledDb = async (bundledMd5) => {
   if (Platform.OS === "android") {
-    await replace(LOCAL_DB_PATH, () => copyFileAssets(ASSET_DB_PATH, LOCAL_DB_PATH));
-    await replace(LOCAL_MD5_PATH, () => copyFileAssets(ASSET_MD5_PATH, LOCAL_MD5_PATH));
+    await replace(LOCAL_DB_PATH, (to) => copyFileAssets(ASSET_DB_PATH, to), bundledMd5);
+    await replace(LOCAL_MD5_PATH, (to) => copyFileAssets(ASSET_MD5_PATH, to));
   } else {
-    await replace(LOCAL_DB_PATH, () => copyFile(BUNDLED_DB_PATH, LOCAL_DB_PATH));
-    await replace(LOCAL_MD5_PATH, () => copyFile(BUNDLED_MD5_PATH, LOCAL_MD5_PATH));
+    await replace(LOCAL_DB_PATH, (to) => copyFile(BUNDLED_DB_PATH, to), bundledMd5);
+    await replace(LOCAL_MD5_PATH, (to) => copyFile(BUNDLED_MD5_PATH, to));
   }
+  // Written only after both files are in place, so an interrupted refresh is
+  // simply retried on the next launch.
   if (bundledMd5) await writeFile(BUNDLED_MARKER_PATH, bundledMd5);
 };
 

@@ -111,6 +111,20 @@ describe("logNetworkError", () => {
     expect(mockRecordError.mock.calls[0][1].message).toBe("upstream exploded");
   });
 
+  it("keeps the original error's frames, code and cause", () => {
+    const original = new Error("boom");
+    original.code = "E_DB";
+    original.stack = "Error: boom\n    at readConfig (sevaConfig.js:10:5)";
+    logNetworkError("getSevaConfig failed: boom", original);
+
+    const recorded = mockRecordError.mock.calls[0][1];
+    expect(recorded.message).toBe("getSevaConfig failed: boom (code: E_DB)");
+    expect(recorded.stack).toBe(
+      "Error: getSevaConfig failed: boom (code: E_DB)\n    at readConfig (sevaConfig.js:10:5)"
+    );
+    expect(recorded.cause).toBe(original);
+  });
+
   it("does not change logError itself", () => {
     logError(new Error("Network request failed"));
 

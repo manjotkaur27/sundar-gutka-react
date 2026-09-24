@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-index b2409a0..c9418a6 100644
+index b2409a0..dbe6e7b 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
-@@ -34,6 +34,17 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -34,6 +34,18 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
      private var playerOptions: Bundle? = null
      private var isServiceBound = false
      private var playerSetUpPromise: Promise? = null
@@ -17,10 +17,11 @@ index b2409a0..c9418a6 100644
 +    // records (a cross-process binder, a cloned install) last for the life of
 +    // the process, so the only recovery is a process restart.
 +    private var playerSetUpFailed = false
++    private var musicEvents: MusicEvents? = null
      private val scope = MainScope()
      private lateinit var musicService: MusicService
      private val context = reactContext
-@@ -52,9 +63,54 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -52,9 +64,59 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
          scope.launch {
              // If a binder already exists, don't get a new one
              if (!::musicService.isInitialized) {
@@ -71,13 +72,18 @@ index b2409a0..c9418a6 100644
 +                        "Could not set up the player: ${e.message}"
 +                    )
 +                    playerSetUpPromise = null
-+                    isServiceBound = true
++                    // Left unbound, as in the binder == null branch above: the
++                    // service's player was never created, so any call that got
++                    // past verifyServiceBoundOrReject would touch an uninitialized
++                    // player and crash. playerSetUpFailed already stops a retry
++                    // from reporting player_already_initialized.
++                    isServiceBound = false
 +                    return@launch
 +                }
                  playerSetUpPromise?.resolve(null)
              }
  
-@@ -161,6 +217,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+@@ -161,6 +223,14 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
  
      @ReactMethod
      fun setupPlayer(data: ReadableMap?, promise: Promise) {
@@ -92,8 +98,25 @@ index b2409a0..c9418a6 100644
          if (isServiceBound) {
              promise.reject(
                  "player_already_initialized",
-@@ -235,12 +299,25 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
-         )
+@@ -229,18 +299,38 @@ class MusicModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
+         playerOptions = bundledData
+ 
+ 
+-        LocalBroadcastManager.getInstance(context).registerReceiver(
+-            MusicEvents(context),
+-            IntentFilter(EVENT_INTENT)
+-        )
++        // One receiver per module: setupPlayer can now be retried after a failed
++        // service start, and registering again on each attempt would deliver
++        // every player event to JS once per retry.
++        if (musicEvents == null) {
++            musicEvents = MusicEvents(context).also {
++                LocalBroadcastManager.getInstance(context).registerReceiver(
++                    it,
++                    IntentFilter(EVENT_INTENT)
++                )
++            }
++        }
  
          Intent(context, MusicService::class.java).also { intent ->
 -            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

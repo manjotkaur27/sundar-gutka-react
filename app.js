@@ -39,6 +39,9 @@ const handleBeforeLift = () => {
   if (language) {
     STRINGS.setLanguage(language);
   }
+  // Here, not on mount: this is the first point the persisted language is in
+  // the store. Read any earlier and every session reports the reducer default.
+  setCustomKey("app_language", language || "en-US");
 };
 
 const App = () => {
@@ -55,10 +58,8 @@ const App = () => {
           userId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
           await AsyncStorage.setItem("analytics_user_id", userId);
         }
-        const { language } = store.getState();
         setCustomKey({
           user_id: userId,
-          app_language: language || "en-US",
           platform: Platform.OS,
           device_type: Platform.isPad === true ? "tablet" : "phone",
         });

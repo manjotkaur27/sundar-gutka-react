@@ -155,11 +155,26 @@ export const logError = (error, extra) => {
  *   goes, so it must be the original — not the message built from it.
  */
 export const logNetworkError = (message, error) => {
+  const text = message instanceof Error ? message.message : String(message);
   if (isNetworkFailure(error)) {
-    logMessage(message instanceof Error ? message.message : String(message));
+    logMessage(text);
     return;
   }
-  logError(message instanceof Error ? message : new Error(String(message)));
+  if (!(error instanceof Error)) {
+    logError(message instanceof Error ? message : new Error(text));
+    return;
+  }
+  // Keep the call site's text as the title, so the issue groups where it always
+  // did, but carry the ORIGINAL error's frames, code and cause: those say where
+  // it actually failed, which a fresh Error made here would not.
+  const code = error.code !== undefined ? ` (code: ${error.code})` : "";
+  const recorded = new Error(`${text}${code}`);
+  if (typeof error.stack === "string") {
+    const frames = error.stack.split("\n").slice(1).join("\n");
+    recorded.stack = `Error: ${recorded.message}${frames ? `\n${frames}` : ""}`;
+  }
+  recorded.cause = error;
+  logError(recorded);
 };
 
 // Test function to force a crash

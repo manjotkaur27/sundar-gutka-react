@@ -44,9 +44,19 @@ const Navigation = () => {
     }
   };
 
+  // Trace updates run one after another. Fired independently, two quick screen
+  // changes both stopped the same trace (the second stop reported as a failure)
+  // and both started one, leaving a trace that was never stopped.
+  const traceQueue = useRef(Promise.resolve());
+  const queuePerformanceTrace = (state) => {
+    traceQueue.current = traceQueue.current
+      .then(() => handlePerformanceTrace(state))
+      .catch(() => {});
+  };
+
   const handleStateChange = (state) => {
     // Fire-and-forget — never await Firebase on the navigation state change path
-    handlePerformanceTrace(state).catch(() => {});
+    queuePerformanceTrace(state);
 
     const previousRouteName = routeNameRef.current;
     // Through `isReady()`, never `navigationRef.current` directly. The ref is
@@ -77,7 +87,7 @@ const Navigation = () => {
         // onStateChange doesn't fire for the initial screen, so start its trace
         // here; otherwise the first screen of every session has no timing.
         if (navigationRef.isReady()) {
-          handlePerformanceTrace(navigationRef.getRootState()).catch(() => {});
+          queuePerformanceTrace(navigationRef.getRootState());
         }
       }}
       onStateChange={handleStateChange}

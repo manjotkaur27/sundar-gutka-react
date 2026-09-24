@@ -186,9 +186,23 @@ android {
 // Escape hatch for React Native upgrades: -PskipAnimatedCrashGuard (or the same
 // key in gradle.properties) builds without the rewrite and without the version
 // pin below, so an upgrade is not blocked while the guard is re-verified. A build
-// made this way ships WITHOUT the crash fixes - never cut a release with it.
+// made this way ships WITHOUT the crash fixes, so release tasks refuse it.
 def skipAnimatedCrashGuard = project.hasProperty("skipAnimatedCrashGuard")
 if (skipAnimatedCrashGuard) {
+    // Refused for anything that builds the release variant (assembleRelease,
+    // bundleRelease, but also plain `assemble`/`build`), so the flag cannot ship a
+    // build that lacks the crash fixes this guard exists for.
+    gradle.taskGraph.whenReady { graph ->
+        def releaseTasks = graph.allTasks.findAll {
+            it.project == project && (it.name == "assembleRelease" || it.name == "bundleRelease")
+        }
+        if (!releaseTasks.isEmpty()) {
+            throw new GradleException(
+                "-PskipAnimatedCrashGuard cannot be used to build a release " +
+                "(${releaseTasks*.name.join(', ')}). Re-verify the guard against the installed " +
+                "React Native instead.")
+        }
+    }
     logger.warn("AnimatedCrashGuard is DISABLED (-PskipAnimatedCrashGuard). Do not release this build.")
 }
 
