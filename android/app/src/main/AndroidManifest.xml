@@ -74,5 +74,17 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="true"
             tools:replace="android:exported" />
+
+        <!-- React Native's own manifest sets this to false, which is right only
+             while SoLoader is initialised WITHOUT the merged-library mapping:
+             SoLoader then steps aside and the plain system loader takes over.
+             MainApplication initialises it WITH the mapping, so SoLoader is the
+             loader either way, and leaving this false means the flags passed at
+             init are read against a SoLoader that has just switched itself off.
+             See the startup-crash recovery flag in MainApplication. -->
+        <meta-data
+            android:name="com.facebook.soloader.enabled"
+            android:value="true"
+            tools:replace="android:value" />
     </application>
 </manifest>
