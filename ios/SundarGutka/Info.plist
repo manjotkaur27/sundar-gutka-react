@@ -89,11 +89,38 @@
 	<array>
 		<string>arm64</string>
 	</array>
-	<key>UIRequiresFullScreen</key>
-	<true/>
+	<!-- Scene lifecycle. Apps built with the iOS 27 SDK that do not adopt it are
+	     refused at launch on iOS 27 ("UIScene life cycle is required for apps
+	     built with this SDK"), on every device. The window is created by
+	     SceneDelegate in AppDelegate.swift. One scene only: the app keeps a
+	     single reading session, it does not open side-by-side copies of itself.
+	     See Apple TN3187. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<!-- No UIRequiresFullScreen, and every orientation: both are what a
+	     resizable window requires (Apple TN3192). The key is deprecated from
+	     iPadOS 26, stops opting out of resizing from iOS 27, and while set it
+	     held the app in a compatibility window on iPad and on folding iPhones
+	     instead of using the whole display. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>

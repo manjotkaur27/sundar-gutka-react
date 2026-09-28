@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, View } from "react-native";
 import PropTypes from "prop-types";
+import { foldableTopSpace, useFoldableInsetTop } from "@common/deviceForm";
 import { BackArrowIcon } from "@common/icons";
 import useTokens from "../../hooks/useTokens";
 import Text from "./Text";
@@ -28,7 +29,9 @@ import Text from "./Text";
 // Top clearance comes from `layout.header.topClearance` — the same token the
 // Reader's header reads — so every header in the app starts its content at the
 // same height. It is not the safe-area inset: this app hides the status bar, so
-// the inset reserved room for a bar that was not drawn.
+// the inset reserved room for a bar that was not drawn. A foldable is the one
+// exception, and gives back whatever of it its cutout does not need — see
+// deviceForm.js.
 //
 // ── Foreground ─────────────────────────────────────────────────────────────
 // The title and the back arrow take `c.headerFg` — brand navy in light, white
@@ -48,6 +51,10 @@ const ScreenHeader = ({
   testID = undefined,
 }) => {
   const { c, space, layout } = useTokens();
+  // A foldable gives back whatever of the fixed clearance its cutout does not
+  // need; null everywhere else, which keeps the fixed clearance. See
+  // deviceForm.js.
+  const foldableInsetTop = useFoldableInsetTop();
   // Width of the trailing slot, measured rather than assumed.
   //
   // The title is centred by the two sides being EQUAL — the middle column is
@@ -71,7 +78,10 @@ const ScreenHeader = ({
       testID={testID}
       style={{
         backgroundColor: c[surface] ?? surface,
-        paddingTop: layout.header.topClearance,
+        paddingTop:
+          foldableInsetTop === null
+            ? layout.header.topClearance
+            : foldableTopSpace(foldableInsetTop, layout.header.topClearance),
         borderBottomWidth: showBorder ? layout.borderWidth.hairline : 0,
         borderBottomColor: c.border,
       }}

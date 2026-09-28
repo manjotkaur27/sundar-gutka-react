@@ -349,3 +349,29 @@ describe("createDiv", () => {
     );
   });
 });
+
+describe("loadHTML page top margin", () => {
+  const withMargin = (pageTopMargin) =>
+    loadHTML(
+      SHABAD,
+      true,
+      "SMALL",
+      "GurbaniAkharTrue",
+      true,
+      false,
+      false,
+      light,
+      false,
+      pageTopMargin
+    );
+
+  it("keeps the 50px body margin when none is given", () => {
+    expect(withMargin(undefined)).toContain("margin-top:50px;");
+  });
+
+  it("uses the margin it is given", () => {
+    const out = withMargin(78);
+    expect(out).toContain("margin-top:78px;");
+    expect(out).not.toContain("margin-top:50px;");
+  });
+});

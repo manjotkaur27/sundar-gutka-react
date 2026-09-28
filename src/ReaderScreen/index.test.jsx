@@ -6,6 +6,8 @@ import { AppState } from "react-native";
 
 import { render, waitFor, act } from "@testing-library/react-native";
 
+import { trackNavBar } from "@common";
+
 import Reader from "./index";
 
 // -------------------- MOCKS --------------------
@@ -572,6 +574,62 @@ describe("Reader", () => {
     expect(onMessage).toBeDefined();
   });
 
+  // Reaching the top or the end of the bani brings the header and bottom
+  // navigation back, however the reader got there.
+  it("shows the bars again when the page reaches the top or end of the bani", () => {
+    const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
+    const { onMessage } = getByTestId("webview").props;
+
+    act(() => {
+      onMessage({ nativeEvent: { data: "hide" } });
+    });
+    trackNavBar.mockClear();
+    act(() => {
+      onMessage({ nativeEvent: { data: "scroll-progress-1.0000" } });
+      onMessage({ nativeEvent: { data: "edge" } });
+    });
+
+    expect(trackNavBar).toHaveBeenCalledWith(true, "scroll_edge", expect.any(String));
+  });
+
+  // Auto-scroll stops at the end but stays switched on; its idle auto-hide must
+  // not take the bars away again while the page rests there.
+  it("keeps the bars up at the end of the bani while auto-scroll is on", () => {
+    jest.useFakeTimers();
+    try {
+      mockState.isAutoScroll = true;
+      const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
+      const { onMessage } = getByTestId("webview").props;
+
+      act(() => {
+        onMessage({ nativeEvent: { data: "hide" } });
+        onMessage({ nativeEvent: { data: "scroll-progress-1.0000" } });
+        onMessage({ nativeEvent: { data: "edge" } });
+      });
+      trackNavBar.mockClear();
+      act(() => {
+        jest.advanceTimersByTime(10000);
+      });
+
+      expect(trackNavBar).not.toHaveBeenCalledWith(false, "auto_hide_idle", expect.any(String));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not report an edge when the bars are already showing", () => {
+    const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
+    const { onMessage } = getByTestId("webview").props;
+
+    trackNavBar.mockClear();
+    act(() => {
+      onMessage({ nativeEvent: { data: "edge" } });
+    });
+
+    // A bani opens with the bars up, so there is nothing to change.
+    expect(trackNavBar).not.toHaveBeenCalled();
+  });
+
   it("handles WebView messages - scroll-elementId", () => {
     const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
 
@@ -783,6 +841,24 @@ describe("Reader", () => {
     await waitFor(() => {
       expect(getByTestId("webview")).toBeTruthy();
     });
+  });
+
+  // The page margin is only ever adjusted live on a foldable. The test
+  // environment does not fold, so the page must never be told to move.
+  it("never sends a top-margin change on a phone that does not fold", async () => {
+    mockPostMessage.mockClear();
+    const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
+    await waitFor(() => {
+      expect(getByTestId("webview")).toBeTruthy();
+    });
+    const topMarginCalls = mockPostMessage.mock.calls.filter(([raw]) => {
+      try {
+        return JSON.parse(raw).action === "setTopMargin";
+      } catch (_) {
+        return false;
+      }
+    });
+    expect(topMarginCalls).toHaveLength(0);
   });
 
   it("handles WebView error", () => {

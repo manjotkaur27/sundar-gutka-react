@@ -1,6 +1,7 @@
 import { Image, Platform } from "react-native";
 import { constant } from "@common";
 import script from "./gutkaScript";
+import { PAGE_TOP_MARGIN } from "./topLayout";
 
 const getFontFaceURL = (fontFace) => {
   const fileUri = Platform.select({
@@ -162,7 +163,14 @@ const borderCss = (border, groundColor) => {
 };
 
 // `readerTheme` is a resolved reading-theme record, not the app theme.
-const htmlTemplate = (backColor, fontFace, content, readerTheme) => `<!DOCTYPE html>
+// `pageTopMargin` is the body's top margin — see topLayout.js.
+const htmlTemplate = (
+  backColor,
+  fontFace,
+  content,
+  readerTheme,
+  pageTopMargin = PAGE_TOP_MARGIN
+) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -191,7 +199,7 @@ const htmlTemplate = (backColor, fontFace, content, readerTheme) => `<!DOCTYPE h
     body {
       background-color: ${backColor};
       word-break: break-word;
-      margin-top:50px;
+      margin-top:${pageTopMargin}px;
     }
     ${backgroundImageCss(readerTheme.background)}
     ${borderCss(readerTheme.border, backColor)}

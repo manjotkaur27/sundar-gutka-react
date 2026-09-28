@@ -43,6 +43,11 @@ let syncScrollUntil = 0;
 // previously-saved position on load/refocus), whereas audio sync-scroll must.
 let restoreScrollUntil = 0;
 
+// Whether the page was last seen resting at the very top or the very end of
+// the bani. Arriving at either edge brings the bars back ("edge"), once per
+// arrival: this is what makes it an arrival rather than every tick spent there.
+let wasAtEdge = false;
+
 // Where the reader was before the last reflow: the line at the top of the
 // viewport, and how far down the viewport it sat. Captured by the scroll
 // handler while the layout is stable, and used by the resize handler to put
@@ -190,6 +195,7 @@ const scrollFunc=(e)=> {
 
   // ── Scroll progress — bridge message on every scroll tick, except during a
   // position-restore jump (see restoreScrollUntil) which isn't genuine reading ──
+  var arrivedAtEdge = false;
   if (!reflowing && Date.now() > restoreScrollUntil) {
     var sh = document.documentElement.scrollHeight;
     var ch = window.innerHeight;
@@ -206,6 +212,11 @@ const scrollFunc=(e)=> {
       if (pct < 0) pct = 0;
       if (pct > 1) pct = 1;
       window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
+      // Measured here, behind the same guard as progress, so a position-restore
+      // jump or a reflow never counts as reaching the top or the end.
+      var atEdge = pct <= 0 || pct >= 1;
+      arrivedAtEdge = atEdge && !wasAtEdge;
+      wasAtEdge = atEdge;
     }
   }
 
@@ -216,15 +227,24 @@ const scrollFunc=(e)=> {
   // delta it produces reads as a deliberate scroll up — which brought the bars
   // back every time the phone was rotated, and took the progress track up with
   // them onto a nav bar the reader had hidden.
-  if (!reflowing && autoScrollSpeed == 0 && Date.now() > syncScrollUntil) {
+  if (arrivedAtEdge) {
+    // Reaching the top or the end of the bani shows the header and nav bar,
+    // in place of this tick's hide or show — scrolling down onto the last line
+    // would otherwise hide them at exactly the moment the reader is done.
+    // Posted during auto-scroll too, which stops at the end with the bars up.
+    window.ReactNativeWebView.postMessage("edge");
+  } else if (!reflowing && autoScrollSpeed == 0 && Date.now() > syncScrollUntil) {
     let diffY = scrollFunc.y - window.pageYOffset;
     // Scroll direction drives the bars: scrolling DOWN hides them, scrolling UP
     // restores them together. (A tap also toggles — see the touch handlers
     // below.) The syncScrollUntil guard keeps audio-sync/position-restore
     // scrolls from flickering the bars.
     if (diffY < -3) {
-      // Scroll down
-      window.ReactNativeWebView.postMessage("hide");
+      // Scroll down — except while resting at the end. 100% is reached before
+      // the page stops: the blank bottom inset (body padding-bottom) is still
+      // scrollable, so a fling carries on through it, and each of those ticks
+      // would take away the bars "edge" has just brought back.
+      if (!wasAtEdge) window.ReactNativeWebView.postMessage("hide");
     } else if (diffY > 3) {
       // Scroll up
       window.ReactNativeWebView.postMessage("show");
@@ -531,6 +551,25 @@ ${listener}.addEventListener(
       var inset = parseFloat(message.value);
       if (!isNaN(inset) && inset >= 0) {
         document.body.style.paddingBottom = inset + "px";
+      }
+      return;
+    }
+    if (message.hasOwnProperty("action") && message.action === "setTopMargin") {
+      // A foldable's page margin follows the top inset, which changes when the
+      // phone is folded or unfolded. Applied here rather than baked into the
+      // HTML, because rebuilding the HTML reloads the page and loses the
+      // reader's line. The margin sits above every line, so the page scrolls by
+      // the same amount it grew and the text stays exactly where it was.
+      var nextMargin = parseFloat(message.value);
+      var prevMargin = parseFloat(getComputedStyle(document.body).marginTop) || 0;
+      if (!isNaN(nextMargin) && nextMargin >= 0 && nextMargin !== prevMargin) {
+        document.body.style.marginTop = nextMargin + "px";
+        if ((window.scrollY || window.pageYOffset) > 0) {
+          // Not the user reading, and must not toggle the nav bars.
+          syncScrollUntil = Date.now() + 700;
+          restoreScrollUntil = Date.now() + 700;
+          window.scrollBy(0, nextMargin - prevMargin);
+        }
       }
       return;
     }

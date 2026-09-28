@@ -237,7 +237,8 @@ export const loadHTML = (
   isPunjabiTranslation,
   isSpanishTranslation,
   readerTheme,
-  isLarivaar
+  isLarivaar,
+  pageTopMargin
 ) => {
   try {
     // The reading theme's ground. Its light/dark records take this from
@@ -324,7 +325,7 @@ export const loadHTML = (
         return contentHtml;
       })
       .join("");
-    const htmlContent = htmlTemplate(backColor, fontFace, content, readerTheme);
+    const htmlContent = htmlTemplate(backColor, fontFace, content, readerTheme, pageTopMargin);
     return htmlContent;
   } catch (error) {
     logError(error);

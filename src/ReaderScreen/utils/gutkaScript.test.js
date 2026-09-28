@@ -243,3 +243,131 @@ describe("auto-scroll rate", () => {
     expect(Math.abs(half - quarter - (threeQuarters - half))).toBeLessThan(2);
   });
 });
+
+// A foldable's page margin changes with the fold. It is applied by message so
+// the page never reloads, and the page scrolls by exactly the change so the
+// line being read stays where it was.
+describe("setTopMargin", () => {
+  const setScrollY = (y) => {
+    Object.defineProperty(window, "scrollY", { value: y, configurable: true });
+  };
+
+  beforeEach(() => {
+    window.scrollBy = jest.fn();
+    document.body.style.marginTop = "50px";
+  });
+
+  afterEach(() => {
+    setScrollY(0);
+  });
+
+  it("sets the body margin", () => {
+    setScrollY(0);
+    send({ action: "setTopMargin", value: 54 });
+    expect(document.body.style.marginTop).toBe("54px");
+  });
+
+  it("scrolls by the change, so a scrolled page keeps its line", () => {
+    setScrollY(900);
+    send({ action: "setTopMargin", value: 54 });
+    expect(window.scrollBy).toHaveBeenCalledWith(0, 4);
+    send({ action: "setTopMargin", value: 50 });
+    expect(window.scrollBy).toHaveBeenLastCalledWith(0, -4);
+  });
+
+  it("does not scroll a page that is at the top", () => {
+    setScrollY(0);
+    send({ action: "setTopMargin", value: 54 });
+    expect(window.scrollBy).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the margin is unchanged", () => {
+    setScrollY(900);
+    send({ action: "setTopMargin", value: 50 });
+    expect(window.scrollBy).not.toHaveBeenCalled();
+    expect(document.body.style.marginTop).toBe("50px");
+  });
+
+  it("ignores a value that is not a margin", () => {
+    setScrollY(900);
+    ["abc", -5].forEach((value) => send({ action: "setTopMargin", value }));
+    expect(window.scrollBy).not.toHaveBeenCalled();
+    expect(document.body.style.marginTop).toBe("50px");
+  });
+});
+
+// Arriving at the very top or end of the bani brings the bars back: the page
+// reports "edge" once on arrival, in place of the "hide" the same scroll would
+// have sent. Mid-bani, scrolling still hides and shows the bars as before.
+describe("edge arrival", () => {
+  // 1000px of reading range: document 2000, viewport 1000, no bottom inset.
+  const scrollTo = (y) => {
+    Object.defineProperty(window, "scrollY", { value: y, configurable: true });
+    Object.defineProperty(window, "pageYOffset", { value: y, configurable: true });
+    window.onscroll();
+  };
+  const posted = () => window.ReactNativeWebView.postMessage.mock.calls.map(([m]) => m);
+  const bars = () => posted().filter((m) => m === "edge" || m === "hide" || m === "show");
+
+  beforeEach(() => {
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      value: 2000,
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerHeight", { value: 1000, configurable: true });
+    document.body.style.paddingBottom = "0px";
+    send({ autoScroll: 0 });
+    // Clear any restore/sync guard an earlier test left running.
+    jest.advanceTimersByTime(5000);
+    scrollTo(500);
+    window.ReactNativeWebView.postMessage.mockClear();
+  });
+
+  afterEach(() => {
+    scrollTo(0);
+  });
+
+  it("reports the end once, instead of hiding the bars", () => {
+    scrollTo(800);
+    scrollTo(1000);
+    scrollTo(1000);
+    expect(bars()).toEqual(["hide", "edge"]);
+  });
+
+  // 100% is reached before the page stops: the blank inset under the last line
+  // (body padding-bottom) is still scrollable, and a fling carries on through
+  // it. Those ticks must not take away the bars the edge just brought back.
+  it("keeps the bars up while a fling carries on into the bottom inset", () => {
+    document.body.style.paddingBottom = "100px"; // reading range now ends at 900
+    scrollTo(800);
+    scrollTo(900);
+    scrollTo(950);
+    scrollTo(1000);
+    expect(bars()).toEqual(["hide", "edge"]);
+  });
+
+  it("reports the top on arrival", () => {
+    scrollTo(200);
+    scrollTo(0);
+    expect(bars()).toEqual(["show", "edge"]);
+  });
+
+  it("hides and shows mid-bani exactly as before", () => {
+    scrollTo(700);
+    scrollTo(400);
+    expect(bars()).toEqual(["hide", "show"]);
+  });
+
+  it("reports the edge again after leaving and coming back", () => {
+    scrollTo(1000);
+    scrollTo(900);
+    scrollTo(1000);
+    expect(bars().filter((m) => m === "edge")).toHaveLength(2);
+  });
+
+  it("does not report an edge for a position-restore jump", () => {
+    send({ action: "scrollToPosition", elementId: "101" });
+    scrollTo(1000);
+    expect(bars()).not.toContain("edge");
+  });
+});

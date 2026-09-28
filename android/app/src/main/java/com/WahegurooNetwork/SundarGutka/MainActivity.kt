@@ -9,7 +9,9 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.WindowCompat
@@ -77,6 +79,49 @@ class MainActivity : ReactActivity() {
           window.navigationBarColor = Color.BLACK
       }
       onBackPressedDispatcher.addCallback(this, backPressedCallback)
+      lastConfiguration = Configuration(resources.configuration)
+  }
+
+  /**
+   * Keeps a foldable's screen in place across a fold or unfold.
+   *
+   * Folding changes `smallestScreenSize` and `screenLayout`. Undeclared, either
+   * one makes Android destroy and recreate this activity, and React Native
+   * remounts the app from its first screen — so unfolding mid-bani lost the
+   * user's place. The manifest now declares both, so the change arrives here
+   * instead and React Native simply re-lays the app out at the new size.
+   *
+   * Only a foldable gets that. On every other device the two changes (entering
+   * split-screen, for instance) must behave exactly as they did before the
+   * manifest declared them, so this recreates the activity itself —
+   * `recreate()` is the same destroy-and-create flow Android runs for an
+   * undeclared change.
+   *
+   * `super` is still called, because Activity requires it, but React Native is
+   * not told about a change that is about to recreate the activity (see the
+   * delegate below). Before the manifest declared these, it never heard of one
+   * — the activity was simply replaced — and it must not start re-laying the
+   * app out on an activity that is on its way out.
+   */
+  override fun onConfigurationChanged(newConfig: Configuration) {
+      val previous = lastConfiguration
+      lastConfiguration = Configuration(newConfig)
+      recreatePending = previous != null &&
+          (previous.diff(newConfig) and FOLD_CONFIG_CHANGES) != 0 &&
+          !DeviceForm.isFoldable(this)
+      super.onConfigurationChanged(newConfig)
+      if (recreatePending) recreate()
+  }
+
+  private var lastConfiguration: Configuration? = null
+
+  /** Set once this instance has decided to recreate itself; it never resets. */
+  private var recreatePending = false
+
+  private companion object {
+      /** The two changes the manifest declares for foldables' sake alone. */
+      const val FOLD_CONFIG_CHANGES =
+          ActivityInfo.CONFIG_SCREEN_LAYOUT or ActivityInfo.CONFIG_SMALLEST_SCREEN_SIZE
   }
 
   /**
@@ -151,7 +196,14 @@ class MainActivity : ReactActivity() {
    * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
-      DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+      object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
+        // Withheld only when this activity is about to be recreated — see
+        // onConfigurationChanged. Every other change reaches React Native as
+        // it always has.
+        override fun onConfigurationChanged(newConfig: Configuration) {
+          if (!recreatePending) super.onConfigurationChanged(newConfig)
+        }
+      }
 
   /**
    * Safely handle system dialog operations to prevent SecurityException

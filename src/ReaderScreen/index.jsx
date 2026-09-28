@@ -8,6 +8,7 @@ import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
 import { Spinner } from "@common/components/ui";
 import WebViewUnavailable from "@common/components/WebViewUnavailable";
+import { foldableTopSpace, useFoldableInsetTop } from "@common/deviceForm";
 import useReadingSession from "@common/hooks/useReadingSession";
 import { useNavBarSurface } from "@common/systemBars";
 import { pauseTrack } from "@common/TrackPlayerUtils";
@@ -33,6 +34,7 @@ import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./com
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
+import { readerTopLayout } from "./utils/topLayout";
 
 // How long the bars linger with no interaction before auto-hiding during
 // auto-scroll or audio playback.
@@ -60,13 +62,6 @@ const BOOKMARK_JUMP_GRACE_MS = 1500;
 // inside this window belongs to the same finger. It is the length of a press.
 const PLAYER_TOUCH_ECHO_MS = 500;
 
-// The WebView's own top margin, and therefore where the scrollable viewport
-// actually begins. ReaderScrollbar's track must start at the SAME line or its
-// thumb travel no longer matches the page's — named once so the two cannot
-// drift apart. This is NOT the header overlay height: the header floats OVER
-// the page, while this is where the page itself starts.
-const WEBVIEW_TOP_MARGIN = 60;
-
 // React Native's own global. Read once here, so the dangling-underscore rule —
 // which exists to stop US inventing such names — is waived in one place rather
 // than at the JSX attribute, where a comment cannot go.
@@ -86,7 +81,15 @@ const Reader = ({ navigation, route }) => {
   // by this instead.
   //
   // Built from the same two tokens as the header itself, so they cannot drift.
-  const headerOverlayHeight = theme.layout.header.topClearance + theme.layout.header.minHeight;
+  //
+  // A foldable's header gives back whatever of the fixed clearance its cutout
+  // does not need (the inset is null everywhere else) — see deviceForm.js.
+  const foldableInsetTop = useFoldableInsetTop();
+  const headerTopClearance =
+    foldableInsetTop === null
+      ? theme.layout.header.topClearance
+      : foldableTopSpace(foldableInsetTop, theme.layout.header.topClearance);
+  const headerOverlayHeight = headerTopClearance + theme.layout.header.minHeight;
   // The reading theme styles the Bani surface. `theme` above stays the app
   // appearance and still drives everything outside this screen.
   //
@@ -165,6 +168,17 @@ const Reader = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { shabad, isLoading } = useFetchShabad(id);
   const { bottom: insetBottom } = useSafeAreaInsets();
+  // Where the page starts and how far its first line sits below that. Fixed on
+  // every phone that does not fold; a foldable gives back what its cutout does
+  // not need. See topLayout.js.
+  const { webViewTop, pageTopMargin } = readerTopLayout({
+    foldableInsetTop,
+    headerTopClearance: theme.layout.header.topClearance,
+  });
+  // The margin the HTML is built with, read through a ref so that a change to
+  // it alone does not rebuild the page — see the setTopMargin effect below.
+  const pageTopMarginRef = useRef(pageTopMargin);
+  pageTopMarginRef.current = pageTopMargin;
 
   // Bottom-nav overlay footprint (nav height + the 5px progress track on top,
   // plus the bottom safe-area inset). The audio player is lifted by exactly
@@ -255,6 +269,9 @@ const Reader = ({ navigation, route }) => {
   const isAutoScrollRef = useRef(isAutoScroll);
   const isAudioActiveRef = useRef(isAudioFeatureOn && isAudio);
   const barsIdleTimerRef = useRef(null);
+  // True while the page rests at the very top or end of the bani, where the
+  // bars stay up (see the "edge" message) and the idle auto-hide stands down.
+  const atEdgeRef = useRef(false);
 
   useEffect(() => {
     isAutoScrollRef.current = isAutoScroll;
@@ -297,7 +314,11 @@ const Reader = ({ navigation, route }) => {
   // restarts the countdown.
   const scheduleBarsIdleHide = useCallback(() => {
     clearBarsIdleTimer();
-    if ((isAutoScrollRef.current || isAudioActiveRef.current) && isHeaderRef.current) {
+    if (
+      (isAutoScrollRef.current || isAudioActiveRef.current) &&
+      isHeaderRef.current &&
+      !atEdgeRef.current
+    ) {
       barsIdleTimerRef.current = setTimeout(() => {
         setBarsVisible(false, "auto_hide_idle");
       }, BARS_IDLE_HIDE_MS);
@@ -371,6 +392,7 @@ const Reader = ({ navigation, route }) => {
   // "done" at 0 scroll. Reset the analytics ref and the progress bar on id change.
   useEffect(() => {
     scrollPercentRef.current = 0;
+    atEdgeRef.current = false;
     scrollProgressAnim.setValue(0);
     // Back to "everything fits" until the new bani reports its own ratio, so the
     // previous bani's thumb size never briefly shows on this one.
@@ -391,6 +413,17 @@ const Reader = ({ navigation, route }) => {
       JSON.stringify({ action: "setBottomInset", value: navChromeHeight })
     );
   }, [navChromeHeight, webViewLoadTick]);
+
+  // A foldable's page margin follows its top inset, which changes when it is
+  // folded or unfolded. Sent by message rather than rebuilt into the HTML: a
+  // rebuild reloads the page, and the reload lost the reader's line. Every other
+  // phone's margin never changes, so nothing is ever sent there.
+  useEffect(() => {
+    if (foldableInsetTop === null || !webViewRef.current) return;
+    webViewRef.current.postMessage(
+      JSON.stringify({ action: "setTopMargin", value: pageTopMargin })
+    );
+  }, [foldableInsetTop, pageTopMargin, webViewLoadTick]);
 
   // The header title, resolved the SAME way the bani list resolves its rows.
   //
@@ -497,7 +530,8 @@ const Reader = ({ navigation, route }) => {
         isPunjabiTranslation,
         isSpanishTranslation,
         readerTheme,
-        isLarivaar
+        isLarivaar,
+        pageTopMarginRef.current
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",
     };
@@ -613,11 +647,19 @@ const Reader = ({ navigation, route }) => {
 
   const handleMessage = useCallback(
     (message) => {
+      const { data } = message.nativeEvent;
+      // Top or end of the bani (0% or 100%): the bars come back, whatever else
+      // is going on. Checked first, so no guard below can swallow it.
+      if (data.startsWith("scroll-progress-")) {
+        const edgePct = parseFloat(data.slice(data.lastIndexOf("-") + 1));
+        if (edgePct <= 0 || edgePct >= 1) {
+          atEdgeRef.current = true;
+          setBarsVisible(true, "scroll_edge");
+        }
+      }
       if (isPlayerDragging) {
         return;
       }
-      // Update last activity timestamp
-      const { data } = message.nativeEvent;
 
       // GUARD: On iOS, navigating away (e.g. to Bookmarks) can trigger a WKWebView
       // layout recalculation that resets scrollY to 0. This fires spurious scroll
@@ -628,6 +670,7 @@ const Reader = ({ navigation, route }) => {
         if (
           data === "show" ||
           data === "hide" ||
+          data === "edge" ||
           data.includes("scroll-elementId-") ||
           // Let the position-restore progress fill through — it reflects an
           // intentional scrollIntoView after load, not a spurious transition
@@ -661,6 +704,12 @@ const Reader = ({ navigation, route }) => {
         if (isPlayerEcho()) return;
         setBarsVisible(true, "scroll_up");
         scheduleBarsIdleHide();
+      } else if (data === "edge") {
+        // The page reached the top or the end of the bani: bring the header and
+        // nav bar back, and keep them there while it rests at that edge.
+        atEdgeRef.current = true;
+        clearBarsIdleTimer();
+        setBarsVisible(true, "scroll_edge");
       } else if (data === "hide") {
         setBarsVisible(false, "scroll_down");
         // A scroll down also shrinks the floating audio player to its circle.
@@ -709,6 +758,8 @@ const Reader = ({ navigation, route }) => {
             useNativeDriver: false,
           }).start();
           scrollPercentRef.current = Math.round(pct * 100);
+          // Leaving the edge hands the bars back to the idle auto-hide.
+          if (pct > 0 && pct < 1) atEdgeRef.current = false;
         }
       } else if (data.startsWith("scroll-ratio-")) {
         // What fraction of the bani fits on screen. Sizes the themed scroll
@@ -726,6 +777,7 @@ const Reader = ({ navigation, route }) => {
       isPlayerDragging,
       setBarsVisible,
       scheduleBarsIdleHide,
+      clearBarsIdleTimer,
       isPlayerEcho,
     ]
   );
@@ -851,7 +903,7 @@ const Reader = ({ navigation, route }) => {
             // Gated on the READING theme's base, not the app's: a dark reading
             // theme needs the same first-paint fade even in a light app.
             isReaderDark && { opacity: viewLoaded ? 1 : 0.1 },
-            { backgroundColor: readerBgColor, marginTop: WEBVIEW_TOP_MARGIN },
+            { backgroundColor: readerBgColor, marginTop: webViewTop },
           ]}
           onMessage={handleMessage}
         />
@@ -866,7 +918,7 @@ const Reader = ({ navigation, route }) => {
           color={readerTheme.scrollbar.thumb}
           width={readerTheme.scrollbar.width}
           visibleFraction={visibleFraction}
-          topInset={WEBVIEW_TOP_MARGIN}
+          topInset={webViewTop}
           bottomInset={insetBottom + 10}
         />
       )}

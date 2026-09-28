@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Animated, Pressable } from "react-native";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
+import { foldableTopSpace, useFoldableInsetTop } from "@common/deviceForm";
 import useTokens from "@common/hooks/useTokens";
 import { BackArrowIcon, BookmarkIcon, PlusIcon } from "@common/icons";
 import { constant, CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
@@ -38,6 +39,9 @@ const Header = ({
   // sat lower there than here, which is the last way the two disagreed. Taking
   // the resolved value directly makes them the same number by construction.
   const { layout } = useTokens();
+  // A foldable gives back whatever of the stylesheet's fixed clearance its
+  // cutout does not need; null everywhere else. See deviceForm.js.
+  const foldableInsetTop = useFoldableInsetTop();
   const animationPosition = useRef(new Animated.Value(0)).current;
   // Width of the trailing slot, measured rather than assumed — the same
   // technique the shared ScreenHeader uses. The title is centred by the two
@@ -152,7 +156,13 @@ const Header = ({
       pointerEvents="box-none" // Ensure touch events pass through
     >
       <View
-        style={[styles.headerStyle, { backgroundColor: headerBackground }]}
+        style={[
+          styles.headerStyle,
+          { backgroundColor: headerBackground },
+          foldableInsetTop !== null && {
+            paddingTop: foldableTopSpace(foldableInsetTop, layout.header.topClearance),
+          },
+        ]}
         pointerEvents="auto"
       >
         <View style={[styles.headerWrapper, { minHeight: layout.header.minHeight }]}>
