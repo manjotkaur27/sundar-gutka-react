@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { View, Animated, Pressable } from "react-native";
 import { useReaderTheme } from "@theme/reader";
 import PropTypes from "prop-types";
@@ -7,6 +7,7 @@ import useTokens from "@common/hooks/useTokens";
 import { BackArrowIcon, BookmarkIcon, PlusIcon } from "@common/icons";
 import { constant, CustomText, GradientDivider, STRINGS, useThemedStyles } from "@common";
 import createStyles from "../styles";
+import { barMotion } from "../utils/barMotion";
 
 // Only used for the frames before the header has measured itself. Any real
 // value comes from onLayout below.
@@ -104,7 +105,10 @@ const Header = ({
     </>
   );
 
-  useEffect(() => {
+  // Layout effect and the shared bar motion, both for the same reason as the
+  // bottom nav's in the Reader: it starts in the commit that flips `isHeader`,
+  // and it moves on the nav's clock rather than one of its own.
+  useLayoutEffect(() => {
     const value = isHeader ? 0 : -hiddenOffset;
 
     // Stop any existing animation first
@@ -112,7 +116,7 @@ const Header = ({
 
     const animation = Animated.timing(animationPosition, {
       toValue: value,
-      duration: 500,
+      ...barMotion(isHeader),
       useNativeDriver: true,
     });
 

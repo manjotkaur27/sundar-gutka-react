@@ -424,6 +424,8 @@ const DASHBOARD_EVENT_NAMES = {
   week_navigated: "dashboard_week_navigated",
   month_navigated: "dashboard_month_navigated",
   reminders_opened: "dashboard_reminders_opened",
+  // A reminder row tapped open to change its time, text or delete it.
+  reminder_edit_opened: "dashboard_reminder_edit_opened",
   sections_sheet_opened: "dashboard_sections_sheet_opened",
   sections_changed: "dashboard_sections_changed",
   sections_reset: "dashboard_sections_reset",

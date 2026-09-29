@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import notifee, { AndroidNotificationSetting } from "@notifee/react-native";
+import { navy } from "@theme/palette";
 import { logError } from "./firebase/crashlytics";
 import {
   canScheduleExactAlarms,
@@ -177,6 +178,14 @@ describe("the scheduled trigger", () => {
     expect(created).toContain(channelIdFor("waheguru_soul.mp3"));
     // iOS cannot play mp3 — it gets the .caf name instead.
     expect(notification.ios.sound).toBe("waheguru_soul.caf");
+  });
+
+  it("frames the silhouette icon in the brand navy, not the skin's default black", async () => {
+    await updateReminders(true, "default", listOf(reminder()));
+
+    const [notification] = notifee.createTriggerNotification.mock.calls[0];
+    expect(notification.android.smallIcon).toBe("ic_notification");
+    expect(notification.android.color).toBe(navy[800]);
   });
 });
 

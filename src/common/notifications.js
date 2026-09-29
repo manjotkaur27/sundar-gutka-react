@@ -6,6 +6,7 @@ import notifee, {
   AndroidNotificationSetting,
   AuthorizationStatus,
 } from "@notifee/react-native";
+import { navy } from "@theme/palette";
 import constant from "./constant";
 import { logError, logMessage } from "./firebase/crashlytics";
 import { reminderTitle } from "./reminders/title";
@@ -177,6 +178,10 @@ export const createReminder = async (notification, sound, isTransliteration = fa
     // is a white silhouette present at every density with no version
     // qualifier, which is what a small icon is supposed to be.
     smallIcon: "ic_notification",
+    // The silhouette above is drawn on a tile of this colour. Unset, skins that
+    // frame the small icon (rather than showing the launcher icon, as Android 16
+    // on Pixel does) fill that tile black, so it no longer looks like the app.
+    color: navy[800],
     pressAction: {
       id: "default",
       launchActivity: "default", // This should match your configured activity

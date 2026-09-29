@@ -19,6 +19,7 @@ import {
   trackDashboardEvent,
 } from "@common";
 import { getBaniList } from "@database";
+import { ReminderEditSheet } from "../../Settings/components/reminders/ReminderOptions/components";
 import useDashboardTheme from "./dashboardTheme";
 import SectionLabel from "./SectionLabel";
 
@@ -72,6 +73,7 @@ const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 20 },
   card: { paddingVertical: 8, paddingHorizontal: 16 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14 },
+  pressed: { opacity: 0.7 },
   iconBox: {
     width: 44,
     height: 44,
@@ -204,6 +206,25 @@ const RemindersCard = () => {
 
   const reminders = stored.length ? stored : placeholders;
 
+  // Tapping a row opens the same sheet a reminder row opens in Settings —
+  // change the time, rename the notification, delete it. Only the key is held;
+  // the sheet is handed the stored copy on every render, so a change it saves
+  // shows at once.
+  const [editingKey, setEditingKey] = useState(null);
+  const editingSection = stored.find((item) => item.key === editingKey) ?? null;
+
+  // A suggested row is not stored yet, and the sheet edits the stored list by
+  // key, so the suggestions are written first: the same write the switch makes,
+  // every row still off.
+  const openEditor = useCallback(
+    (key) => {
+      if (!stored.length) dispatch(actions.setReminderBanis(JSON.stringify(placeholders)));
+      trackDashboardEvent("reminder_edit_opened");
+      setEditingKey(key);
+    },
+    [stored.length, placeholders, dispatch]
+  );
+
   // Writes the toggle through and schedules. `remindersOn` is passed rather
   // than read, because the master switch may have been turned on in the same
   // tap and the store has not re-rendered this closure yet.
@@ -274,9 +295,16 @@ const RemindersCard = () => {
             const kind = kindForTime(r.time);
             const Icon = ICON_FOR_KIND[kind];
             const { color: iconColor, bg: iconBg } = iconStyles[kind];
+            const name = nameOf(r.id) || r.translit;
             return (
               <View key={r.key}>
-                <View style={styles.row}>
+                <Pressable
+                  style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                  onPress={() => openEditor(r.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${name}, ${labelForTime(r.time)}, ${r.time}`}
+                  accessibilityHint={STRINGS.EDIT}
+                >
                   <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
                     <Icon color={iconColor} size={20} />
                   </View>
@@ -285,7 +313,7 @@ const RemindersCard = () => {
                         to "ਰਹਰਾਸਿ ਸਾ…" loses which reminder this is. The row has
                         no fixed height, so it grows instead. */}
                     <CustomText style={[styles.title, { color: titleColor }]} numberOfLines={2}>
-                      {nameOf(r.id) || r.translit}
+                      {name}
                     </CustomText>
                     <CustomText style={[styles.time, { color: timeColor }]} numberOfLines={2}>
                       {labelForTime(r.time)} · {r.time}
@@ -300,7 +328,7 @@ const RemindersCard = () => {
                     onTrackColor={onTrackColor}
                     offTrackColor={offTrackColor}
                   />
-                </View>
+                </Pressable>
                 {i < reminders.length - 1 ? (
                   <View style={[styles.divider, { backgroundColor: separator }]} />
                 ) : null}
@@ -326,6 +354,11 @@ const RemindersCard = () => {
           </Pressable>
         </View>
       </View>
+      <ReminderEditSheet
+        section={editingSection}
+        visible={editingSection !== null}
+        onClose={() => setEditingKey(null)}
+      />
     </View>
   );
 };
