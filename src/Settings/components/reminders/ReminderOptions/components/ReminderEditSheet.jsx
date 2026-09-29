@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Icon } from "@rneui/themed";
+import { withScreenRoles } from "@theme/ScreenRolesProvider";
 import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
 import { NEST_OVERLAYS_IN_SHEET } from "@common/components/ui/Overlay";
@@ -177,4 +178,10 @@ ReminderEditSheet.propTypes = {
   onClose: PropTypes.func.isRequired,
 };
 
-export default ReminderEditSheet;
+// The sheet carries its own palette rather than taking the host screen's. It
+// opens from the reminders screen, which is Settings-scoped, and from the
+// Dashboard, which is not; unscoped, the same sheet, its time picker and its
+// label prompt came out in the neutral greys in dark mode instead of the
+// Settings navy. Scoped here, outside the component, so the icon colours it
+// reads itself follow too — the same rule Sheet's own scope is written to.
+export default withScreenRoles(ReminderEditSheet, "settings");

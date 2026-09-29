@@ -45,8 +45,16 @@ const styles = StyleSheet.create({
     end: 2,
     width: 12,
     alignItems: "flex-end",
-    zIndex: 12,
-    elevation: 12,
+    // Over the page, under all of the Reader's chrome. At 12 it outranked the
+    // header and bottom nav (10) and the progress track (11), so with the bars
+    // up the thumb ran across them at either end of a bani.
+    //
+    // Deliberately no `elevation`. On Android elevation outranks zIndex, and
+    // the header's wrapper has none of its own: any elevation here would put
+    // the thumb back over the header on Android while iOS drew it underneath.
+    // Left at zero, Android orders it by zIndex under the header, and the
+    // bottom chrome's elevations keep those layers above it.
+    zIndex: 1,
   },
 });
 

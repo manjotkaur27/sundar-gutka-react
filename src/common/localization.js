@@ -153,9 +153,6 @@ const STRINGS = new LocalizedStrings({
       "A theme sets the app's appearance and the reading page together. The first time you pick one it may suggest translation and transliteration settings — your own changes always stick.",
     reader_theme_light: "Light",
     reader_theme_dark: "Dark",
-    reader_theme_puratan: "Puratan",
-    reader_theme_white: "White",
-    reader_theme_sanjh: "Sanjh",
     theme_selected: "Selected",
     errorTitle: "Something Went Wrong",
     errorMessage:
@@ -663,9 +660,6 @@ const STRINGS = new LocalizedStrings({
       "थीम ऐप का रूप और पाठ का पन्ना दोनों तय करती है। पहली बार चुनने पर यह अनुवाद और लिप्यंतरण की सेटिंग सुझा सकती है — आपके अपने बदलाव हमेशा बने रहते हैं।",
     reader_theme_light: "उजला",
     reader_theme_dark: "गहरा",
-    reader_theme_puratan: "पुरातन",
-    reader_theme_white: "सफ़ेद",
-    reader_theme_sanjh: "सांझ",
     theme_selected: "चुना गया",
     errorTitle: "कुछ गलत हो गया",
     errorMessage:
@@ -1175,9 +1169,6 @@ const STRINGS = new LocalizedStrings({
       "ਥੀਮ ਐਪ ਦੀ ਦਿੱਖ ਤੇ ਪਾਠ ਵਾਲਾ ਪੰਨਾ ਦੋਵੇਂ ਤੈਅ ਕਰਦੀ ਹੈ। ਪਹਿਲੀ ਵਾਰ ਚੁਣਨ ਤੇ ਇਹ ਅਨੁਵਾਦ ਤੇ ਲਿਪੀਅੰਤਰ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਸੁਝਾ ਸਕਦੀ ਹੈ — ਤੁਹਾਡੀਆਂ ਆਪਣੀਆਂ ਤਬਦੀਲੀਆਂ ਹਮੇਸ਼ਾ ਕਾਇਮ ਰਹਿੰਦੀਆਂ ਹਨ।",
     reader_theme_light: "ਚਾਨਣ",
     reader_theme_dark: "ਗੂੜ੍ਹਾ",
-    reader_theme_puratan: "ਪੁਰਾਤਨ",
-    reader_theme_white: "ਚਿੱਟਾ",
-    reader_theme_sanjh: "ਸੰਝ",
     theme_selected: "ਚੁਣਿਆ ਗਿਆ",
     errorTitle: "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ",
     errorMessage:
@@ -1690,9 +1681,6 @@ const STRINGS = new LocalizedStrings({
       "Un thème définit à la fois l'apparence de l'application et la page de lecture. La première fois que vous en choisissez un, il peut suggérer des réglages de traduction et de translittération — vos propres changements sont toujours conservés.",
     reader_theme_light: "Clair",
     reader_theme_dark: "Sombre",
-    reader_theme_puratan: "Puratan",
-    reader_theme_white: "Blanc",
-    reader_theme_sanjh: "Sanjh",
     theme_selected: "Sélectionné",
     errorTitle: "Quelque chose s'est mal passé",
     errorMessage:
@@ -2215,9 +2203,6 @@ const STRINGS = new LocalizedStrings({
       "Un tema imposta insieme l'aspetto dell'app e la pagina di lettura. La prima volta che lo scegli può suggerire le impostazioni di traduzione e traslitterazione — le tue modifiche restano sempre valide.",
     reader_theme_light: "Chiaro",
     reader_theme_dark: "Scuro",
-    reader_theme_puratan: "Puratan",
-    reader_theme_white: "Bianco",
-    reader_theme_sanjh: "Sanjh",
     theme_selected: "Selezionato",
     errorTitle: "Qualcosa è andato storto",
     errorMessage:
@@ -2735,9 +2720,6 @@ const STRINGS = new LocalizedStrings({
       "Un tema define a la vez la apariencia de la app y la página de lectura. La primera vez que lo eliges puede sugerir los ajustes de traducción y transliteración — tus propios cambios siempre se mantienen.",
     reader_theme_light: "Claro",
     reader_theme_dark: "Oscuro",
-    reader_theme_puratan: "Puratan",
-    reader_theme_white: "Blanco",
-    reader_theme_sanjh: "Sanjh",
     theme_selected: "Seleccionado",
     errorTitle: "Algo salió mal",
     errorMessage:

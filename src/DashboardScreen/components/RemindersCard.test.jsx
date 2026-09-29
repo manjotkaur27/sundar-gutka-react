@@ -20,6 +20,8 @@ const mockShowConfirm = jest.fn();
 const mockOpenExactAlarmSettings = jest.fn();
 const mockOpenNotificationSettings = jest.fn();
 const mockScheduleReminders = jest.fn(() => Promise.resolve({ scheduled: 1, blocked: false }));
+const mockTrack = jest.fn();
+const mockEditSheet = jest.fn();
 
 let mockState;
 jest.mock("react-redux", () => ({
@@ -36,6 +38,13 @@ jest.mock("react-native-svg", () => {
 });
 
 jest.mock("@common/icons", () => ({ SunriseIcon: () => null, SunsetIcon: () => null }));
+// The sheet itself is Settings' and tested there; this records what it is handed.
+jest.mock("../../Settings/components/reminders/ReminderOptions/components", () => ({
+  ReminderEditSheet: (props) => {
+    mockEditSheet(props);
+    return null;
+  },
+}));
 jest.mock("@common/hooks/useBaniLookup", () => ({
   __esModule: true,
   default: () => ({ nameOf: () => "" }),
@@ -65,6 +74,7 @@ jest.mock("@common", () => {
       time_for: "Time for",
       REMINDERS_TITLE: "Reminders",
       ADD_REMINDER: "Add a reminder",
+      EDIT: "Edit",
       AMRIT_VELA: "Amrit Vela",
       MORNING_NITNEM: "Morning",
       AFTERNOON_TIME: "Afternoon",
@@ -88,6 +98,7 @@ jest.mock("@common", () => {
     openNotificationSettings: (...a) => mockOpenNotificationSettings(...a),
     showConfirm: (...a) => mockShowConfirm(...a),
     scheduleReminders: (...a) => mockScheduleReminders(...a),
+    trackDashboardEvent: (...a) => mockTrack(...a),
     logError: jest.fn(),
   };
 });
@@ -224,5 +235,68 @@ describe("with reminders already on", () => {
     const [write] = dispatched("SET_REMINDER_BANIS");
     expect(JSON.parse(write[0].value)[1].enabled).toBe(true);
     expect(mockScheduleReminders).toHaveBeenCalledWith(true, "default", write[0].value, false);
+  });
+});
+
+// A tap on a row opens the same edit sheet a reminder row opens in Settings.
+const lastSheet = () => mockEditSheet.mock.calls[mockEditSheet.mock.calls.length - 1][0];
+
+describe("tapping a reminder row", () => {
+  const list = [
+    { key: 4, id: 4, time: "5:45 AM", enabled: true, translit: "japji", title: "Japji" },
+    { key: 6, id: 6, time: "6:00 PM", enabled: false, translit: "rehras", title: "Rehras" },
+  ];
+
+  it("opens the edit sheet on that reminder", async () => {
+    mockState = { ...mockState, isReminders: true, reminderBanis: JSON.stringify(list) };
+    const { getByLabelText } = await open();
+    expect(lastSheet().visible).toBe(false);
+
+    fireEvent.press(getByLabelText("rehras, Evening, 6:00 PM"));
+
+    expect(lastSheet()).toEqual(
+      expect.objectContaining({ visible: true, section: expect.objectContaining({ key: 6 }) })
+    );
+    expect(mockTrack).toHaveBeenCalledWith("reminder_edit_opened");
+    // Opening a stored reminder writes nothing; the sheet does the editing.
+    expect(dispatched("SET_REMINDER_BANIS")).toHaveLength(0);
+  });
+
+  it("closes the sheet when it asks to", async () => {
+    mockState = { ...mockState, isReminders: true, reminderBanis: JSON.stringify(list) };
+    const { getByLabelText } = await open();
+
+    fireEvent.press(getByLabelText("japji, Amrit Vela, 5:45 AM"));
+    act(() => lastSheet().onClose());
+
+    expect(lastSheet().visible).toBe(false);
+  });
+
+  it("leaves the switch to toggle without opening the sheet", async () => {
+    mockState = { ...mockState, isReminders: true, reminderBanis: JSON.stringify(list) };
+    const { getAllByTestId } = await open();
+
+    fireEvent.press(getAllByTestId("reminder-switch")[1]);
+    await flush();
+
+    expect(lastSheet().visible).toBe(false);
+  });
+
+  it("stores a suggested row, still off, before opening it — the sheet edits by stored key", async () => {
+    const { getAllByRole, rerender } = await open();
+
+    // The fourth suggestion is the night reminder.
+    fireEvent.press(getAllByRole("button")[3]);
+
+    const [write] = dispatched("SET_REMINDER_BANIS");
+    const stored = JSON.parse(write[0].value);
+    expect(stored).toHaveLength(4);
+    expect(stored.every((r) => r.enabled === false)).toBe(true);
+
+    mockState = { ...mockState, reminderBanis: write[0].value };
+    rerender(<RemindersCard />);
+    expect(lastSheet()).toEqual(
+      expect.objectContaining({ visible: true, section: expect.objectContaining({ key: 121 }) })
+    );
   });
 });

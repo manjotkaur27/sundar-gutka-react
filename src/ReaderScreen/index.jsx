@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from "react";
 import { AppState, Platform, View, Animated, NativeModules } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -34,6 +34,7 @@ import { Header, AutoScrollComponent, AudioPlayer, ReaderScrollbar } from "./com
 import { useBookmarks, useFetchShabad } from "./hooks";
 import createStyles from "./styles";
 import { loadHTML } from "./utils";
+import { barMotion } from "./utils/barMotion";
 import { readerTopLayout } from "./utils/topLayout";
 
 // How long the bars linger with no interaction before auto-hiding during
@@ -231,24 +232,28 @@ const Reader = ({ navigation, route }) => {
   const audioLiftAnim = useRef(new Animated.Value(-navChromeHeight)).current;
   const progressLiftAnim = useRef(new Animated.Value(-(navChromeHeight - 5))).current;
 
-  useEffect(() => {
+  // A layout effect, so the animation is handed to the native driver in the
+  // same commit that flips `isHeader`. A plain effect runs after React lets the
+  // frame paint, which held every show and hide back by that much.
+  useLayoutEffect(() => {
     const distance = navClusterHeightRef.current || 300;
+    const motion = barMotion(isHeader);
     const anim = Animated.parallel([
       Animated.timing(navSlideAnim, {
         toValue: isHeader ? 0 : distance,
-        duration: 300,
+        ...motion,
         useNativeDriver: true,
       }),
       Animated.timing(audioLiftAnim, {
         toValue: isHeader ? -navChromeHeight : -chromeRestLift,
-        duration: 300,
+        ...motion,
         useNativeDriver: true,
       }),
       Animated.timing(progressLiftAnim, {
         // Lift the progress bar onto the nav (nav height = navChromeHeight − 5px
         // track) when shown; drop it back to the bottom when they hide.
         toValue: isHeader ? -(navChromeHeight - 5) : -chromeRestLift,
-        duration: 300,
+        ...motion,
         useNativeDriver: true,
       }),
     ]);

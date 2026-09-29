@@ -2,6 +2,7 @@
 import React from "react";
 
 import { render, fireEvent, within } from "@testing-library/react-native";
+import ScreenRolesProvider from "@theme/ScreenRolesProvider";
 
 import ReminderEditSheet from "./ReminderEditSheet";
 
@@ -81,17 +82,23 @@ jest.mock("@common", () => {
 
 // Stand-ins that make containment observable: the sheet renders its children,
 // so anything nested shows up INSIDE its testID and anything left as a sibling
-// does not.
+// does not. The sheet and the time picker also report the palette scope they
+// render under, which is what decides their colours.
 jest.mock("../../../../../common/components/ui", () => {
   const { View, Pressable, Text } = require("react-native");
+  const { useScreenRolesScope } = require("@theme/ScreenRolesProvider");
   return {
-    Sheet: ({ children }) => <View testID="sheet">{children}</View>,
+    Sheet: ({ children }) => (
+      <View testID="sheet" scope={useScreenRolesScope()}>
+        {children}
+      </View>
+    ),
     Row: ({ title, onPress }) => (
       <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}>
         <Text>{title}</Text>
       </Pressable>
     ),
-    TimePickerSheet: () => <View testID="time-picker" />,
+    TimePickerSheet: () => <View testID="time-picker" scope={useScreenRolesScope()} />,
   };
 });
 
@@ -128,6 +135,23 @@ describe("the reminder edit sheet's nested overlays", () => {
     const { getByTestId } = renderSheet();
 
     expect(within(getByTestId("sheet")).getByTestId("confirm-host")).toBeTruthy();
+  });
+
+  // The Dashboard opens this same sheet with no palette of its own, where it
+  // used to come out in the neutral greys in dark mode while the reminders
+  // screen showed it in the Settings navy.
+  it.each([
+    ["the Dashboard, which sets no palette", null],
+    ["the reminders screen, which is Settings-scoped", "settings"],
+  ])("is on the Settings palette when opened from %s", (_, hostScope) => {
+    const { getByTestId } = render(
+      <ScreenRolesProvider screen={hostScope}>
+        <ReminderEditSheet section={section} visible onClose={jest.fn()} />
+      </ScreenRolesProvider>
+    );
+
+    expect(getByTestId("sheet").props.scope).toBe("settings");
+    expect(getByTestId("time-picker").props.scope).toBe("settings");
   });
 
   it("still offers all three actions", () => {
