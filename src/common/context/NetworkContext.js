@@ -26,7 +26,8 @@ const NetworkContext = createContext(DEFAULT_NETWORK_STATE);
  *
  * Returns:
  *   isConnected           raw link state (null until known)
- *   isInternetReachable   validated real-internet (captive-portal aware)
+ *   isInternetReachable   validated real-internet (captive-portal aware);
+ *                         Android only, always null on iOS
  *   type                  'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown' | …
  *   isWifi / isCellular   convenience type flags
  *   isExpensive           connection is metered (avoid heavy auto-downloads)

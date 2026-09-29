@@ -89,6 +89,15 @@ react {
 def enableProguardInReleaseBuilds = true
 
 /**
+ * Upload the R8 mapping file and native symbols to Crashlytics. Only the build that
+ * ships passes -PuploadCrashlyticsSymbols (or =true), so local, PR and QA release
+ * builds do not depend on Firebase being reachable or send it symbols for builds
+ * nobody installs. uploadCrashlyticsSymbols=false leaves uploads off.
+ */
+def uploadCrashlyticsSymbolsValue = project.findProperty("uploadCrashlyticsSymbols")?.toString()?.trim()?.toLowerCase()
+def uploadCrashlyticsSymbols = uploadCrashlyticsSymbolsValue != null && (uploadCrashlyticsSymbolsValue == "" || uploadCrashlyticsSymbolsValue == "true")
+
+/**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
  * For example, to use the international variant, you can use:
@@ -149,8 +158,9 @@ android {
             // Unlike the R8 mapping file, the plugin does not upload native symbols on
             // its own, so this is wired up below. Both uploads authenticate from the app
             // details in google-services.json; nothing extra is configured on the machine
-            // that builds the release.
+            // that builds the release. Both happen only with -PuploadCrashlyticsSymbols.
             firebaseCrashlytics {
+                mappingFileUploadEnabled = uploadCrashlyticsSymbols
                 nativeSymbolUploadEnabled = true
                 // AGP nests this under the merge task name; the shorter path that most
                 // guides quote does not exist here and fails the build.
@@ -225,13 +235,23 @@ androidComponents {
     }
 }
 
-// Release builds already upload the R8 mapping file automatically, which is why
-// Java stack traces come back readable. Native symbols are the one Crashlytics
-// upload the plugin leaves to the caller, and a step someone has to remember on
-// the machine that cuts the release is a step that silently never happens - which
-// is exactly how the largest native issue ended up with no frames at all.
+// With -PuploadCrashlyticsSymbols, release builds upload the R8 mapping file
+// automatically, which is why Java stack traces come back readable. Native symbols
+// are the one Crashlytics upload the plugin leaves to the caller, so the same flag
+// chains it onto the release build here. Without the flag nothing is uploaded, and
+// a warning says so, because a shipped build without symbols is how the largest
+// native issue ended up with no frames at all.
+if (!uploadCrashlyticsSymbols) {
+    gradle.taskGraph.whenReady { graph ->
+        if (graph.allTasks.any { it.project == project && it.name ==~ /(assemble|bundle)\w*Release/ }) {
+            logger.warn("Crashlytics symbols are NOT uploaded for this release build. " +
+                "Pass -PuploadCrashlyticsSymbols for a build that ships.")
+        }
+    }
+}
+
 tasks.configureEach { task ->
-    if (task.name == "assembleRelease" || task.name == "bundleRelease") {
+    if (uploadCrashlyticsSymbols && (task.name == "assembleRelease" || task.name == "bundleRelease")) {
         task.finalizedBy("uploadCrashlyticsSymbolFileRelease")
     }
     // The symbol generator reads merged_native_libs but does not declare it, so

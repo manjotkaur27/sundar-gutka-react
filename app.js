@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import { AppState, Platform } from "react-native";
+import { isTablet } from "react-native-device-info";
 import ErrorBoundary from "react-native-error-boundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "react-native-splash-screen";
 import Toast from "react-native-toast-message";
 import { Provider } from "react-redux";
 import notifee, { EventType } from "@notifee/react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PersistGate } from "redux-persist/integration/react";
 import {
   createStore,
@@ -53,23 +53,12 @@ const App = () => {
   }, []); // The empty array causes this effect to only run on mount
 
   useEffect(() => {
-    const setUserProperties = async () => {
-      try {
-        let userId = await AsyncStorage.getItem("analytics_user_id");
-        if (!userId) {
-          userId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-          await AsyncStorage.setItem("analytics_user_id", userId);
-        }
-        setCustomKey({
-          user_id: userId,
-          platform: Platform.OS,
-          device_type: Platform.isPad === true ? "tablet" : "phone",
-        });
-      } catch (err) {
-        logError(err);
-      }
-    };
-    setUserProperties();
+    // No app-made user ID: Crashlytics already has its own per-install ID, and a
+    // second persistent one could not be turned off by the Statistics opt-out.
+    setCustomKey({
+      platform: Platform.OS,
+      device_type: isTablet() ? "tablet" : "phone",
+    });
   }, []);
 
   useEffect(() => {

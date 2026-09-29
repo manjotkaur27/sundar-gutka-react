@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import NetInfo from "@react-native-community/netinfo";
 import PropTypes from "prop-types";
-import { configureNetwork } from "../services/networkManager";
+import { configureNetwork, REACHABILITY_VALIDATED } from "../services/networkManager";
 import NetworkContext, { DEFAULT_NETWORK_STATE } from "./NetworkContext";
 
 // Configure NetInfo once, at import time, before any listener is attached.
@@ -13,13 +13,15 @@ configureNetwork();
  * `isOffline` is intentionally conservative: only an explicit `false` for
  * connection OR validated reachability counts as offline. `null` (the unknown
  * startup window, or before the first reachability probe completes) stays
- * ONLINE so we never falsely degrade the UI. A captive portal — connected but
- * no real internet — correctly resolves to offline via isInternetReachable.
+ * ONLINE so we never falsely degrade the UI. On Android a captive portal —
+ * connected but no real internet — resolves to offline via isInternetReachable.
+ * iOS has no validated signal (no probe runs, see networkManager), so there it
+ * stays null and only the connection itself decides.
  */
 const normalize = (state) => {
   const type = state?.type ?? "unknown";
   const isConnected = state?.isConnected ?? null;
-  const isInternetReachable = state?.isInternetReachable ?? null;
+  const isInternetReachable = REACHABILITY_VALIDATED ? state?.isInternetReachable ?? null : null;
   const isOffline = isConnected === false || isInternetReachable === false;
 
   return {
