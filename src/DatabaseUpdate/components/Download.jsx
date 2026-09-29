@@ -6,7 +6,6 @@ import useTheme from "@common/context";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   logMessage,
-  logError,
   logNetworkError,
   actions,
   checkForBaniDBUpdate,
