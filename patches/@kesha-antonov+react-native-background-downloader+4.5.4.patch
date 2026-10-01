@@ -208,3 +208,52 @@ index 0401372..c1d2497 100644
              jobState.groupName
          } else {
              config.getText("downloadTitle")
+diff --git a/node_modules/@kesha-antonov/react-native-background-downloader/ios/RNBackgroundDownloader.mm b/node_modules/@kesha-antonov/react-native-background-downloader/ios/RNBackgroundDownloader.mm
+index 4af2839..948e984 100644
+--- a/node_modules/@kesha-antonov/react-native-background-downloader/ios/RNBackgroundDownloader.mm
++++ b/node_modules/@kesha-antonov/react-native-background-downloader/ios/RNBackgroundDownloader.mm
+@@ -553,7 +553,7 @@ RCT_EXPORT_METHOD(download: (NSDictionary *) options) {
+         DLog(identifier, @"[RNBackgroundDownloader] - [executeDownloadWithRequest]");
+         [self sendDebugLog:@"executeDownloadWithRequest: creating download task" taskId:identifier];
+ 
+-        NSURLSessionDownloadTask __strong *task = [urlSession downloadTaskWithRequest:request];
++        NSURLSessionDownloadTask __strong *task = [self createDownloadTaskWithRequest:request identifier:identifier];
+         if (task == nil) {
+             DLog(identifier, @"[RNBackgroundDownloader] - [Error] failed to create download task");
+             [self sendDebugLog:@"executeDownloadWithRequest: ERROR - failed to create download task" taskId:identifier];
+@@ -582,6 +582,35 @@ RCT_EXPORT_METHOD(download: (NSDictionary *) options) {
+     }
+ }
+ 
++// Patched (sundar-gutka): backport of the upstream 4.5.6 fix for
++// https://github.com/kesha-antonov/react-native-background-downloader/issues/157
++// Creates a download task on the current session. If the session has been
++// invalidated, -downloadTaskWithRequest: raises "Task created in a session
++// that has been invalidated" and the app crashes. Instead, recreate the
++// background session and retry once; if that also fails, return nil, which
++// the caller already handles. Must be called while holding sharedLock.
++- (NSURLSessionDownloadTask *)createDownloadTaskWithRequest:(NSMutableURLRequest *)request identifier:(NSString *)identifier {
++    @try {
++        return [urlSession downloadTaskWithRequest:request];
++    } @catch (NSException *exception) {
++        DLog(identifier, @"[RNBackgroundDownloader] - [createDownloadTask] session invalidated, recreating: %@", exception.reason);
++        [self sendDebugLog:[NSString stringWithFormat:@"createDownloadTask: session invalidated, recreating (%@)", exception.reason] taskId:identifier];
++
++        // Recreate the background session directly (do not call unregisterSession,
++        // which would invalidateAndCancel and drop queued downloads).
++        urlSession = [NSURLSession sessionWithConfiguration:sessionConfig delegate:self delegateQueue:nil];
++        isSessionActivated = YES;
++
++        @try {
++            return [urlSession downloadTaskWithRequest:request];
++        } @catch (NSException *retryException) {
++            DLog(identifier, @"[RNBackgroundDownloader] - [createDownloadTask] retry failed: %@", retryException.reason);
++            [self sendDebugLog:[NSString stringWithFormat:@"createDownloadTask: retry failed (%@)", retryException.reason] taskId:identifier];
++            return nil;
++        }
++    }
++}
++
+ - (void)pauseTaskInternal:(NSString *)identifier resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+     DLog(identifier, @"[RNBackgroundDownloader] - [pauseTask]");
+     @try {
