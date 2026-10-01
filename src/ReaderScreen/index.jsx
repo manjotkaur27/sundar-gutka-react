@@ -653,14 +653,19 @@ const Reader = ({ navigation, route }) => {
   const handleMessage = useCallback(
     (message) => {
       const { data } = message.nativeEvent;
-      // Top or end of the bani (0% or 100%): the bars come back, whatever else
-      // is going on. Checked first, so no guard below can swallow it.
-      if (data.startsWith("scroll-progress-")) {
-        const edgePct = parseFloat(data.slice(data.lastIndexOf("-") + 1));
-        if (edgePct <= 0 || edgePct >= 1) {
-          atEdgeRef.current = true;
-          setBarsVisible(true, "scroll_edge");
-        }
+      // Top or end of the bani: the bars come back, whatever else is going on,
+      // and stay there while the page rests at that edge. Checked first, so no
+      // guard below can swallow it.
+      //
+      // The page decides what the end is — where it can scroll no further, with
+      // the blank bottom inset in view — not the progress percentage. That
+      // reaches 100% while the last lines are still where the returning nav bar
+      // lands, so bringing the bars back on it covered them.
+      if (data === "edge") {
+        atEdgeRef.current = true;
+        clearBarsIdleTimer();
+        setBarsVisible(true, "scroll_edge");
+        return;
       }
       if (isPlayerDragging) {
         return;
@@ -675,7 +680,6 @@ const Reader = ({ navigation, route }) => {
         if (
           data === "show" ||
           data === "hide" ||
-          data === "edge" ||
           data.includes("scroll-elementId-") ||
           // Let the position-restore progress fill through — it reflects an
           // intentional scrollIntoView after load, not a spurious transition
@@ -709,12 +713,6 @@ const Reader = ({ navigation, route }) => {
         if (isPlayerEcho()) return;
         setBarsVisible(true, "scroll_up");
         scheduleBarsIdleHide();
-      } else if (data === "edge") {
-        // The page reached the top or the end of the bani: bring the header and
-        // nav bar back, and keep them there while it rests at that edge.
-        atEdgeRef.current = true;
-        clearBarsIdleTimer();
-        setBarsVisible(true, "scroll_edge");
       } else if (data === "hide") {
         setBarsVisible(false, "scroll_down");
         // A scroll down also shrinks the floating audio player to its circle.

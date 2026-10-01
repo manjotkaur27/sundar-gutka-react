@@ -592,6 +592,25 @@ describe("Reader", () => {
     expect(trackNavBar).toHaveBeenCalledWith(true, "scroll_edge", expect.any(String));
   });
 
+  // Progress reaches 100% as the last line touches the bottom of the screen,
+  // with the blank inset meant for the nav bar still below it. Bringing the
+  // bars back there covered the last lines; only the page's own "edge", sent
+  // once the inset is in view, may do it.
+  it("does not bring the bars back on 100% progress alone", () => {
+    const { getByTestId } = render(<Reader navigation={mockNavigation} route={mockRoute} />);
+    const { onMessage } = getByTestId("webview").props;
+
+    act(() => {
+      onMessage({ nativeEvent: { data: "hide" } });
+    });
+    trackNavBar.mockClear();
+    act(() => {
+      onMessage({ nativeEvent: { data: "scroll-progress-1.0000" } });
+    });
+
+    expect(trackNavBar).not.toHaveBeenCalled();
+  });
+
   // Auto-scroll stops at the end but stays switched on; its idle auto-hide must
   // not take the bars away again while the page rests there.
   it("keeps the bars up at the end of the bani while auto-scroll is on", () => {

@@ -214,7 +214,16 @@ const scrollFunc=(e)=> {
       window.ReactNativeWebView.postMessage("scroll-progress-" + pct.toFixed(4));
       // Measured here, behind the same guard as progress, so a position-restore
       // jump or a reflow never counts as reaching the top or the end.
-      var atEdge = pct <= 0 || pct >= 1;
+      //
+      // The END is where the page can scroll no further, not where pct hits 1.
+      // pct stops counting at the bottom inset, so it reaches 1 the moment the
+      // last line touches the bottom of the screen — and the nav bar, brought
+      // back there, landed on those last lines instead of the blank inset left
+      // under them for it. Waiting for the inset to be fully in view puts the
+      // returning bars over that gap. 2px of slack for a fractional scrollY, the
+      // same the auto-scroll stop uses.
+      var y = window.scrollY || window.pageYOffset;
+      var atEdge = y <= 0 || y + ch >= sh - 2;
       arrivedAtEdge = atEdge && !wasAtEdge;
       wasAtEdge = atEdge;
     }
@@ -240,10 +249,10 @@ const scrollFunc=(e)=> {
     // below.) The syncScrollUntil guard keeps audio-sync/position-restore
     // scrolls from flickering the bars.
     if (diffY < -3) {
-      // Scroll down — except while resting at the end. 100% is reached before
-      // the page stops: the blank bottom inset (body padding-bottom) is still
-      // scrollable, so a fling carries on through it, and each of those ticks
-      // would take away the bars "edge" has just brought back.
+      // Scroll down — except while resting at the end, where a last settling
+      // tick would take away the bars "edge" has just brought back. Scrolling
+      // through the bottom inset on the way there still hides them: the bars
+      // come back only once the inset is fully in view.
       if (!wasAtEdge) window.ReactNativeWebView.postMessage("hide");
     } else if (diffY > 3) {
       // Scroll up

@@ -334,16 +334,20 @@ describe("edge arrival", () => {
     expect(bars()).toEqual(["hide", "edge"]);
   });
 
-  // 100% is reached before the page stops: the blank inset under the last line
-  // (body padding-bottom) is still scrollable, and a fling carries on through
-  // it. Those ticks must not take away the bars the edge just brought back.
-  it("keeps the bars up while a fling carries on into the bottom inset", () => {
+  // The blank inset under the last line (body padding-bottom) is there for the
+  // nav bar to land on. Progress reaches 100% as the last line touches the
+  // bottom of the screen, but the bars must wait until the inset is fully in
+  // view — brought back at 100%, they came down over the last lines instead.
+  it("brings the bars back only once the bottom inset is fully in view", () => {
     document.body.style.paddingBottom = "100px"; // reading range now ends at 900
     scrollTo(800);
     scrollTo(900);
+    expect(posted()).toContain("scroll-progress-1.0000");
     scrollTo(950);
-    scrollTo(1000);
-    expect(bars()).toEqual(["hide", "edge"]);
+    expect(bars()).not.toContain("edge");
+
+    scrollTo(1000); // the page can scroll no further
+    expect(bars()).toEqual(["hide", "hide", "hide", "edge"]);
   });
 
   it("reports the top on arrival", () => {
