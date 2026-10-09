@@ -88,8 +88,28 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
   // because `listPothis` re-anchors pinned to the top and only unpinned ids are
   // saved. Keeping them in a separate, non-draggable block means the drag
   // cannot reach them and there is nothing to snap back.
-  const pinned = useMemo(() => rows.filter((row) => !row.system && row.pinned), [rows]);
-  const mine = useMemo(() => rows.filter((row) => !row.system && !row.pinned), [rows]);
+  //
+  // Morning and Evening Nitnem are anchored the same way, and always: they
+  // have a fixed place at the top and can be neither pinned nor dragged.
+  const morningId = defaultPothiId(pothis, "morning");
+  const eveningId = defaultPothiId(pothis, "evening");
+  const isDefault = useCallback(
+    (row) => row.id === morningId || row.id === eveningId,
+    [morningId, eveningId]
+  );
+  const defaults = useMemo(
+    () => rows.filter((row) => !row.system && isDefault(row)),
+    [rows, isDefault]
+  );
+  const custom = useMemo(
+    () => rows.filter((row) => !row.system && !isDefault(row)),
+    [rows, isDefault]
+  );
+  const pinned = useMemo(() => custom.filter((row) => row.pinned), [custom]);
+  const mine = useMemo(() => custom.filter((row) => !row.pinned), [custom]);
+  // A single draggable pothi has nowhere to go, so its grip would be a control
+  // that does nothing. Offered only once there are two to swap.
+  const canReorder = mine.length >= 2;
   // The pin count, read through a ref so the handler below does not depend on
   // the store.
   //
@@ -100,11 +120,9 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
   const pinnedCountRef = useRef(pinned.length);
   pinnedCountRef.current = pinned.length;
   // Morning and Evening Nitnem can be neither renamed nor deleted, so their
-  // actions sheet would open with nothing in it. Held as the two id STRINGS
-  // rather than the slice, so `renderPothi` keeps its identity across reorders
-  // for the same reason the pin count above is a ref.
-  const morningId = defaultPothiId(pothis, "morning");
-  const eveningId = defaultPothiId(pothis, "evening");
+  // actions sheet would open with nothing in it. `isDefault` closes over the two
+  // id STRINGS rather than the slice, so `renderPothi` keeps its identity across
+  // reorders for the same reason the pin count above is a ref.
 
   // A pothi's banis open on their own screen, in the ordinary All Banis list,
   // so a bani inside a pothi behaves exactly as it does anywhere else — the
@@ -144,12 +162,10 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
       <PothiRow
         pothi={row}
         onOpen={() => openPothi(row)}
-        onTogglePin={row.system ? null : () => togglePin(row)}
-        onLongPress={
-          row.system || row.id === morningId || row.id === eveningId ? null : () => openActions(row)
-        }
+        onTogglePin={row.system || isDefault(row) ? null : () => togglePin(row)}
+        onLongPress={row.system || isDefault(row) ? null : () => openActions(row)}
         dragHandle={
-          drag && !row.pinned ? (
+          drag && !row.pinned && !isDefault(row) ? (
             <Pressable
               onLongPress={drag}
               delayLongPress={150}
@@ -163,7 +179,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
         }
       />
     ),
-    [openPothi, openActions, togglePin, morningId, eveningId, layout, c]
+    [openPothi, openActions, togglePin, isDefault, layout, c]
   );
 
   // No standing notice above the list. The sign-in hint is a toast instead (see
@@ -175,16 +191,16 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
     <View style={{ paddingTop: space.md_12 }}>
       <NewPothiRow onPress={onCreatePress} />
 
-      {/* The pinned block, above the draggable list and outside it. Rendered
-          with the same row and the same separators, so it reads as one list —
-          it simply cannot be dragged, which is what being pinned means. */}
-      {pinned.map((row, index) => (
+      {/* The fixed block — the defaults, then the pinned — above the draggable
+          list and outside it. Rendered with the same row and the same
+          separators, so it reads as one list; it simply cannot be dragged. */}
+      {[...defaults, ...pinned].map((row, index) => (
         <View key={row.id}>
           {index > 0 && <ListSeparator />}
           {renderPothi(row)}
         </View>
       ))}
-      {pinned.length > 0 && mine.length > 0 && <ListSeparator />}
+      {defaults.length + pinned.length > 0 && mine.length > 0 && <ListSeparator />}
     </View>
   );
 
@@ -266,7 +282,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
           // drag at the very top, where there is nothing left to scroll to.
           simultaneousHandlers={pullRef}
           renderItem={({ item, drag }) => (
-            <ScaleDecorator>{renderPothi(item, { drag })}</ScaleDecorator>
+            <ScaleDecorator>{renderPothi(item, { drag: canReorder ? drag : null })}</ScaleDecorator>
           )}
           ItemSeparatorComponent={ListSeparator}
           ListHeaderComponent={header}
@@ -275,7 +291,7 @@ const PothiList = ({ baniListData, onOpenPothi, onCreatePress, onPinLimit, activ
           // into the header so the drag cannot reach it — so pinning the last
           // one emptied the lane and the list announced "no pothis yet" over a
           // header still showing them.
-          ListEmptyComponent={pinned.length ? null : empty}
+          ListEmptyComponent={defaults.length || pinned.length ? null : empty}
           ListFooterComponent={footer}
           // No `style` prop: DraggableFlatList forwards it to an inner animated
           // wrapper, and a flex there fights the gesture root above, collapsing

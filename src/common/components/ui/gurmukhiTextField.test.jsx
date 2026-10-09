@@ -217,3 +217,25 @@ describe("GurmukhiTextField keyboard mutex", () => {
     expect(onToggle).not.toHaveBeenCalled();
   });
 });
+
+// The native placeholder ignores `fontFamily` on Android, so the field draws its
+// own — it has to be in the app's Baloo face, like the label above the field.
+describe("GurmukhiTextField placeholder", () => {
+  const { flatten } = require("react-native").StyleSheet;
+  const { type } = require("@theme/lightTheme").default;
+
+  it("draws the placeholder in Baloo, not through the native hint", () => {
+    open({ placeholder: "e.g. Morning Banis" });
+    const hint = screen.getByText("e.g. Morning Banis");
+    expect(flatten(hint.props.style).fontFamily).toBe(type.body.fontFamily);
+    // And nothing asks the native field for a hint of its own on top of it.
+    const inputs = screen.UNSAFE_root.findAll((node) => node.type === "TextInput");
+    expect(inputs.length).toBeGreaterThan(0);
+    inputs.forEach((node) => expect(node.props.placeholder).toBeUndefined());
+  });
+
+  it("hides the placeholder once there is a value", () => {
+    open({ placeholder: "e.g. Morning Banis", value: "Mine" });
+    expect(screen.queryByText("e.g. Morning Banis")).toBeNull();
+  });
+});

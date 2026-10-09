@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import useTokens from "../../hooks/useTokens";
 import { SearchIcon } from "../../icons";
 import GurmukhiKeyboardToggle from "./GurmukhiKeyboardToggle";
+import Text from "./Text";
 
 // A text field that can hand itself over to the in-app Punjabi keyboard.
 //
@@ -124,12 +125,36 @@ const GurmukhiTextField = ({
     >
       {search ? <SearchIcon size={iconSize} color={c.textSecondary} /> : null}
 
+      {/* The placeholder is drawn here rather than by TextInput: the native hint
+          ignores `fontFamily` (Android draws it in the system face), so it never
+          matched the Baloo label above it. Sits behind the input, filling the
+          same box, and goes the moment there is a value. */}
+      {placeholder && !value ? (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: space.md + (search ? iconSize + space.sm : 0),
+            right: keyboardToggle ? chipWidth + space.xs + space.sm : space.md,
+            justifyContent: "center",
+          }}
+        >
+          <Text variant="body" color="textDisabled" numberOfLines={1}>
+            {placeholder}
+          </Text>
+        </View>
+      ) : null}
+
       <TextInput
         ref={input}
         value={value}
         onChangeText={(next) => onChange(maxLength ? next.slice(0, maxLength) : next)}
-        placeholder={placeholder}
-        placeholderTextColor={c.textDisabled}
+        // Still read out, as the native placeholder was.
+        accessibilityHint={placeholder}
         selectionColor={c.accent}
         accessibilityLabel={accessibilityLabel}
         onFocus={onFocus}
@@ -151,6 +176,9 @@ const GurmukhiTextField = ({
           // The body type ROLE, so the field tracks the type scale instead of
           // pinning a number the way the fields this replaced did.
           fontSize: type.body.fontSize,
+          // The app's UI face, so the typed name matches the label above
+          // instead of falling back to the system font.
+          fontFamily: type.body.fontFamily,
         }}
       />
 

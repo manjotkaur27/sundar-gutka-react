@@ -455,6 +455,29 @@ describe("the default pothi pointer", () => {
     expect(order).toEqual([MORNING_ID, EVENING_ID]);
   });
 
+  it("keeps the pair at the top, above new and pinned pothis", () => {
+    let s = addPothi(seededPair(), createPothi({ id: "mine", name: "Mine" }));
+    s = addPothi(s, createPothi({ id: "pinned", name: "Pinned" }));
+    s = togglePin(s, "pinned");
+    expect(ids(s)).toEqual([MORNING_ID, EVENING_ID, "pinned", "mine"]);
+  });
+
+  it("refuses to pin a default", () => {
+    const before = seededPair();
+    expect(togglePin(before, MORNING_ID)).toBe(before);
+    expect(togglePin(before, EVENING_ID)).toBe(before);
+  });
+
+  it("clears a default's stale pin without spending a pin slot on it", () => {
+    const pinnedPair = {
+      ...seededPair(),
+      folders: seededPair().folders.map((folder) => ({ ...folder, pinned: true })),
+    };
+    const extra = ["a", "b", "c"].map((id) => ({ id, name: id, items: [], pinned: true }));
+    const s = reconcile({ ...pinnedPair, folders: [...pinnedPair.folders, ...extra] });
+    expect(s.folders.filter((f) => f.pinned).map((f) => f.id)).toEqual(["a", "b", "c"]);
+  });
+
   it("is recorded when the pair is seeded", () => {
     const s = seededPair();
     expect(defaultPothiId(s, "morning")).toBe(MORNING_ID);
@@ -753,4 +776,4 @@ describe("whose order stands after a pull", () => {
     expect(ids(merged).slice(0, 2)).toEqual(["a", "b"]);
     expect(ids(merged)).toContain("new");
   });
-});
+});

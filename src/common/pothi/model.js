@@ -326,28 +326,35 @@ export const setOrder = (state, nextOrder, now = Date.now()) => {
   return { ...state, folders };
 };
 
-export const countPinned = (state) => state.folders.filter((folder) => folder.pinned).length;
+// A default can carry a stale `pinned` from an earlier build or another
+// client; it never counts toward the ceiling, since it is never shown pinned.
+export const countPinned = (state) =>
+  state.folders.filter((folder) => folder.pinned && !isDefaultPothi(state, folder.id)).length;
 
 /**
  * Pin or unpin. Pinning past MAX_PINNED is refused — the state comes back
- * unchanged, which the caller reads as "tell the user the limit".
+ * unchanged, which the caller reads as "tell the user the limit". The two
+ * defaults are refused outright: they already have a fixed place at the top.
  */
 export const togglePin = (state, id, now = Date.now()) => {
   const folder = state.folders[indexOf(state, id)];
-  if (!folder) return state;
+  if (!folder || isDefaultPothi(state, id)) return state;
   if (!folder.pinned && countPinned(state) >= MAX_PINNED) return state;
   return patch(state, id, { pinned: !folder.pinned }, now);
 };
 
 /**
- * Render order: pinned first, then the rest, each lane keeping its array order.
+ * Render order: the two defaults (Morning, then Evening) in their fixed place,
+ * then pinned, then the rest, each of the last two lanes keeping its array order.
  *
- * Derived rather than stored, so the two lanes can never disagree about where a
+ * Derived rather than stored, so the lanes can never disagree about where a
  * pothi is — the bug a separate `pinnedOrder` invites.
  */
 export const listPothis = (state) => {
   const folders = state?.folders ?? [];
-  return [...folders.filter((f) => f.pinned), ...folders.filter((f) => !f.pinned)];
+  const defaults = DEFAULT_KINDS.map((kind) => defaultPothi(state, kind)).filter(Boolean);
+  const rest = folders.filter((f) => !defaults.includes(f));
+  return [...defaults, ...rest.filter((f) => f.pinned), ...rest.filter((f) => !f.pinned)];
 };
 
 /** The ids of the pothis a bani already belongs to — drives the add modal's ticks. */
@@ -392,7 +399,6 @@ export const reconcile = (persisted) => {
   const base = emptyPothis();
   if (!persisted) return base;
   const raw = Array.isArray(persisted.folders) ? persisted.folders : [];
-  let pinned = 0;
   const folders = raw
     .filter((folder) => folder && typeof folder.id === "string" && folder.id.length > 0)
     .slice(0, MAX_FOLDERS)
@@ -419,8 +425,6 @@ export const reconcile = (persisted) => {
               }
             : item
         );
-      const keepPin = Boolean(folder.pinned) && pinned < MAX_PINNED;
-      if (keepPin) pinned += 1;
       return {
         id: clamp(folder.id, MAX_ID_LENGTH),
         name: normaliseName(folder.name) || folder.id,
@@ -432,14 +436,27 @@ export const reconcile = (persisted) => {
         createdAt: Number.isFinite(folder.createdAt) ? folder.createdAt : Date.now(),
         updatedAt: Number.isFinite(folder.updatedAt) ? folder.updatedAt : Date.now(),
         isPublic: Boolean(folder.isPublic),
-        pinned: keepPin,
+        pinned: Boolean(folder.pinned),
       };
     });
-  const kept = dropExactDuplicates(folders);
+  const deduped = dropExactDuplicates(folders);
   // Every entry point — rehydrate, seed, merge — passes through here, so this
   // is the one place the two default pointers are re-established. A pointer at
   // a folder that is still present is left exactly as it is.
   const recorded = persisted.defaultIds ?? {};
+  const defaultIds = {
+    morning: resolveDefaultId("morning", deduped, recorded.morning),
+    evening: resolveDefaultId("evening", deduped, recorded.evening),
+  };
+  // Pins are capped only once the defaults are known: a default is never
+  // pinned (it has a fixed place instead), so it must not take a slot either.
+  let pinned = 0;
+  const kept = deduped.map((folder) => {
+    const isDefault = folder.id === defaultIds.morning || folder.id === defaultIds.evening;
+    const keepPin = folder.pinned && !isDefault && pinned < MAX_PINNED;
+    if (keepPin) pinned += 1;
+    return folder.pinned === keepPin ? folder : { ...folder, pinned: keepPin };
+  });
   return {
     folders: kept,
     seededDefaults: Boolean(persisted.seededDefaults),
@@ -447,10 +464,7 @@ export const reconcile = (persisted) => {
     deletedIds: Array.isArray(persisted.deletedIds)
       ? persisted.deletedIds.filter((id) => typeof id === "string")
       : [],
-    defaultIds: {
-      morning: resolveDefaultId("morning", kept, recorded.morning),
-      evening: resolveDefaultId("evening", kept, recorded.evening),
-    },
+    defaultIds,
   };
 };
 
