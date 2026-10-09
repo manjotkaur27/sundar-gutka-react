@@ -67,6 +67,17 @@ const SheetContent = ({
   // Only a SCROLLING body may start a drag: a fixed one can hold a control that
   // moves vertically itself (the time picker's wheels).
   const motion = useSheetMotion({ visible, onClose, bodyScrolls: scrollable });
+  // Whether the iOS window is up — from `onShow` until `onDismiss`. See the
+  // unmount below.
+  const [presented, setPresented] = useState(false);
+  const handleShow = () => {
+    if (Platform.OS === "ios") setPresented(true);
+    motion.onShow();
+  };
+  const handleDismiss = () => {
+    setPresented(false);
+    if (onDismiss) onDismiss();
+  };
   // A Modal's window ignores the Activity's `adjustResize` on Android, so the
   // sheet has to get itself out of the keyboard's way. See the hook.
   const keyboardHeight = useKeyboardHeight();
@@ -184,8 +195,15 @@ const SheetContent = ({
     (footer ? parts.footer ?? 0 : 0) -
     bodyRoom;
 
-  // Unmount only once the closing slide has finished.
-  if (!motion.mounted) return null;
+  // Unmount only once the closing slide has finished — and, on iOS, only once
+  // the window has actually gone. There `onDismiss` reaches JS through a
+  // listener the Modal removes as it unmounts, while the native dismissal (and
+  // its event) lands after that. Dropped straight from the tree, the sheet's
+  // `onDismiss` never fired, so a follow-up hung on it — the delete pothi
+  // confirm, the folder screen's menu actions — silently never ran. So the
+  // Modal is kept, hidden through `visible`, until it reports itself gone.
+  const holdForDismiss = Platform.OS === "ios" && presented;
+  if (!motion.mounted && !holdForDismiss) return null;
 
   return (
     // `animationType="none"` because the slide is driven below — the Modal's
@@ -193,13 +211,14 @@ const SheetContent = ({
     // wiped up the screen with the sheet instead of being there on tap. `onShow`
     // is when the sheet's native view exists to animate.
     <Overlay
+      visible={motion.mounted}
       animationType="none"
       onRequestClose={onClose}
-      onShow={motion.onShow}
+      onShow={handleShow}
       // iOS only, and the only reliable "this window is gone" signal there —
       // see Overlay. A caller that has to open something else once this sheet
       // is out of the way hangs its follow-up here.
-      onDismiss={onDismiss}
+      onDismiss={handleDismiss}
       testID={testID}
     >
       {/* Android gives a Modal its own window, outside the app's gesture root,

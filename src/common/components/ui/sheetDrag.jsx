@@ -157,7 +157,11 @@ export const useSheetMotion = ({
   // keeps its window, so no second `onShow` comes to slide it back up.
   const shownRef = useRef(false);
 
-  const offset = useSharedValue(visible ? 0 : SHEET_TRAVEL);
+  // Below the screen even when it mounts already open. Starting in place, a
+  // sheet first rendered with `visible` (the reminder sheet, which renders
+  // nothing until a reminder is picked) drew one frame fully up, was sent off
+  // screen by the effect below, then slid back in on `onShow` — a flicker.
+  const offset = useSharedValue(SHEET_TRAVEL);
   // Off while the sheet slides in, so the scrim is at full strength from the
   // first frame; on once it is up, and while it is dragged or leaves.
   const scrimFollows = useSharedValue(false);

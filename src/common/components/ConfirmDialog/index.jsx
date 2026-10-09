@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { useReaderScopedTheme } from "@theme/reader";
 import Overlay from "@common/components/ui/Overlay";
@@ -146,7 +146,12 @@ const ConfirmDialogHost = () => {
   }, []);
   const options = request?.options ?? null;
 
-  useEffect(() => {
+  // A LAYOUT effect, so a host inside a sheet is gone from the stack within the
+  // very commit that unmounts it. A passive cleanup runs after that commit —
+  // too late for a confirm raised from the sheet's iOS `onDismiss`, which fires
+  // inside it: the dead host was still innermost, took the request, and nothing
+  // appeared. That was long-press → Delete on the Folders tab.
+  useLayoutEffect(() => {
     // `setOptions` is stable, so it is its own registration token.
     hostListeners.push(setOptions);
     return () => {

@@ -338,3 +338,14 @@ describe("closing without a drag", () => {
     expect(result.current.panelStyle.transform[0].translateY).toBe(0);
   });
 });
+
+// A sheet that first renders already open — the reminder sheet renders nothing
+// until a reminder is picked — waits below the screen for `onShow`. It used to
+// start in place for one frame, then drop out of sight and slide back up: a
+// flicker on every open.
+describe("a sheet mounted already open", () => {
+  it("waits below the screen until it is shown", () => {
+    const { result } = renderHook(() => useSheetMotion({ visible: true, onClose: jest.fn() }));
+    expect(result.current.panelStyle.transform[0].translateY).toBeGreaterThan(0);
+  });
+});

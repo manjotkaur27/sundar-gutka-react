@@ -80,6 +80,24 @@ describe("showConfirm's host", () => {
 
     expect(titleOf(root)).toBeTruthy();
   });
+
+  // The iOS delete-pothi path: the sheet's `onDismiss` fires inside the commit
+  // that takes the sheet — and its host — away, and raises the confirm there.
+  // The root host has to be answering by then, not the host just removed.
+  it("hands back within the commit that removes the sheet's host", () => {
+    const AskWhenClosed = ({ open }) => {
+      React.useLayoutEffect(() => {
+        if (!open) showConfirm(options);
+      }, [open]);
+      return open ? <ConfirmDialogHost /> : null;
+    };
+    const root = render(<ConfirmDialogHost />);
+    const sheet = render(<AskWhenClosed open />);
+
+    act(() => sheet.rerender(<AskWhenClosed open={false} />));
+
+    expect(titleOf(root)).toBeTruthy();
+  });
 });
 
 // A caller that has to react to being backed out of — a sheet that closes when

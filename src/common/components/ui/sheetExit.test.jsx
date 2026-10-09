@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import React from "react";
-import { Modal, Text } from "react-native";
+import { Modal, Platform, Text } from "react-native";
 
 import { act, render, screen } from "@testing-library/react-native";
 
@@ -55,6 +55,52 @@ describe.each(["floating", "flush"])("a %s sheet", (variant) => {
 
     act(() => jest.runAllTimers());
     expect(screen.queryByText("Body")).toBeNull();
+  });
+});
+
+// iOS delivers a Modal's `onDismiss` through a listener the Modal drops as it
+// unmounts, and the native dismissal lands after that. A sheet that left the
+// tree once its slide ended never told its caller it was gone — so the delete
+// pothi confirm, which waits for exactly that, never appeared on iOS.
+describe("closing on iOS", () => {
+  const originalOS = Platform.OS;
+  afterEach(() => {
+    Platform.OS = originalOS;
+  });
+
+  const dismissable = (visible, onDismiss) => (
+    <Sheet visible={visible} onClose={() => {}} onDismiss={onDismiss} title="Pothi">
+      <Text>Body</Text>
+    </Sheet>
+  );
+
+  it("keeps the window, hidden, until it reports itself gone", () => {
+    Platform.OS = "ios";
+    const onDismiss = jest.fn();
+    render(dismissable(true, onDismiss));
+    act(() => screen.UNSAFE_getByType(Modal).props.onShow());
+    act(() => jest.runAllTimers());
+
+    screen.rerender(dismissable(false, onDismiss));
+    act(() => jest.runAllTimers());
+    const modal = screen.UNSAFE_getByType(Modal);
+    expect(modal.props.visible).toBe(false);
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    act(() => modal.props.onDismiss());
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+  });
+
+  it("is not held on Android, which has no dismissal to wait for", () => {
+    Platform.OS = "android";
+    render(dismissable(true, jest.fn()));
+    act(() => screen.UNSAFE_getByType(Modal).props.onShow());
+    act(() => jest.runAllTimers());
+
+    screen.rerender(dismissable(false, jest.fn()));
+    act(() => jest.runAllTimers());
+    expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
   });
 });
 
