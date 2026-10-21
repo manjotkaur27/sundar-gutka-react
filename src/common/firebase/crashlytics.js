@@ -5,6 +5,7 @@ import {
   setAttribute,
   log,
   recordError,
+  didCrashOnPreviousExecution,
 } from "@react-native-firebase/crashlytics";
 import { isNetworkFailure } from "../networkFailure";
 import { sanitizeName } from "./helper";
@@ -82,6 +83,16 @@ export const initializeCrashlytics = async () => {
     log(crashlytics, "Crashlytics initialized");
   } catch {
     // Do not block app startup if Crashlytics fails to init
+  }
+};
+
+// Whether the previous run ended in a crash Crashlytics recorded. Never throws,
+// and answers false when it cannot tell.
+export const didCrashLastRun = async () => {
+  try {
+    return Boolean(await didCrashOnPreviousExecution(crashlytics));
+  } catch {
+    return false;
   }
 };
 

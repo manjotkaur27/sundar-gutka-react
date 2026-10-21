@@ -243,6 +243,9 @@ dependencies {
     implementation project(':react-native-screens')
     implementation project(':react-native-safe-area-context')
 
+    // JVM unit tests for plain-Kotlin helpers (src/test); nothing ships in the app.
+    testImplementation 'junit:junit:4.13.2'
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

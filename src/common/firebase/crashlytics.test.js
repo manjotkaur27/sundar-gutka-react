@@ -6,10 +6,11 @@ jest.mock("@react-native-firebase/crashlytics", () => ({
   setAttribute: jest.fn(),
   log: jest.fn(),
   recordError: jest.fn(),
+  didCrashOnPreviousExecution: jest.fn(() => Promise.resolve(false)),
 }));
 
-import { recordError } from "@react-native-firebase/crashlytics";
-import { logError } from "./crashlytics";
+import { didCrashOnPreviousExecution, recordError } from "@react-native-firebase/crashlytics";
+import { didCrashLastRun, logError } from "./crashlytics";
 
 describe("logError", () => {
   beforeEach(() => {
@@ -70,5 +71,17 @@ describe("logError", () => {
     expect(() => logError(circular)).not.toThrow();
     const recorded = recordError.mock.calls[0][1];
     expect(recorded.message).toBe("Non-Error exception: [object Object]");
+  });
+});
+
+describe("didCrashLastRun", () => {
+  it("passes on Crashlytics' answer", async () => {
+    didCrashOnPreviousExecution.mockResolvedValueOnce(true);
+    await expect(didCrashLastRun()).resolves.toBe(true);
+  });
+
+  it("answers false rather than failing when Crashlytics cannot tell", async () => {
+    didCrashOnPreviousExecution.mockRejectedValueOnce(new Error("not ready"));
+    await expect(didCrashLastRun()).resolves.toBe(false);
   });
 });
