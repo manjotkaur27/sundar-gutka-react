@@ -1,4 +1,4 @@
-export const createStyles = ({ c, space, layout, type }) => ({
+export const createStyles = ({ c, space, layout }) => ({
   rowItem: {
     // A minimum, not a fixed height: the Gurmukhi name renders large and a long
     // title must be able to make the row taller rather than clip.
@@ -22,9 +22,8 @@ export const createStyles = ({ c, space, layout, type }) => ({
     backgroundColor: c.border,
     marginHorizontal: layout.screenGutter,
   },
+  // Face and size come from the row, which follows the transliteration setting.
   text: {
-    fontFamily: type.fonts.gurbaniPrimary,
-    fontSize: type.title.fontSize,
     textAlign: "center",
     color: c.textPrimary,
   },

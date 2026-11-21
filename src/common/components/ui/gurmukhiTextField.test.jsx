@@ -2,7 +2,6 @@ import React from "react";
 import { Keyboard } from "react-native";
 
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
 
 import { CloseIcon } from "../../icons";
 
@@ -136,7 +135,7 @@ describe("GurmukhiTextField keyboard switch", () => {
       return size;
     };
     expect(sizeAt(1.3)).toBeGreaterThan(sizeAt(1));
-    expect(sizeAt(3)).toBe(sizeAt(FONT_SCALE_MAX));
+    expect(sizeAt(3)).toBe(sizeAt(1.5));
   });
 
   it("draws no switch where the field was not given one", () => {

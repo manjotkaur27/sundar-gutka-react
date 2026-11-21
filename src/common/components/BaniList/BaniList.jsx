@@ -6,7 +6,7 @@ import useBaniTitle from "@common/hooks/useBaniTitle";
 import useScreenPalette from "@common/hooks/useScreenPalette";
 import useTokens from "@common/hooks/useTokens";
 import { FolderIcon, MusicIcon } from "@common/icons";
-import { baseFontSize, ListItemTitle, STRINGS, useCustomScrollbar, constant } from "@common";
+import { ListItemTitle, STRINGS, useCustomScrollbar } from "@common";
 import { ListSeparator } from "../ui";
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -26,7 +26,7 @@ const BaniList = React.memo(({ data, onPress, showAudio = false }) => {
   // The one implementation of "what does this bani's name say, and in what
   // face" — see useBaniTitle. It used to be a private `getBaniTuk` here, which
   // is how My Pothi ended up with a second copy that ignored transliteration.
-  const { titleFor, titleFontFamily, isTransliteration } = useBaniTitle();
+  const { titleFor, titleFontFamily, titleSize } = useBaniTitle();
   // `useWindowDimensions` re-renders on rotation, split-screen and foldable
   // unfold on its own. This replaced a `Dimensions.get` snapshot plus a manual
   // change listener and a piece of state that duplicated what the hook gives.
@@ -38,7 +38,6 @@ const BaniList = React.memo(({ data, onPress, showAudio = false }) => {
       const itemTextColor = c.textPrimary;
       const displayFont = titleFontFamily;
       const title = titleFor(row.item);
-      const titleSize = baseFontSize(constant.SMALL, isTransliteration);
       const hasAudio = showAudio && !row.item.folder && banisWithAudio.has(row.item.id);
 
       // Rows are separated by a faint INSET hairline (see ItemSeparator below),
@@ -83,12 +82,13 @@ const BaniList = React.memo(({ data, onPress, showAudio = false }) => {
                   fontFamily: displayFont,
                 },
               ]}
-              // Wraps to a second line rather than shrinking. Shrink-to-fit
-              // sized each name by its own string length, so the list rendered
-              // at a dozen different sizes — and it silently overrode the
-              // user's own font-size setting, which is the one thing this row
-              // is supposed to honour.
-              numberOfLines={2}
+              // Wraps rather than shrinking. Shrink-to-fit sized each name by its
+              // own string length, so the list rendered at a dozen different
+              // sizes — and it silently overrode the user's own font-size
+              // setting, which is the one thing this row is supposed to honour.
+              // No line cap (0): at the largest sizes a two-line cap cut a
+              // bani's name off, and the row has no fixed height to protect.
+              numberOfLines={0}
             />
             {row.item.tukGurmukhi && (
               <ListItemTitle
@@ -122,7 +122,7 @@ const BaniList = React.memo(({ data, onPress, showAudio = false }) => {
       scale,
       titleFor,
       titleFontFamily,
-      isTransliteration,
+      titleSize,
       onPress,
       showAudio,
       banisWithAudio,

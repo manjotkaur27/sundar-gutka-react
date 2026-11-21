@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Keyboard, Platform, Pressable, TextInput, View } from "react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
 import useTextScale from "../../hooks/useTextScale";
 import useTokens from "../../hooks/useTokens";
 import { SearchIcon } from "../../icons";
+import { osScaleCap } from "../../textScale";
 import GurmukhiKeyboardToggle from "./GurmukhiKeyboardToggle";
 import Text from "./Text";
 
@@ -50,7 +50,7 @@ const GurmukhiTextField = ({
   returnKeyType = "done",
 }) => {
   const { c, space, radii, layout, type, scale } = useTokens();
-  const multiplier = useTextScale();
+  const { app: multiplier, max } = useTextScale();
   const input = useRef(null);
   // Held in a ref so the listener below is not re-attached on every render —
   // callers pass an inline arrow.
@@ -94,7 +94,7 @@ const GurmukhiTextField = ({
   const [fieldWidth, setFieldWidth] = useState(0);
   const [chipWidth, setChipWidth] = useState(0);
   const iconSize = type.body.fontSize;
-  const glyph = type.body.fontSize * Math.min(scale.fontScale, FONT_SCALE_MAX);
+  const glyph = type.body.fontSize * scale.fontScale;
   const insets = space.md + space.xs + (search ? iconSize + space.sm : 0) + space.sm;
   const room = fieldWidth - insets - chipWidth;
   const showLabel = fieldWidth === 0 || chipWidth === 0 || room >= glyph * MIN_TEXT_CHARACTERS;
@@ -161,7 +161,7 @@ const GurmukhiTextField = ({
         onSubmitEditing={onSubmit}
         returnKeyType={returnKeyType}
         allowFontScaling
-        maxFontSizeMultiplier={Math.min(FONT_SCALE_MAX, 2.0 / multiplier)}
+        maxFontSizeMultiplier={osScaleCap(multiplier, max)}
         showSoftInputOnFocus={!gurmukhiOpen}
         style={{
           // Takes whatever the chip leaves, and may shrink below its content:

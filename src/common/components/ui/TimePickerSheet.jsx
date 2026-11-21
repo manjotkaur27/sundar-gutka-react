@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, TextInput, View } from "react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
 import useTextScale from "../../hooks/useTextScale";
 import useTokens from "../../hooks/useTokens";
+import { osScaleCap } from "../../textScale";
 import Button from "./Button";
 import Sheet from "./Sheet";
 import Text from "./Text";
@@ -228,7 +228,7 @@ const TypedField = ({
   testID = undefined,
 }) => {
   const { c, radii, layout, type } = useTokens();
-  const multiplier = useTextScale();
+  const { app: multiplier, max } = useTextScale();
   // What the field SHOWS while you are typing. Kept separate from the committed
   // value so a half-typed "1" is not clamped to "01" under the caret, which
   // makes the field impossible to type into.
@@ -269,7 +269,7 @@ const TypedField = ({
       selectTextOnFocus
       accessibilityLabel={label}
       allowFontScaling
-      maxFontSizeMultiplier={Math.min(FONT_SCALE_MAX, 2.0 / multiplier)}
+      maxFontSizeMultiplier={osScaleCap(multiplier, max)}
       style={{
         ...type.heading,
         fontSize: type.heading.fontSize * multiplier,

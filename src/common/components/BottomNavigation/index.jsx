@@ -5,7 +5,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import components, { bottomNavInset } from "@theme/components";
 import { useReaderScopedTheme, useReaderScopedStyles } from "@theme/reader";
+import { CHROME_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
+import { TextScaleLimit } from "@common/context/TextScaleContext";
 import {
   ListIcon,
   SettingsIcon,
@@ -325,8 +327,12 @@ const BottomNavigation = ({
                       )}
                     </View>
                   </View>
+                  {/* Four labels share the bar's fixed width, so they stop growing at
+                      the chrome ceiling instead of breaking mid-word. */}
                   {activeKey !== item.key && (
-                    <CustomText style={styles.iconText}>{item.text}</CustomText>
+                    <TextScaleLimit max={CHROME_SCALE_MAX}>
+                      <CustomText style={styles.iconText}>{item.text}</CustomText>
+                    </TextScaleLimit>
                   )}
                 </Pressable>
               );

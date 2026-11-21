@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useSelector } from "react-redux";
 import constant from "../constant";
+import baseFontSize from "../helpers";
 import { baniName } from "../reminders/title";
 
 /**
@@ -36,6 +37,8 @@ const useBaniTitle = () => {
     titleFor,
     /** Null under transliteration — that is Latin, and the UI font is right. */
     titleFontFamily: isTransliteration ? null : fontFace,
+    /** A bani name's size in a list. Latin is drawn smaller to match Gurmukhi's visual size. */
+    titleSize: baseFontSize(constant.SMALL, isTransliteration),
     isTransliteration,
   };
 };

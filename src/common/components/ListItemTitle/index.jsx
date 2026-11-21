@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleSheet, Text } from "react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
 import useTextScale from "@common/hooks/useTextScale";
+import { osScaleCap } from "@common/textScale";
 
 // Plain Text (not rneui ListItem.Title, which didn't reliably honour the
 // text props we pass). flexShrink bounds its width inside the row so a long
@@ -26,7 +26,7 @@ const ListItemTitle = ({
   maxFontSizeMultiplier: propMaxScale = undefined,
 }) => {
   const { theme } = useTheme();
-  const multiplier = useTextScale();
+  const { app: multiplier, max } = useTextScale();
 
   // Labels pinned with maxFontSizeMultiplier={1} stay pinned.
   const isPinned = propMaxScale === 1;
@@ -68,7 +68,7 @@ const ListItemTitle = ({
     finalStyle = [...textStyle, extra];
   }
 
-  const maxMultiplier = isPinned ? 1 : propMaxScale ?? Math.min(FONT_SCALE_MAX, 2.0 / scale);
+  const maxMultiplier = isPinned ? 1 : propMaxScale ?? osScaleCap(scale, max);
 
   return (
     <Text

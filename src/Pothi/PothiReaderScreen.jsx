@@ -61,7 +61,8 @@ const PothiReaderScreen = ({ navigation, route }) => {
         isSpanishTranslation,
         readerTheme,
         isLarivaar,
-        0,
+        // No page top margin of its own: undefined keeps the template's default.
+        undefined,
         fontScale
       ),
       baseUrl: Platform.OS === "ios" ? "./" : "",

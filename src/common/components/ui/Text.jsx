@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleSheet, Text as RNText } from "react-native";
-import { FONT_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
 import useTextScale from "../../hooks/useTextScale";
 import useTokens from "../../hooks/useTokens";
+import { osScaleCap } from "../../textScale";
 
 // The app's text primitive. Replaces `CustomText`.
 //
@@ -41,7 +41,7 @@ const Text = ({
   ...rest
 }) => {
   const { c, type } = useTokens();
-  const multiplier = useTextScale();
+  const { app: multiplier, max } = useTextScale();
   const role = type[variant] ?? type.body;
   // A role name resolves through the theme; anything else is passed straight
   // through, so a one-off literal is still possible but stands out in review.
@@ -64,7 +64,7 @@ const Text = ({
     textStyle = [...textStyle, extra];
   }
 
-  const maxMultiplier = isPinned ? 1 : propMaxScale ?? Math.min(FONT_SCALE_MAX, 2.0 / scale);
+  const maxMultiplier = isPinned ? 1 : propMaxScale ?? osScaleCap(scale, max);
 
   return (
     <RNText

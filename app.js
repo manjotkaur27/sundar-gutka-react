@@ -28,6 +28,7 @@ import {
   OnboardingCarousel,
 } from "@common";
 import NetworkProvider from "./src/common/context/NetworkProvider";
+import { TextScaleProvider } from "./src/common/context/TextScaleContext";
 import ThemeProvider from "./src/common/context/ThemeProvider";
 import useOfflinePlaybackGuard from "./src/common/hooks/useOfflinePlaybackGuard";
 import useOfflineSyncToast from "./src/common/hooks/useOfflineSyncToast";
@@ -232,16 +233,18 @@ const App = () => {
           <NetworkProvider>
             <GlobalServices />
             <ThemeProvider>
-              <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
-                <SafeAreaProvider>
-                  <Navigation />
-                  <Toast config={toastConfig} />
-                  <ConfirmDialogHost />
-                  {/* Mounted last so the full-screen onboarding carousel stacks
-                      above every screen when shown (first run + Revisit Tutorial). */}
-                  <OnboardingCarousel />
-                </SafeAreaProvider>
-              </ErrorBoundary>
+              <TextScaleProvider>
+                <ErrorBoundary onError={logError} FallbackComponent={FallBack}>
+                  <SafeAreaProvider>
+                    <Navigation />
+                    <Toast config={toastConfig} />
+                    <ConfirmDialogHost />
+                    {/* Mounted last so the full-screen onboarding carousel stacks
+                        above every screen when shown (first run + Revisit Tutorial). */}
+                    <OnboardingCarousel />
+                  </SafeAreaProvider>
+                </ErrorBoundary>
+              </TextScaleProvider>
             </ThemeProvider>
           </NetworkProvider>
         </PersistGate>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import DraggableFlatList, {
   ShadowDecorator,
@@ -6,6 +6,7 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSelector, useDispatch, batch } from "react-redux";
+import useBaniTitle from "@common/hooks/useBaniTitle";
 import useTokens from "@common/hooks/useTokens";
 import useTokenStyles from "@common/hooks/useTokenStyles";
 import {
@@ -24,6 +25,9 @@ const EditBaniOrder = () => {
   logMessage(constant.EDIT_BANI_ORDER);
   const { c } = useTokens();
   const styles = useTokenStyles(createStyles);
+  // Named, sized and set in the same face as on the home bani list, so turning
+  // transliteration on shows the same script on both screens.
+  const { titleFor, titleFontFamily, titleSize } = useBaniTitle();
   const baniList = useSelector((state) => state.baniList);
   const baniOrder = useSelector((state) => state.baniOrder);
   const [isReset, setReset] = useState(false);
@@ -39,6 +43,10 @@ const EditBaniOrder = () => {
   );
 
   const { rowItem, text } = styles;
+  const titleStyle = useMemo(
+    () => [text, { fontFamily: titleFontFamily, fontSize: titleSize }],
+    [text, titleFontFamily, titleSize]
+  );
   const dispatch = useDispatch();
 
   // Inset hairline between rows, same as the bani list. Never after the last
@@ -54,14 +62,14 @@ const EditBaniOrder = () => {
           <ScaleDecorator>
             <Pressable activeOpacity={1} onLongPress={drag} disabled={isActive} style={activeStyle}>
               <View key={item.id} style={rowItem}>
-                <CustomText style={text}>{item.gurmukhi}</CustomText>
+                <CustomText style={titleStyle}>{titleFor(item)}</CustomText>
               </View>
             </Pressable>
           </ScaleDecorator>
         </ShadowDecorator>
       );
     },
-    [rowItem, text, c]
+    [rowItem, titleStyle, titleFor, c]
   );
 
   useEffect(() => {

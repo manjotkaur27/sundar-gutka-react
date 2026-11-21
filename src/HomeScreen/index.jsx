@@ -8,9 +8,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useDispatch, useSelector } from "react-redux";
+import { CHROME_SCALE_MAX } from "@theme/scale";
 import { paletteFor } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
 import useTheme from "@common/context";
+import { TextScaleLimit } from "@common/context/TextScaleContext";
 import useThemedStyles from "@common/hooks/useThemedStyles";
 import {
   actions,
@@ -234,7 +236,11 @@ const HomeScreen = React.memo(({ navigation }) => {
     <SafeArea backgroundColor={baniGround} edges={["left", "right"]}>
       <StatusBarComponent backgroundColor={baniGround} />
       <View style={[{ backgroundColor: baniGround }, styles.container]}>
-        <BaniHeader navigate={navigate} />
+        {/* The masthead's width is fixed by its ornaments, so it stops growing
+            at the chrome ceiling. Past it the name broke mid-word. */}
+        <TextScaleLimit max={CHROME_SCALE_MAX}>
+          <BaniHeader navigate={navigate} />
+        </TextScaleLimit>
         {constant.POTHI_ENABLED && (
           <SegmentedTabs
             tabs={[

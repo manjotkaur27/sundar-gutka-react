@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { TextInput, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { withAlpha } from "@theme/colorUtils";
-import { FONT_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
 import { setReminderBanis } from "@common/actions";
 import Overlay from "@common/components/ui/Overlay";
 import useTextScale from "@common/hooks/useTextScale";
 import useTokens from "@common/hooks/useTokens";
+import { osScaleCap } from "@common/textScale";
 import { logError, scheduleReminders, STRINGS } from "@common";
 import { Button, Text } from "../../../../../common/components/ui";
 
@@ -35,7 +35,7 @@ export const cleanTitle = (raw) =>
 
 const LabelModal = ({ section, onHide }) => {
   const { c, space, layout, radii, elevation } = useTokens();
-  const multiplier = useTextScale();
+  const { app: multiplier, max } = useTextScale();
   const { title } = section;
   const [reminderTitle, setReminderTitle] = useState(title);
   const reminderBanis = useSelector((state) => state.reminderBanis);
@@ -110,7 +110,7 @@ const LabelModal = ({ section, onHide }) => {
             selectionColor={withAlpha(c.accent, 0.35)}
             placeholderTextColor={c.textDisabled}
             allowFontScaling
-            maxFontSizeMultiplier={Math.min(FONT_SCALE_MAX, 2.0 / multiplier)}
+            maxFontSizeMultiplier={osScaleCap(multiplier, max)}
             style={{
               minHeight: layout.touchTarget,
               borderRadius: radii.sm,

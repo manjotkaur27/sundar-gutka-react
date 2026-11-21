@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { Icon } from "@rneui/themed";
 import PropTypes from "prop-types";
+import useBaniTitle from "@common/hooks/useBaniTitle";
 import useTokens from "@common/hooks/useTokens";
 import { PlusIcon } from "@common/icons";
 import { baniItems, isDefaultPothi } from "@common/pothi/model";
@@ -112,6 +113,8 @@ const FolderScreen = ({ navigation, route }) => {
   // Nitnem read in the app's language instead of the English they are stored in.
   const { titleFor } = usePothiTitle();
   const title = pothi ? titleFor(pothi) : routeTitle;
+  // The bani rows in the pick list, named as on the bani list and Pothi's own picker.
+  const { titleFor: baniTitleFor, titleFontFamily: baniFontFamily } = useBaniTitle();
   const rows = useMemo(
     () =>
       pothi
@@ -357,7 +360,8 @@ const FolderScreen = ({ navigation, route }) => {
               {rows.map((bani) => (
                 <BaniPickRow
                   key={bani.id}
-                  title={bani.gurmukhiUni || bani.gurmukhi}
+                  title={baniTitleFor(bani)}
+                  fontFamily={baniFontFamily}
                   checked={picked.has(bani.id)}
                   onPress={() => togglePick(bani.id)}
                 />

@@ -4,6 +4,7 @@ import { resolveTokens } from "@theme/scale";
 import { layoutFor } from "@theme/screenPalettes";
 import { useScreenRolesScope } from "@theme/ScreenRolesProvider";
 import { useTheme } from "../context/ThemeContext";
+import { effectiveTextScale } from "../textScale";
 import useTextScale from "./useTextScale";
 
 // The single entry point for design tokens in a component.
@@ -21,14 +22,14 @@ import useTextScale from "./useTextScale";
 const useTokens = () => {
   const { theme } = useTheme();
   const { width, fontScale } = useWindowDimensions();
-  const textMultiplier = useTextScale();
+  const { app: textMultiplier, max: textScaleMax } = useTextScale();
   // A subtree can be scoped to one screen's colours (see ScreenRolesProvider).
   // Outside a provider this is null and `c` is the semantic layer untouched, so
   // every existing caller is unaffected.
   const screen = useScreenRolesScope();
 
   return useMemo(() => {
-    const combinedFontScale = Math.min(2.0, textMultiplier * (fontScale || 1));
+    const combinedFontScale = effectiveTextScale(textMultiplier, fontScale, textScaleMax);
     const { scale, space, layout } = resolveTokens({
       space: theme.space,
       layout: theme.layout,
@@ -57,7 +58,7 @@ const useTokens = () => {
       /** Escape hatch for the deprecated maps, during migration only. */
       theme,
     };
-  }, [theme, width, fontScale, textMultiplier, screen]);
+  }, [theme, width, fontScale, textMultiplier, textScaleMax, screen]);
 };
 
 export default useTokens;

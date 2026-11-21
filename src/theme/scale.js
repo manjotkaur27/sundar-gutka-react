@@ -25,7 +25,21 @@
 
 /** The font scale range the layout is designed to absorb. */
 export const FONT_SCALE_MIN = 0.85;
-export const FONT_SCALE_MAX = 2.0;
+/**
+ * The most text may grow, from the OS setting and the app's Font Size together
+ * (see common/textScale.js). One ceiling for both, so turning both up never
+ * makes text bigger than either could on its own.
+ */
+export const FONT_SCALE_MAX = 1.5;
+/**
+ * The ceiling for bars that cannot grow: the bottom navigation, the Home
+ * masthead and the player's pill row. Their width is fixed by the screen, so
+ * past this a label breaks mid-word instead of fitting. Apple handles its own
+ * tab bars and toolbars the same way (they hold a size rather than scale).
+ * 1.15 is the largest at which all three still fit on a 308dp screen (the
+ * pill row is the tightest), checked in English, Hindi and Spanish.
+ */
+export const CHROME_SCALE_MAX = 1.15;
 
 /** Spacing moves at half the rate of text. */
 const SPACE_DAMPING = 0.5;
@@ -56,7 +70,7 @@ export const resolveScale = ({ width, fontScale }) => {
   const breakpoint = breakpointFor(width || BREAKPOINTS.regular);
   return {
     breakpoint,
-    /** Clamped OS text scale. Passed to Text as `maxFontSizeMultiplier`. */
+    /** The scale text is drawn at: the app's Font Size and the OS setting, each capped. */
     fontScale: font,
     /** Damped, width-adjusted multiplier for padding, margin and gaps. */
     space: (1 + (font - 1) * SPACE_DAMPING) * WIDTH_FACTOR[breakpoint],

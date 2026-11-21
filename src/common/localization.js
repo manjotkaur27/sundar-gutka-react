@@ -2766,7 +2766,7 @@ const STRINGS = new LocalizedStrings({
     HOME: "Inicio",
     READ: "Leer",
     MUSIC: "Audios",
-    SETTINGS: "Configuración",
+    SETTINGS: "Ajustes",
     DASHBOARD: "Tablero",
     SEVA: "Seva",
     ALL_BANIS: "Todas las Banis",

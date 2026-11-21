@@ -104,7 +104,6 @@ jest.mock("@common", () => {
     },
   });
   return {
-    constant: require("../common/constant").default,
     SafeArea: (props) => <View {...props} />,
     StatusBarComponent: () => null,
     GradientDivider: () => null,

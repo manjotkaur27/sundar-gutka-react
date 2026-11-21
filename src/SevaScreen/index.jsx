@@ -17,7 +17,6 @@ import { FONT_SCALE_MAX } from "@theme/scale";
 import { paletteFor, themeForScreen } from "@theme/screenPalettes";
 import PropTypes from "prop-types";
 import { ScreenHeader, Spinner } from "@common/components/ui";
-import useTokens from "@common/hooks/useTokens";
 import {
   SafeArea,
   StatusBarComponent,
@@ -142,9 +141,7 @@ const SevaScreen = () => {
   const styles = useThemedStyles(createStyles);
   // The app-wide themed scrollbar, not the unthemed native one.
   const { scrollViewProps, Indicator } = useCustomScrollbar();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { scale } = useTokens();
-  const { fontScale } = scale;
+  const { width: screenWidth, height: screenHeight, fontScale } = useWindowDimensions();
   // Past this the frequency pair stops sharing a line — see the control below
   // and `frequencyContainerStacked`. The same threshold the shared list Row
   // uses for its own title/value pair, so the two read alike at a given size.

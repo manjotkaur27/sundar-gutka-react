@@ -1,6 +1,8 @@
 import React from "react";
 import { Pressable, View } from "react-native";
+import { CHROME_SCALE_MAX } from "@theme/scale";
 import PropTypes from "prop-types";
+import { TextScaleLimit } from "@common/context/TextScaleContext";
 import { CustomText } from "@common";
 import { audioControlBarStyles } from "../style";
 import { useAudioTheme, useAudioThemedStyles } from "../useAudioTheme";
@@ -46,9 +48,13 @@ const ActionComponents = ({ selector, toggle, Icon, text }) => {
         <View style={styles.actionButtonIconContainer}>
           <Icon size={20} color={iconColor} />
         </View>
-        <CustomText numberOfLines={2} style={[styles.actionButtonText, { color: labelColor }]}>
-          {text}
-        </CustomText>
+        {/* The pills share a fixed-height bar with the player's controls, so
+            their labels stop growing at the chrome ceiling. */}
+        <TextScaleLimit max={CHROME_SCALE_MAX}>
+          <CustomText numberOfLines={2} style={[styles.actionButtonText, { color: labelColor }]}>
+            {text}
+          </CustomText>
+        </TextScaleLimit>
       </View>
     </Pressable>
   );
